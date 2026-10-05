@@ -1,0 +1,10 @@
+scheduled 3
+one-shot
+tick 1
+Unhandled exception. InvalidOperationException: bad job 1
+   at lambda in t09_scheduler.cs:line 11
+tick 2
+Unhandled exception. InvalidOperationException: bad job 2
+   at lambda in t09_scheduler.cs:line 11
+tick 3
+cancelled, active 0

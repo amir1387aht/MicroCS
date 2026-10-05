@@ -1,0 +1,34 @@
+ArgumentOutOfRangeException: Specified argument was out of the range of valid values. (Parameter 'ch')
+done -1
+value 200
+done 2
+filtered sensor 5 not present code=45
+done 5
+Attempted to divide by zero.
+NRE
+Index was outside the bounds of the array. (index 5, length 2)
+bad cast
+format: The input string '12x' was not in a correct format.
+stack overflow caught, deep: True
+outer <- inner
+inner finally
+rethrown t
+catch-all
+rethrow kept: x
+finally runs before return
+try
+open uart
+using body
+close uart
+open i2c
+True
+SensorException: boom
+loop 0
+fin 0
+fin 1
+loop 2
+fin 2
+close i2c
+Unhandled exception. SensorException: unhandled at end
+   at Main in t04_exceptions.cs:line 74
+   at <main> in t04_exceptions.cs:line 32

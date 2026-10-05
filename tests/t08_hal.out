@@ -1,0 +1,12 @@
+board sim gpio=True can=False
+led True button True
+led True
+uart avail 4 -> ping
+uart bytes 2 65 66
+temp 25.00 C
+eeprom 789
+nack: I2C.Read: no device (-4)
+spi 1,2,3
+adc 868 bits 12
+duty rejected
+GPIO.Write: not supported

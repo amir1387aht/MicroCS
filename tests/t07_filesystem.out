@@ -1,0 +1,16 @@
+rate -> 10
+name -> probe
+mode -> fast
+True False 28
+4 255
+file /logs/raw.bin
+dir /logs/2024
+False 28
+FNF: Could not find file '/nope.txt'.
+DNF: Could not find a part of the path '/nodir'.
+IO: True
+exists: The file '/logs/moved.txt' already exists.
+True
+quota: no space left: '/big.txt'
+False /config.txt,/escape.txt,/big.txt
+/scripts/app.cs c.mcsb .gz /a/b /a/c

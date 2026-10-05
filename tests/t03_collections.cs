@@ -1,0 +1,84 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+var nums = new List<int> { 5, 3, 8, 1, 9, 2 };
+Console.WriteLine(string.Join(",", nums));
+nums.Sort();
+Console.WriteLine(string.Join(",", nums));
+Console.WriteLine(nums.Count + " " + nums.Sum() + " " + nums.Max() + " " + nums.Min() + " " + nums.Average());
+var evens = nums.Where(n => n % 2 == 0).Select(n => n * 10).ToList();
+Console.WriteLine(string.Join(" ", evens));
+Console.WriteLine(nums.Any(n => n > 8) + " " + nums.All(n => n > 0) + " " + nums.Count(n => n > 4));
+Console.WriteLine(nums.First() + " " + nums.Last() + " " + nums.FirstOrDefault(n => n > 100));
+Console.WriteLine(string.Join(",", nums.OrderByDescending(n => n).Take(3)));
+Console.WriteLine(string.Join(",", nums.Skip(2).Take(2)));
+Console.WriteLine(nums.Aggregate((a, b) => a * b));
+Console.WriteLine(nums.IndexOf(8) + " " + nums.Contains(3) + " " + nums.Contains(4));
+nums.Insert(0, 100); nums.Remove(9); nums.RemoveAt(1);
+Console.WriteLine(string.Join(",", nums));
+nums.RemoveAll(n => n > 50);
+Console.WriteLine(string.Join(",", nums));
+Console.WriteLine(string.Join(",", Enumerable.Range(1, 5).Select(i => i * i)));
+
+int[] arr = new int[5];
+for (int i = 0; i < arr.Length; i++) arr[i] = (i * 7) % 5;
+Console.WriteLine(string.Join(",", arr));
+Array.Sort(arr);
+Console.WriteLine(string.Join(",", arr) + " len=" + arr.Length);
+int[] lit = { 3, 1, 2 };
+Array.Reverse(lit);
+Console.WriteLine(lit[0] + "" + lit[1] + lit[2]);
+string[] words = { "pear", "apple", "fig", "banana" };
+Console.WriteLine(string.Join(" ", words.OrderBy(w => w.Length).ThenBy(w => w)));
+var groups = words.GroupBy(w => w.Length);
+foreach (var g in groups) Console.WriteLine(g.Key + ": " + string.Join("/", g.Value));
+
+var dict = new Dictionary<string, int>();
+dict["one"] = 1; dict["two"] = 2; dict.Add("three", 3);
+Console.WriteLine(dict.Count + " " + dict["two"] + " " + dict.ContainsKey("one") + " " + dict.ContainsKey("four"));
+foreach (var kv in dict) Console.WriteLine(kv.Key + "=" + kv.Value);
+dict.Remove("one");
+Console.WriteLine(string.Join(",", dict.Keys) + " | " + string.Join(",", dict.Values));
+Console.WriteLine(dict.GetValueOrDefault("zzz", -1));
+try { var x = dict["nope"]; } catch (KeyNotFoundException e) { Console.WriteLine("KeyNotFound"); }
+var ages = new Dictionary<string, int> { ["bob"] = 30, ["amy"] = 25 };
+Console.WriteLine(ages.Where(p => p.Value > 26).Select(p => p.Key).First());
+
+var set = new HashSet<int> { 1, 2, 2, 3 };
+set.Add(3); set.Add(4);
+Console.WriteLine(set.Count + " " + set.Contains(2));
+var st = new Stack<string>();
+st.Push("a"); st.Push("b"); st.Push("c");
+Console.WriteLine(st.Pop() + st.Peek() + st.Count);
+var q = new Queue<int>();
+q.Enqueue(1); q.Enqueue(2); q.Enqueue(3);
+Console.WriteLine(q.Dequeue() + " " + q.Peek() + " " + q.Count);
+
+string s = "  Hello, Embedded World!  ";
+string t = s.Trim();
+Console.WriteLine("[" + t + "] " + t.Length);
+Console.WriteLine(t.ToUpper() + " " + t.ToLower());
+Console.WriteLine(t.Substring(7) + "|" + t.Substring(0, 5) + "|" + t.IndexOf("World") + "|" + t.Contains("Emb"));
+Console.WriteLine(t.Replace("World", "MCU") + " " + t.StartsWith("Hell") + " " + t.EndsWith("!"));
+var parts = "a,b,,c".Split(',');
+Console.WriteLine(parts.Length + " " + string.Join("|", parts));
+Console.WriteLine("42".PadLeft(5, '0') + " " + "x".PadRight(3) + "|");
+Console.WriteLine(string.Format("{0} + {1} = {2}", 2, 3, 2 + 3));
+Console.WriteLine($"{3.14159:F2} {255:X} {255:x4} {7,4}|{"l",-3}|{0.256:P1} {1234567:N0}");
+Console.WriteLine(string.IsNullOrEmpty("") + " " + string.IsNullOrWhiteSpace("  ") + " " + "abc".CompareTo("abd"));
+char[] cs = "hello".ToCharArray();
+Array.Reverse(cs);
+Console.WriteLine(new string(cs));
+Console.WriteLine("hello"[1] + " " + (int)'A' + " " + (char)66 + " " + char.IsDigit('7'));
+foreach (char ch in "abc") Console.Write(char.ToUpper(ch));
+Console.WriteLine();
+
+var sb = new StringBuilder();
+for (int i = 0; i < 5; i++) sb.Append(i).Append(';');
+sb.AppendLine("end");
+sb.Insert(0, ">");
+Console.Write(sb.ToString());
+Console.WriteLine(sb.Length);
+Console.WriteLine(int.Parse("123") + 1 + " " + double.Parse("2.5") * 2 + " " + Convert.ToInt32("ff", 16));

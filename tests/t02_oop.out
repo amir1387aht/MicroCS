@@ -1,0 +1,32 @@
+Circle with area 3.14
+[Rect with area 6.00]
+[Square with area 16.00]
+3
+Shape(Circle)
+Rect 6
+True
+True
+False
+rect w=2
+1
+-1
+(11, 22)
+True
+False
+22
+6
+True
+blue
+8 2
+caught: negative
+42 1.0
+0 1 6
+Hello, world! Hello, C#! Hello, MCU?
+b
+123
+6
+Ada (36)
+Person
+True
+Int32
+big int

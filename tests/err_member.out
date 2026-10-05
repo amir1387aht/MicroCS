@@ -1,0 +1,2 @@
+Unhandled exception. MissingMemberException: 'A' does not contain a definition for 'G'
+   at <main> in err_member.cs:line 2
