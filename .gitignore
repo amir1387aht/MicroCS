@@ -1,0 +1,9 @@
+build/
+/mcs
+*.o
+*.mcsb
+*.elf
+*.map
+__pycache__/
+*.pyc
+.DS_Store
