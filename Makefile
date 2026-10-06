@@ -21,9 +21,10 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules
+test: mcs build/test_modules build/test_flash
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
+	./build/test_flash
 	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_shell.py ./mcs; else echo "SKIP shell tests (no python3)"; fi
 	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }
 	@./mcs --sim --run-for 600 examples/blink.cs > /dev/null && echo "PASS examples/blink.cs (smoke)" || { echo "FAIL examples/blink.cs"; exit 1; }
@@ -34,6 +35,8 @@ test: mcs build/test_modules
 
 build/test_modules: tests/c/test_modules.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_modules.c -o $@ $(LDLIBS)
+build/test_flash: tests/c/test_flash.c tests/c/flash_sim.h $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) tests/c/test_flash.c -o $@ $(LDLIBS)
 
 # Full verification: tests, GC torture, every feature-flag combination
 FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
@@ -44,10 +47,17 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_mcu.h\"" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_linux.h\"" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_lowram.h\"" "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_LINQ=0" \
-	"-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16 -DMCS_POOL_ALIGN=16 -DMCS_ERROR_SIZE=64"
+	"-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16 -DMCS_POOL_ALIGN=16 -DMCS_ERROR_SIZE=64" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_min.h\"" "-DMCS_LAZY_CLASSES=0" \
+	"-DMCS_ENABLE_STRING_EXTRA=0 -DMCS_ENABLE_ARRAY_EXTRA=0 -DMCS_ENABLE_STACK_QUEUE=0" \
+	"-DMCS_ENABLE_CONVERT=0 -DMCS_ENABLE_DIAGNOSTICS=0" "-DMCS_ENABLE_STDIO=0 -DMCS_ENABLE_MALLOC=0 -DMCS_TINY_PRINTF=1" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=16 -DMCS_TARGET_FLASH_KB=64" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=64 -DMCS_PORT_HAL=1" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DSTM32F072xB -DMCS_PORT_HAL=1"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
-	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16"
+	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
+	"-DMCS_LAZY_CLASSES=0" "-DMCS_LAZY_REGS=0" "-DMCS_TINY_PRINTF=1"
 check: test
 	@echo "== GC stress"; $(CC) -std=gnu99 -O1 -Iinclude -DMCS_GC_STRESS=1 $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_gc && \
 	cd tests && for t in t*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
@@ -106,9 +116,10 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench lfs-test
+.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench lfs-test yaffs-test
 
-# LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party)
+# LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
+# RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
 LFS_DIR = build/third_party/littlefs-2.9.3
 $(LFS_DIR)/lfs.c:
 	mkdir -p build/third_party && curl -sSL https://github.com/littlefs-project/littlefs/archive/refs/tags/v2.9.3.tar.gz | tar xz -C build/third_party
@@ -116,6 +127,29 @@ lfs-test: $(LFS_DIR)/lfs.c
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Iinclude -I$(LFS_DIR) -DMCS_ENABLE_LFS=1 -DLFS_NO_DEBUG -DLFS_NO_WARN -DLFS_NO_ERROR \
 	  $(SRC) $(MOD_SRC) $(LFS_DIR)/lfs.c $(LFS_DIR)/lfs_util.c tests/c/test_lfs.c -lm -o build/test_lfs
 	./build/test_lfs
+
+# YAFFS2 backend test (downloads a pinned yaffs2 revision, GPLv2, into build/third_party; only the
+# test binary links it): YAFFS2 on the simulated SPI NAND (in-band and spare-area tags) and SPI NOR
+YAFFS_REV = 474b3acb927d27b2305618aaf24456b9d33fe91b
+YAFFS_DIR = build/third_party/yaffs2-$(YAFFS_REV)
+YAFFS_CORE = yaffs_ecc yaffs_cache yaffs_guts yaffs_tagscompat yaffs_tagsmarshall yaffs_packedtags1 \
+	yaffs_packedtags2 yaffs_nand yaffs_checkptrw yaffs_nameval yaffs_allocator yaffs_yaffs1 yaffs_yaffs2 \
+	yaffs_bitmap yaffs_endian yaffs_verify yaffs_summary
+YAFFS_DEFS = -DCONFIG_YAFFS_DIRECT -DCONFIG_YAFFS_YAFFS2 -DCONFIG_YAFFS_DEFINES_TYPES \
+	-DCONFIG_YAFFS_PROVIDE_DEFS -DCONFIG_YAFFSFS_PROVIDE_VALUES
+$(YAFFS_DIR)/direct/yaffs_guts.c:
+	mkdir -p build/third_party && curl -sSL https://github.com/Aleph-One-Ltd/yaffs2/archive/$(YAFFS_REV).tar.gz | tar xz -C build/third_party
+	cd $(YAFFS_DIR)/direct && for f in $(YAFFS_CORE); do for e in c h; do \
+	  sed -e 's/strcat/yaffs_strcat/g' -e 's/strcpy/yaffs_strcpy/g' -e 's/strncpy/yaffs_strncpy/g' -e 's/strnlen/yaffs_strnlen/g' \
+	      -e 's/strcmp/yaffs_strcmp/g' -e 's/strncmp/yaffs_strncmp/g' -e 's/loff_t/Y_LOFF_T/g' ../core/$$f.$$e > $$f.$$e; \
+	  done; done; for h in yaffs_getblockinfo yaffs_trace yaffs_attribs; do \
+	  sed -e 's/loff_t/Y_LOFF_T/g' ../core/$$h.h > $$h.h; done
+yaffs-test: $(YAFFS_DIR)/direct/yaffs_guts.c
+	$(CC) -std=gnu99 -O1 -w -Iinclude -I$(YAFFS_DIR)/direct $(YAFFS_DEFS) -DMCS_ENABLE_YAFFS=1 -DMCS_YAFFS_OSGLUE=1 \
+	  $(SRC) $(MOD_SRC) $(addprefix $(YAFFS_DIR)/direct/,$(addsuffix .c,$(YAFFS_CORE))) \
+	  $(YAFFS_DIR)/direct/yaffsfs.c $(YAFFS_DIR)/direct/yaffs_attribs.c $(YAFFS_DIR)/direct/yaffs_error.c \
+	  $(YAFFS_DIR)/direct/yaffs_hweight.c tests/c/test_yaffs.c -lm -o build/test_yaffs
+	./build/test_yaffs
 
 # host benchmark: VM startup / compile / source run / image run, best of 5
 bench: $(OBJ)

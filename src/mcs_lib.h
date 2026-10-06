@@ -41,7 +41,12 @@ bool lib_equals(mcs_vm_t* vm, mcs_value_t a, mcs_value_t b);
 mcs_class_t* lib_global_class(mcs_vm_t* vm, const char* name);
 uint32_t lib_ticks(mcs_vm_t* vm);
 
-/* per-area initialisers */
-void mcs_lib_open_string(mcs_vm_t* vm, uint8_t mask);
-void mcs_lib_open_collections(mcs_vm_t* vm, uint8_t mask);
+/* Built-in globals of one library area: name -> maker id, needed MCS_LIB_* bit.
+ * The maker builds the class (and its aliases) when the name is first used. */
+typedef struct { const char* name; uint8_t id; uint8_t mask; } mcs_lib_entry_t;
+extern const mcs_lib_entry_t mcs_lib_str_entries[];
+extern const mcs_lib_entry_t mcs_lib_coll_entries[];
+void mcs_lib_str_make(mcs_vm_t* vm, int id);
+void mcs_lib_coll_make(mcs_vm_t* vm, int id);
+void lib_set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value_t v);
 #endif

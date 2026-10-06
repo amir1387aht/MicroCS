@@ -10,8 +10,8 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.4.0-8b5cf6?style=flat-square)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-52%20script%20runs%20·%20141%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
+[![Version](https://img.shields.io/badge/version-1.5.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-52%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
 
@@ -133,7 +133,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.4.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.5.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -219,21 +219,24 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | add as a west module, `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.4.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.5.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
 (Cube HAL handles, ESP-IDF drivers, pico-sdk `hardware_*`, Zephyr devices) — it never ships
 its own register definitions, so it follows whatever chip variant and clock setup you
 configured. Tuning is done with `-D` flags or one config header
-([`mcs_config.h`](include/mcs_config.h), 5 [profiles](include/profiles/)).
+([`mcs_config.h`](include/mcs_config.h), 7 [profiles](include/profiles/)). The `auto`
+profile picks the right one from the target's RAM and flash size — CMake `MICROCS_RAM_KB` /
+`MICROCS_FLASH_KB`, Zephyr's `CONFIG_SRAM_SIZE`, or the STM32/RP2/nRF52/SAMD device macro;
+it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 
 ## 🎯 Supported targets
 
 | Target | Port | Verified in CI |
 |---|---|---|
-| **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family |
-| **ESP32** · S2 · S3 · C3 · C6 · H2 · P4 (no Wi-Fi/BLE needed) | [`ports/esp32`](ports/esp32) | example firmware built with ESP-IDF 5.3 for ESP32, S3, C3, C6 |
+| **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile |
+| **ESP32** · S2 · S3 · C2 · C3 · C6 · H2 · P4 (no Wi-Fi/BLE needed) | [`ports/esp32`](ports/esp32) | example firmware built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W…) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico` and `pico2` |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, …) | [`ports/zephyr`](ports/zephyr) | beta |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | beta |
@@ -249,7 +252,7 @@ configured. Tuning is done with `-D` flags or one config header
 | Compile on the device + REPL | ✅ both | ✅ both | ❌ compiled on the PC, no REPL |
 | Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
 | Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
-| Minimum footprint | ~145–215 KB flash, VM starts in 13–25 KB heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
+| Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
 | Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
@@ -346,16 +349,16 @@ Output is **byte-identical to .NET 8** for every program in the test suite
 <td width="33%" valign="top">
 
 ### 🪶 Small & portable
-One C99 library, no dependencies. Pool allocator included, feature flags and 5 build
-profiles. A VM starts in ~25 KB of heap (13 KB trimmed); bytecode can run straight from
-flash.
+One C99 library, no dependencies. Pool allocator included, feature flags and 7 build
+profiles (`auto` sizes itself to the chip). Runs in **16 KB of RAM and 64 KB of flash**; a VM
+starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 </td>
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS), a
-job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
+14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
+YAFFS2 on SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
 
 </td>
 </tr>
@@ -387,24 +390,17 @@ working version.
 
 ## 🏗️ Architecture
 
-```mermaid
-flowchart LR
-    SRC["C# source<br/>.cs"] --> LEX[lexer] --> PAR["parser<br/>(AST arena)"] --> CMP["compiler<br/>(single pass)"]
-    IMG[".mcsb image<br/>flash / file"] --> LOAD["loader +<br/>validator"]
-    CMP --> FN(("bytecode<br/>functions"))
-    LOAD --> FN
-    FN --> VM["stack VM<br/>computed goto"]
-    VM <--> GC["mark & sweep GC<br/>pool heap"]
-    VM <--> LIB["stdlib natives<br/>Console · Math · string<br/>List · Dictionary · LINQ"]
-    VM <--> MOD["modules<br/>fs · hal · sched · shell · runtime"]
-    MOD <--> PORT["ports<br/>STM32 · ESP32 · RP2 · Zephyr · Arduino"]
-    PORT <--> SDK["your SDK drivers"]
-    classDef opt stroke-dasharray: 4 3
-    class LEX,PAR,CMP opt
-```
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
+  <img alt="Architecture: C# source → lexer → parser → compiler → bytecode functions (or .mcsb image → loader + validator) → stack VM, which talks to the GC, the stdlib natives and the modules; modules talk to the ports (and your SDK drivers) and the optional flash filesystems" src="assets/architecture-light.svg" width="900">
+</picture>
+</p>
 
-The compiler (dashed) is optional: ship only the VM and load precompiled images to save
-~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+
+Dashed boxes are optional: ship only the VM and load precompiled images to save
+~44 KB of flash and the compile-time RAM; the flash filesystems are only compiled when you
+enable them. Diagram source: [`assets/architecture.mmd`](assets/architecture.mmd). Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
 ## 📊 Performance & footprint
@@ -412,19 +408,22 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 <p align="center"><img src="assets/bench.svg" alt="Benchmark: MicroCS vs CPython 3.13" width="720"></p>
 <p align="center"><img src="assets/footprint.svg" alt="Flash by component on Cortex-M33" width="720"></p>
 
-| Cortex-M (gcc 13.2 `-Os`) | Flash `.text` | Heap after `mcs_new` | Demo as image | Demo from source |
-|---|---:|---:|---:|---:|
-| **M0**, runtime only (no compiler) | 167.6 KB | 25.1 KB | 4.56 M instr · 63.5 KB peak | — |
-| **M0**, `lowram` profile, 40 KB pool | 158.5 KB | 19.9 KB | 4.59 M instr · 33.3 KB peak | — |
-| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 144.1 KB | 13.0 KB | 1.28 M instr · 27.4 KB peak | — |
-| **M4F**, full | 213.5 KB | 25.3 KB | 3.47 M instr | 4.32 M instr · 88.4 KB peak |
-| **M33**, full (+ shell 216.5 KB) | 213.4 KB | 25.3 KB | 3.47 M instr | 4.32 M instr |
+| Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
+|---|---:|---:|---:|---:|---:|
+| **M0**, runtime only (no compiler) | 197.6 KB | 128 KB part | 7.8 KB | 4.54 M instr · 38.0 KB peak | — |
+| **M0**, `lowram` profile, 40 KB pool | 185.7 KB | 64 KB part | 5.0 KB | 4.49 M instr · 30.0 KB peak | — |
+| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 146.7 KB | 48 KB part | 1.7 KB | 1.04 M instr · 14.3 KB peak | — |
+| **M0**, same node in **16 KB RAM** (`m0-16k`), 12 KB pool | 146.7 KB | 16 KB | 1.7 KB | 1.03 M instr · 11.2 KB peak | — |
+| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **60.9 KB** | 16 KB | 1.7 KB | 0.93 M instr · 11.0 KB peak | — |
+| **M4F**, full | 242.0 KB | 192 KB part | 7.9 KB | 3.44 M instr | 4.41 M instr · 71.8 KB peak |
+| **M33**, full (+ shell 248.1 KB) | 241.9 KB | 288 KB part | 7.9 KB | 3.44 M instr | 4.41 M instr |
 
 > [!NOTE]
 > Instruction counts and memory peaks are measured by `make cm-check`. 1 KB = 1024 B. Flash
-> includes newlib + libm (~49 KB) and the optional modules. Method and raw data:
-> [PERFORMANCE.md](docs/PERFORMANCE.md). For 32–64 KB RAM parts see
-> [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) and the 48 KB-RAM firmware in [examples/lowram](examples/lowram/).
+> includes newlib + libm (~49 KB; the `min` build uses the built-in tiny printf and no libm)
+> and the optional modules. Method and raw data: [PERFORMANCE.md](docs/PERFORMANCE.md). For
+> 16–64 KB RAM parts see [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) and the firmware in
+> [examples/lowram](examples/lowram/).
 
 ## 🚦 Status
 
@@ -432,15 +431,16 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 
 | Area | Status | Evidence |
 |---|:---:|---|
-| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 22 feature-flag builds `-Werror`, whole suite under 6 configurations |
+| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 29 feature-flag / profile builds `-Werror`, whole suite under 9 configurations |
+| 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + loader validation, XIP | ✅ | every test runs as source, image **and** XIP image; image fuzzer |
 | Hardware API v2 (14 classes, callbacks, events) | ✅ | `t08_hal`, `t15_hal_v2`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
-| ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C3, C6 |
+| ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
 | Zephyr / Arduino ports | 🧪 | API complete, community testing welcome |
-| LittleFS backend | 🧪 | `make lfs-test` on a RAM block device |
+| Flash filesystems: LittleFS, YAFFS2, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated chips with bad blocks — not yet on real chips |
 | Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
 
 ## 🗺️ Roadmap
@@ -449,9 +449,11 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 - [x] **1.3** — small-MCU release: lowram profile, XIP images, VM baseline 50 → 25 KB
 - [x] **1.4** — hardware API v2 (I²S, QSPI, CAN, DAC, timers, interrupts, watchdog, RTC), REPL runtime,
       STM32 / ESP32 / RP2040 / RP2350 / Zephyr / Arduino ports, CMake / ESP-IDF / PlatformIO / Arduino packaging
+- [x] **1.5** — 16 KB RAM / 64 KB flash (`min` profile, lazy class tables, optional stdlib parts),
+      `auto` profile per MCU, ESP32-C2, LittleFS + YAFFS2 on SPI NOR / NAND
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
-- [ ] LittleFS on internal flash in every port example, USB mass-storage
+- [ ] Flash filesystems on internal flash in every port example, USB mass-storage
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
@@ -462,7 +464,7 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 ```
 include/        public API: MicroCS.h, mcs.h, mcs_hal.h, mcs_runtime.h, config, profiles/
 src/            core: lexer, parser, compiler, bytecode, VM, GC, stdlib
-modules/        optional: fs/ hal/ sched/ shell/ runtime/   (public API only)
+modules/        optional: fs/ (VFS, RAM, POSIX, LittleFS, YAFFS2, SPI NOR/NAND) hal/ sched/ shell/ runtime/
 ports/          stm32 · esp32 · rp2 · zephyr · arduino · cortex-m · unix · template
 examples/       hardware/ scripts, quickstart_embed.c, firmware_example.c, lowram/
 tests/          *.cs with expected .out, C unit tests, protocol tests
@@ -479,5 +481,6 @@ whose output matches .NET (`tools/verify_dotnet.sh`), and docs must describe wha
 
 ## 📄 License
 
-[MIT](LICENSE) © MicroCS contributors. LittleFS (BSD-3-Clause) is not bundled; `make lfs-test`
-downloads it.
+[MIT](LICENSE) © MicroCS contributors. LittleFS (BSD-3-Clause) and YAFFS2 (GPLv2 or
+commercial) are not bundled; `make lfs-test` / `make yaffs-test` download them for the tests.
+Linking YAFFS2 into a firmware puts that firmware under YAFFS2's licence terms.

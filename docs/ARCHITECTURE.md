@@ -1,5 +1,14 @@
 # Architecture
 
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="../assets/architecture-dark.svg">
+  <img alt="MicroCS architecture diagram" src="../assets/architecture-light.svg" width="900">
+</picture>
+</p>
+
+<details><summary>Detailed diagram (Mermaid source)</summary>
+
 ```mermaid
 flowchart TB
     subgraph front["Front end — optional (MCS_ENABLE_COMPILER)"]
@@ -15,6 +24,8 @@ flowchart TB
     VM <--> API["public API include/mcs.h<br/>+ extension slots"]
     API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell] & RT[modules/runtime]
 ```
+
+</details>
 
 ## Core (`src/`)
 * **Lexer → parser → compiler.** The lexer produces a token array on the VM heap; the parser
@@ -63,7 +74,14 @@ flowchart TB
 * **Compiler**: tokens are 24 bytes and AST nodes keep literal payloads in a union; the
   token array grows by the observed token density and is freed after parsing.
 * **Library.** Builtin classes are described by `mcs_reg_t` tables; with `MCS_LAZY_REGS`
-  a class's natives are only materialised on first use. [STDLIB.md](STDLIB.md) is generated
+  a class's natives are only materialised on first use. With `MCS_LAZY_CLASSES` (default)
+  the classes themselves — built-in exceptions, collections, `Math`, and the classes that
+  modules register — are created the first time a script or C code names them: the global
+  slot holds a lazy marker until then, constants live in ROM (`mcs_const_t`,
+  `mcs_register_consts`), and a VM starts in 1.7–8 KB on a 32-bit MCU. Optional parts of the
+  library (`MCS_ENABLE_STRING_EXTRA`, `MCS_ENABLE_ARRAY_EXTRA`, `MCS_ENABLE_STACK_QUEUE`,
+  `MCS_ENABLE_CONVERT`, `MCS_ENABLE_DIAGNOSTICS`, …) are compile-time switches; the `min`
+  profile turns them off to fit 64 KB of flash. [STDLIB.md](STDLIB.md) is generated
   from these tables.
 
 ## Phase 2 core additions (all append-only to `mcs.h`)
@@ -82,7 +100,9 @@ optional at link time. Each one registers C# classes with `mcs_register_module`/
 
 * `fs`: `mcs_vfs_t` mount table (≤4 mounts, longest prefix, RDONLY/NOEXEC flags, path
   normalisation that cannot escape `/`), backends RAM (quota), POSIX (host directory),
-  LittleFS (optional); C# `File`, `Directory`, `Path`. See FILESYSTEM.md.
+  LittleFS and YAFFS2 (optional, not bundled); C# `File`, `Directory`, `Path`. The raw flash
+  layer `mcs_flash_t` (`include/mcs_flash.h`) describes NOR/NAND chips, ships generic SPI
+  NOR / SPI NAND drivers and adapts to `lfs_config` / `yaffs_dev`. See FILESYSTEM.md.
 * `hal`: one `mcs_hal_t` function table per board; NULL entries hide the C# class.
   ISR-safe event ring + callback dispatch at safe points, simulator backend for tests.
   Vendor bindings live in `ports/` (STM32, ESP32, RP2, Zephyr, Arduino). See HAL.md.

@@ -6,6 +6,16 @@
 #include <string.h>
 #include <setjmp.h>
 #include <stdarg.h>
+#if MCS_TINY_PRINTF && !defined(MCS_FMT_IMPL)
+/* route the VM's own snprintf/vsnprintf to src/mcs_fmt.c (no libc printf) */
+#include <stdio.h>
+int mcs_snprintf(char* buf, size_t cap, const char* fmt, ...);
+int mcs_vsnprintf(char* buf, size_t cap, const char* fmt, va_list ap);
+#undef snprintf
+#undef vsnprintf
+#define snprintf mcs_snprintf
+#define vsnprintf mcs_vsnprintf
+#endif
 
 #define MCS_UNUSED(x) (void)(x)
 /* small MCS_ERROR_SIZE values truncate messages on purpose */
@@ -104,6 +114,17 @@ typedef struct mcs_rom {        /* lazily materialized registration table */
     struct mcs_rom* next;
     uint8_t statics;
 } mcs_rom_t;
+
+/* A module / native class registered with mcs_register_module/_class/_consts
+ * while MCS_LAZY_CLASSES is on: only this node exists until a script (or C
+ * code) first names the global, then the class is built (mcs_lazy_resolve). */
+typedef struct mcs_lazy {
+    struct mcs_lazy* next;
+    const mcs_reg_t* regs;           /* static functions / properties */
+    const mcs_class_def_t* def;      /* native class */
+    const mcs_const_t* consts;       /* integer constants */
+    char name[1];                    /* flexible, NUL terminated (copied) */
+} mcs_lazy_t;
 
 typedef struct mcs_class {
     mcs_obj_t obj;
@@ -240,6 +261,7 @@ struct mcs_vm {
     mcs_class_t* cls_kvp;
     mcs_class_t* cls_delegate;
     mcs_class_t* exc[EXC__COUNT];
+    mcs_lazy_t* lazy;           /* pending registrations (MCS_LAZY_CLASSES) */
 
     /* pre-interned names */
     mcs_string_t* s_ctor;
@@ -306,6 +328,7 @@ typedef enum {
 
 extern const uint8_t mcs_op_len[OP__COUNT];
 extern const char* const mcs_op_name[OP__COUNT];
+void* mcs_sys_realloc(void* ud, void* p, size_t old, size_t nsz);
 
 /* conversion kinds for OP_CONV and array defaults */
 enum { CV_INT = 0, CV_FLOAT, CV_CHAR, CV_BYTE, CV_SBYTE, CV_SHORT, CV_USHORT, CV_BOOL, CV_NULL, CV_UINT };
@@ -381,6 +404,7 @@ void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d);
 void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs_value_t def);
 void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);
 void mcs_class_inherit(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);
+void mcs_class_inherit_lazy(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);
 void mcs_class_add_method(mcs_vm_t* vm, mcs_table_t* t, mcs_string_t* name, mcs_value_t fn, bool first);
 
 /* tables */
@@ -444,6 +468,21 @@ uint32_t mcs_fn_add_const(mcs_vm_t* vm, mcs_function_t* fn, mcs_value_t v);
 #if MCS_ENABLE_DISASM
 void mcs_disassemble(mcs_vm_t* vm, mcs_function_t* fn, int depth);
 #endif
+
+/* Built-in classes are created on first use when MCS_LAZY_CLASSES is on, so
+ * C code reads them through these accessors (never NULL afterwards). */
+enum { MCS_CORE_object, MCS_CORE_string, MCS_CORE_int, MCS_CORE_float, MCS_CORE_bool, MCS_CORE_char,
+       MCS_CORE_array, MCS_CORE_list, MCS_CORE_dict, MCS_CORE_kvp, MCS_CORE_delegate, MCS_CORE__COUNT };
+mcs_class_t* mcs_core_class(mcs_vm_t* vm, int which);
+mcs_class_t* mcs_exc_class(mcs_vm_t* vm, int kind);
+#define MCS_CLS(vm, f) ((vm)->cls_##f ? (vm)->cls_##f : mcs_core_class((vm), MCS_CORE_##f))
+#define MCS_EXC(vm, k) ((vm)->exc[k] ? (vm)->exc[k] : mcs_exc_class((vm), (k)))
+/* Defines the built-in or registered global `name` if it is still pending.
+ * Returns true when something was defined. May allocate (and panic on OOM). */
+bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len);
+/* true if `name` is a built-in / registered global that is not created yet */
+bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len);
+void mcs_lazy_free(mcs_vm_t* vm);
 
 /* library (mcs_lib.c) */
 void mcs_open_libs(mcs_vm_t* vm, uint8_t mask);

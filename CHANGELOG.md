@@ -2,6 +2,87 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.5.0 — 16 KB RAM / 64 KB flash, per-MCU configuration, flash filesystems
+
+Focus: run on the smallest 32-bit parts (the same 16 KB RAM floor as MicroPython, but in
+64 KB of flash), configure every port from the chip's resources, and put real filesystems
+on external NOR and NAND flash. Nothing was removed: every reduction is a compile-time switch.
+
+### Small targets
+- **Lazy class tables** (`MCS_LAZY_CLASSES=1`, default): built-in and module classes are created
+  the first time they are named; constants live in ROM (`mcs_const_t`, `MCS_CONST`,
+  `mcs_register_consts`). A VM now starts in **1.7–8 KB** of heap instead of 13–25 KB
+  (Cortex-M0: `m0-node` 13.0 → 1.7 KB, `m0-lowram` 19.9 → 5.0 KB, `m0-runtime` 25.1 → 7.8 KB).
+- **`profiles/mcs_profile_min.h`**: a complete firmware in **64 KB of flash and 16 KB of RAM**
+  (`m0-64k`: 60.9 KB, run by `make cm-check`). New switches, all default on:
+  `MCS_ENABLE_STRING_EXTRA`, `MCS_ENABLE_ARRAY_EXTRA`, `MCS_ENABLE_STACK_QUEUE`,
+  `MCS_ENABLE_CONVERT`, `MCS_ENABLE_DIAGNOSTICS`, `MCS_ENABLE_STDIO`, `MCS_ENABLE_MALLOC`;
+  `MCS_TINY_PRINTF=1` uses the new built-in `snprintf` (`src/mcs_fmt.c`) instead of libc's.
+  Flash cost of each switch: [LOW_RESOURCE.md](docs/LOW_RESOURCE.md#8a-fitting-64-kb-of-flash-profilesmcs_profile_minh).
+- `examples/lowram` runs in a **16 KB** part (`m0-16k`: 12 KB pool, 11.2 KB peak); the firmware
+  no longer needs `printf` and can report its C-stack high-water mark.
+- `lowram` profile: 128 stack slots, 24 frames, 12 handlers, 16 roots.
+- All profile headers are overridable (`#ifndef` guards), so `-D` flags win over a profile.
+- `cfg.alloc_overhead` (+ `MCS_POOL_OVERHEAD`): the GC threshold and `heap_limit` count the
+  allocator's per-block headers (set automatically for the built-in pool).
+
+### Per-MCU configuration
+- **`profiles/mcs_profile_auto.h`** picks min / tiny / lowram / mcu / embedded / default from
+  `MCS_TARGET_RAM_KB` / `MCS_TARGET_FLASH_KB` (CMake `MICROCS_RAM_KB` / `MICROCS_FLASH_KB`),
+  Zephyr `CONFIG_SRAM_SIZE` / `CONFIG_FLASH_SIZE`, or the STM32 / RP2040 / RP2350 / nRF52 /
+  SAMD device macro. Board ports (`MCS_PORT_HAL=1`) keep the HAL classes on parts with
+  ≥ 128 KB of flash. Default for CMake `MICROCS_PORT=stm32` and for Zephyr (new
+  `MICROCS_PROFILE_*` Kconfig choice); ESP-IDF gets a menuconfig choice.
+- **STM32 parts below 16 KB RAM or 64 KB flash are no longer supported**: their device macros
+  (C011/C031/C051, F030x4–x8, F031, F038, F042, F048, F051, F058, F070x6, F100, F101x4–xB,
+  F102, F103x4/x6, F301x6, F302x6, F303x6/x8, F328, F334, G030/G031/G041, L010x4–x8,
+  L011–L063, L100/L151/L152 small variants, U031) stop the build
+  (`include/profiles/mcs_target_stm32.h`; `MCS_ALLOW_SMALL_TARGET=1` overrides).
+- CI compiles every STM32 family twice (default and auto profile, `PORT_CFLAGS`).
+
+### ESP32-C2
+- ESP32-C2 / ESP8684 support: embedded profile by default (`sdkconfig.defaults.esp32c2`),
+  ROM nano-printf disabled (with a `#warning` if it is re-enabled with floats), LEDC clock
+  from the 60 MHz PLL divider, hardware timer count clamped to the chip, adaptive VM heap in
+  the example (128 KB on the C2, clamped to the largest free block), C2 pin map, 26 MHz
+  crystal note. Built in CI.
+
+### Flash filesystems (`modules/fs`)
+- **`include/mcs_flash.h`** (`MCS_ENABLE_FLASH`): a NOR/NAND device description plus generic
+  **SPI NOR** (JEDEC id, 3-/4-byte addressing, 4/64 KB erase, power-up unlock) and **SPI NAND**
+  (W25N-style command set, on-die ECC status, bad-block markers, cached page) drivers, and
+  `mcs_flash_hal_xfer` to run them over a MicroCS HAL SPI bus + GPIO chip select. ~2.6 KB.
+- **LittleFS** on NOR and NAND: `mcs_lfs_flash_config()` fills an `lfs_config` for a
+  partition; NAND bad blocks → `LFS_ERR_CORRUPT` (relocation), failing blocks get marked.
+- **YAFFS2** backend `mcs_yaffs_ops` (`MCS_ENABLE_YAFFS`) + `mcs_yaffs_flash_dev()`: in-band
+  tags on NOR and (by default) NAND, spare-area tags optional, full bad-block handling;
+  optional single-threaded OS glue (`MCS_YAFFS_OSGLUE=1`). YAFFS2 is GPLv2 — not bundled.
+- Tests on simulated chips with real command sets (`tests/c/flash_sim.h`): `make test`
+  (drivers, 42 checks), `make lfs-test` (now also SPI NOR + SPI NAND with bad blocks),
+  new `make yaffs-test` (downloads a pinned yaffs2 revision; NAND in-band + spare tags with a
+  block wearing out, NOR). CI job "Flash filesystems".
+
+### Fixes
+- GC: the string intern table no longer doubles while dead strings are waiting for the next
+  collection (it grows from the live count and defers growth near a collection), and it
+  shrinks after a collection; this removed the collection storm on `m0-lowram`
+  (now 3 collections) and made the 16 KB targets possible.
+- GC: when the live data was close to ¾ of `heap_limit`, the next collection threshold
+  landed at or below the bytes already allocated and the VM collected at every safepoint;
+  it is now placed halfway to the limit. Allocator block headers were not counted, so a
+  small pool could run out before the GC threshold was reached (`cfg.alloc_overhead`).
+- Images: constant tables are allocated at their exact size when loading.
+- `{0:F<huge>}` format precision could overflow an `int`; exponent formatting no longer uses
+  `sprintf` (and cannot truncate).
+- The compiler treated not-yet-created built-in classes as unknown names / interfaces.
+
+### Docs
+- README architecture diagram is now an SVG (light/dark) instead of a Mermaid block that
+  some viewers showed as text; source in `assets/architecture.mmd`.
+- New/updated: LOW_RESOURCE.md (16 KB / 64 KB, switch costs, auto profile), FILESYSTEM.md
+  (flash layer, LittleFS vs YAFFS2), STM32 supported-parts list, ESP32-C2 section, footprint
+  tables re-measured.
+
 ## 1.4.0 — hardware, ports and the REPL
 
 Focus: run MicroCS on real boards with every peripheral, from any build system — either as a

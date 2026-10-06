@@ -390,6 +390,10 @@ static mcs_function_t* read_fn(loader_t* l) {
     }
     uint32_t nk = r32(l);
     if (l->bad || nk > 65536) { l->bad = true; return NULL; }
+    if (nk && need(l, nk)) {   /* exact size: images never add constants later */
+        fn->consts = MCS_ALLOC(vm, mcs_value_t, nk);
+        fn->const_cap = nk;
+    }
     for (uint32_t i = 0; i < nk && !l->bad; i++) {
         mcs_value_t v = mcs_null();
         switch (r8(l)) {

@@ -18,7 +18,10 @@
  *
  * C# pin numbers are GPIO numbers ("GPIO5", "IO5" and "5" all work).
  * ADC.Read(n) takes the GPIO number of an ADC-capable pin, and ReadMillivolts()
- * uses the chip's eFuse calibration. DAC exists on ESP32 / ESP32-S2 only.
+ * uses the chip's eFuse calibration. DAC exists on ESP32 / ESP32-S2 only;
+ * I2S and TWAI (CAN) are compiled only where the chip has them (not on the
+ * ESP32-C2, which has 2 UARTs, 1 I2C bus, 1 SPI bus, 6 LEDC channels and one
+ * gptimer).
  * Interrupts go through a FreeRTOS queue, so they are safe on dual-core chips.
  */
 #ifndef MCS_PORT_ESP32_H
@@ -43,7 +46,8 @@ extern "C" {
 #define MCS_ESP32_PWM_CHANNELS 8    /* LEDC channels; 0-3 have their own timer, 4-7 share 0-3 */
 #endif
 #ifndef MCS_ESP32_TIMERS
-#define MCS_ESP32_TIMERS 4          /* gptimer instances for Timer.Start */
+#define MCS_ESP32_TIMERS 4          /* gptimer instances for Timer.Start (capped at the chip's
+                                       count: 2 on C3/C6/H2, 1 on C2) */
 #endif
 #ifndef MCS_ESP32_UART_RXBUF
 #define MCS_ESP32_UART_RXBUF 1024

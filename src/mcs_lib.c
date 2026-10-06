@@ -2,6 +2,10 @@
  * Object, Type, exceptions, primitive types, Console, Convert, Math,
  * Environment, Thread, GC, Random, Stopwatch, Debug, Delegate.          */
 #include "mcs_lib.h"
+#if (!MCS_ENABLE_CONVERT || !MCS_ENABLE_DIAGNOSTICS) && defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-const-variable"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -13,8 +17,10 @@
 mcs_class_t* mcs_define_builtin_class(mcs_vm_t* vm, const char* name, mcs_class_t* super, uint8_t ckind) {
     vm->gc_pause++;
     mcs_class_t* c = mcs_new_class(vm, mcs_intern_c(vm, name), ckind);
-    if (super) mcs_class_inherit(vm, c, super);
-    { uint32_t gs_ = mcs_global_slot(vm, c->name); vm->globals[gs_] = OBJ_VAL(c); }
+    if (super) mcs_class_inherit_lazy(vm, c, super);
+    /* a class created on demand never replaces a global the script already
+     * defined with the same name (e.g. its own `class Stack`) */
+    { uint32_t gs_ = mcs_global_slot(vm, c->name); if (vm->globals[gs_].type == MCS_T_UNDEF) vm->globals[gs_] = OBJ_VAL(c); }
     vm->gc_pause--;
     return c;
 }
@@ -53,28 +59,81 @@ mcs_class_t* lib_global_class(mcs_vm_t* vm, const char* name) {
     return IS_KIND(g, MCS_O_CLASS) ? AS_CLASS(g) : NULL;
 }
 
+/* the class bound to `name` right now (does not create pending classes) */
+static mcs_class_t* peek_global_class(mcs_vm_t* vm, const char* name) {
+    mcs_string_t* s = mcs_find_interned(vm, name, strlen(name));
+    if (!s || !s->obj.aux) return NULL;
+    mcs_value_t g = vm->globals[s->obj.aux - 1u];
+    return IS_KIND(g, MCS_O_CLASS) ? AS_CLASS(g) : NULL;
+}
+
 static mcs_class_t* module_for(mcs_vm_t* vm, const char* name) {
-    mcs_class_t* c = lib_global_class(vm, name);
+    mcs_class_t* c = peek_global_class(vm, name);
     if (!c) c = mcs_define_builtin_class(vm, name, NULL, CLS_STATIC);
     return c;
 }
 
+static void add_consts(mcs_vm_t* vm, mcs_class_t* c, const mcs_const_t* k) {
+    vm->gc_pause++;
+    for (; k && k->name; k++) mcs_table_set(vm, &c->statics, lib_cstr(vm, k->name), mcs_int(k->value));
+    vm->gc_pause--;
+}
+static void define_native_class(mcs_vm_t* vm, const mcs_class_def_t* def) {
+    mcs_class_t* c = mcs_define_builtin_class(vm, def->name, MCS_CLS(vm, object), CLS_USERDATA);
+    c->def = def;
+    mcs_add_regs(vm, c, def->members, false);
+    mcs_add_regs(vm, c, def->statics, true);
+}
+
+#if MCS_LAZY_CLASSES
+/* name already bound to a value (script or C) or to a pending registration */
+static bool global_defined(mcs_vm_t* vm, const char* name) {
+    mcs_string_t* s = mcs_find_interned(vm, name, strlen(name));
+    return s && s->obj.aux && vm->globals[s->obj.aux - 1u].type != MCS_T_UNDEF;
+}
+/* queue a registration; it is applied when the name is first resolved */
+static bool lazy_add(mcs_vm_t* vm, const char* name, const mcs_reg_t* regs, const mcs_class_def_t* def, const mcs_const_t* k) {
+    if (global_defined(vm, name)) return false;   /* exists: extend it now */
+    size_t n = strlen(name);
+    mcs_lazy_t* z = (mcs_lazy_t*)mcs_realloc(vm, NULL, 0, sizeof(mcs_lazy_t) + n);
+    z->next = NULL; z->regs = regs; z->def = def; z->consts = k;
+    memcpy(z->name, name, n + 1);
+    mcs_lazy_t** pp = &vm->lazy;            /* append: keeps registration order */
+    while (*pp) pp = &(*pp)->next;
+    *pp = z;
+    return true;
+}
+#endif
+
 void mcs_register_module(mcs_vm_t* vm, const char* name, const mcs_reg_t* fns) {
+#if MCS_LAZY_CLASSES && MCS_LAZY_REGS
+    if (lazy_add(vm, name, fns, NULL, NULL)) return;
+#endif
     mcs_add_regs(vm, module_for(vm, name), fns, true);
+}
+
+void mcs_register_consts(mcs_vm_t* vm, const char* name, const mcs_const_t* consts) {
+#if MCS_LAZY_CLASSES
+    if (lazy_add(vm, name, NULL, NULL, consts)) return;
+#endif
+    add_consts(vm, module_for(vm, name), consts);
 }
 
 void mcs_module_set(mcs_vm_t* vm, const char* module, const char* name, mcs_value_t v) {
     vm->gc_pause++;
+#if MCS_LAZY_CLASSES
+    if (!peek_global_class(vm, module)) mcs_lazy_resolve(vm, module, strlen(module));   /* apply pending registrations first */
+#endif
     mcs_class_t* c = module_for(vm, module);
     mcs_table_set(vm, &c->statics, OBJ_VAL(mcs_intern_c(vm, name)), v);
     vm->gc_pause--;
 }
 
 void mcs_register_class(mcs_vm_t* vm, const mcs_class_def_t* def) {
-    mcs_class_t* c = mcs_define_builtin_class(vm, def->name, vm->cls_object, CLS_USERDATA);
-    c->def = def;
-    mcs_add_regs(vm, c, def->members, false);
-    mcs_add_regs(vm, c, def->statics, true);
+#if MCS_LAZY_CLASSES && MCS_LAZY_REGS
+    if (lazy_add(vm, def->name, NULL, def, NULL)) return;
+#endif
+    define_native_class(vm, def);
 }
 
 void mcs_register_function(mcs_vm_t* vm, const char* name, mcs_native_fn fn, int arity) {
@@ -153,10 +212,7 @@ bool lib_equals(mcs_vm_t* vm, mcs_value_t a, mcs_value_t b) {
     return mcs_values_equal(a, b);
 }
 
-uint32_t lib_ticks(mcs_vm_t* vm) {
-    if (vm->cfg.ticks_fn) return vm->cfg.ticks_fn(vm->cfg.user_data);
-    return (uint32_t)((uint64_t)clock() * 1000u / CLOCKS_PER_SEC);
-}
+uint32_t lib_ticks(mcs_vm_t* vm) { return mcs_ticks(vm); }
 
 static mcs_value_t fmt_value(mcs_vm_t* vm, int argc, mcs_value_t* argv) {
     mcs_buf_t b; mcs_buf_init(&b, vm);
@@ -287,51 +343,66 @@ NATIVE(exc_tostring) {
 }
 static const mcs_reg_t exc_methods[] = { MCS_FN(".ctor", exc_ctor, -1), MCS_FN("ToString", exc_tostring, 0), MCS_REG_END };
 
-static void open_exceptions(mcs_vm_t* vm) {
-    mcs_class_t* e = mcs_define_builtin_class(vm, "Exception", vm->cls_object, CLS_SCRIPT);
-    vm->gc_pause++;
-    mcs_class_add_field(vm, e, vm->s_message, mcs_null());
-    mcs_class_add_field(vm, e, mcs_intern_c(vm, "StackTrace"), mcs_null());
-    mcs_class_add_field(vm, e, mcs_intern_c(vm, "InnerException"), mcs_null());
-    vm->gc_pause--;
-    mcs_add_regs(vm, e, exc_methods, false);
-    vm->exc[EXC_EXCEPTION] = e;
-    struct { int id; const char* name; int parent; } tbl[] = {
-        { EXC_SYSTEM, "SystemException", EXC_EXCEPTION },
-        { -1, "ArithmeticException", EXC_SYSTEM },
-        { EXC_NULLREF, "NullReferenceException", EXC_SYSTEM },
-        { EXC_INDEX, "IndexOutOfRangeException", EXC_SYSTEM },
-        { EXC_DIVZERO, "DivideByZeroException", -1 },
-        { EXC_OVERFLOW, "OverflowException", -1 },
-        { EXC_INVCAST, "InvalidCastException", EXC_SYSTEM },
-        { EXC_ARGUMENT, "ArgumentException", EXC_SYSTEM },
-        { EXC_ARGNULL, "ArgumentNullException", EXC_ARGUMENT },
-        { EXC_ARGRANGE, "ArgumentOutOfRangeException", EXC_ARGUMENT },
-        { EXC_INVOP, "InvalidOperationException", EXC_SYSTEM },
-        { -2, "ObjectDisposedException", EXC_INVOP },
-        { EXC_KEYNOTFOUND, "KeyNotFoundException", EXC_SYSTEM },
-        { EXC_FORMAT, "FormatException", EXC_SYSTEM },
-        { EXC_NOTSUPPORTED, "NotSupportedException", EXC_SYSTEM },
-        { EXC_NOTIMPL, "NotImplementedException", EXC_SYSTEM },
-        { EXC_STACKOVF, "StackOverflowException", EXC_SYSTEM },
-        { EXC_OOM, "OutOfMemoryException", EXC_SYSTEM },
-        { EXC_MISSINGMEMBER, "MissingMemberException", EXC_SYSTEM },
-        { -2, "TimeoutException", EXC_EXCEPTION },
-        { EXC_IO, "IOException", EXC_SYSTEM },
-        { -2, "FileNotFoundException", EXC_IO },
-        { -2, "DirectoryNotFoundException", EXC_IO },
-        { -2, "UnauthorizedAccessException", EXC_SYSTEM },
-    };
-    mcs_class_t* arith = NULL;
-    for (size_t i = 0; i < sizeof tbl / sizeof tbl[0]; i++) {
-        mcs_class_t* parent = tbl[i].parent == -1 ? arith : vm->exc[tbl[i].parent];
-        mcs_class_t* c = mcs_define_builtin_class(vm, tbl[i].name, NULL, CLS_SCRIPT);
+/* Built-in exception classes. parent = index of the base class in this table. */
+static const struct { const char* name; int8_t kind; int8_t parent; } exc_tbl[] = {
+    { "Exception", EXC_EXCEPTION, -1 },                  /*  0 */
+    { "SystemException", EXC_SYSTEM, 0 },                /*  1 */
+    { "ArithmeticException", -1, 1 },                    /*  2 */
+    { "NullReferenceException", EXC_NULLREF, 1 },
+    { "IndexOutOfRangeException", EXC_INDEX, 1 },
+    { "DivideByZeroException", EXC_DIVZERO, 2 },
+    { "OverflowException", EXC_OVERFLOW, 2 },
+    { "InvalidCastException", EXC_INVCAST, 1 },
+    { "ArgumentException", EXC_ARGUMENT, 1 },            /*  8 */
+    { "ArgumentNullException", EXC_ARGNULL, 8 },
+    { "ArgumentOutOfRangeException", EXC_ARGRANGE, 8 },
+    { "InvalidOperationException", EXC_INVOP, 1 },       /* 11 */
+    { "ObjectDisposedException", -1, 11 },
+    { "KeyNotFoundException", EXC_KEYNOTFOUND, 1 },
+    { "FormatException", EXC_FORMAT, 1 },
+    { "NotSupportedException", EXC_NOTSUPPORTED, 1 },
+    { "NotImplementedException", EXC_NOTIMPL, 1 },
+    { "StackOverflowException", EXC_STACKOVF, 1 },
+    { "OutOfMemoryException", EXC_OOM, 1 },
+    { "MissingMemberException", EXC_MISSINGMEMBER, 1 },
+    { "TimeoutException", -1, 0 },
+    { "IOException", EXC_IO, 1 },                        /* 21 */
+    { "FileNotFoundException", -1, 21 },
+    { "DirectoryNotFoundException", -1, 21 },
+    { "UnauthorizedAccessException", -1, 1 },
+};
+#define EXC_TBL_N ((int)(sizeof exc_tbl / sizeof exc_tbl[0]))
+
+static mcs_class_t* make_exception(mcs_vm_t* vm, int i) {
+    int kind = exc_tbl[i].kind;
+    if (kind >= 0 && vm->exc[kind]) return vm->exc[kind];
+    mcs_class_t* c;
+    if (i == 0) {
+        c = mcs_define_builtin_class(vm, "Exception", MCS_CLS(vm, object), CLS_SCRIPT);
+        vm->gc_pause++;
+        mcs_class_add_field(vm, c, vm->s_message, mcs_null());
+        mcs_class_add_field(vm, c, mcs_intern_c(vm, "StackTrace"), mcs_null());
+        mcs_class_add_field(vm, c, mcs_intern_c(vm, "InnerException"), mcs_null());
+        vm->gc_pause--;
+        mcs_add_regs(vm, c, exc_methods, false);
+    } else {
+        mcs_class_t* parent = make_exception(vm, exc_tbl[i].parent);
+        if (kind < 0) {   /* no C-side slot: the global is the only reference */
+            mcs_class_t* g = peek_global_class(vm, exc_tbl[i].name);
+            if (g) return g;
+        }
+        c = mcs_define_builtin_class(vm, exc_tbl[i].name, NULL, CLS_SCRIPT);
         vm->gc_pause++;
         mcs_class_inherit_shared(vm, c, parent);   /* Exception's layout is final here */
         vm->gc_pause--;
-        if (tbl[i].id == -1) arith = c;
-        else if (tbl[i].id >= 0) vm->exc[tbl[i].id] = c;
     }
+    if (kind >= 0) vm->exc[kind] = c;
+    return c;
+}
+mcs_class_t* mcs_exc_class(mcs_vm_t* vm, int kind) {
+    if (vm->exc[kind]) return vm->exc[kind];
+    for (int i = 0; i < EXC_TBL_N; i++) if (exc_tbl[i].kind == kind) return make_exception(vm, i);
+    return make_exception(vm, 0);
 }
 
 /* ============================================================ Console */
@@ -351,8 +422,12 @@ NATIVE(con_readline) {
     int n;
     if (vm->cfg.readline_fn) n = vm->cfg.readline_fn(vm->cfg.user_data, buf, sizeof buf);
     else {
+#if MCS_ENABLE_STDIO
         if (!fgets(buf, sizeof buf, stdin)) return mcs_null();
         n = (int)strlen(buf);
+#else
+        return mcs_null();
+#endif
     }
     if (n < 0) return mcs_null();
     while (n > 0 && (buf[n - 1] == '\n' || buf[n - 1] == '\r')) n--;
@@ -440,7 +515,7 @@ SMALL_INT_PARSE(short_parse, "an Int16", -32768, 32767)
 SMALL_INT_PARSE(ushort_parse, "a UInt16", 0, 65535)
 
 static mcs_class_t* small_int_class(mcs_vm_t* vm, const char* name, mcs_native_fn parse, mcs_int_t lo, mcs_int_t hi) {
-    mcs_class_t* c = mcs_define_builtin_class(vm, name, vm->cls_int, CLS_BUILTIN);
+    mcs_class_t* c = mcs_define_builtin_class(vm, name, MCS_CLS(vm, int), CLS_BUILTIN);
     mcs_reg_t r[] = { MCS_FN("Parse", parse, 1), MCS_REG_END };
     mcs_add_regs_eager(vm, c, r, true);
     vm->gc_pause++;
@@ -871,7 +946,7 @@ static const mcs_reg_t delegate_methods[] = { MCS_FN("Invoke", del_invoke, -1), 
 
 /* ---- KeyValuePair */
 NATIVE(kvp_new) {
-    mcs_instance_t* kv = mcs_new_instance(vm, vm->cls_kvp);
+    mcs_instance_t* kv = mcs_new_instance(vm, MCS_CLS(vm, kvp));
     if (argc > 0) kv->fields[0] = argv[0];
     if (argc > 1) kv->fields[1] = argv[1];
     return OBJ_VAL(kv);
@@ -917,7 +992,7 @@ static mcs_class_t* tuple_class(mcs_vm_t* vm, int arity, const char* names, size
     vm->gc_pause++;
     mcs_class_t* cls = mcs_new_class(vm, mcs_intern_c(vm, "ValueTuple"), CLS_TUPLE);
     mcs_table_set(vm, &vm->tuple_classes, OBJ_VAL(k), OBJ_VAL(cls));
-    mcs_class_inherit(vm, cls, vm->cls_object);
+    mcs_class_inherit(vm, cls, MCS_CLS(vm, object));
     cls->ckind = CLS_TUPLE;
     for (int i = 0; i < arity; i++) {
         char nm[8]; int n = snprintf(nm, sizeof nm, "Item%d", i + 1);
@@ -1026,121 +1101,267 @@ static void set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value
 }
 static void alias_global(mcs_vm_t* vm, const char* alias, mcs_class_t* c) {
     vm->gc_pause++;
-    { uint32_t gs_ = mcs_global_slot(vm, mcs_intern_c(vm, alias)); vm->globals[gs_] = OBJ_VAL(c); }
+    { uint32_t gs_ = mcs_global_slot(vm, mcs_intern_c(vm, alias)); if (vm->globals[gs_].type == MCS_T_UNDEF) vm->globals[gs_] = OBJ_VAL(c); }
     vm->gc_pause--;
+}
+void lib_set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value_t v) { set_static(vm, c, name, v); }
+
+/* Every built-in global, created on first use (or all in mcs_new() when
+ * MCS_LAZY_CLASSES=0). The table stays in flash. */
+enum {
+    LZ_OBJECT, LZ_TYPE, LZ_INT, LZ_INT64, LZ_UINT32, LZ_BYTE, LZ_SBYTE, LZ_INT16, LZ_UINT16,
+    LZ_DOUBLE, LZ_SINGLE, LZ_DECIMAL, LZ_BOOL, LZ_CHAR, LZ_DELEGATE, LZ_ACTION, LZ_FUNC, LZ_KVP,
+    LZ_CONSOLE, LZ_RT, LZ_CONVERT, LZ_MATH, LZ_MATHF, LZ_ENV, LZ_THREAD, LZ_GC, LZ_DEBUG,
+    LZ_STOPWATCH, LZ_RANDOM
+};
+static const mcs_lib_entry_t core_entries[] = {
+    { "Object", LZ_OBJECT, MCS_LIB_CORE }, { "Type", LZ_TYPE, MCS_LIB_CORE },
+    { "Int32", LZ_INT, MCS_LIB_CORE }, { "Int64", LZ_INT64, MCS_LIB_CORE }, { "UInt32", LZ_UINT32, MCS_LIB_CORE },
+    { "Byte", LZ_BYTE, MCS_LIB_CORE }, { "SByte", LZ_SBYTE, MCS_LIB_CORE },
+    { "Int16", LZ_INT16, MCS_LIB_CORE }, { "UInt16", LZ_UINT16, MCS_LIB_CORE },
+    { "Double", LZ_DOUBLE, MCS_LIB_CORE }, { "Single", LZ_SINGLE, MCS_LIB_CORE }, { "Decimal", LZ_DECIMAL, MCS_LIB_CORE },
+    { "Boolean", LZ_BOOL, MCS_LIB_CORE }, { "Char", LZ_CHAR, MCS_LIB_CORE },
+    { "Delegate", LZ_DELEGATE, MCS_LIB_CORE }, { "Action", LZ_ACTION, MCS_LIB_CORE }, { "Func", LZ_FUNC, MCS_LIB_CORE },
+    { "KeyValuePair", LZ_KVP, MCS_LIB_CORE },
+    { "Console", LZ_CONSOLE, MCS_LIB_CORE }, { "__rt", LZ_RT, MCS_LIB_CORE },
+#if MCS_ENABLE_CONVERT
+    { "Convert", LZ_CONVERT, MCS_LIB_CORE },
+#endif
+    { "Math", LZ_MATH, MCS_LIB_MATH }, { "MathF", LZ_MATHF, MCS_LIB_MATH },
+    { "Environment", LZ_ENV, MCS_LIB_SYSTEM }, { "Thread", LZ_THREAD, MCS_LIB_SYSTEM },
+#if MCS_ENABLE_DIAGNOSTICS
+    { "GC", LZ_GC, MCS_LIB_SYSTEM }, { "Debug", LZ_DEBUG, MCS_LIB_SYSTEM },
+    { "Stopwatch", LZ_STOPWATCH, MCS_LIB_SYSTEM },
+#endif
+#if MCS_ENABLE_RANDOM
+    { "Random", LZ_RANDOM, MCS_LIB_SYSTEM },
+#endif
+    { NULL, 0, 0 }
+};
+
+static void core_make(mcs_vm_t* vm, int id) {
+    mcs_class_t* c;
+    switch (id) {
+    case LZ_OBJECT:
+        if (vm->cls_object) return;
+        vm->cls_object = c = mcs_define_builtin_class(vm, "Object", NULL, CLS_BUILTIN);
+        mcs_add_regs(vm, c, object_methods, false);
+        mcs_add_regs(vm, c, object_statics, true);
+        return;
+    case LZ_TYPE:
+        c = mcs_define_builtin_class(vm, "Type", MCS_CLS(vm, object), CLS_BUILTIN);
+        vm->gc_pause++;
+        mcs_class_add_field(vm, c, mcs_intern_c(vm, "Name"), mcs_null());
+        mcs_class_add_field(vm, c, mcs_intern_c(vm, "FullName"), mcs_null());
+        vm->gc_pause--;
+        mcs_add_regs(vm, c, type_methods, false);
+        mcs_add_regs(vm, c, type_statics, true);
+        return;
+    case LZ_INT:
+        if (vm->cls_int) return;
+        vm->cls_int = c = mcs_define_builtin_class(vm, "Int32", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, value_methods, false);
+        mcs_add_regs(vm, c, int_statics, true);
+        set_static(vm, c, "MaxValue", mcs_int(INT32_MAX));
+        set_static(vm, c, "MinValue", mcs_int(INT32_MIN));
+        return;
+#if MCS_INT64
+    case LZ_INT64:
+        c = mcs_define_builtin_class(vm, "Int64", MCS_CLS(vm, int), CLS_BUILTIN);
+        set_static(vm, c, "MaxValue", mcs_int(INT64_MAX));
+        set_static(vm, c, "MinValue", mcs_int(INT64_MIN));
+        return;
+    case LZ_UINT32:
+        c = mcs_define_builtin_class(vm, "UInt32", MCS_CLS(vm, int), CLS_BUILTIN);
+        set_static(vm, c, "MaxValue", mcs_int(UINT32_MAX));
+        set_static(vm, c, "MinValue", mcs_int(0));
+        return;
+#else
+    case LZ_INT64: alias_global(vm, "Int64", MCS_CLS(vm, int)); return;
+    case LZ_UINT32: alias_global(vm, "UInt32", MCS_CLS(vm, int)); return;
+#endif
+    case LZ_BYTE: small_int_class(vm, "Byte", byte_parse, 0, 255); return;
+    case LZ_SBYTE: small_int_class(vm, "SByte", sbyte_parse, -128, 127); return;
+    case LZ_INT16: small_int_class(vm, "Int16", short_parse, -32768, 32767); return;
+    case LZ_UINT16: small_int_class(vm, "UInt16", ushort_parse, 0, 65535); return;
+    case LZ_DOUBLE:
+        if (vm->cls_float) return;
+        vm->cls_float = c = mcs_define_builtin_class(vm, "Double", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, value_methods, false);
+#if MCS_ENABLE_FLOAT
+        mcs_add_regs(vm, c, dbl_statics, true);
+#if MCS_FLOAT_DOUBLE
+        set_static(vm, c, "MaxValue", mcs_float(1.7976931348623157e308));
+        set_static(vm, c, "MinValue", mcs_float(-1.7976931348623157e308));
+        set_static(vm, c, "Epsilon", mcs_float(4.9406564584124654e-324));
+#else
+        set_static(vm, c, "MaxValue", mcs_float(3.40282347e+38f));
+        set_static(vm, c, "MinValue", mcs_float(-3.40282347e+38f));
+        set_static(vm, c, "Epsilon", mcs_float(1.401298E-45f));
+#endif
+        set_static(vm, c, "NaN", mcs_float((mcs_float_t)NAN));
+        set_static(vm, c, "PositiveInfinity", mcs_float((mcs_float_t)INFINITY));
+        set_static(vm, c, "NegativeInfinity", mcs_float(-(mcs_float_t)INFINITY));
+#endif
+        return;
+    case LZ_SINGLE: alias_global(vm, "Single", MCS_CLS(vm, float)); return;
+    case LZ_DECIMAL: alias_global(vm, "Decimal", MCS_CLS(vm, float)); return;
+    case LZ_BOOL:
+        if (vm->cls_bool) return;
+        vm->cls_bool = c = mcs_define_builtin_class(vm, "Boolean", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, value_methods, false);
+        mcs_add_regs(vm, c, bool_statics, true);
+        set_static(vm, c, "TrueString", lib_cstr(vm, "True"));
+        set_static(vm, c, "FalseString", lib_cstr(vm, "False"));
+        return;
+    case LZ_CHAR:
+        if (vm->cls_char) return;
+        vm->cls_char = c = mcs_define_builtin_class(vm, "Char", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, value_methods, false);
+        mcs_add_regs(vm, c, char_statics, true);
+        set_static(vm, c, "MinValue", mcs_char(0));
+        set_static(vm, c, "MaxValue", mcs_char(0xFFFF));
+        return;
+    case LZ_DELEGATE:
+        if (vm->cls_delegate) return;
+        vm->cls_delegate = c = mcs_define_builtin_class(vm, "Delegate", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, delegate_methods, false);
+        return;
+    case LZ_ACTION: alias_global(vm, "Action", MCS_CLS(vm, delegate)); return;
+    case LZ_FUNC: alias_global(vm, "Func", MCS_CLS(vm, delegate)); return;
+    case LZ_KVP:
+        if (vm->cls_kvp) return;
+        vm->cls_kvp = c = mcs_define_builtin_class(vm, "KeyValuePair", MCS_CLS(vm, object), CLS_BUILTIN);
+        vm->gc_pause++;
+        mcs_class_add_field(vm, c, vm->s_key, mcs_null());   /* slot 0 */
+        mcs_class_add_field(vm, c, vm->s_value, mcs_null()); /* slot 1 */
+        vm->gc_pause--;
+        c->native_ctor = kvp_new;
+        mcs_add_regs(vm, c, kvp_methods, false);
+        return;
+    case LZ_CONSOLE: mcs_add_regs(vm, module_for(vm, "Console"), console_fns, true); return;
+    case LZ_RT: mcs_add_regs(vm, module_for(vm, "__rt"), rt_fns, true); return;
+#if MCS_ENABLE_CONVERT
+    case LZ_CONVERT: mcs_add_regs(vm, module_for(vm, "Convert"), convert_fns, true); return;
+#endif
+    case LZ_MATH:
+        c = module_for(vm, "Math");
+        mcs_add_regs(vm, c, math_fns, true);
+#if MCS_ENABLE_FLOAT
+        set_static(vm, c, "PI", mcs_float((mcs_float_t)3.14159265358979323846));
+        set_static(vm, c, "E", mcs_float((mcs_float_t)2.7182818284590452354));
+        set_static(vm, c, "Tau", mcs_float((mcs_float_t)6.28318530717958647692));
+#endif
+        return;
+    case LZ_MATHF: c = lib_global_class(vm, "Math"); if (c) alias_global(vm, "MathF", c); return;
+    case LZ_ENV:
+        c = module_for(vm, "Environment");
+        mcs_add_regs(vm, c, env_fns, true);
+        set_static(vm, c, "NewLine", lib_cstr(vm, "\n"));
+        return;
+    case LZ_THREAD: mcs_add_regs(vm, module_for(vm, "Thread"), thread_fns, true); return;
+#if MCS_ENABLE_DIAGNOSTICS
+    case LZ_GC: mcs_add_regs(vm, module_for(vm, "GC"), gc_fns, true); return;
+    case LZ_DEBUG: mcs_add_regs(vm, module_for(vm, "Debug"), debug_fns, true); return;
+    case LZ_STOPWATCH: define_native_class(vm, &stopwatch_def); return;
+#endif
+#if MCS_ENABLE_RANDOM
+    case LZ_RANDOM: define_native_class(vm, &random_def); return;
+#endif
+    default: return;
+    }
+}
+
+/* the three areas of the standard library, each a flash table + maker */
+static const struct { const mcs_lib_entry_t* tab; void (*make)(mcs_vm_t*, int); } lib_areas[] = {
+    { core_entries, core_make },
+    { mcs_lib_str_entries, mcs_lib_str_make },
+    { mcs_lib_coll_entries, mcs_lib_coll_make },
+};
+#define LIB_AREAS ((int)(sizeof lib_areas / sizeof lib_areas[0]))
+
+static bool name_is(const char* a, const char* b, size_t len) { return strncmp(a, b, len) == 0 && a[len] == 0; }
+static uint8_t lib_mask(mcs_vm_t* vm) { return (uint8_t)(vm->cfg.stdlib | MCS_LIB_CORE); }
+
+static const mcs_lib_entry_t* lib_find(mcs_vm_t* vm, const char* name, size_t len, int* area) {
+    uint8_t mask = lib_mask(vm);
+    for (int a = 0; a < LIB_AREAS; a++)
+        for (const mcs_lib_entry_t* e = lib_areas[a].tab; e->name; e++)
+            if ((e->mask & mask) && name_is(e->name, name, len)) { *area = a; return e; }
+    return NULL;
+}
+static int exc_find(const char* name, size_t len) {
+    if (len < 9 || memcmp(name + len - 9, "Exception", 9) != 0) return -1;
+    for (int i = 0; i < EXC_TBL_N; i++) if (name_is(exc_tbl[i].name, name, len)) return i;
+    return -1;
+}
+
+static const char* const core_names[MCS_CORE__COUNT] = {
+    "Object", "String", "Int32", "Double", "Boolean", "Char", "Array", "List", "Dictionary", "KeyValuePair", "Delegate"
+};
+mcs_class_t* mcs_core_class(mcs_vm_t* vm, int which) {
+    mcs_class_t** slot = &vm->cls_object + which;
+    if (!*slot) {
+        int area;
+        const char* n = core_names[which];
+        const mcs_lib_entry_t* e = lib_find(vm, n, strlen(n), &area);
+        vm->gc_pause++;
+        if (e) lib_areas[area].make(vm, e->id);
+        vm->gc_pause--;
+        if (!*slot) mcs_panic(vm, MCS_ERR_MEMORY, "built-in class missing");
+    }
+    return *slot;
+}
+
+bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len) {
+    int area;
+    if (lib_find(vm, name, len, &area) || exc_find(name, len) >= 0) return true;
+    for (mcs_lazy_t* z = vm->lazy; z; z = z->next) if (name_is(z->name, name, len)) return true;
+    return false;
+}
+
+bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
+    bool any = false;
+    int area, x;
+    vm->gc_pause++;
+    const mcs_lib_entry_t* e = lib_find(vm, name, len, &area);
+    if (e) { lib_areas[area].make(vm, e->id); any = true; }
+    else if ((x = exc_find(name, len)) >= 0) { make_exception(vm, x); any = true; }
+    /* registrations from modules / the host, in the order they were made */
+    mcs_lazy_t** pp = &vm->lazy;
+    while (*pp) {
+        mcs_lazy_t* z = *pp;
+        if (!name_is(z->name, name, len)) { pp = &z->next; continue; }
+        *pp = z->next;   /* unlink first: applying may resolve other names */
+        if (z->def) define_native_class(vm, z->def);
+        else {
+            mcs_class_t* c = module_for(vm, z->name);
+            if (z->regs) mcs_add_regs(vm, c, z->regs, true);
+            add_consts(vm, c, z->consts);
+        }
+        mcs_realloc(vm, z, sizeof(mcs_lazy_t) + strlen(z->name), 0);
+        any = true;
+    }
+    vm->gc_pause--;
+    return any;
+}
+
+void mcs_lazy_free(mcs_vm_t* vm) {
+    while (vm->lazy) {
+        mcs_lazy_t* z = vm->lazy;
+        vm->lazy = z->next;
+        mcs_realloc(vm, z, sizeof(mcs_lazy_t) + strlen(z->name), 0);
+    }
 }
 
 void mcs_open_libs(mcs_vm_t* vm, uint8_t mask) {
-    mask |= MCS_LIB_CORE;
-    /* Object must be complete before other classes copy its methods down */
-    vm->cls_object = mcs_define_builtin_class(vm, "Object", NULL, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_object, object_methods, false);
-    mcs_add_regs(vm, vm->cls_object, object_statics, true);
-
-    mcs_class_t* type = mcs_define_builtin_class(vm, "Type", vm->cls_object, CLS_BUILTIN);
-    vm->gc_pause++;
-    mcs_class_add_field(vm, type, mcs_intern_c(vm, "Name"), mcs_null());
-    mcs_class_add_field(vm, type, mcs_intern_c(vm, "FullName"), mcs_null());
-    vm->gc_pause--;
-    mcs_add_regs(vm, type, type_methods, false);
-    mcs_add_regs(vm, type, type_statics, true);
-
-    vm->cls_int = mcs_define_builtin_class(vm, "Int32", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_int, value_methods, false);
-    mcs_add_regs(vm, vm->cls_int, int_statics, true);
-    set_static(vm, vm->cls_int, "MaxValue", mcs_int(INT32_MAX));
-    set_static(vm, vm->cls_int, "MinValue", mcs_int(INT32_MIN));
-#if MCS_INT64
-    {
-        mcs_class_t* l = mcs_define_builtin_class(vm, "Int64", vm->cls_int, CLS_BUILTIN);
-        set_static(vm, l, "MaxValue", mcs_int(INT64_MAX));
-        set_static(vm, l, "MinValue", mcs_int(INT64_MIN));
-        mcs_class_t* u = mcs_define_builtin_class(vm, "UInt32", vm->cls_int, CLS_BUILTIN);
-        set_static(vm, u, "MaxValue", mcs_int(UINT32_MAX));
-        set_static(vm, u, "MinValue", mcs_int(0));
-    }
+    vm->cfg.stdlib = (uint8_t)(mask | MCS_LIB_CORE);
+#if MCS_LAZY_CLASSES
+    /* nothing to do: every class is created by its first use */
 #else
-    alias_global(vm, "Int64", vm->cls_int);
-    alias_global(vm, "UInt32", vm->cls_int);
+    for (int a = 0; a < LIB_AREAS; a++)
+        for (const mcs_lib_entry_t* e = lib_areas[a].tab; e->name; e++)
+            if (e->mask & lib_mask(vm)) mcs_lazy_resolve(vm, e->name, strlen(e->name));
+    for (int i = 0; i < EXC_TBL_N; i++) make_exception(vm, i);
 #endif
-    small_int_class(vm, "Byte", byte_parse, 0, 255);
-    small_int_class(vm, "SByte", sbyte_parse, -128, 127);
-    small_int_class(vm, "Int16", short_parse, -32768, 32767);
-    small_int_class(vm, "UInt16", ushort_parse, 0, 65535);
-
-    vm->cls_float = mcs_define_builtin_class(vm, "Double", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_float, value_methods, false);
-#if MCS_ENABLE_FLOAT
-    mcs_add_regs(vm, vm->cls_float, dbl_statics, true);
-#if MCS_FLOAT_DOUBLE
-    set_static(vm, vm->cls_float, "MaxValue", mcs_float(1.7976931348623157e308));
-    set_static(vm, vm->cls_float, "MinValue", mcs_float(-1.7976931348623157e308));
-    set_static(vm, vm->cls_float, "Epsilon", mcs_float(4.9406564584124654e-324));
-#else
-    set_static(vm, vm->cls_float, "MaxValue", mcs_float(3.40282347e+38f));
-    set_static(vm, vm->cls_float, "MinValue", mcs_float(-3.40282347e+38f));
-    set_static(vm, vm->cls_float, "Epsilon", mcs_float(1.401298E-45f));
-#endif
-    set_static(vm, vm->cls_float, "NaN", mcs_float((mcs_float_t)NAN));
-    set_static(vm, vm->cls_float, "PositiveInfinity", mcs_float((mcs_float_t)INFINITY));
-    set_static(vm, vm->cls_float, "NegativeInfinity", mcs_float(-(mcs_float_t)INFINITY));
-#endif
-    alias_global(vm, "Single", vm->cls_float);
-    alias_global(vm, "Decimal", vm->cls_float);
-
-    vm->cls_bool = mcs_define_builtin_class(vm, "Boolean", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_bool, value_methods, false);
-    mcs_add_regs(vm, vm->cls_bool, bool_statics, true);
-    set_static(vm, vm->cls_bool, "TrueString", lib_cstr(vm, "True"));
-    set_static(vm, vm->cls_bool, "FalseString", lib_cstr(vm, "False"));
-
-    vm->cls_char = mcs_define_builtin_class(vm, "Char", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_char, value_methods, false);
-    mcs_add_regs(vm, vm->cls_char, char_statics, true);
-    set_static(vm, vm->cls_char, "MinValue", mcs_char(0));
-    set_static(vm, vm->cls_char, "MaxValue", mcs_char(0xFFFF));
-
-    vm->cls_delegate = mcs_define_builtin_class(vm, "Delegate", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_delegate, delegate_methods, false);
-    alias_global(vm, "Action", vm->cls_delegate);
-    alias_global(vm, "Func", vm->cls_delegate);
-
-    vm->cls_kvp = mcs_define_builtin_class(vm, "KeyValuePair", vm->cls_object, CLS_BUILTIN);
-    vm->gc_pause++;
-    mcs_class_add_field(vm, vm->cls_kvp, vm->s_key, mcs_null());   /* slot 0 */
-    mcs_class_add_field(vm, vm->cls_kvp, vm->s_value, mcs_null()); /* slot 1 */
-    vm->gc_pause--;
-    vm->cls_kvp->native_ctor = kvp_new;
-    mcs_add_regs(vm, vm->cls_kvp, kvp_methods, false);
-
-    open_exceptions(vm);
-
-    mcs_register_module(vm, "Console", console_fns);
-    mcs_register_module(vm, "__rt", rt_fns);
-    mcs_register_module(vm, "Convert", convert_fns);
-
-    mcs_lib_open_string(vm, mask);       /* String, StringBuilder */
-    mcs_lib_open_collections(vm, mask);  /* Array, List, Dictionary, ... */
-
-    if (mask & MCS_LIB_MATH) {
-        mcs_register_module(vm, "Math", math_fns);
-        mcs_class_t* m = lib_global_class(vm, "Math");
-#if MCS_ENABLE_FLOAT
-        set_static(vm, m, "PI", mcs_float((mcs_float_t)3.14159265358979323846));
-        set_static(vm, m, "E", mcs_float((mcs_float_t)2.7182818284590452354));
-        set_static(vm, m, "Tau", mcs_float((mcs_float_t)6.28318530717958647692));
-#endif
-        alias_global(vm, "MathF", m);
-    }
-    if (mask & MCS_LIB_SYSTEM) {
-        mcs_register_module(vm, "Environment", env_fns);
-        mcs_module_set(vm, "Environment", "NewLine", lib_cstr(vm, "\n"));
-        mcs_register_module(vm, "Thread", thread_fns);
-        mcs_register_module(vm, "GC", gc_fns);
-        mcs_register_module(vm, "Debug", debug_fns);
-        mcs_register_class(vm, &stopwatch_def);
-#if MCS_ENABLE_RANDOM
-        mcs_register_class(vm, &random_def);
-#endif
-    }
 }

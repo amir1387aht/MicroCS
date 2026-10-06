@@ -11,10 +11,33 @@ void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg) {
     abort();
 }
 
-static void* raw_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
-    if (vm->cfg.realloc_fn) return vm->cfg.realloc_fn(vm->cfg.alloc_ud, p, old, nsz);
+/* the C library allocator (MCS_ENABLE_MALLOC), used when cfg.realloc_fn is NULL */
+void* mcs_sys_realloc(void* ud, void* p, size_t old, size_t nsz) {
+    (void)ud; (void)old;
+#if MCS_ENABLE_MALLOC
     if (nsz == 0) { free(p); return NULL; }
     return realloc(p, nsz);
+#else
+    (void)p; (void)nsz;
+    return NULL;
+#endif
+}
+
+static void* raw_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+    if (vm->cfg.realloc_fn) return vm->cfg.realloc_fn(vm->cfg.alloc_ud, p, old, nsz);
+    return mcs_sys_realloc(NULL, p, old, nsz);
+}
+
+/* never below pointer size: free-list links and object pointers live in blocks */
+#define POOL_ALIGN ((size_t)MCS_POOL_ALIGN > sizeof(void*) ? (size_t)MCS_POOL_ALIGN : sizeof(void*))
+#define POOL_HDR ((sizeof(size_t) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
+#define POOL_ROUND(n) (((n) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
+
+/* bytes a block of n bytes really takes from the allocator (cfg.alloc_overhead) */
+static size_t acct_size(const mcs_vm_t* vm, size_t n) {
+    if (!n || !vm->cfg.alloc_overhead) return n;
+    size_t b = POOL_ROUND(n + vm->cfg.alloc_overhead);
+    return b < 2 * sizeof(void*) ? 2 * sizeof(void*) : b;
 }
 
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
@@ -23,24 +46,25 @@ void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
      * which the interpreter performs at its next safepoint (instruction
      * boundary: calls, backward jumps, allocating opcodes), where every live
      * value is on the VM stack or in a root. */
-    if (nsz > old) {
-        vm->bytes_allocated += nsz - old;
+    size_t ao = acct_size(vm, old), an = acct_size(vm, nsz);
+    if (an > ao) {
+        vm->bytes_allocated += an - ao;
         if (vm->bytes_allocated > vm->next_gc) vm->gc_wanted = true;
         if (vm->bytes_allocated > vm->peak_bytes) vm->peak_bytes = vm->bytes_allocated;
 #if MCS_GC_STRESS
         vm->gc_wanted = true; /* torture test: collect at every safepoint */
 #endif
         if (vm->cfg.heap_limit && vm->bytes_allocated > vm->cfg.heap_limit) {
-            vm->bytes_allocated -= nsz - old;
+            vm->bytes_allocated -= an - ao;
             char m[64]; snprintf(m, sizeof m, "out of memory (heap limit %u bytes)", (unsigned)vm->cfg.heap_limit);
             mcs_panic(vm, MCS_ERR_MEMORY, m);
         }
     } else {
-        vm->bytes_allocated -= old - nsz;
+        vm->bytes_allocated -= ao - an;
     }
     void* r = raw_realloc(vm, p, old, nsz);
     if (r == NULL && nsz > 0) {
-        vm->bytes_allocated -= nsz - old;
+        vm->bytes_allocated -= an - ao;
         char m[64]; snprintf(m, sizeof m, "out of memory (allocation of %u bytes failed)", (unsigned)nsz);
         mcs_panic(vm, MCS_ERR_MEMORY, m);
     }
@@ -54,10 +78,6 @@ void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size) {
 /* ============================================================== pool heap */
 #if MCS_ENABLE_POOL_HEAP
 typedef struct pool_blk { size_t size; struct pool_blk* next; } pool_blk_t;
-/* never below pointer size: free-list links and object pointers live in blocks */
-#define POOL_ALIGN ((size_t)MCS_POOL_ALIGN > sizeof(void*) ? (size_t)MCS_POOL_ALIGN : sizeof(void*))
-#define POOL_HDR ((sizeof(size_t) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
-#define POOL_ROUND(n) (((n) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
 
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size) {
     uintptr_t a = ((uintptr_t)buf + POOL_ALIGN - 1) & ~(uintptr_t)(POOL_ALIGN - 1);
@@ -163,11 +183,23 @@ static void strset_resize(mcs_vm_t* vm, mcs_strset_t* t, uint32_t cap) {
 }
 static void strset_add(mcs_vm_t* vm, mcs_strset_t* t, mcs_string_t* str) {
     if ((t->count + 1) * 4 > t->cap * 3) {
-        uint32_t live = 0, nc = t->cap < STRSET_MIN ? STRSET_MIN : t->cap * 2;
+        /* near the GC threshold most of the entries are usually garbage that
+         * the next collection turns into tombstones: run the table fuller
+         * (up to 15/16) until then instead of doubling it */
+        if (t->cap >= STRSET_MIN && (t->count + 1) * 16 <= t->cap * 15 &&
+            vm->bytes_allocated + t->cap * 2 * sizeof(mcs_string_t*) > vm->next_gc) {
+            vm->gc_wanted = true;
+            goto insert;
+        }
+        uint32_t live = 0, nc = STRSET_MIN;
         for (uint32_t i = 0; i < t->cap; i++) live += t->slots[i] && t->slots[i] != STRSET_TOMB;
-        if (t->cap >= STRSET_MIN && live * 2 <= t->count) nc = t->cap; /* mostly tombstones: rehash in place */
+        /* size for the live strings only (tombstones are dropped): rehash in
+         * place while they stay below 9/16 load, otherwise double */
+        while ((live + 1) * 16 > nc * 9) nc *= 2;
+        if (nc < t->cap) nc = t->cap;
         strset_resize(vm, t, nc);
     }
+insert:;
     uint32_t idx = str->hash & (t->cap - 1);
     while (t->slots[idx] && t->slots[idx] != STRSET_TOMB) idx = (idx + 1) & (t->cap - 1);
     if (!t->slots[idx]) t->count++;
@@ -281,6 +313,23 @@ void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super
     cls->field_defaults = super->field_defaults;
     cls->field_count = super->field_count;
     cls->layout_shared = 1;
+    if (!cls->native_ctor) cls->native_ctor = super->native_ctor;
+    if (!cls->def) cls->def = super->def;
+}
+
+/* members are not copied: mcs_cls_get() copies an inherited member down on
+ * first lookup, after the class's own ROM members had the chance to override
+ * it. Used for built-in classes, which may be created after scripts already
+ * looked up (and so materialized) members of their base class. */
+void mcs_class_inherit_lazy(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
+    cls->super = super;
+    mcs_table_copy(vm, &super->fields, &cls->fields);
+    mcs_table_copy(vm, &super->ifaces, &cls->ifaces);
+    if (super->field_count) {
+        cls->field_defaults = MCS_GROW(vm, mcs_value_t, cls->field_defaults, cls->field_count, super->field_count);
+        memcpy(cls->field_defaults, super->field_defaults, sizeof(mcs_value_t) * super->field_count);
+        cls->field_count = super->field_count;
+    }
     if (!cls->native_ctor) cls->native_ctor = super->native_ctor;
     if (!cls->def) cls->def = super->def;
 }
@@ -856,10 +905,14 @@ void mcs_collect(mcs_vm_t* vm) {
     }
     /* compact a mostly-dead intern table (one burst of temporary strings must
      * not pin a large table for the rest of the run) */
-    if (vm->strings.cap > 64 && live * 8 < vm->strings.cap) {
-        uint32_t nc = 64;
-        while ((live + 1) * TABLE_MAX_LOAD_DEN * 2 > nc * TABLE_MAX_LOAD_NUM) nc *= 2;
-        if (vm->cfg.heap_limit == 0 || vm->bytes_allocated + nc * sizeof(mcs_string_t*) <= vm->cfg.heap_limit) strset_resize(vm, &vm->strings, nc);
+    if (vm->strings.cap > 32) {
+        /* smallest table that keeps the live strings below 9/16 load (growth
+         * happens at 3/4, so a shrunk table has headroom before it grows) */
+        uint32_t nc = 32;
+        while ((live + 1) * 16 > nc * 9) nc *= 2;
+        if (nc < vm->strings.cap &&
+            (vm->cfg.heap_limit == 0 || vm->bytes_allocated + nc * sizeof(mcs_string_t*) <= vm->cfg.heap_limit))
+            strset_resize(vm, &vm->strings, nc);
     }
     mcs_obj_t** pp = &vm->objects;
     while (*pp) {
@@ -870,7 +923,15 @@ void mcs_collect(mcs_vm_t* vm) {
     vm->next_gc = vm->bytes_allocated * MCS_GC_GROW;
     if (vm->next_gc < MCS_GC_INITIAL) vm->next_gc = MCS_GC_INITIAL;
     /* collect early enough that the hard limit is not hit between safepoints */
-    if (vm->cfg.heap_limit && vm->next_gc > vm->cfg.heap_limit - vm->cfg.heap_limit / 4) vm->next_gc = vm->cfg.heap_limit - vm->cfg.heap_limit / 4;
+    if (vm->cfg.heap_limit && vm->next_gc > vm->cfg.heap_limit - vm->cfg.heap_limit / 4) {
+        vm->next_gc = vm->cfg.heap_limit - vm->cfg.heap_limit / 4;
+        /* live data above 3/4 of the limit: collect again halfway to the limit
+         * instead of at every safepoint (that made small pools crawl) */
+        if (vm->next_gc < vm->bytes_allocated + vm->cfg.heap_limit / 16) {
+            size_t room = vm->bytes_allocated < vm->cfg.heap_limit ? vm->cfg.heap_limit - vm->bytes_allocated : 0;
+            vm->next_gc = vm->bytes_allocated + room / 2;
+        }
+    }
     vm->gc_wanted = false;
     vm->gc_count++;
     vm->gc_pause--;

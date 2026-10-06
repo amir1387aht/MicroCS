@@ -241,7 +241,7 @@ static bool is_toplevel_name(comp_t* c, const char* name, uint32_t len) {
     }
     mcs_string_t* str = mcs_find_interned(c->vm, name, len);
     if (str && str->obj.aux) return true;
-    return false;
+    return mcs_lazy_known(c->vm, name, len);   /* built-in class not created yet */
 }
 static uint32_t global_slot(comp_t* c, const char* name, uint32_t len) {
     uint32_t s = mcs_global_slot(c->vm, istr(c, name, len));
@@ -1733,6 +1733,7 @@ static bool looks_like_interface(comp_t* c, const char* n, uint32_t len) {
         mcs_value_t g = c->vm->globals[nm->obj.aux - 1u];
         if (IS_KIND(g, MCS_O_CLASS)) return AS_CLASS(g)->ckind == CLS_INTERFACE;
     }
+    if (mcs_lazy_known(c->vm, n, len)) return false;   /* built-ins are classes */
     return len >= 2 && n[0] == 'I' && n[1] >= 'A' && n[1] <= 'Z';
 }
 

@@ -29,11 +29,13 @@ static long find_bytes(const char* h, size_t hn, const char* nd, size_t nn, size
         if (h[i] == nd[0] && memcmp(h + i, nd, nn) == 0) return (long)i;
     return -1;
 }
+#if MCS_ENABLE_STRING_EXTRA
 static long rfind_bytes(const char* h, size_t hn, const char* nd, size_t nn) {
     if (nn > hn) return -1;
     for (size_t i = hn - nn + 1; i-- > 0;) if (memcmp(h + i, nd, nn) == 0) return (long)i;
     return -1;
 }
+#endif
 
 static bool get_index(mcs_vm_t* vm, mcs_value_t v, size_t max, size_t* out, const char* param) {
     mcs_int_t i = mcs_to_int(vm, v);
@@ -79,6 +81,7 @@ static bool append_seq(mcs_vm_t* vm, mcs_buf_t* b, const char* sep, size_t sn, m
     }
     return true;
 }
+#if MCS_ENABLE_STRING_EXTRA
 NATIVE(str_join) {
     ARGN(1);
     piece_t sep = { "", 0, {0} };
@@ -102,6 +105,7 @@ NATIVE(str_join) {
     if (!ok) { mcs_buf_free(&b); return mcs_null(); }
     return OBJ_VAL(mcs_buf_to_string(&b));
 }
+#endif
 NATIVE(str_concat) {
     if (argc == 1) lib_seq_arg(vm, &argv[0], false);
     mcs_buf_t b; mcs_buf_init(&b, vm);
@@ -149,6 +153,7 @@ NATIVE(str_indexof) {
     if (argc > 1 && !get_index(vm, argv[1], s->len, &from, "startIndex")) return mcs_null();
     return mcs_int(find_bytes(s->chars, s->len, p.p, p.n, from));
 }
+#if MCS_ENABLE_STRING_EXTRA
 NATIVE(str_lastindexof) {
     SELF_STR(); ARGN(1);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
@@ -163,6 +168,7 @@ NATIVE(str_indexofany) {
             if (is_intlike_v(l->items[k]) && (uint8_t)s->chars[i] == (uint8_t)l->items[k].as.i) return mcs_int((mcs_int_t)i);
     return mcs_int(-1);
 }
+#endif
 NATIVE(str_contains) {
     SELF_STR();
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
@@ -178,6 +184,7 @@ NATIVE(str_endswith) {
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
     return mcs_bool(p.n <= s->len && memcmp(s->chars + s->len - p.n, p.p, p.n) == 0);
 }
+#if MCS_ENABLE_STRING_EXTRA
 NATIVE(str_replace) {
     SELF_STR(); ARGN(2);
     piece_t a, b;
@@ -197,6 +204,7 @@ NATIVE(str_replace) {
     mcs_buf_putn(&o, s->chars + i, s->len - i);
     return OBJ_VAL(mcs_buf_to_string(&o));
 }
+#endif
 static bool trim_char(int argc, mcs_value_t* argv, unsigned char c) {
     if (argc == 0) return c == ' ' || (c >= 9 && c <= 13);
     for (int i = 0; i < argc; i++) {
@@ -232,6 +240,7 @@ static mcs_value_t map_case(mcs_vm_t* vm, mcs_value_t self, bool upper) {
 }
 NATIVE(str_toupper) { return map_case(vm, self, true); }
 NATIVE(str_tolower) { return map_case(vm, self, false); }
+#if MCS_ENABLE_STRING_EXTRA
 static mcs_value_t do_pad(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv, bool left) {
     SELF_STR(); ARGN(1);
     mcs_int_t w = mcs_to_int(vm, argv[0]); CHECK();
@@ -246,7 +255,9 @@ static mcs_value_t do_pad(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t*
 }
 NATIVE(str_padleft) { return do_pad(vm, self, argc, argv, true); }
 NATIVE(str_padright) { return do_pad(vm, self, argc, argv, false); }
+#endif
 
+#if MCS_ENABLE_STRING_EXTRA
 NATIVE(str_split) {
     SELF_STR();
     /* separators: chars, strings, arrays of either; trailing int = options/count */
@@ -313,6 +324,7 @@ NATIVE(str_remove) {
     mcs_buf_putn(&b, s->chars, at); mcs_buf_putn(&b, s->chars + at + n, s->len - at - n);
     return OBJ_VAL(mcs_buf_to_string(&b));
 }
+#endif
 NATIVE(str_compareto) { SELF_STR(); (void)s; return mcs_int(cmp_str(self, argv[0], false)); }
 NATIVE(str_equals) {
     SELF_STR(); (void)s;
@@ -325,20 +337,26 @@ NATIVE(str_clone) { return self; }
 
 static const mcs_reg_t string_methods[] = {
     MCS_GET("Length", str_length),
-    MCS_FN("Substring", str_substring, -1), MCS_FN("IndexOf", str_indexof, -1), MCS_FN("LastIndexOf", str_lastindexof, -1),
-    MCS_FN("IndexOfAny", str_indexofany, 1), MCS_FN("Contains", str_contains, 1), MCS_FN("StartsWith", str_startswith, -1),
-    MCS_FN("EndsWith", str_endswith, -1), MCS_FN("Replace", str_replace, 2), MCS_FN("Trim", str_trim, -1),
+    MCS_FN("Substring", str_substring, -1), MCS_FN("IndexOf", str_indexof, -1),
+    MCS_FN("Contains", str_contains, 1), MCS_FN("StartsWith", str_startswith, -1),
+    MCS_FN("EndsWith", str_endswith, -1), MCS_FN("Trim", str_trim, -1),
     MCS_FN("TrimStart", str_trimstart, -1), MCS_FN("TrimEnd", str_trimend, -1), MCS_FN("ToUpper", str_toupper, 0),
     MCS_FN("ToLower", str_tolower, 0), MCS_FN("ToUpperInvariant", str_toupper, 0), MCS_FN("ToLowerInvariant", str_tolower, 0),
+#if MCS_ENABLE_STRING_EXTRA
+    MCS_FN("LastIndexOf", str_lastindexof, -1), MCS_FN("IndexOfAny", str_indexofany, 1), MCS_FN("Replace", str_replace, 2),
     MCS_FN("PadLeft", str_padleft, -1), MCS_FN("PadRight", str_padright, -1), MCS_FN("Split", str_split, -1),
     MCS_FN("ToCharArray", str_tochararray, 0), MCS_FN("Insert", str_insert, 2), MCS_FN("Remove", str_remove, -1),
+#endif
     MCS_FN("CompareTo", str_compareto, 1), MCS_FN("Equals", str_equals, 1), MCS_FN("Equals", str_equals, 2),
     MCS_FN("GetEnumerator", str_getenum, 0), MCS_FN("Clone", str_clone, 0),
     MCS_REG_END
 };
 static const mcs_reg_t string_statics[] = {
     MCS_FN("IsNullOrEmpty", str_isnullorempty, 1), MCS_FN("IsNullOrWhiteSpace", str_isnullorwhite, 1),
-    MCS_FN("Join", str_join, -1), MCS_FN("Concat", str_concat, -1), MCS_FN("Format", str_format, -1),
+#if MCS_ENABLE_STRING_EXTRA
+    MCS_FN("Join", str_join, -1),
+#endif
+    MCS_FN("Concat", str_concat, -1), MCS_FN("Format", str_format, -1),
     MCS_FN("Compare", str_compare, -1), MCS_FN("CompareOrdinal", str_compare, 2), MCS_FN("Equals", str_equals_static, 2),
     MCS_REG_END
 };
@@ -461,24 +479,49 @@ static const mcs_reg_t sb_members[] = {
 static const mcs_class_def_t sb_def = { "StringBuilder", sizeof(mcs_buf_t), sb_ctor, sb_final, sb_members, NULL };
 #endif
 
-void mcs_lib_open_string(mcs_vm_t* vm, uint8_t mask) {
-    vm->cls_string = mcs_define_builtin_class(vm, "String", vm->cls_object, CLS_BUILTIN);
-    vm->cls_string->native_ctor = str_new;
-    mcs_add_regs(vm, vm->cls_string, string_methods, false);
-    mcs_add_regs(vm, vm->cls_string, string_statics, true);
-    vm->gc_pause++;
-    mcs_table_set(vm, &vm->cls_string->statics, lib_cstr(vm, "Empty"), lib_cstr(vm, ""));
-    vm->gc_pause--;
-    mcs_module_set(vm, "StringSplitOptions", "None", mcs_int(0));
-    mcs_module_set(vm, "StringSplitOptions", "RemoveEmptyEntries", mcs_int(1));
-    mcs_module_set(vm, "StringSplitOptions", "TrimEntries", mcs_int(2));
-    mcs_module_set(vm, "StringComparison", "Ordinal", mcs_int(4));
-    mcs_module_set(vm, "StringComparison", "OrdinalIgnoreCase", mcs_int(5));
-    mcs_module_set(vm, "StringComparison", "CurrentCultureIgnoreCase", mcs_int(1));
-    mcs_module_set(vm, "StringComparison", "InvariantCultureIgnoreCase", mcs_int(3));
+enum { LZ_STRING, LZ_SPLITOPT, LZ_STRCMP, LZ_SB };
+const mcs_lib_entry_t mcs_lib_str_entries[] = {
+    { "String", LZ_STRING, MCS_LIB_ALL },
+    { "StringSplitOptions", LZ_SPLITOPT, MCS_LIB_ALL }, { "StringComparison", LZ_STRCMP, MCS_LIB_ALL },
 #if MCS_ENABLE_STRINGBUILDER
-    if (mask & MCS_LIB_TEXT) mcs_register_class(vm, &sb_def);
-#else
-    MCS_UNUSED(mask);
+    { "StringBuilder", LZ_SB, MCS_LIB_TEXT },
 #endif
+    { NULL, 0, 0 }
+};
+static const mcs_const_t split_opts[] = {
+    MCS_CONST("None", 0), MCS_CONST("RemoveEmptyEntries", 1), MCS_CONST("TrimEntries", 2), MCS_CONST_END
+};
+static const mcs_const_t str_cmp[] = {
+    MCS_CONST("Ordinal", 4), MCS_CONST("OrdinalIgnoreCase", 5), MCS_CONST("CurrentCultureIgnoreCase", 1),
+    MCS_CONST("InvariantCultureIgnoreCase", 3), MCS_CONST_END
+};
+static void const_module(mcs_vm_t* vm, const char* name, const mcs_const_t* k) {
+    mcs_class_t* c = mcs_define_builtin_class(vm, name, NULL, CLS_STATIC);
+    for (; k->name; k++) lib_set_static(vm, c, k->name, mcs_int(k->value));
+}
+
+void mcs_lib_str_make(mcs_vm_t* vm, int id) {
+    switch (id) {
+    case LZ_STRING: {
+        if (vm->cls_string) return;
+        mcs_class_t* c = vm->cls_string = mcs_define_builtin_class(vm, "String", MCS_CLS(vm, object), CLS_BUILTIN);
+        c->native_ctor = str_new;
+        mcs_add_regs(vm, c, string_methods, false);
+        mcs_add_regs(vm, c, string_statics, true);
+        lib_set_static(vm, c, "Empty", lib_cstr(vm, ""));
+        return;
+    }
+    case LZ_SPLITOPT: const_module(vm, "StringSplitOptions", split_opts); return;
+    case LZ_STRCMP: const_module(vm, "StringComparison", str_cmp); return;
+#if MCS_ENABLE_STRINGBUILDER
+    case LZ_SB: {
+        mcs_class_t* c = mcs_define_builtin_class(vm, sb_def.name, MCS_CLS(vm, object), CLS_USERDATA);
+        c->def = &sb_def;
+        mcs_add_regs(vm, c, sb_def.members, false);
+        mcs_add_regs(vm, c, sb_def.statics, true);
+        return;
+    }
+#endif
+    default: return;
+    }
 }

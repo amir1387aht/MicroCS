@@ -106,6 +106,39 @@ void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs);
 #endif
 #if MCS_ENABLE_LFS
 extern const mcs_vfs_ops_t mcs_lfs_ops;
+#if MCS_ENABLE_FLASH
+#include "mcs_flash.h"
+struct lfs_config;
+/* Fill `cfg` (zeroed first) for LittleFS on a NOR or NAND partition: block
+ * device callbacks, geometry, cache/lookahead sizes. On NAND, factory/worn bad
+ * blocks report LFS_ERR_CORRUPT so LittleFS relocates around them, and blocks
+ * that fail to erase/program are marked bad. The partition's first two blocks
+ * hold the superblock and must be good (MCS_VFS_EIO otherwise - start the
+ * partition elsewhere, or use YAFFS2). Buffers are left to lfs_malloc;
+ * set cfg->read_buffer etc. afterwards for LFS_NO_MALLOC builds. */
+int mcs_lfs_flash_config(struct lfs_config* cfg, mcs_flash_part_t* part);
+#endif
+#endif
+
+/* ---- YAFFS2 backend (optional, needs yaffs2 "direct"; see modules/fs/mcs_vfs_yaffs.c) ----
+ * ctx = a `struct yaffs_dev*` that is added and mounted (yaffs_mount(name)).
+ * Enable with -DMCS_ENABLE_YAFFS=1. YAFFS2 is GPLv2 (or commercial licence
+ * from Aleph One) - linking it makes the firmware a derived work. */
+#ifndef MCS_ENABLE_YAFFS
+#define MCS_ENABLE_YAFFS 0
+#endif
+#if MCS_ENABLE_YAFFS
+extern const mcs_vfs_ops_t mcs_yaffs_ops;
+#if MCS_ENABLE_FLASH
+#include "mcs_flash.h"
+struct yaffs_dev;
+/* Zero `dev`, set YAFFS2 geometry + driver callbacks for the partition and
+ * yaffs_add_device() it under `name` (e.g. "/nand", must stay valid).
+ * NOR: 512/2048-byte chunks with in-band tags. NAND: page-sized chunks,
+ * in-band tags (MCS_YAFFS_NAND_INBAND=1, default: all metadata under the
+ * chip's data ECC) or packed tags in the spare area at MCS_YAFFS_OOB_OFFSET. */
+int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const char* name);
+#endif
 #endif
 
 /* ---- built-in backends ---- */

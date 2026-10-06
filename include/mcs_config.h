@@ -82,6 +82,46 @@
 #ifndef MCS_ENABLE_FORMAT
 #define MCS_ENABLE_FORMAT 1        /* String.Format / {x:F2} specifiers */
 #endif
+/* Optional library members (all on by default; turning one off removes the
+ * listed members, scripts that call them get a MissingMemberException). */
+#ifndef MCS_ENABLE_STRING_EXTRA
+#define MCS_ENABLE_STRING_EXTRA 1  /* string Split/Join/Replace/PadLeft/PadRight/Insert/Remove/
+                                      LastIndexOf/IndexOfAny/ToCharArray (~3 KB) */
+#endif
+#ifndef MCS_ENABLE_ARRAY_EXTRA
+#define MCS_ENABLE_ARRAY_EXTRA 1   /* Array.Sort/Copy/Fill/Find.../BinarySearch statics, the
+                                      Find/Exists/TrueForAll/ConvertAll/CopyTo/BinarySearch/
+                                      LastIndexOf members of arrays and lists, and List
+                                      AddRange/InsertRange/RemoveRange/RemoveAll/GetRange/
+                                      Sort/Reverse/TrimExcess/AsReadOnly (~6 KB) */
+#endif
+#ifndef MCS_ENABLE_STACK_QUEUE
+#define MCS_ENABLE_STACK_QUEUE 1   /* Stack<T> and Queue<T> (with MCS_ENABLE_LIST) */
+#endif
+#ifndef MCS_ENABLE_CONVERT
+#define MCS_ENABLE_CONVERT 1       /* the Convert class (ToInt32/ToString(x, base)/ToBoolean/...) */
+#endif
+#ifndef MCS_ENABLE_DIAGNOSTICS
+#define MCS_ENABLE_DIAGNOSTICS 1   /* GC, Debug and Stopwatch classes */
+#endif
+/* Default console on the C library (stdout/stdin/stderr) when the host does
+ * not set write_fn/readline_fn/error_fn. 0 = no stdio dependency at all:
+ * output without write_fn is dropped, Console.ReadLine returns null. */
+#ifndef MCS_ENABLE_STDIO
+#define MCS_ENABLE_STDIO 1         /* (also the clock() fallback when ticks_fn is not set) */
+#endif
+/* Format the VM's messages and numbers with the small built-in formatter
+ * (src/mcs_fmt.c) instead of the C library's snprintf; saves ~2-3 KB of flash
+ * on newlib-nano when the firmware itself does not use printf. Floating-point
+ * output still goes through the C library when MCS_ENABLE_FLOAT=1. */
+/* realloc()/free() from the C library when cfg.realloc_fn is NULL. 0 = the
+ * host must pass an allocator (e.g. mcs_pool_realloc); mcs_new fails otherwise. */
+#ifndef MCS_ENABLE_MALLOC
+#define MCS_ENABLE_MALLOC 1
+#endif
+#ifndef MCS_TINY_PRINTF
+#define MCS_TINY_PRINTF 0
+#endif
 /* Disassembler (debug builds / host tool) */
 #ifndef MCS_ENABLE_DISASM
 #define MCS_ENABLE_DISASM 1
@@ -121,6 +161,15 @@
 #define MCS_LAZY_REGS 1
 #endif
 
+/* Built-in classes (exceptions, collections, Math, Console, ...) and the
+ * classes registered by modules (HAL, filesystem, scheduler) are created the
+ * first time a script or C code names them, instead of in mcs_new(). A VM
+ * then starts in 1.7-8 KB on a 32-bit MCU instead of 13-25 KB, and a class that
+ * is never used costs no RAM at all. 0 = create everything in mcs_new(). */
+#ifndef MCS_LAZY_CLASSES
+#define MCS_LAZY_CLASSES 1
+#endif
+
 /* First allocation size (entries) of every hash table: class member tables,
  * Dictionary/HashSet indexes. Most built-in classes have 1-3 members per table,
  * so 4 halves their RAM compared with 8. Power of two, >= 4. */
@@ -158,6 +207,15 @@
  * compiles the module to nothing, so "add every .c file" builds still work. */
 #ifndef MCS_ENABLE_FS
 #define MCS_ENABLE_FS 1            /* VFS + C# File/Directory      */
+#endif
+#ifndef MCS_ENABLE_FLASH
+#define MCS_ENABLE_FLASH MCS_ENABLE_FS /* mcs_flash.h: NOR/NAND device layer + SPI NOR/NAND drivers */
+#endif
+#ifndef MCS_ENABLE_LFS
+#define MCS_ENABLE_LFS 0           /* LittleFS backend (needs littlefs sources, not bundled) */
+#endif
+#ifndef MCS_ENABLE_YAFFS
+#define MCS_ENABLE_YAFFS 0         /* YAFFS2 backend (needs yaffs2 direct sources, not bundled) */
 #endif
 #ifndef MCS_ENABLE_HAL
 #define MCS_ENABLE_HAL 1           /* C# GPIO/UART/I2C/SPI/ADC/PWM  */
