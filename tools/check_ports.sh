@@ -1,6 +1,8 @@
 #!/bin/sh
 # Compile-check a board port against the real vendor headers.
 #   sh tools/check_ports.sh stm32 <family f4|h7|g4|l4|...> <device macro> <cpu>
+# PORT_CFLAGS adds flags, e.g. the auto profile:
+#   PORT_CFLAGS="-DMCS_PORT_HAL=1 -DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\"" sh tools/check_ports.sh stm32 f0 STM32F072xB cortex-m0
 # Downloads the STM32Cube HAL + CMSIS headers for the family into build/sdk
 # (or uses $STM32_SDK if set) and compiles ports/stm32 with -Werror.
 set -e
@@ -21,7 +23,7 @@ stm32)
     for f in ports/stm32/mcs_port_stm32.c ports/stm32/example_main.c; do
         arm-none-eabi-gcc -mcpu="$cpu" -mthumb -std=gnu99 -Os -Wall -Wextra -Werror -c "$f" -o build/port_check.o \
             -D"$dev" -DUSE_HAL_DRIVER -I"$conf" -I"$sdk/stm32${fam}xx-hal-driver/Inc" -I"$sdk/cmsis-device-${fam}/Include" \
-            -I"$core" -Iinclude -Iports/stm32
+            -I"$core" -Iinclude -Iports/stm32 $PORT_CFLAGS
         echo "OK $f ($dev)"
     done
     ;;

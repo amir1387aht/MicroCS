@@ -5,6 +5,7 @@
 #include "mcs.h"
 #include "mcs_vfs.h"
 #include "lfs.h"
+#include "flash_sim.h"
 
 #define BLOCK 512
 #define NBLOCKS 256
@@ -35,7 +36,41 @@ static int run(mcs_vfs_t* vfs, const char* code) {
     return r;
 }
 
+/* LittleFS on a simulated SPI chip through mcs_flash_t + mcs_lfs_flash_config */
+static void exercise_flash(const char* tag, mcs_flash_part_t* part, unsigned fill_chunks) {
+    char what[128], code[1024];
+#define T(x) (snprintf(what, sizeof what, "%s: %s", tag, x), what)
+    struct lfs_config fc; lfs_t fl;
+    CHECK(mcs_lfs_flash_config(&fc, part) == 0, T("mcs_lfs_flash_config"));
+    CHECK(lfs_format(&fl, &fc) == 0 && lfs_mount(&fl, &fc) == 0, T("format + mount"));
+    mcs_vfs_t v; mcs_vfs_init(&v);
+    mcs_vfs_mount(&v, "/f", &mcs_lfs_ops, &fl, 0);
+    int r = run(&v, "Directory.CreateDirectory(\"/f/app\"); File.WriteAllText(\"/f/app/main.cs\", \"Console.WriteLine(6*7);\");\n"
+                    "File.AppendAllText(\"/f/log\", \"a\"); File.AppendAllText(\"/f/log\", \"b\"); Console.WriteLine(File.ReadAllText(\"/f/log\"));");
+    CHECK(r == MCS_OK && !strcmp(g_out, "ab\n"), T("C# File API"));
+    lfs_unmount(&fl);
+    CHECK(lfs_mount(&fl, &fc) == 0, T("remount"));
+    {
+        mcs_config_t c; mcs_config_default(&c); c.write_fn = out; c.error_fn = out;
+        mcs_vm_t* vm = mcs_new(&c); g_len = 0;
+        r = mcs_exec_file(vm, &v, "/f/app/main.cs");
+        mcs_free(vm);
+        CHECK(r == MCS_OK && !strcmp(g_out, "42\n"), T("persisted script runs"));
+    }
+    snprintf(code, sizeof code,
+        "try { var s = new string('x', 4096); for (int i = 0; i < %u; i++) File.AppendAllText(\"/f/big.bin\", s); Console.WriteLine(\"room\"); }\n"
+        "catch (IOException e) { Console.WriteLine(\"full\"); }\nFile.Delete(\"/f/big.bin\");\n"
+        "var t = new string('y', 1500); for (int i = 0; i < 300; i++) File.WriteAllText(\"/f/w\" + (i %% 6), t + i);\n"
+        "Console.WriteLine(File.ReadAllText(\"/f/w5\").Length);", fill_chunks);
+    r = run(&v, code);
+    CHECK(r == MCS_OK && !strcmp(g_out, "full\n1503\n"), T("fill -> IOException, delete, churn"));
+    if (strcmp(g_out, "full\n1503\n")) printf("got: [%s]\n", g_out);
+    lfs_unmount(&fl);
+#undef T
+}
+
 int main(void) {
+    setvbuf(stdout, NULL, _IONBF, 0);
     lfs_t lfs;
     memset(g_flash, 0xff, sizeof g_flash);
     CHECK(lfs_format(&lfs, &cfg) == 0 && lfs_mount(&lfs, &cfg) == 0, "format + mount LittleFS on RAM block device");
@@ -79,6 +114,34 @@ int main(void) {
     CHECK(r == MCS_OK && !strcmp(g_out, "full\nFalse\n"), "device full -> IOException, space reclaimed after delete");
     if (strcmp(g_out, "full\nFalse\n")) printf("got: [%s]\n", g_out);
     lfs_unmount(&lfs);
+
+    /* ---- SPI NOR (2 MB, 4 KB sectors) through the generic driver ---- */
+    sim_nor_t os; mcs_spinor_t nor; memset(&nor, 0, sizeof nor);
+    sim_nor_init(&os, 2u << 20, 0x15, 0x7);
+    CHECK(mcs_spinor_init(&nor, sim_nor_xfer, &os, 0, 4096) == 0, "SPI NOR init");
+    mcs_flash_part_t np = { &nor.flash, 16, 256 };        /* 1 MB partition at 64 KB */
+    exercise_flash("LittleFS on SPI NOR", &np, 300);
+    CHECK(os.overwrite_violations == 0 && os.unlocked_writes == 0, "NOR: never programs 0->1");
+    printf("NOR: %ld page programs, %ld sector erases\n", os.progs, os.erases);
+    free(os.mem);
+
+    /* ---- SPI NAND (64 x 128 KB) with a factory bad block and one that wears out ---- */
+    sim_nand_t ns; mcs_spinand_t nand; memset(&nand, 0, sizeof nand);
+    sim_nand_init(&ns, 64);
+    sim_nand_factory_bad(&ns, 1);
+    sim_nand_factory_bad(&ns, 9);
+    ns.worn[12] = 1;
+    CHECK(mcs_spinand_init(&nand, sim_nand_xfer, &ns, 64) == 0, "SPI NAND init");
+    struct lfs_config bad;
+    mcs_flash_part_t p0 = { &nand.flash, 0, 0 };
+    CHECK(mcs_lfs_flash_config(&bad, &p0) == MCS_VFS_EIO, "NAND: partition with a bad superblock block refused");
+    mcs_flash_part_t pp = { &nand.flash, 2, 0 };          /* blocks 2..63 */
+    exercise_flash("LittleFS on SPI NAND", &pp, 2200);
+    CHECK(ns.nop_violations == 0 && ns.order_violations == 0 && ns.overwrite_violations == 0,
+          "NAND: one in-order program per page, never 0->1");
+    CHECK(nand.flash.is_bad(&nand.flash, 12) == 1, "NAND: worn-out block marked bad");
+    printf("NAND: %ld page programs, %ld block erases, %ld page reads\n", ns.progs, ns.erases, ns.reads);
+    free(ns.mem); free(ns.prog_count); free(ns.next_page); free(ns.worn);
     printf("%d/%d checks passed (%d block programs)\n", checks - fails, checks, g_progs);
     return fails ? 1 : 0;
 }

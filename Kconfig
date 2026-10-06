@@ -1,0 +1,26 @@
+# MicroCS - ESP-IDF component configuration (idf.py menuconfig > Component config > MicroCS).
+# (Zephyr uses zephyr/Kconfig; plain CMake uses MICROCS_PROFILE.)
+menu "MicroCS"
+
+    choice MICROCS_PROFILE
+        prompt "Build profile"
+        default MICROCS_PROFILE_EMBEDDED if IDF_TARGET_ESP32C2
+        default MICROCS_PROFILE_FULL
+        help
+            Feature set of the C# runtime (include/profiles/mcs_profile_<name>.h).
+            The default follows the chip's RAM: the ESP32-C2 (272 KB SRAM) gets
+            the embedded profile, every other ESP32 the full build.
+
+        config MICROCS_PROFILE_FULL
+            bool "Full (default configuration: compiler, REPL, disassembler, 64-bit ints)"
+        config MICROCS_PROFILE_EMBEDDED
+            bool "Embedded (compiler + REPL + modules, 32-bit ints, no disassembler)"
+        config MICROCS_PROFILE_MCU
+            bool "MCU runtime (precompiled images only)"
+        config MICROCS_PROFILE_LOWRAM
+            bool "Low-RAM (precompiled images, single-precision floats, small VM limits)"
+        config MICROCS_PROFILE_MIN
+            bool "Minimal (smallest flash; no floats, LINQ, Dictionary, extra string/array members)"
+    endchoice
+
+endmenu
