@@ -313,6 +313,8 @@ static void test_dict_index(void) {
     mcs_free(vm);
     vm = new_vm();
     mcs_mem_stats_t a, b;
+    /* built-in classes are created on first use: create them before measuring */
+    CHECK(mcs_exec_source(vm, "w.cs", "var w = new HashSet<int>(); w.Add(1); var l = new List<object> { w }; GC.Collect(); Console.Write(\"\");\n") == MCS_OK);
     mcs_gc(vm); mcs_mem_stats(vm, &a);
     CHECK(mcs_exec_source(vm, "h.cs",
         "var h = new HashSet<int>(); for (int i = 0; i < 1000; i++) h.Add(i);\n"

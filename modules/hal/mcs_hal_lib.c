@@ -712,7 +712,10 @@ NATIVE(adc_average) {
     }
     return mcs_int((mcs_int_t)((sum + n / 2) / n));
 }
+NATIVE(adc_resolution) { return mcs_int(HAL()->adc_bits ? HAL()->adc_bits : 12); }
+NATIVE(adc_vref) { return mcs_int(vref(HAL())); }
 static const mcs_reg_t adc_fns[] = {
+    MCS_GET("Resolution", adc_resolution), MCS_GET("ReferenceMillivolts", adc_vref),
     MCS_FN("Read", adc_read, 1), MCS_FN("ReadMillivolts", adc_read_mv, 1),
 #if MCS_ENABLE_FLOAT
     MCS_FN("ReadVoltage", adc_read_volts, 1),
@@ -735,7 +738,8 @@ NATIVE(dac_write_mv) {
     RC("DAC.WriteMillivolts", h->dac_write(h->ctx, ch, (uint32_t)(((int64_t)mv * fs + vref(h) / 2) / vref(h))));
     return mcs_null();
 }
-static const mcs_reg_t dac_fns[] = { MCS_FN("Write", dac_write, 2), MCS_FN("WriteMillivolts", dac_write_mv, 2), MCS_REG_END };
+NATIVE(dac_resolution) { return mcs_int(HAL()->dac_bits ? HAL()->dac_bits : 8); }
+static const mcs_reg_t dac_fns[] = { MCS_GET("Resolution", dac_resolution), MCS_FN("Write", dac_write, 2), MCS_FN("WriteMillivolts", dac_write_mv, 2), MCS_REG_END };
 
 /* ------------------------------------------------------------- PWM */
 /* duty in 1/65535 */
@@ -1134,7 +1138,9 @@ NATIVE(hal_post) {       /* raise a user event from C# (handled at the next poll
     if (n < 0 || n > 255 - MCS_HAL_EV_USER) return range_fail(vm, "event id");
     return mcs_bool(mcs_hal_post(MCS_HAL_EV_USER + n, src, val));
 }
+NATIVE(hal_board) { return mcs_string(vm, HAL()->board ? HAL()->board : "unknown"); }
 static const mcs_reg_t hal_fns[] = {
+    MCS_GET("Board", hal_board),
     MCS_FN("Has", hal_has, 1), MCS_FN("Poll", hal_poll, 0), MCS_FN("Run", hal_run, -1),
     MCS_GET("Micros", hal_micros), MCS_FN("DelayMicroseconds", hal_delay_us, 1), MCS_FN("Reset", hal_reset, 0),
     MCS_GET("UniqueId", hal_uid), MCS_GET("CpuHz", hal_cpuhz), MCS_GET("DroppedEvents", hal_dropped),
@@ -1277,20 +1283,49 @@ static const mcs_reg_t bitconv_fns[] = {
 #endif
     MCS_FN("GetBytes", bc_getbytes, 1), MCS_FN("ToString", bc_tostring, 1), MCS_REG_END
 };
+NATIVE(bc_little) { return mcs_bool(true); }
+static const mcs_reg_t bitconv_props[] = { MCS_GET("IsLittleEndian", bc_little), MCS_REG_END };
+/* Encoding.UTF8 / Encoding.ASCII: created on first use, then stored as static
+ * fields (found before the getter from then on, so the object is shared) */
+static mcs_value_t enc_get(mcs_vm_t* vm, int ascii) {
+    mcs_value_t obj;
+    if (mcs_new_object(vm, "__Encoding", 0, NULL, &obj) != MCS_OK) return mcs_null();
+    ((enc_t*)mcs_userdata(obj))->ascii = ascii;
+    mcs_push_root(vm, obj);
+    mcs_module_set(vm, "Encoding", ascii ? "ASCII" : "UTF8", obj);
+    mcs_pop_root(vm, 1);
+    return obj;
+}
+NATIVE(enc_utf8) { return enc_get(vm, 0); }
+NATIVE(enc_ascii) { return enc_get(vm, 1); }
+static const mcs_reg_t enc_fns[] = { MCS_GET("UTF8", enc_utf8), MCS_GET("ASCII", enc_ascii), MCS_REG_END };
 static void open_bytes_lib(mcs_vm_t* vm) {
     mcs_register_module(vm, "BitConverter", bitconv_fns);
-    mcs_module_set(vm, "BitConverter", "IsLittleEndian", mcs_bool(true));
+    mcs_register_module(vm, "BitConverter", bitconv_props);
     mcs_register_class(vm, &enc_def);
-    static const char* names[2] = { "UTF8", "ASCII" };
-    for (int i = 0; i < 2; i++) {
-        mcs_value_t obj;
-        if (mcs_new_object(vm, "__Encoding", 0, NULL, &obj) != MCS_OK) return;
-        ((enc_t*)mcs_userdata(obj))->ascii = i;
-        mcs_module_set(vm, "Encoding", names[i], obj);
-    }
+    mcs_register_module(vm, "Encoding", enc_fns);
 }
 
-#define CONST(mod, name, v) mcs_module_set(vm, mod, name, mcs_int(v))
+static const mcs_const_t hal_consts[] = { MCS_CONST("ApiVersion", MCS_HAL_API_VERSION), MCS_CONST_END };
+static const mcs_const_t gpio_consts[] = {
+    MCS_CONST("Input", MCS_GPIO_INPUT), MCS_CONST("Output", MCS_GPIO_OUTPUT),
+    MCS_CONST("InputPullUp", MCS_GPIO_INPUT_PULLUP), MCS_CONST("InputPullDown", MCS_GPIO_INPUT_PULLDOWN),
+    MCS_CONST("OpenDrain", MCS_GPIO_OPEN_DRAIN), MCS_CONST("Analog", MCS_GPIO_ANALOG),
+    MCS_CONST("Rising", MCS_GPIO_EDGE_RISING), MCS_CONST("Falling", MCS_GPIO_EDGE_FALLING),
+    MCS_CONST("Both", MCS_GPIO_EDGE_BOTH), MCS_CONST_END
+};
+NATIVE(gpio_high) { return mcs_bool(true); }
+NATIVE(gpio_low) { return mcs_bool(false); }
+static const mcs_reg_t gpio_props[] = { MCS_GET("High", gpio_high), MCS_GET("Low", gpio_low), MCS_REG_END };
+static const mcs_const_t uart_consts[] = {
+    MCS_CONST("ParityNone", MCS_UART_PARITY_NONE), MCS_CONST("ParityOdd", MCS_UART_PARITY_ODD),
+    MCS_CONST("ParityEven", MCS_UART_PARITY_EVEN), MCS_CONST_END
+};
+static const mcs_const_t i2s_consts[] = {
+    MCS_CONST("Transmit", MCS_I2S_TX), MCS_CONST("Receive", MCS_I2S_RX), MCS_CONST("Duplex", MCS_I2S_DUPLEX),
+    MCS_CONST("Philips", MCS_I2S_PHILIPS), MCS_CONST("Msb", MCS_I2S_MSB), MCS_CONST("Pcm", MCS_I2S_PCM), MCS_CONST_END
+};
+
 void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) {
     hal_state_t* s = ST();
     if (!s) {
@@ -1319,38 +1354,26 @@ void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) {
 
     open_bytes_lib(vm);
     mcs_register_module(vm, "Hal", hal_fns);
-    mcs_module_set(vm, "Hal", "Board", mcs_string(vm, h->board ? h->board : "unknown"));
-    CONST("Hal", "ApiVersion", MCS_HAL_API_VERSION);
+    mcs_register_consts(vm, "Hal", hal_consts);
     if (has(h, "GPIO")) {
         mcs_register_module(vm, "GPIO", gpio_fns);
-        CONST("GPIO", "Input", MCS_GPIO_INPUT); CONST("GPIO", "Output", MCS_GPIO_OUTPUT);
-        CONST("GPIO", "InputPullUp", MCS_GPIO_INPUT_PULLUP); CONST("GPIO", "InputPullDown", MCS_GPIO_INPUT_PULLDOWN);
-        CONST("GPIO", "OpenDrain", MCS_GPIO_OPEN_DRAIN); CONST("GPIO", "Analog", MCS_GPIO_ANALOG);
-        CONST("GPIO", "Rising", MCS_GPIO_EDGE_RISING); CONST("GPIO", "Falling", MCS_GPIO_EDGE_FALLING);
-        CONST("GPIO", "Both", MCS_GPIO_EDGE_BOTH);
-        mcs_module_set(vm, "GPIO", "High", mcs_bool(true));
-        mcs_module_set(vm, "GPIO", "Low", mcs_bool(false));
+        mcs_register_module(vm, "GPIO", gpio_props);
+        mcs_register_consts(vm, "GPIO", gpio_consts);
         mcs_register_class(vm, &pin_def);
     }
     if (has(h, "UART")) {
         mcs_register_module(vm, "UART", uart_fns);
-        CONST("UART", "ParityNone", MCS_UART_PARITY_NONE); CONST("UART", "ParityOdd", MCS_UART_PARITY_ODD);
-        CONST("UART", "ParityEven", MCS_UART_PARITY_EVEN);
+        mcs_register_consts(vm, "UART", uart_consts);
     }
     if (has(h, "I2C")) { mcs_register_module(vm, "I2C", i2c_fns); mcs_register_class(vm, &i2cdev_def); }
     if (has(h, "SPI")) { mcs_register_module(vm, "SPI", spi_fns); mcs_register_class(vm, &spidev_def); }
-    if (has(h, "ADC")) {
-        mcs_register_module(vm, "ADC", adc_fns);
-        CONST("ADC", "Resolution", h->adc_bits ? h->adc_bits : 12);
-        CONST("ADC", "ReferenceMillivolts", vref(h));
-    }
-    if (has(h, "DAC")) { mcs_register_module(vm, "DAC", dac_fns); CONST("DAC", "Resolution", h->dac_bits ? h->dac_bits : 8); }
+    if (has(h, "ADC")) mcs_register_module(vm, "ADC", adc_fns);
+    if (has(h, "DAC")) mcs_register_module(vm, "DAC", dac_fns);
     if (has(h, "PWM")) mcs_register_module(vm, "PWM", pwm_fns);
     if (has(h, "Timer")) mcs_register_module(vm, "Timer", timer_fns);
     if (has(h, "I2S")) {
         mcs_register_module(vm, "I2S", i2s_fns);
-        CONST("I2S", "Transmit", MCS_I2S_TX); CONST("I2S", "Receive", MCS_I2S_RX); CONST("I2S", "Duplex", MCS_I2S_DUPLEX);
-        CONST("I2S", "Philips", MCS_I2S_PHILIPS); CONST("I2S", "Msb", MCS_I2S_MSB); CONST("I2S", "Pcm", MCS_I2S_PCM);
+        mcs_register_consts(vm, "I2S", i2s_consts);
     }
     if (has(h, "QSPI")) mcs_register_module(vm, "QSPI", qspi_fns);
     if (has(h, "CAN")) { mcs_register_module(vm, "CAN", can_fns); mcs_register_class(vm, &canframe_def); }

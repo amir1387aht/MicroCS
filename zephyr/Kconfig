@@ -16,7 +16,32 @@ config MICROCS_PORT
 	imply HWINFO
 	imply REBOOT
 
+choice MICROCS_PROFILE_CHOICE
+	prompt "MicroCS configuration profile"
+	default MICROCS_PROFILE_AUTO
+	help
+	  Which include/profiles/mcs_profile_<name>.h configures the runtime.
+	  AUTO picks one from CONFIG_SRAM_SIZE / CONFIG_FLASH_SIZE (16 KB RAM /
+	  64 KB flash minimum; see include/profiles/mcs_profile_auto.h).
+
+config MICROCS_PROFILE_AUTO
+	bool "Auto (from the board's RAM and flash size)"
+
+config MICROCS_PROFILE_FULL
+	bool "Full (everything on)"
+
+config MICROCS_PROFILE_EMBEDDED
+	bool "Embedded (on-device compiler + REPL, 96 KB+ RAM)"
+
+config MICROCS_PROFILE_MCU
+	bool "MCU (precompiled images, 64-96 KB RAM)"
+
 config MICROCS_PROFILE_LOWRAM
-	bool "Low-RAM profile (16-32 KB targets)"
+	bool "Low-RAM (precompiled images, 32-64 KB RAM)"
+
+config MICROCS_PROFILE_MIN
+	bool "Minimum (64 KB flash / 16 KB RAM)"
+
+endchoice
 
 endif

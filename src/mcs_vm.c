@@ -21,7 +21,9 @@ const char* const mcs_op_name[OP__COUNT] = {
 /* ================================================================ output */
 void mcs_write(mcs_vm_t* vm, const char* s, size_t n) {
     if (vm->cfg.write_fn) vm->cfg.write_fn(vm->cfg.user_data, s, n);
+#if MCS_ENABLE_STDIO
     else { fwrite(s, 1, n, stdout); }
+#endif
 }
 void mcs_report_error(mcs_vm_t* vm, const char* fmt, ...) {
     char buf[512];
@@ -30,7 +32,9 @@ void mcs_report_error(mcs_vm_t* vm, const char* fmt, ...) {
     if ((size_t)n >= sizeof buf) n = sizeof buf - 1;
     if (vm->cfg.error_fn) vm->cfg.error_fn(vm->cfg.user_data, buf, (size_t)n);
     else if (vm->cfg.write_fn) vm->cfg.write_fn(vm->cfg.user_data, buf, (size_t)n);
+#if MCS_ENABLE_STDIO
     else { fflush(stdout); fwrite(buf, 1, (size_t)n, stderr); }
+#endif
 }
 
 /* ================================================================ globals */
@@ -38,7 +42,7 @@ uint32_t mcs_global_slot(mcs_vm_t* vm, mcs_string_t* name) {
     if (name->obj.aux) return (uint32_t)name->obj.aux - 1u;
     if (vm->global_count >= 0xFFFFu) mcs_panic(vm, MCS_ERR_MEMORY, "too many globals");
     if (vm->global_count == vm->global_cap) {
-        uint32_t nc = vm->global_cap < 64 ? 64 : vm->global_cap + vm->global_cap / 2; /* 1.5x: smaller steps on small heaps */
+        uint32_t nc = vm->global_cap < 16 ? 16 : vm->global_cap + vm->global_cap / 2; /* 1.5x: smaller steps on small heaps */
         vm->globals = MCS_GROW(vm, mcs_value_t, vm->globals, vm->global_cap, nc);
         vm->global_names = MCS_GROW(vm, mcs_string_t*, vm->global_names, vm->global_cap, nc);
         vm->global_cap = nc;
@@ -55,9 +59,26 @@ void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v) {
     vm->gc_pause--;
     vm->globals[s] = v;
 }
+/* create a lazily registered global; outside a run an out-of-memory panic
+ * must not abort the program, so it gets its own recovery point */
+static bool resolve_guarded(mcs_vm_t* vm, const char* name, size_t len) {
+    if (!mcs_lazy_known(vm, name, len)) return false;
+    if (vm->panic) return mcs_lazy_resolve(vm, name, len);
+    jmp_buf jb;
+    bool ok = false;
+    vm->panic = &jb;
+    if (!setjmp(jb)) ok = mcs_lazy_resolve(vm, name, len);
+    vm->panic = NULL;
+    return ok;
+}
 mcs_value_t mcs_get_global(mcs_vm_t* vm, const char* name) {
-    mcs_string_t* s = mcs_find_interned(vm, name, strlen(name));
-    if (!s || !s->obj.aux) return mcs_null();
+    size_t len = strlen(name);
+    mcs_string_t* s = mcs_find_interned(vm, name, len);
+    if (!s || !s->obj.aux || vm->globals[s->obj.aux - 1u].type == MCS_T_UNDEF) {
+        if (!resolve_guarded(vm, name, len)) return mcs_null();
+        s = mcs_find_interned(vm, name, len);
+        if (!s || !s->obj.aux) return mcs_null();
+    }
     mcs_value_t v = vm->globals[s->obj.aux - 1u];
     return v.type == MCS_T_UNDEF ? mcs_null() : v;
 }
@@ -113,16 +134,17 @@ void mcs_throw(mcs_vm_t* vm, int kind, const char* fmt, ...) {
     char msg[200];
     va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
     if (vm->has_exc) return; /* keep first */
-    mcs_throw_value(vm, OBJ_VAL(mcs_make_exception(vm, vm->exc[kind], msg)));
+    mcs_throw_value(vm, OBJ_VAL(mcs_make_exception(vm, MCS_EXC(vm, kind), msg)));
 }
 
 void mcs_raise(mcs_vm_t* vm, const char* cls_name, const char* fmt, ...) {
     char msg[200];
     va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
     if (vm->has_exc) return;
-    mcs_class_t* cls = vm->exc[EXC_EXCEPTION];
+    mcs_class_t* cls = NULL;
     mcs_value_t g = mcs_get_global(vm, cls_name ? cls_name : "Exception");
     if (IS_KIND(g, MCS_O_CLASS)) cls = AS_CLASS(g);
+    if (!cls) cls = MCS_EXC(vm, EXC_EXCEPTION);
     mcs_throw_value(vm, OBJ_VAL(mcs_make_exception(vm, cls, msg)));
 }
 bool mcs_has_exception(mcs_vm_t* vm) { return vm->has_exc; }
@@ -877,6 +899,11 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(GET_GLOBAL) {
         uint16_t s = GSLOT(READ16());
         a = vm->globals[s];
+        if (a.type == MCS_T_UNDEF) {   /* first use of a built-in / registered class */
+            SAVE();
+            mcs_string_t* gn = vm->global_names[s];
+            if (mcs_lazy_resolve(vm, gn->chars, gn->len)) a = vm->globals[s];
+        }
         if (a.type == MCS_T_UNDEF) { SAVE(); mcs_throw(vm, EXC_MISSINGMEMBER, "The name '%s' does not exist in the current context", vm->global_names[s]->chars); THROWN(); }
         PUSH(a);
         DISPATCH();
@@ -1135,7 +1162,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         uint8_t flags = READ8();
         mcs_class_t* cls = mcs_new_class(vm, nm, flags & 2 ? CLS_INTERFACE : flags & 1 ? CLS_STATIC : CLS_SCRIPT);
         PUSH(OBJ_VAL(cls));
-        if (!(flags & 2)) mcs_class_inherit(vm, cls, vm->cls_object);
+        if (!(flags & 2)) mcs_class_inherit(vm, cls, MCS_CLS(vm, object));
         DISPATCH();
     }
     CASE(INHERIT) {
@@ -1277,7 +1304,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (IS_KIND(a, MCS_O_DICT)) {
             mcs_dict_t* d = AS_DICT(a);
             if ((mcs_uint_t)i < d->count) {
-                mcs_instance_t* kv = mcs_new_instance(vm, vm->cls_kvp);
+                mcs_instance_t* kv = mcs_new_instance(vm, MCS_CLS(vm, kvp));
                 kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
                 PUSH(OBJ_VAL(kv));
                 slots[s + 1].as.i = i + 1;
@@ -1544,7 +1571,11 @@ int mcs_safepoint(mcs_vm_t* vm) {
 
 uint32_t mcs_ticks(mcs_vm_t* vm) {
     if (vm->cfg.ticks_fn) return vm->cfg.ticks_fn(vm->cfg.user_data);
+#if MCS_ENABLE_STDIO
     return (uint32_t)((uint64_t)clock() * 1000u / CLOCKS_PER_SEC);
+#else
+    return 0;   /* no hosted C library clock: set cfg.ticks_fn */
+#endif
 }
 
 void mcs_set_idle(mcs_vm_t* vm, mcs_idle_fn fn, void* ud) { vm->idle_fn = fn; vm->idle_ud = ud; }
@@ -1604,11 +1635,11 @@ mcs_result_t mcs_exec_auto(mcs_vm_t* vm, const char* name, const void* data, siz
 #if MCS_ENABLE_COMPILER
     if (len && ((const char*)data)[len - 1] == 0) return mcs_exec_source(vm, name, (const char*)data);
     /* raw allocator: mcs_realloc would panic outside a guarded region */
-    char* copy = vm->cfg.realloc_fn ? (char*)vm->cfg.realloc_fn(vm->cfg.alloc_ud, NULL, 0, len + 1) : (char*)malloc(len + 1);
+    char* copy = vm->cfg.realloc_fn ? (char*)vm->cfg.realloc_fn(vm->cfg.alloc_ud, NULL, 0, len + 1) : (char*)mcs_sys_realloc(NULL, NULL, 0, len + 1);
     if (!copy) { snprintf(vm->error, sizeof vm->error, "out of memory"); return MCS_ERR_MEMORY; }
     memcpy(copy, data, len); copy[len] = 0;
     mcs_result_t r = mcs_exec_source(vm, name, copy);
-    if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, copy, len + 1, 0); else free(copy);
+    if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, copy, len + 1, 0); else mcs_sys_realloc(NULL, copy, len + 1, 0);
     return r;
 #else
     (void)name;
@@ -1672,7 +1703,10 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     if (cfg_in) cfg = *cfg_in; else mcs_config_default(&cfg);
     if (!cfg.stack_slots) cfg.stack_slots = MCS_DEFAULT_STACK;
     if (!cfg.max_frames) cfg.max_frames = MCS_DEFAULT_FRAMES;
-    mcs_vm_t* vm = cfg.realloc_fn ? (mcs_vm_t*)cfg.realloc_fn(cfg.alloc_ud, NULL, 0, sizeof(mcs_vm_t)) : (mcs_vm_t*)malloc(sizeof(mcs_vm_t));
+#if MCS_ENABLE_POOL_HEAP
+    if (cfg.realloc_fn == mcs_pool_realloc && !cfg.alloc_overhead) cfg.alloc_overhead = MCS_POOL_OVERHEAD;
+#endif
+    mcs_vm_t* vm = cfg.realloc_fn ? (mcs_vm_t*)cfg.realloc_fn(cfg.alloc_ud, NULL, 0, sizeof(mcs_vm_t)) : (mcs_vm_t*)mcs_sys_realloc(NULL, NULL, 0, sizeof(mcs_vm_t));
     if (!vm) return NULL;
     memset(vm, 0, sizeof *vm);
     vm->cfg = cfg;
@@ -1708,6 +1742,7 @@ void mcs_free(mcs_vm_t* vm) {
     if (!vm) return;
     vm->gc_pause++;
     mcs_free_objects(vm);
+    mcs_lazy_free(vm);
     mcs_strset_free(vm, &vm->strings);
     mcs_table_free(vm, &vm->tuple_classes);
     MCS_FREE(vm, mcs_value_t, vm->globals, vm->global_cap);
@@ -1715,6 +1750,6 @@ void mcs_free(mcs_vm_t* vm) {
     if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->cfg.stack_slots);
     if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->cfg.max_frames);
     if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, vm, sizeof(mcs_vm_t), 0);
-    else free(vm);
+    else mcs_sys_realloc(NULL, vm, sizeof(mcs_vm_t), 0);
 }
 void* mcs_user_data(mcs_vm_t* vm) { return vm->cfg.user_data; }

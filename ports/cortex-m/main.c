@@ -96,6 +96,7 @@ static mcs_vm_t* make_vm(void) {
     mcs_config_t cfg;
     mcs_config_default(&cfg);
     cfg.realloc_fn = CM_REALLOC; cfg.alloc_ud = &g_pool;
+    cfg.alloc_overhead = MCS_POOL_OVERHEAD;   /* also when CM_REALLOC wraps the pool */
     cfg.write_fn = w_out; cfg.ticks_fn = w_ticks; cfg.delay_fn = w_delay; cfg.hook_fn = w_hook;
     cfg.stack_slots = CM_STACK_SLOTS; cfg.max_frames = CM_FRAMES;
     cfg.heap_limit = CM_HEAP_SIZE - 2048;

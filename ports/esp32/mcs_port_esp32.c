@@ -45,6 +45,30 @@
 #include "driver/usb_serial_jtag.h"
 #endif
 
+#if defined(CONFIG_NEWLIB_NANO_FORMAT) && CONFIG_NEWLIB_NANO_FORMAT && MCS_ENABLE_FLOAT
+/* ESP32-C2 defaults to the ROM's "nano" printf, which cannot format floating
+ * point: MicroCS would print doubles as empty strings. */
+#warning "MicroCS: CONFIG_NEWLIB_NANO_FORMAT=y has no float formatting - set it to n (menuconfig > Component config > LibC) or build with MCS_ENABLE_FLOAT=0"
+#endif
+
+/* hardware gptimers usable for Timer.Start (ESP32/S2/S3: 4, C3/C6/H2: 2, C2: 1) */
+#if defined(SOC_TIMER_GROUP_TOTAL_TIMERS) && SOC_TIMER_GROUP_TOTAL_TIMERS < MCS_ESP32_TIMERS
+#define MCS_ESP32_HW_TIMERS ((int)SOC_TIMER_GROUP_TOTAL_TIMERS)
+#else
+#define MCS_ESP32_HW_TIMERS MCS_ESP32_TIMERS
+#endif
+/* LEDC source clock used to pick the duty resolution (LEDC_AUTO_CLK still
+ * chooses the clock; a too-wide resolution is retried one bit narrower) */
+#ifndef MCS_ESP32_LEDC_CLK_HZ
+#if CONFIG_IDF_TARGET_ESP32C2
+#define MCS_ESP32_LEDC_CLK_HZ 60000000u     /* PLL_F60M */
+#elif CONFIG_IDF_TARGET_ESP32H2
+#define MCS_ESP32_LEDC_CLK_HZ 96000000u     /* PLL_F96M */
+#else
+#define MCS_ESP32_LEDC_CLK_HZ 80000000u     /* APB / PLL_F80M */
+#endif
+#endif
+
 #ifndef MCS_ESP32_TIMEOUT_MS
 #define MCS_ESP32_TIMEOUT_MS 100
 #endif
@@ -483,9 +507,9 @@ static int e_pwm_set16(void* ctx, int ch, uint32_t freq, uint16_t duty) {
     if (!freq) return MCS_HAL_EINVAL;
     int timer = ch & 3;
     if (freq != g_pwm_freq[timer] || !g_pwm_on[ch]) {
-        /* widest resolution that still divides the ~80 MHz LEDC clock */
+        /* widest resolution that still divides the LEDC clock */
         int bits = 1;
-        while (bits < SOC_LEDC_TIMER_BIT_WIDTH && (80000000u >> (bits + 1)) >= freq) bits++;
+        while (bits < SOC_LEDC_TIMER_BIT_WIDTH && (MCS_ESP32_LEDC_CLK_HZ >> (bits + 1)) >= freq) bits++;
         esp_err_t e;
         do {
             ledc_timer_config_t t;
@@ -545,7 +569,7 @@ static bool IRAM_ATTR tim_isr(gptimer_handle_t t, const gptimer_alarm_event_data
 }
 static int e_timer_start(void* ctx, int i, uint32_t period_us, int periodic) {
     (void)ctx;
-    if (i < 0 || i >= MCS_ESP32_TIMERS) return MCS_HAL_ENOTSUP;
+    if (i < 0 || i >= MCS_ESP32_HW_TIMERS) return MCS_HAL_ENOTSUP;
     if (!period_us) return MCS_HAL_EINVAL;
     esp_err_t e;
     if (!g_tim[i]) {
@@ -572,7 +596,7 @@ static int e_timer_start(void* ctx, int i, uint32_t period_us, int periodic) {
 }
 static int e_timer_stop(void* ctx, int i) {
     (void)ctx;
-    if (i < 0 || i >= MCS_ESP32_TIMERS) return MCS_HAL_ENOTSUP;
+    if (i < 0 || i >= MCS_ESP32_HW_TIMERS) return MCS_HAL_ENOTSUP;
     if (g_tim[i]) gptimer_stop(g_tim[i]);
     return 0;
 }

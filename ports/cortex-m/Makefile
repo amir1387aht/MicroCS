@@ -60,7 +60,7 @@ endef
 $(foreach t,$(TARGETS),$(eval $(call target_rule,$(t))))
 
 # examples/lowram/lowram_firmware.c on a Cortex-M0 with 48 KB RAM (32 KB pool), lowram profile
-NODE_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
+NODE_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 NODE_SRC := $(wildcard $(ROOT)/src/*.c) startup.c board.c $(ROOT)/examples/lowram/lowram_firmware.c
 all: $(OUT)/m0-node.elf
 $(ROOT)/examples/lowram/node_image.h: $(ROOT)/examples/lowram/node.cs $(MCS)
@@ -69,6 +69,25 @@ $(OUT)/m0-node.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makef
 	@mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(NODE_F) -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ $(LDFLAGS) \
 	  -Wl,--defsym=FLASH_SIZE=256K -Wl,--defsym=RAM_SIZE=48K -Wl,--defsym=STACK_SIZE=8K -Wl,--defsym=SBRK_SIZE=2K -Wl,-Map=$(OUT)/m0-node.map
+	@$(SIZE) $@
+# the same firmware on a 16 KB-RAM Cortex-M0 (the minimum the lowram profile
+# targets): 12 KB VM pool + 2 KB C stack + 512 B libc heap + statics
+all: $(OUT)/m0-16k.elf
+$(OUT)/m0-16k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
+	@mkdir -p $(OUT)
+	$(CC) $(CFLAGS) $(NODE_F) -DNODE_HEAP_SIZE=12288 \
+	  -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ $(LDFLAGS) \
+	  -Wl,--defsym=FLASH_SIZE=256K -Wl,--defsym=RAM_SIZE=16K -Wl,--defsym=STACK_SIZE=2K -Wl,--defsym=SBRK_SIZE=512 -Wl,-Map=$(OUT)/m0-16k.map
+	@$(SIZE) $@
+# ...and with profiles/mcs_profile_min.h on a 64 KB-flash / 16 KB-RAM part
+# (the linker fails if the firmware does not fit in 64 KB). No -u _printf_float.
+MIN_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_min.h"' -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+all: $(OUT)/m0-64k.elf
+$(OUT)/m0-64k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
+	@mkdir -p $(OUT)
+	$(CC) $(CFLAGS) $(MIN_F) -DNODE_HEAP_SIZE=12288 -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ \
+	  -Wl,--gc-sections -T cm.ld --specs=nano.specs --specs=nosys.specs -Wl,--no-warn-rwx-segments \
+	  -Wl,--defsym=FLASH_SIZE=64K -Wl,--defsym=RAM_SIZE=16K -Wl,--defsym=STACK_SIZE=2K -Wl,--defsym=SBRK_SIZE=512 -Wl,-Map=$(OUT)/m0-64k.map
 	@$(SIZE) $@
 
 run: all

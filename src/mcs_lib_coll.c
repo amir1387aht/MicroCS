@@ -1,7 +1,7 @@
 /* MicroCS - arrays, List<T>, Dictionary<K,V>, HashSet<T>, Stack<T>,
  * Queue<T> and LINQ-style sequence operators (Where, Select, OrderBy...). */
 #include "mcs_lib.h"
-#if (!MCS_ENABLE_LIST || !MCS_ENABLE_DICT || !MCS_ENABLE_LINQ) && defined(__GNUC__)
+#if (!MCS_ENABLE_LIST || !MCS_ENABLE_DICT || !MCS_ENABLE_LINQ || !MCS_ENABLE_ARRAY_EXTRA || !MCS_ENABLE_STACK_QUEUE) && defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-const-variable"
 #endif
@@ -873,14 +873,21 @@ static const mcs_reg_t enumerable_fns[] = {
 /* sequence operators shared by arrays and lists. The List<T>/Array instance
  * methods are always present; the LINQ operators can be dropped with
  * MCS_ENABLE_LINQ=0 to save flash on small parts. */
-#define SEQ_BASE_REGS \
-    MCS_FN("GetEnumerator", seq_getenum, 0), MCS_FN("Contains", seq_contains, 1), MCS_FN("IndexOf", seq_indexof, -1), \
-    MCS_FN("LastIndexOf", seq_lastindexof, 1), MCS_FN("ToList", seq_tolist, 0), MCS_FN("ToArray", seq_toarray, 0), \
-    MCS_FN("ForEach", seq_foreach, 1), \
+#if MCS_ENABLE_ARRAY_EXTRA
+#define SEQ_EXTRA_REGS , \
+    MCS_FN("LastIndexOf", seq_lastindexof, 1), \
     MCS_FN("Find", seq_firstordefault, 1), MCS_FN("FindLast", seq_lastordefault, 1), MCS_FN("FindIndex", seq_findindex, 1), \
     MCS_FN("FindLastIndex", seq_findlastindex, 1), MCS_FN("FindAll", seq_findall, 1), MCS_FN("Exists", seq_any, 1), \
     MCS_FN("TrueForAll", seq_all, 1), MCS_FN("ConvertAll", seq_select, 1), MCS_FN("CopyTo", seq_copyto, -1), \
-    MCS_FN("BinarySearch", seq_binarysearch, -1), MCS_FN("Cast", seq_tolist, 0), MCS_FN("AsEnumerable", seq_getenum, 0)
+    MCS_FN("BinarySearch", seq_binarysearch, -1)
+#else
+#define SEQ_EXTRA_REGS
+#endif
+#define SEQ_BASE_REGS \
+    MCS_FN("GetEnumerator", seq_getenum, 0), MCS_FN("Contains", seq_contains, 1), MCS_FN("IndexOf", seq_indexof, -1), \
+    MCS_FN("ToList", seq_tolist, 0), MCS_FN("ToArray", seq_toarray, 0), \
+    MCS_FN("ForEach", seq_foreach, 1), \
+    MCS_FN("Cast", seq_tolist, 0), MCS_FN("AsEnumerable", seq_getenum, 0) SEQ_EXTRA_REGS
 #if MCS_ENABLE_LINQ
 #define SEQ_REGS SEQ_BASE_REGS, \
     MCS_FN("Where", seq_where, 1), MCS_FN("Select", seq_select, 1), \
@@ -912,23 +919,29 @@ static const mcs_reg_t array_methods[] = {
     MCS_REG_END
 };
 static const mcs_reg_t array_statics[] = {
+#if MCS_ENABLE_ARRAY_EXTRA
     MCS_FN("Sort", arrs_sort, -1), MCS_FN("Reverse", arrs_reverse, -1), MCS_FN("IndexOf", arrs_indexof, -1),
     MCS_FN("LastIndexOf", arrs_lastindexof, 2), MCS_FN("Fill", arrs_fill, -1), MCS_FN("Copy", arrs_copy, -1),
     MCS_FN("Clear", arrs_clear, -1), MCS_FN("Exists", arrs_exists, 2), MCS_FN("TrueForAll", arrs_trueforall, 2),
     MCS_FN("Find", arrs_find, 2), MCS_FN("FindLast", arrs_findlast, 2), MCS_FN("FindIndex", arrs_findindex, 2),
     MCS_FN("FindLastIndex", arrs_findlastindex, 2), MCS_FN("FindAll", arrs_findall, 2), MCS_FN("ForEach", arrs_foreach, 2),
-    MCS_FN("BinarySearch", arrs_binarysearch, -1), MCS_FN("ConvertAll", arrs_convertall, 2), MCS_FN("Empty", arrs_empty, 0),
+    MCS_FN("BinarySearch", arrs_binarysearch, -1), MCS_FN("ConvertAll", arrs_convertall, 2),
+#endif
+    MCS_FN("Empty", arrs_empty, 0),
     MCS_REG_END
 };
 #if MCS_ENABLE_LIST
 static const mcs_reg_t list_methods[] = {
     SEQ_REGS, SEQ_FLOAT_REGS
     MCS_GET("Count", list_count), MCS_GET("Capacity", list_capacity),
-    MCS_FN("Add", list_add, 1), MCS_FN("AddRange", list_addrange, 1), MCS_FN("Insert", list_insert, 2),
-    MCS_FN("InsertRange", list_insertrange, 2), MCS_FN("Remove", list_remove, 1), MCS_FN("RemoveAt", list_removeat, 1),
-    MCS_FN("RemoveRange", list_removerange, 2), MCS_FN("RemoveAll", list_removeall, 1), MCS_FN("Clear", list_clear, 0),
+    MCS_FN("Add", list_add, 1), MCS_FN("Insert", list_insert, 2),
+    MCS_FN("Remove", list_remove, 1), MCS_FN("RemoveAt", list_removeat, 1), MCS_FN("Clear", list_clear, 0),
+#if MCS_ENABLE_ARRAY_EXTRA
+    MCS_FN("AddRange", list_addrange, 1), MCS_FN("InsertRange", list_insertrange, 2),
+    MCS_FN("RemoveRange", list_removerange, 2), MCS_FN("RemoveAll", list_removeall, 1),
     MCS_FN("Sort", list_sort, -1), MCS_FN("Reverse", list_reverse, -1), MCS_FN("GetRange", list_getrange, 2),
     MCS_FN("TrimExcess", list_trimexcess, 0), MCS_FN("AsReadOnly", list_asreadonly, 0),
+#endif
     MCS_REG_END
 };
 #endif
@@ -959,7 +972,7 @@ static mcs_value_t dict_list(mcs_vm_t* vm, mcs_dict_t* d, int which) {
         if (which == 0) o->items[i] = d->keys[i];
         else if (which == 1) o->items[i] = DICT_VAL(d, i);
         else {
-            mcs_instance_t* kv = mcs_new_instance(vm, vm->cls_kvp);
+            mcs_instance_t* kv = mcs_new_instance(vm, MCS_CLS(vm, kvp));
             kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
             o->items[i] = OBJ_VAL(kv);
         }
@@ -1216,7 +1229,7 @@ static const mcs_reg_t queue_methods[] = {
 };
 
 static mcs_class_t* wrapper_class(mcs_vm_t* vm, const char* name, mcs_native_fn ctor, const mcs_reg_t* regs) {
-    mcs_class_t* c = mcs_define_builtin_class(vm, name, vm->cls_object, CLS_BUILTIN);
+    mcs_class_t* c = mcs_define_builtin_class(vm, name, MCS_CLS(vm, object), CLS_BUILTIN);
     vm->gc_pause++;
     mcs_class_add_field(vm, c, mcs_intern_c(vm, "$items"), mcs_null());
     vm->gc_pause--;
@@ -1225,37 +1238,77 @@ static mcs_class_t* wrapper_class(mcs_vm_t* vm, const char* name, mcs_native_fn 
     return c;
 }
 
-void mcs_lib_open_collections(mcs_vm_t* vm, uint8_t mask) {
-    vm->cls_array = mcs_define_builtin_class(vm, "Array", vm->cls_object, CLS_BUILTIN);
-    mcs_add_regs(vm, vm->cls_array, array_methods, false);
-    mcs_add_regs(vm, vm->cls_array, array_statics, true);
-    vm->cls_list = mcs_define_builtin_class(vm, "List", vm->cls_object, CLS_BUILTIN);
-    vm->cls_dict = mcs_define_builtin_class(vm, "Dictionary", vm->cls_object, CLS_BUILTIN);
-    if (!(mask & MCS_LIB_COLLECTIONS)) return;
+enum { LZ_ARRAY, LZ_LIST, LZ_DICT, LZ_ENUMERABLE, LZ_STACK, LZ_QUEUE, LZ_HASHSET };
+const mcs_lib_entry_t mcs_lib_coll_entries[] = {
+    { "Array", LZ_ARRAY, MCS_LIB_ALL }, { "List", LZ_LIST, MCS_LIB_ALL }, { "Dictionary", LZ_DICT, MCS_LIB_ALL },
 #if MCS_ENABLE_LIST
-    vm->cls_list->native_ctor = list_new;
-    mcs_add_regs(vm, vm->cls_list, list_methods, false);
 #if MCS_ENABLE_LINQ
-    mcs_register_module(vm, "Enumerable", enumerable_fns);
+    { "Enumerable", LZ_ENUMERABLE, MCS_LIB_COLLECTIONS },
 #endif
-    {
-        mcs_class_t* st = wrapper_class(vm, "Stack", stack_new, stack_methods);
-        mcs_class_t* q = wrapper_class(vm, "Queue", stack_new, queue_methods);
-#if MCS_ENABLE_DICT && MCS_ENABLE_LINQ
-        mcs_add_regs(vm, st, coll_linq_methods, false);
-        mcs_add_regs(vm, q, coll_linq_methods, false);
+#if MCS_ENABLE_STACK_QUEUE
+    { "Stack", LZ_STACK, MCS_LIB_COLLECTIONS }, { "Queue", LZ_QUEUE, MCS_LIB_COLLECTIONS },
 #endif
-        (void)st; (void)q;
-    }
 #endif
 #if MCS_ENABLE_DICT
-    vm->cls_dict->native_ctor = dict_new;
-    mcs_add_regs(vm, vm->cls_dict, dict_methods, false);
-    mcs_class_t* hs = wrapper_class(vm, "HashSet", set_new, set_methods);
+    { "HashSet", LZ_HASHSET, MCS_LIB_COLLECTIONS },
+#endif
+    { NULL, 0, 0 }
+};
+
+void mcs_lib_coll_make(mcs_vm_t* vm, int id) {
+    bool coll = (vm->cfg.stdlib & MCS_LIB_COLLECTIONS) != 0;
+    mcs_class_t* c;
+    switch (id) {
+    case LZ_ARRAY:
+        if (vm->cls_array) return;
+        vm->cls_array = c = mcs_define_builtin_class(vm, "Array", MCS_CLS(vm, object), CLS_BUILTIN);
+        mcs_add_regs(vm, c, array_methods, false);
+        mcs_add_regs(vm, c, array_statics, true);
+        return;
+    case LZ_LIST:
+        if (vm->cls_list) return;
+        vm->cls_list = c = mcs_define_builtin_class(vm, "List", MCS_CLS(vm, object), CLS_BUILTIN);
+#if MCS_ENABLE_LIST
+        if (coll) { c->native_ctor = list_new; mcs_add_regs(vm, c, list_methods, false); }
+#endif
+        return;
+    case LZ_DICT:
+        if (vm->cls_dict) return;
+        vm->cls_dict = c = mcs_define_builtin_class(vm, "Dictionary", MCS_CLS(vm, object), CLS_BUILTIN);
+#if MCS_ENABLE_DICT
+        if (coll) {
+            c->native_ctor = dict_new;
+            mcs_add_regs(vm, c, dict_methods, false);
 #if MCS_ENABLE_LINQ
-    mcs_add_regs(vm, vm->cls_dict, coll_linq_methods, false);
-    mcs_add_regs(vm, hs, coll_linq_methods, false);
+            mcs_add_regs(vm, c, coll_linq_methods, false);
 #endif
-    (void)hs;
+        }
 #endif
+        return;
+#if MCS_ENABLE_LIST
+#if MCS_ENABLE_LINQ
+    case LZ_ENUMERABLE:
+        c = mcs_define_builtin_class(vm, "Enumerable", NULL, CLS_STATIC);
+        mcs_add_regs(vm, c, enumerable_fns, true);
+        return;
+#endif
+#if MCS_ENABLE_STACK_QUEUE
+    case LZ_STACK: case LZ_QUEUE:
+        c = id == LZ_STACK ? wrapper_class(vm, "Stack", stack_new, stack_methods) : wrapper_class(vm, "Queue", stack_new, queue_methods);
+#if MCS_ENABLE_DICT && MCS_ENABLE_LINQ
+        mcs_add_regs(vm, c, coll_linq_methods, false);
+#endif
+        return;
+#endif
+#endif
+#if MCS_ENABLE_DICT
+    case LZ_HASHSET:
+        c = wrapper_class(vm, "HashSet", set_new, set_methods);
+#if MCS_ENABLE_LINQ
+        mcs_add_regs(vm, c, coll_linq_methods, false);
+#endif
+        return;
+#endif
+    default: (void)c; (void)coll; return;
+    }
 }

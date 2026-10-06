@@ -68,11 +68,39 @@ when CubeMX does not.
 
 Heap guidance: 48–64 KB for the REPL with a small RAM disk on F4/G4/L4 (128 KB SRAM),
 160 KB+ on H7/H5/U5. Without the on-device compiler (`MCS_ENABLE_COMPILER=0`, run images
-precompiled with `mcs -C`) 32 KB is enough for many applications; see
+precompiled with `mcs -C`) 12–32 KB is enough for many applications; see
 [LOW_RESOURCE.md](../../docs/LOW_RESOURCE.md).
+
+### Configuration per part (auto profile)
+With CMake (`MICROCS_PORT=stm32`) the `auto` profile is the default: the CMSIS device macro
+of your CubeMX project (`STM32F072xB`, `STM32G474xx`, …) selects the RAM/flash class from
+[`include/profiles/mcs_target_stm32.h`](../../include/profiles/mcs_target_stm32.h), and that
+picks the profile — `min` below 32 KB of RAM or 128 KB of flash (F070/F072/F103/G070/L073…),
+`tiny` on other 128 KB-flash parts, `lowram`, `mcu` or `embedded` as RAM grows, everything
+on H5/H7/U5/F7. The HAL classes stay enabled
+whenever the part has 128 KB of flash or more. In CubeIDE/Makefile projects add
+`-DMCS_USER_CONFIG_FILE="profiles/mcs_profile_auto.h" -DMCS_PORT_HAL=1` to get the same.
+Where one macro covers several sizes (`STM32F103xB` = F103x8 and F103xB) the smaller one is
+assumed; define `MCS_TARGET_RAM_KB` / `MCS_TARGET_FLASH_KB` to override.
+
+### Supported parts
+Every STM32 with **at least 16 KB of SRAM and 64 KB of flash**. These lines have less and
+stop the build with an `#error` (define `MCS_ALLOW_SMALL_TARGET=1` to try anyway):
+
+| Family | Not supported |
+|---|---|
+| C0 | C011, C031, C051 |
+| F0 | F030x4/x6/x8, F031, F038, F042, F048, F051, F058, F070x6 |
+| F1 | F100 (except F100xE), F101x4–xB, F102, F103x4/x6 |
+| F3 | F301x6, F302x6, F303x6/x8, F328, F334 |
+| G0 | G030, G031, G041 (the 32 KB-flash G050x6/G051x6/G061x6 and G431x6 share a macro with their 64 KB versions and are not detected — do not use them) |
+| L0 | L010x4–x8, L011, L021, L031, L041, L051, L052, L053, L062, L063 |
+| L1 | L100x6/x8/xB, L151x6/x8, L152x6/x8 |
+| U0 | U031 |
 
 ## Checked in CI
 
 `tools/check_ports.sh stm32 <family> <device> <cpu>` compiles the port with `-Werror`
-against the official STM32Cube HAL headers of the family. CI covers F0, F1, F4, F7, G0, G4,
-H5, H7, L0, L4, U5 and WB.
+against the official STM32Cube HAL headers of the family, once with the default
+configuration and once with the auto profile (`PORT_CFLAGS`). CI covers F0, F1, F4, F7, G0,
+G4, H5, H7, L0, L4, U5 and WB.

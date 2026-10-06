@@ -27,5 +27,17 @@ python3 tools/cm_emu.py build/cm/m0-node.elf --cpu m0 < /dev/null > build/cm/m0-
 if grep '^\[node\]' build/cm/m0-node.log | cmp -s - examples/lowram/node.expected; then echo "PASS m0-node (examples/lowram matches host)"; else echo "FAIL m0-node"; fail=1; fi
 grep '^\[c\]' build/cm/m0-node.log | sed 's/^/    /'
 sed 's/^/    /' build/cm/m0-node.emu
+# the same firmware squeezed into a 16 KB-RAM Cortex-M0
+python3 tools/cm_emu.py build/cm/m0-16k.elf --cpu m0 < /dev/null > build/cm/m0-16k.log 2> build/cm/m0-16k.emu
+if grep '^\[node\]' build/cm/m0-16k.log | cmp -s - examples/lowram/node.expected; then echo "PASS m0-16k (examples/lowram in 16 KB RAM matches host)"; else echo "FAIL m0-16k"; fail=1; fi
+grep '^\[c\]' build/cm/m0-16k.log | sed 's/^/    /'
+sed 's/^/    /' build/cm/m0-16k.emu
+# the minimal profile: 64 KB flash + 16 KB RAM
+python3 tools/cm_emu.py build/cm/m0-64k.elf --cpu m0 < /dev/null > build/cm/m0-64k.log 2> build/cm/m0-64k.emu
+if grep '^\[node\]' build/cm/m0-64k.log | cmp -s - examples/lowram/node.expected; then echo "PASS m0-64k (examples/lowram, min profile, 64 KB flash / 16 KB RAM)"; else echo "FAIL m0-64k"; fail=1; fi
+size=$(arm-none-eabi-size build/cm/m0-64k.elf | awk 'NR==2{print $1+$2}')
+echo "    [size] flash $size of 65536 B"
+grep '^\[c\]' build/cm/m0-64k.log | sed 's/^/    /'
+sed 's/^/    /' build/cm/m0-64k.emu
 python3 tests/test_cm_shell.py build/cm/m33-shell.elf || fail=1
 exit $fail

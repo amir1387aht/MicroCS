@@ -19,7 +19,7 @@ jobs:
         cc: [gcc, clang]
     steps:
       - uses: actions/checkout@v4
-      - name: make check (tests, GC stress, 17 feature-flag builds)
+      - name: make check (tests, GC stress, feature-flag and profile builds)
         run: make CC=${{ matrix.cc }} check
 
   sanitizers:
@@ -36,12 +36,13 @@ jobs:
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER --image
 
-  littlefs:
-    name: LittleFS backend
+  flash-fs:
+    name: Flash filesystems (LittleFS, YAFFS2 on simulated SPI NOR/NAND)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: make lfs-test
+      - run: make yaffs-test
 
   cortex-m:
     name: Cortex-M0/M4/M33 (emulated)
@@ -93,6 +94,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
+          git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
       - name: Build ports/rp2/example
         run: |
           cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk
@@ -106,7 +108,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [esp32, esp32s3, esp32c3, esp32c6]
+        target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -142,4 +144,8 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
       - name: Compile the port against STM32Cube${{ matrix.family }} headers
+        run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
+      - name: Same with the auto profile (picked from the device's RAM/flash)
+        env:
+          PORT_CFLAGS: -DMCS_PORT_HAL=1 -DMCS_USER_CONFIG_FILE="profiles/mcs_profile_auto.h"
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}

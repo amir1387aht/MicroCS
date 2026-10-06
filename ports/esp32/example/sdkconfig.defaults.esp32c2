@@ -1,0 +1,7 @@
+# ESP32-C2 (ESP8684): only for this target (ESP-IDF merges sdkconfig.defaults.<target>)
+# MicroCS formats doubles with snprintf: the ROM "nano" printf has no float support
+CONFIG_NEWLIB_NANO_FORMAT=n
+# 272 KB SRAM: the embedded profile (on-device compiler + REPL, no disassembler, 32-bit ints)
+CONFIG_MICROCS_PROFILE_EMBEDDED=y
+# Many ESP8684 modules use a 26 MHz crystal: uncomment for those boards
+# CONFIG_XTAL_FREQ_26=y

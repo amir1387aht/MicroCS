@@ -71,7 +71,10 @@ void mcs_format_float(char* out, mcs_float_t f) {
     if (e >= 15 || e < -5) {
         *o++ = digits[0];
         if (nd > 1) { *o++ = '.'; memcpy(o, digits + 1, (size_t)nd - 1); o += nd - 1; }
-        sprintf(o, "E%c%02d", e < 0 ? '-' : '+', e < 0 ? -e : e);
+        unsigned ue = (unsigned)(e < 0 ? -e : e) % 1000;   /* |e| <= 324 for doubles */
+        *o++ = 'E'; *o++ = e < 0 ? '-' : '+';
+        if (ue >= 100) *o++ = (char)('0' + ue / 100);
+        *o++ = (char)('0' + ue / 10 % 10); *o++ = (char)('0' + ue % 10); *o = 0;
         return;
     }
     if (e >= 0) {
@@ -89,21 +92,21 @@ void mcs_format_float(char* out, mcs_float_t f) {
 /* ------------------------------------------------------------ type info */
 mcs_class_t* mcs_class_of(mcs_vm_t* vm, mcs_value_t v) {
     switch (v.type) {
-    case MCS_T_INT: return vm->cls_int;
-    case MCS_T_FLOAT: return vm->cls_float;
-    case MCS_T_BOOL: return vm->cls_bool;
-    case MCS_T_CHAR: return vm->cls_char;
+    case MCS_T_INT: return MCS_CLS(vm, int);
+    case MCS_T_FLOAT: return MCS_CLS(vm, float);
+    case MCS_T_BOOL: return MCS_CLS(vm, bool);
+    case MCS_T_CHAR: return MCS_CLS(vm, char);
     case MCS_T_OBJ:
         switch (OBJ_KIND(v)) {
-        case MCS_O_STRING: return vm->cls_string;
+        case MCS_O_STRING: return MCS_CLS(vm, string);
         case MCS_O_INSTANCE: return AS_INSTANCE(v)->cls;
         case MCS_O_USERDATA: return AS_UDATA(v)->cls;
-        case MCS_O_ARRAY: return vm->cls_array;
-        case MCS_O_LIST: return vm->cls_list;
-        case MCS_O_DICT: return vm->cls_dict;
-        case MCS_O_CLOSURE: case MCS_O_NATIVE: case MCS_O_BOUND: case MCS_O_OVERLOADS: return vm->cls_delegate;
+        case MCS_O_ARRAY: return MCS_CLS(vm, array);
+        case MCS_O_LIST: return MCS_CLS(vm, list);
+        case MCS_O_DICT: return MCS_CLS(vm, dict);
+        case MCS_O_CLOSURE: case MCS_O_NATIVE: case MCS_O_BOUND: case MCS_O_OVERLOADS: return MCS_CLS(vm, delegate);
         case MCS_O_CLASS: return NULL;
-        default: return vm->cls_object;
+        default: return MCS_CLS(vm, object);
         }
     default: return NULL;
     }
@@ -264,7 +267,7 @@ static bool format_core(mcs_vm_t* vm, mcs_buf_t* b, mcs_value_t v, const char* f
     if (n > 1) {
         bool alldig = true;
         for (size_t i = 1; i < n; i++) if (f[i] < '0' || f[i] > '9') alldig = false;
-        if (alldig) prec = atoi(f + 1); else kind = 0;
+        if (alldig) { prec = 0; for (size_t i = 1; i < n && prec < 1000; i++) prec = prec * 10 + (f[i] - '0'); } else kind = 0;
     }
     if (n == 1 || prec >= 0) {
         switch (kind) {

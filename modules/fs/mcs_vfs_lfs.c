@@ -99,3 +99,58 @@ static int l_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
 
 const mcs_vfs_ops_t mcs_lfs_ops = { l_open, l_read, l_write, l_close, l_stat, l_remove, l_mkdir, l_rename, l_list };
 #endif
+
+/* ---- LittleFS block device over mcs_flash_t ---- */
+#if MCS_ENABLE_FS && MCS_ENABLE_LFS && MCS_ENABLE_FLASH
+static int fl_err(int e) {
+    if (e >= 0) return 0;
+    return (e == MCS_FLASH_EPROG || e == MCS_FLASH_EBAD || e == MCS_FLASH_EECC) ? LFS_ERR_CORRUPT : LFS_ERR_IO;
+}
+static int fl_read(const struct lfs_config* c, lfs_block_t b, lfs_off_t off, void* buf, lfs_size_t n) {
+    mcs_flash_part_t* p = (mcs_flash_part_t*)c->context;
+    return fl_err(p->flash->read(p->flash, (p->first_block + b) * c->block_size + off, buf, n));
+}
+static int fl_prog(const struct lfs_config* c, lfs_block_t b, lfs_off_t off, const void* buf, lfs_size_t n) {
+    mcs_flash_part_t* p = (mcs_flash_part_t*)c->context;
+    int e = p->flash->prog(p->flash, (p->first_block + b) * c->block_size + off, buf, n);
+    if (e == MCS_FLASH_EPROG && p->flash->mark_bad) p->flash->mark_bad(p->flash, p->first_block + b);
+    return fl_err(e);
+}
+static int fl_erase(const struct lfs_config* c, lfs_block_t b) {
+    mcs_flash_part_t* p = (mcs_flash_part_t*)c->context;
+    mcs_flash_t* f = p->flash;
+    if (f->is_bad && f->is_bad(f, p->first_block + b) > 0) return LFS_ERR_CORRUPT;
+    int e = f->erase(f, p->first_block + b);
+    if (e == MCS_FLASH_EPROG && f->mark_bad) f->mark_bad(f, p->first_block + b);
+    return fl_err(e);
+}
+static int fl_sync(const struct lfs_config* c) {
+    mcs_flash_part_t* p = (mcs_flash_part_t*)c->context;
+    return p->flash->sync ? fl_err(p->flash->sync(p->flash)) : 0;
+}
+int mcs_lfs_flash_config(struct lfs_config* cfg, mcs_flash_part_t* part) {
+    mcs_flash_t* f = part->flash;
+    if (part->first_block >= f->block_count) return MCS_VFS_EINVAL;
+    memset(cfg, 0, sizeof *cfg);
+    cfg->context = part;
+    cfg->read = fl_read; cfg->prog = fl_prog; cfg->erase = fl_erase; cfg->sync = fl_sync;
+    cfg->block_size = f->block_size;
+    cfg->block_count = part->block_count ? part->block_count : f->block_count - part->first_block;
+    if (part->first_block + cfg->block_count > f->block_count) return MCS_VFS_EINVAL;
+    /* LittleFS keeps its superblock pair in blocks 0 and 1 of the partition and
+     * cannot move it: on NAND both must be good (block 0 of a chip always is). */
+    for (uint32_t b = 0; b < 2 && f->is_bad; b++)
+        if (f->is_bad(f, part->first_block + b) != 0) return MCS_VFS_EIO;
+    cfg->read_size = 16;
+    if (f->type == MCS_FLASH_NAND) {
+        cfg->prog_size = f->page_size;   /* one program per NAND page (on-die ECC) */
+        cfg->cache_size = f->page_size;
+    } else {
+        cfg->prog_size = 16;
+        cfg->cache_size = f->page_size < f->block_size ? f->page_size : f->block_size;
+    }
+    cfg->lookahead_size = 16;
+    cfg->block_cycles = 500;
+    return MCS_VFS_OK;
+}
+#endif

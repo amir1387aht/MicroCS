@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 4
+#define MCS_VERSION_MINOR 5
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.4.0"
+#define MCS_VERSION_STRING "1.5.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -60,7 +60,9 @@ typedef struct {
     union {
         bool b;
         mcs_int_t i;
-        mcs_float_t f;
+#if MCS_ENABLE_FLOAT
+        mcs_float_t f;   /* without floats a double would make every value 12-16 bytes */
+#endif
         mcs_obj_t* o;
     } as;
 } mcs_value_t;
@@ -121,6 +123,15 @@ typedef struct {
     const mcs_reg_t* statics;      /* static methods / properties */
 } mcs_class_def_t;
 
+/* Integer constants of a module, kept in flash: { "Output", 1 }. The table
+ * must have static storage duration; see mcs_register_consts(). */
+typedef struct {
+    const char* name;
+    int32_t value;
+} mcs_const_t;
+#define MCS_CONST(name, value)   { name, value }
+#define MCS_CONST_END            { NULL, 0 }
+
 /* --------------------------------------------------------- configuration */
 typedef void* (*mcs_realloc_fn)(void* ud, void* ptr, size_t old_size, size_t new_size);
 typedef void (*mcs_write_fn)(void* ud, const char* text, size_t len);
@@ -145,6 +156,11 @@ typedef struct {
     uint16_t max_frames;        /* call depth                      */
     size_t heap_limit;          /* 0 = unlimited; else GC hard cap */
     uint8_t stdlib;             /* MCS_LIB_* bitmask of libraries  */
+    uint8_t alloc_overhead;     /* allocator bytes per block (header); 0 = count
+                                   requested sizes only. With it set, every block
+                                   counts as round_up(size + overhead) against
+                                   heap_limit, so the GC runs before the pool is
+                                   full. mcs_new() sets it for mcs_pool_realloc. */
 } mcs_config_t;
 
 #define MCS_LIB_CORE        0x01  /* Console, Convert, exceptions, string... */
@@ -207,7 +223,8 @@ void mcs_request_abort(mcs_vm_t* vm);
 void mcs_register_module(mcs_vm_t* vm, const char* name, const mcs_reg_t* fns);
 /* Register a native class usable with `new Name(...)`. */
 void mcs_register_class(mcs_vm_t* vm, const mcs_class_def_t* def);
-/* Constants inside a module: Gpio.HIGH */
+/* Constants inside a module: Gpio.HIGH. Forces a lazily registered module to
+ * be created; prefer mcs_register_consts() for fixed values. */
 void mcs_module_set(mcs_vm_t* vm, const char* module, const char* name, mcs_value_t v);
 /* Global variables / functions */
 void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v);
@@ -287,6 +304,9 @@ void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st);
 typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_t peak; } mcs_pool_t;
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
 void* mcs_pool_realloc(void* pool, void* ptr, size_t old_size, size_t new_size);
+/* per-block header of the pool allocator (for cfg.alloc_overhead when
+ * mcs_pool_realloc is wrapped by another function) */
+#define MCS_POOL_OVERHEAD ((unsigned)sizeof(size_t) > (unsigned)MCS_POOL_ALIGN ? (unsigned)sizeof(size_t) : (unsigned)MCS_POOL_ALIGN)
 #endif
 
 #if MCS_ENABLE_DISASM && MCS_ENABLE_COMPILER
@@ -348,6 +368,11 @@ enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
        MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
+
+/* ======================================================= 1.5 additions */
+/* Add integer constants to module `name` (created like mcs_register_module).
+ * With MCS_LAZY_CLASSES nothing is allocated until a script uses the module. */
+void mcs_register_consts(mcs_vm_t* vm, const char* name, const mcs_const_t* consts);
 
 /* ======================================================= 1.4 additions */
 /* Declared arity of a callable (lambda, method, delegate); -1 if variadic or
