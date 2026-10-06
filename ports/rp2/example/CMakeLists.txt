@@ -3,7 +3,15 @@
 #   cmake -B build -DPICO_BOARD=pico      (pico2 for RP2350)
 #   cmake --build build                   -> build/microcs_pico.uf2
 cmake_minimum_required(VERSION 3.13)
-include($ENV{PICO_SDK_PATH}/external/pico_sdk_import.cmake)
+# PICO_SDK_PATH may come from the environment or from -DPICO_SDK_PATH=...
+if(NOT PICO_SDK_PATH AND DEFINED ENV{PICO_SDK_PATH})
+  set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+endif()
+if(NOT PICO_SDK_PATH)
+  message(FATAL_ERROR "Set PICO_SDK_PATH (environment or -DPICO_SDK_PATH=...)")
+endif()
+set(PICO_SDK_PATH ${PICO_SDK_PATH} CACHE PATH "Path to the Raspberry Pi Pico SDK")
+include(${PICO_SDK_PATH}/external/pico_sdk_import.cmake)
 project(microcs_pico C CXX ASM)
 pico_sdk_init()
 

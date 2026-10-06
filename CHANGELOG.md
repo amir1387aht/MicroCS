@@ -77,8 +77,6 @@ on external NOR and NAND flash. Nothing was removed: every reduction is a compil
 - The compiler treated not-yet-created built-in classes as unknown names / interfaces.
 
 ### Docs
-- README architecture diagram is now an SVG (light/dark) instead of a Mermaid block that
-  some viewers showed as text; source in `assets/architecture.mmd`.
 - New/updated: LOW_RESOURCE.md (16 KB / 64 KB, switch costs, auto profile), FILESYSTEM.md
   (flash layer, LittleFS vs YAFFS2), STM32 supported-parts list, ESP32-C2 section, footprint
   tables re-measured.

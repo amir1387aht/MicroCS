@@ -1,14 +1,5 @@
 # Architecture
 
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="../assets/architecture-dark.svg">
-  <img alt="MicroCS architecture diagram" src="../assets/architecture-light.svg" width="900">
-</picture>
-</p>
-
-<details><summary>Detailed diagram (Mermaid source)</summary>
-
 ```mermaid
 flowchart TB
     subgraph front["Front end — optional (MCS_ENABLE_COMPILER)"]
@@ -24,8 +15,6 @@ flowchart TB
     VM <--> API["public API include/mcs.h<br/>+ extension slots"]
     API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell] & RT[modules/runtime]
 ```
-
-</details>
 
 ## Core (`src/`)
 * **Lexer → parser → compiler.** The lexer produces a token array on the VM heap; the parser

@@ -390,17 +390,24 @@ working version.
 
 ## 🏗️ Architecture
 
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
-  <img alt="Architecture: C# source → lexer → parser → compiler → bytecode functions (or .mcsb image → loader + validator) → stack VM, which talks to the GC, the stdlib natives and the modules; modules talk to the ports (and your SDK drivers) and the optional flash filesystems" src="assets/architecture-light.svg" width="900">
-</picture>
-</p>
+```mermaid
+flowchart LR
+    SRC["C# source<br/>.cs"] --> LEX[lexer] --> PAR["parser<br/>(AST arena)"] --> CMP["compiler<br/>(single pass)"]
+    IMG[".mcsb image<br/>flash / file"] --> LOAD["loader +<br/>validator"]
+    CMP --> FN(("bytecode<br/>functions"))
+    LOAD --> FN
+    FN --> VM["stack VM<br/>computed goto"]
+    VM <--> GC["mark & sweep GC<br/>pool heap"]
+    VM <--> LIB["stdlib natives<br/>Console · Math · string<br/>List · Dictionary · LINQ"]
+    VM <--> MOD["modules<br/>fs · hal · sched · shell · runtime"]
+    MOD <--> PORT["ports<br/>STM32 · ESP32 · RP2 · Zephyr · Arduino"]
+    PORT <--> SDK["your SDK drivers"]
+    classDef opt stroke-dasharray: 4 3
+    class LEX,PAR,CMP opt
+```
 
-
-Dashed boxes are optional: ship only the VM and load precompiled images to save
-~44 KB of flash and the compile-time RAM; the flash filesystems are only compiled when you
-enable them. Diagram source: [`assets/architecture.mmd`](assets/architecture.mmd). Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+The compiler (dashed) is optional: ship only the VM and load precompiled images to save
+~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
 ## 📊 Performance & footprint
