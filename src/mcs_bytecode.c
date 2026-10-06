@@ -14,7 +14,7 @@
 #include "mcs_internal.h"
 #include <stdio.h>
 
-#define IMG_VERSION 1
+#define IMG_VERSION 2      /* v2 adds superinstructions; v1 images still load */
 enum { K_NULL, K_FALSE, K_TRUE, K_INT, K_FLOAT, K_CHAR, K_STRING, K_FUNC };
 
 /* ------------------------------------------------------------ emitting */
@@ -119,7 +119,7 @@ void mcs_disassemble(mcs_vm_t* vm, mcs_function_t* fn, int depth) {
         switch (op) {
         case OP_CONST: case OP_GET_FIELD: case OP_SET_FIELD: case OP_IS: case OP_AS: case OP_CAST: case OP_IMPLEMENTS:
             const_repr(vm, fn->consts[u16], rep, sizeof rep); out(vm, "%5u  %s", u16, rep); break;
-        case OP_GET_GLOBAL: case OP_SET_GLOBAL:
+        case OP_GET_GLOBAL: case OP_SET_GLOBAL: case OP_SET_GLOBAL_POP:
             out(vm, "%5u  %s", u16, u16 < vm->global_count ? vm->global_names[u16]->chars : "?"); break;
         case OP_INVOKE: case OP_SUPER_INVOKE:
             out(vm, "%5u  %s argc=%u", u16, AS_CSTR(fn->consts[u16]), a[2]); break;
@@ -132,6 +132,7 @@ void mcs_disassemble(mcs_vm_t* vm, mcs_function_t* fn, int depth) {
         }
         case OP_JUMP: case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE: case OP_JUMP_IF_FALSE_KEEP:
         case OP_JUMP_IF_TRUE_KEEP: case OP_JUMP_IF_NULL_KEEP: case OP_JUMP_IF_NOT_NULL_KEEP: case OP_TRY:
+        case OP_JF_EQ: case OP_JF_NE: case OP_JF_LT: case OP_JF_LE: case OP_JF_GT: case OP_JF_GE:
             out(vm, "-> %04u", (unsigned)(pc + 3 + u16)); break;
         case OP_LOOP: out(vm, "-> %04u", (unsigned)(pc + 3 - u16)); break;
         case OP_ARGC_JUMP: out(vm, "argc>=%u -> %04u", a[0], (unsigned)(pc + 4 + ((a[1] << 8) | a[2]))); break;
@@ -197,7 +198,7 @@ static void scan_globals(saver_t* s, mcs_function_t* fn) {
         uint8_t op = fn->code[pc];
         uint32_t len = insn_len(fn, pc);
         if (!len) break;
-        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL) map_global(s, (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]));
+        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL || op == OP_SET_GLOBAL_POP) map_global(s, (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]));
         pc += len;
     }
     for (uint32_t i = 0; i < fn->const_count; i++)
@@ -232,7 +233,7 @@ static void write_fn(saver_t* s, mcs_function_t* fn) {
         uint8_t op = fn->code[pc];
         uint32_t len = insn_len(fn, pc);
         if (!len) len = 1;
-        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL) {
+        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL || op == OP_SET_GLOBAL_POP) {
             uint16_t g = map_global(s, (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]));
             w8(s, op); w8(s, (uint8_t)(g >> 8)); w8(s, (uint8_t)g);
         } else {
@@ -315,6 +316,57 @@ static mcs_string_t* rstr(loader_t* l) {
     return s;
 }
 
+/* Second validation pass: operand ranges that the interpreter trusts.
+   Checks local/upvalue indices and that every branch lands on an
+   instruction boundary inside the function. Stack balance is NOT verified;
+   images must still come from a trusted compiler (see docs/SECURITY.md). */
+static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn) {
+    uint32_t clen = fn->code_len;
+    if (!clen) return true;
+    uint32_t nbytes = (clen + 8) / 8;
+    uint8_t* starts = MCS_ALLOC(vm, uint8_t, nbytes);
+    if (!starts) return false;
+    memset(starts, 0, nbytes);
+    for (uint32_t pc = 0; pc < clen; pc += insn_len(fn, pc)) starts[pc >> 3] |= (uint8_t)(1u << (pc & 7));
+#define IS_START(t) ((t) < clen && (starts[(t) >> 3] & (1u << ((t) & 7))))
+    bool ok = true;
+    for (uint32_t pc = 0; pc < clen && ok;) {
+        uint8_t op = fn->code[pc];
+        uint32_t len = insn_len(fn, pc);
+        const uint8_t* a = fn->code + pc + 1;
+        uint32_t u16 = (mcs_op_len[op] >= 2) ? (uint32_t)((a[0] << 8) | a[1]) : 0;
+        switch (op) {
+        case OP_GET_LOCAL: case OP_SET_LOCAL: case OP_SET_LOCAL_POP: case OP_INC_LOCAL:
+            ok = a[0] < fn->max_slots; break;
+        case OP_FOR_ITER:
+            ok = (uint32_t)a[0] + 1 < fn->max_slots && IS_START(pc + 4 + (uint32_t)((a[1] << 8) | a[2])); break;
+        case OP_GET_UPVAL: case OP_SET_UPVAL:
+            ok = a[0] < fn->upvalue_count; break;
+        case OP_JUMP: case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE: case OP_JUMP_IF_FALSE_KEEP:
+        case OP_JUMP_IF_TRUE_KEEP: case OP_JUMP_IF_NULL_KEEP: case OP_JUMP_IF_NOT_NULL_KEEP: case OP_TRY:
+        case OP_JF_EQ: case OP_JF_NE: case OP_JF_LT: case OP_JF_LE: case OP_JF_GT: case OP_JF_GE:
+            ok = IS_START(pc + 3 + u16); break;
+        case OP_LOOP:
+            ok = u16 <= pc + 3 && IS_START(pc + 3 - u16); break;
+        case OP_ARGC_JUMP:
+            ok = IS_START(pc + 4 + (uint32_t)((a[1] << 8) | a[2])); break;
+        case OP_CLOSURE: {
+            mcs_function_t* f = AS_FUNCTION(fn->consts[u16]);
+            for (uint32_t i = 0; i < f->upvalue_count && ok; i++) {
+                uint8_t is_local = a[2 + i * 2], idx = a[3 + i * 2];
+                ok = is_local ? idx < fn->max_slots : idx < fn->upvalue_count;
+            }
+            break;
+        }
+        default: break;
+        }
+        pc += len;
+    }
+#undef IS_START
+    MCS_FREE(vm, uint8_t, starts, nbytes);
+    return ok;
+}
+
 static mcs_function_t* read_fn(loader_t* l) {
     mcs_vm_t* vm = l->vm;
     if (++l->depth > 64) { l->bad = true; return NULL; }
@@ -371,7 +423,7 @@ static mcs_function_t* read_fn(loader_t* l) {
         uint8_t op = fn->code[pc];
         uint32_t len = insn_len(fn, pc);
         if (!len || pc + len > clen) { l->bad = true; return NULL; }
-        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL) {
+        if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL || op == OP_SET_GLOBAL_POP) {
             uint16_t g = (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]);
             if (g >= l->gcount) { l->bad = true; return NULL; }
             uint16_t s = l->gslots[g];
@@ -386,6 +438,7 @@ static mcs_function_t* read_fn(loader_t* l) {
         }
         pc += len;
     }
+    if (!validate_code(vm, fn)) { l->bad = true; return NULL; }
     uint32_t nl = r32(l);
     if (nl && need(l, (size_t)nl * 8)) {
 #if MCS_ENABLE_LINES
@@ -405,7 +458,7 @@ mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) {
         snprintf(vm->error, sizeof vm->error, "not a MicroCS bytecode image");
         return NULL;
     }
-    if (img[4] != IMG_VERSION) {
+    if (img[4] != IMG_VERSION && img[4] != 1) {
         snprintf(vm->error, sizeof vm->error, "bytecode version %u not supported (expected %u)", img[4], IMG_VERSION);
         return NULL;
     }

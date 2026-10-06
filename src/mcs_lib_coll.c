@@ -469,6 +469,35 @@ NATIVE(seq_sequenceequal) {
     for (uint32_t i = 0; i < l->count; i++) { if (!lib_equals(vm, l->items[i], o->items[i])) return mcs_bool(false); CHECK(); }
     return mcs_bool(true);
 }
+NATIVE(seq_zip) { /* Zip(second) -> (First, Second) tuples; Zip(second, (a, b) => ...) */
+    SELF_SEQ();
+    if (argc < 1 || !lib_is_seq(argv[0])) { mcs_throw(vm, EXC_ARGNULL, "Value cannot be null. (Parameter 'second')"); return mcs_null(); }
+    bool sel = argc >= 2;
+    if (sel && !need_fn(vm, argc, argv, 1, "resultSelector")) return mcs_null();
+    mcs_list_t* b = AS_LIST(argv[0]);
+    uint32_t n = l->count < b->count ? l->count : b->count;
+    mcs_list_t* o = new_rooted(vm, MCS_O_LIST, 0);
+    for (uint32_t i = 0; i < n && i < l->count && i < b->count; i++) {
+        mcs_value_t pair[2] = { l->items[i], b->items[i] }, r;
+        if (sel) { if (!lib_call(vm, argv[1], 2, pair, &r)) FAIL_POP(); }
+        else r = mcs_lib_tuple(vm, "First,Second", 2, pair);
+        mcs_listobj_push(vm, o, r);
+    }
+    return done(vm, o);
+}
+NATIVE(seq_chunk) { /* Chunk(size) -> List of arrays */
+    SELF_SEQ();
+    mcs_int_t sz = mcs_to_int(vm, argv[0]); CHECK();
+    if (sz < 1) { mcs_throw(vm, EXC_ARGRANGE, "Specified argument was out of the range of valid values. (Parameter 'size')"); return mcs_null(); }
+    mcs_list_t* o = new_rooted(vm, MCS_O_LIST, 0);
+    for (uint32_t i = 0; i < l->count; i += (uint32_t)sz) {
+        uint32_t k = l->count - i < (uint32_t)sz ? l->count - i : (uint32_t)sz;
+        mcs_list_t* c = mcs_new_listobj(vm, MCS_O_ARRAY, k);
+        memcpy(c->items, l->items + i, sizeof(mcs_value_t) * k);
+        mcs_listobj_push(vm, o, OBJ_VAL(c));
+    }
+    return done(vm, o);
+}
 NATIVE(seq_concat) {
     SELF_SEQ();
     if (!lib_is_seq(argv[0])) { mcs_throw(vm, EXC_ARGNULL, "Value cannot be null. (Parameter 'second')"); return mcs_null(); }
@@ -833,6 +862,7 @@ static const mcs_reg_t enumerable_fns[] = {
     MCS_FN("Skip", seq_skip, 1), MCS_FN("Take", seq_take, 1), MCS_FN("SkipWhile", seq_skipwhile, 1), MCS_FN("TakeWhile", seq_takewhile, 1), \
     MCS_FN("Distinct", seq_distinct, 0), MCS_FN("DistinctBy", seq_distinct, 1), MCS_FN("Aggregate", seq_aggregate, -1), \
     MCS_FN("SequenceEqual", seq_sequenceequal, 1), MCS_FN("Concat", seq_concat, 1), MCS_FN("Append", seq_append, 1), \
+    MCS_FN("Zip", seq_zip, -1), MCS_FN("Chunk", seq_chunk, 1), \
     MCS_FN("ToDictionary", seq_todictionary, -1), MCS_FN("GroupBy", seq_groupby, 1), MCS_FN("ForEach", seq_foreach, 1), \
     MCS_FN("Find", seq_firstordefault, 1), MCS_FN("FindLast", seq_lastordefault, 1), MCS_FN("FindIndex", seq_findindex, 1), \
     MCS_FN("FindLastIndex", seq_findlastindex, 1), MCS_FN("FindAll", seq_findall, 1), MCS_FN("Exists", seq_any, 1), \
@@ -1071,6 +1101,8 @@ NATIVE(stack_new) {
 NATIVE(stk_push) { STK(); mcs_listobj_push(vm, l, argv[0]); return mcs_null(); }
 NATIVE(stk_pop) { STK(); if (!l->count) { mcs_throw(vm, EXC_INVOP, "Stack empty."); return mcs_null(); } return l->items[--l->count]; }
 NATIVE(stk_peek) { STK(); if (!l->count) { mcs_throw(vm, EXC_INVOP, "Stack empty."); return mcs_null(); } return l->items[l->count - 1]; }
+NATIVE(stk_trypop) { STK(); bool ok = l->count > 0; lib_out_set(argv[0], ok ? l->items[--l->count] : mcs_null()); return mcs_bool(ok); }
+NATIVE(stk_trypeek) { STK(); bool ok = l->count > 0; lib_out_set(argv[0], ok ? l->items[l->count - 1] : mcs_null()); return mcs_bool(ok); }
 NATIVE(coll_count) { STK(); return mcs_int((mcs_int_t)l->count); }
 NATIVE(coll_clear) { STK(); l->count = 0; return mcs_null(); }
 NATIVE(coll_contains) { STK(); for (uint32_t i = 0; i < l->count; i++) if (lib_equals(vm, l->items[i], argv[0])) return mcs_bool(true); return mcs_bool(false); }
@@ -1089,15 +1121,25 @@ NATIVE(q_dequeue) {
     mcs_listobj_remove_at(l, 0);
     return v;
 }
+NATIVE(q_trydequeue) {
+    STK(); bool ok = l->count > 0;
+    mcs_value_t v = ok ? l->items[0] : mcs_null();
+    if (ok) mcs_listobj_remove_at(l, 0);
+    lib_out_set(argv[0], v);
+    return mcs_bool(ok);
+}
+NATIVE(q_trypeek) { STK(); bool ok = l->count > 0; lib_out_set(argv[0], ok ? l->items[0] : mcs_null()); return mcs_bool(ok); }
 NATIVE(q_peek) { STK(); if (!l->count) { mcs_throw(vm, EXC_INVOP, "Queue empty."); return mcs_null(); } return l->items[0]; }
 NATIVE(q_toarray) { STK(); return copy_seq(vm, l, MCS_O_ARRAY, 0, l->count); }
 static const mcs_reg_t stack_methods[] = {
-    MCS_FN("Push", stk_push, 1), MCS_FN("Pop", stk_pop, 0), MCS_FN("Peek", stk_peek, 0), MCS_GET("Count", coll_count),
+    MCS_FN("Push", stk_push, 1), MCS_FN("Pop", stk_pop, 0), MCS_FN("Peek", stk_peek, 0),
+    MCS_FN("TryPop", stk_trypop, 1), MCS_FN("TryPeek", stk_trypeek, 1), MCS_GET("Count", coll_count),
     MCS_FN("Clear", coll_clear, 0), MCS_FN("Contains", coll_contains, 1), MCS_FN("ToArray", stk_toarray, 0),
     MCS_FN("GetEnumerator", stk_toarray, 0), MCS_REG_END
 };
 static const mcs_reg_t queue_methods[] = {
-    MCS_FN("Enqueue", stk_push, 1), MCS_FN("Dequeue", q_dequeue, 0), MCS_FN("Peek", q_peek, 0), MCS_GET("Count", coll_count),
+    MCS_FN("Enqueue", stk_push, 1), MCS_FN("Dequeue", q_dequeue, 0), MCS_FN("Peek", q_peek, 0),
+    MCS_FN("TryDequeue", q_trydequeue, 1), MCS_FN("TryPeek", q_trypeek, 1), MCS_GET("Count", coll_count),
     MCS_FN("Clear", coll_clear, 0), MCS_FN("Contains", coll_contains, 1), MCS_FN("ToArray", q_toarray, 0),
     MCS_FN("GetEnumerator", q_toarray, 0), MCS_REG_END
 };

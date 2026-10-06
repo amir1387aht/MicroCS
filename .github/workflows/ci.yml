@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    name: Host · ${{ matrix.cc }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: make check (tests, GC stress, 17 feature-flag builds)
+        run: make CC=${{ matrix.cc }} check
+
+  sanitizers:
+    name: ASan + UBSan · fuzz
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test suite under sanitizers
+        env:
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: make asan-test
+      - name: Fuzz (source + image, short run)
+        run: |
+          python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER
+          python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER --image
+
+  littlefs:
+    name: LittleFS backend
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lfs-test
+
+  cortex-m:
+    name: Cortex-M0/M4/M33 (emulated)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Toolchain + emulator
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
+          pip install unicorn
+      - run: make cm-check
+
+  dotnet-parity:
+    name: .NET 8 parity
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Output byte-identical to .NET
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: 1
+          DOTNET_NOLOGO: 1
+        run: sh tools/verify_dotnet.sh

@@ -1,0 +1,12 @@
+17 = 5*3 + 2
+point (3, 4) -> x=3
+Square 4   area  16.0
+Rect 1x10  area  10.0
+Rect 2x3   area   6.0
+t:2
+tq|qb|bf|fj|jo|ot|tl|ld
+last=55 middle=[8,13,21,34]
+ssmmLL
+counter=3
+caught out-of-range
+done

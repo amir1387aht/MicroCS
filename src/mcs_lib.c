@@ -892,6 +892,133 @@ fail:
 }
 static const mcs_reg_t kvp_methods[] = { MCS_FN("ToString", kvp_tostring, 0), MCS_REG_END };
 
+
+NATIVE(tuple_tostring) {
+    if (!IS_KIND(self, MCS_O_INSTANCE)) return mcs_null();
+    mcs_instance_t* t = AS_INSTANCE(self);
+    mcs_buf_t b; mcs_buf_init(&b, vm);
+    mcs_buf_putc(&b, '(');
+    for (uint16_t i = 0; i < t->cls->field_count; i++) {
+        if (i) mcs_buf_puts(&b, ", ");
+        if (!mcs_value_to_buf(vm, &b, t->fields[i])) { mcs_buf_free(&b); return mcs_null(); }
+    }
+    mcs_buf_putc(&b, ')');
+    return OBJ_VAL(mcs_buf_to_string(&b));
+}
+static const mcs_reg_t tuple_methods[] = { MCS_FN("ToString", tuple_tostring, 0), MCS_REG_END };
+
+/* ---- ValueTuple + compiler intrinsics (hidden `__rt` module, emitted by the parser) */
+static mcs_class_t* tuple_class(mcs_vm_t* vm, int arity, const char* names, size_t nlen) {
+    char key[200];
+    if (nlen > 160) nlen = 160;
+    int kn = snprintf(key, sizeof key, "%d:%.*s", arity, (int)nlen, names ? names : "");
+    mcs_string_t* k = mcs_intern(vm, key, (size_t)kn);
+    mcs_value_t c;
+    if (mcs_table_get_s(&vm->tuple_classes, k, &c)) return AS_CLASS(c);
+    vm->gc_pause++;
+    mcs_class_t* cls = mcs_new_class(vm, mcs_intern_c(vm, "ValueTuple"), CLS_TUPLE);
+    mcs_table_set(vm, &vm->tuple_classes, OBJ_VAL(k), OBJ_VAL(cls));
+    mcs_class_inherit(vm, cls, vm->cls_object);
+    cls->ckind = CLS_TUPLE;
+    for (int i = 0; i < arity; i++) {
+        char nm[8]; int n = snprintf(nm, sizeof nm, "Item%d", i + 1);
+        mcs_class_add_field(vm, cls, mcs_intern(vm, nm, (size_t)n), mcs_null());
+    }
+    /* element names are aliases of the ItemN slots */
+    int slot = 0; size_t st = 0;
+    for (size_t i = 0; names && i <= nlen; i++) {
+        if (i == nlen || names[i] == ',') {
+            if (i > st && slot < arity) mcs_table_set(vm, &cls->fields, OBJ_VAL(mcs_intern(vm, names + st, i - st)), mcs_int(slot));
+            slot++; st = i + 1;
+        }
+    }
+    mcs_add_regs_eager(vm, cls, tuple_methods, false);
+    vm->gc_pause--;
+    return cls;
+}
+static mcs_value_t tuple_make(mcs_vm_t* vm, mcs_value_t names, int n, mcs_value_t* items) {
+    const char* nm = NULL; size_t nl = 0;
+    if (IS_STRING(names)) { nm = AS_STRING(names)->chars; nl = AS_STRING(names)->len; }
+    mcs_class_t* cls = tuple_class(vm, n, nm, nl);
+    mcs_instance_t* t = mcs_new_instance(vm, cls);
+    for (int i = 0; i < n; i++) t->fields[i] = items[i];
+    return OBJ_VAL(t);
+}
+/* used by other library files (LINQ Zip) */
+mcs_value_t mcs_lib_tuple(mcs_vm_t* vm, const char* names, int n, mcs_value_t* items) {
+    mcs_class_t* cls = tuple_class(vm, n, names, names ? strlen(names) : 0);
+    mcs_instance_t* t = mcs_new_instance(vm, cls);
+    for (int i = 0; i < n; i++) t->fields[i] = items[i];
+    return OBJ_VAL(t);
+}
+static bool is_tuple(mcs_value_t v) { return IS_KIND(v, MCS_O_INSTANCE) && AS_INSTANCE(v)->cls->ckind == CLS_TUPLE; }
+NATIVE(rt_tuple) { ARGN(1); return tuple_make(vm, argv[0], argc - 1, argv + 1); }
+NATIVE(rt_names) {
+    ARGN(2);
+    if (!is_tuple(argv[0]) || !IS_STRING(argv[1])) return argv[0];
+    mcs_instance_t* t = AS_INSTANCE(argv[0]);
+    int n = t->cls->field_count, commas = 0;
+    mcs_string_t* nm = AS_STRING(argv[1]);
+    for (uint32_t i = 0; i < nm->len; i++) commas += nm->chars[i] == ',';
+    if (commas + 1 != n) return argv[0];
+    mcs_class_t* cls = tuple_class(vm, n, nm->chars, nm->len);
+    if (cls == t->cls) return argv[0];
+    mcs_instance_t* r = mcs_new_instance(vm, cls);
+    for (int i = 0; i < n; i++) r->fields[i] = t->fields[i];
+    return OBJ_VAL(r);
+}
+NATIVE(rt_item) {
+    ARGN(2);
+    mcs_value_t v = argv[0]; mcs_int_t i = argv[1].as.i;
+    if (IS_KIND(v, MCS_O_INSTANCE)) {
+        mcs_instance_t* in = AS_INSTANCE(v);
+        bool kvp = false;
+        for (mcs_class_t* c = in->cls; c; c = c->super) if (c == vm->cls_kvp) kvp = true;
+        if ((in->cls->ckind == CLS_TUPLE || kvp) && i >= 0 && i < in->cls->field_count) return in->fields[i];
+    }
+    if (lib_is_seq(v) && i >= 0 && (uint32_t)i < AS_LIST(v)->count) return AS_LIST(v)->items[i];
+    if (v.type == MCS_T_NULL) mcs_throw(vm, EXC_NULLREF, "Object reference not set to an instance of an object.");
+    else mcs_throw(vm, EXC_INVOP, "Cannot deconstruct a value of type '%s' (element %d)", mcs_type_name(vm, v), (int)i);
+    return mcs_null();
+}
+static bool rt_length(mcs_vm_t* vm, mcs_value_t v, mcs_int_t* n) {
+    if (IS_STRING(v)) { *n = (mcs_int_t)AS_STRING(v)->len; return true; }
+    if (lib_is_seq(v)) { *n = (mcs_int_t)AS_LIST(v)->count; return true; }
+    if (v.type == MCS_T_NULL) mcs_throw(vm, EXC_NULLREF, "Object reference not set to an instance of an object.");
+    else mcs_throw(vm, EXC_NOTSUPPORTED, "'%s' does not support ^ indices or ranges", mcs_type_name(vm, v));
+    return false;
+}
+NATIVE(rt_len) { ARGN(1); mcs_int_t n; return rt_length(vm, argv[0], &n) ? mcs_int(n) : mcs_null(); }
+NATIVE(rt_atend) {
+    ARGN(2);
+    mcs_int_t n;
+    if (!rt_length(vm, argv[0], &n)) return mcs_null();
+    mcs_int_t i = n - argv[1].as.i;
+    if (argv[1].type != MCS_T_INT || i < 0 || i >= n) { mcs_throw(vm, EXC_INDEX, "Index was outside the bounds of the array. (index ^%d, length %d)", (int)argv[1].as.i, (int)n); return mcs_null(); }
+    if (IS_STRING(argv[0])) return mcs_char((uint8_t)AS_STRING(argv[0])->chars[i]);
+    return AS_LIST(argv[0])->items[i];
+}
+NATIVE(rt_slice) {
+    ARGN(5);
+    mcs_value_t v = argv[0];
+    mcs_int_t n;
+    if (!rt_length(vm, v, &n)) return mcs_null();
+    mcs_int_t lo = argv[1].as.i, hi = argv[3].as.i;
+    if (argv[1].type != MCS_T_INT || argv[3].type != MCS_T_INT) { mcs_throw(vm, EXC_ARGUMENT, "range bounds must be integers"); return mcs_null(); }
+    if (argv[2].as.b) lo = n - lo;
+    if (argv[4].as.b) hi = n - hi;
+    if (lo < 0 || hi > n || lo > hi) { mcs_throw(vm, EXC_ARGRANGE, "Specified argument was out of the range of valid values. (range %d..%d, length %d)", (int)lo, (int)hi, (int)n); return mcs_null(); }
+    if (IS_STRING(v)) return lib_str(vm, AS_STRING(v)->chars + lo, (size_t)(hi - lo));
+    mcs_list_t* src = AS_LIST(v);
+    mcs_list_t* r = mcs_new_listobj(vm, OBJ_KIND(v), (uint32_t)(hi - lo));
+    for (mcs_int_t i = lo; i < hi; i++) r->items[i - lo] = src->items[i];
+    return OBJ_VAL(r);
+}
+static const mcs_reg_t rt_fns[] = {
+    MCS_FN("Tuple", rt_tuple, -1), MCS_FN("Names", rt_names, 2), MCS_FN("Item", rt_item, 2),
+    MCS_FN("Len", rt_len, 1), MCS_FN("AtEnd", rt_atend, 2), MCS_FN("Slice", rt_slice, 5), MCS_REG_END
+};
+
 /* ============================================================ open */
 static void set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value_t v) {
     vm->gc_pause++;
@@ -990,6 +1117,7 @@ void mcs_open_libs(mcs_vm_t* vm, uint8_t mask) {
     open_exceptions(vm);
 
     mcs_register_module(vm, "Console", console_fns);
+    mcs_register_module(vm, "__rt", rt_fns);
     mcs_register_module(vm, "Convert", convert_fns);
 
     mcs_lib_open_string(vm, mask);       /* String, StringBuilder */

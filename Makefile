@@ -25,6 +25,9 @@ test: mcs build/test_modules
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_shell.py ./mcs; else echo "SKIP shell tests (no python3)"; fi
+	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }
+	@./mcs --sim --run-for 600 examples/blink.cs > /dev/null && echo "PASS examples/blink.cs (smoke)" || { echo "FAIL examples/blink.cs"; exit 1; }
+	@./mcs --sim --ramfs 32768 --run-for 1200 examples/sensor_logger.cs > /dev/null && echo "PASS examples/sensor_logger.cs (smoke)" || { echo "FAIL examples/sensor_logger.cs"; exit 1; }
 
 build/test_modules: tests/c/test_modules.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_modules.c -o $@ $(LDLIBS)
@@ -39,7 +42,7 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_linux.h\""
 check: test
 	@echo "== GC stress"; $(CC) -std=gnu99 -O1 -Iinclude -DMCS_GC_STRESS=1 $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_gc && \
-	cd tests && for t in t0*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
+	cd tests && for t in t*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
 	case $$t in *gc_stress*) o="--heap 196608 --stack 256";; esac; \
 	../build/mcs_gc $$o $$t > ../build/gc.txt 2>&1; cmp -s ../build/gc.txt $${t%.cs}.out && echo "PASS $$t" || { echo "FAIL $$t"; exit 1; }; done
 	@echo "== feature flag builds"; for f in $(FLAG_SETS); do \
@@ -47,8 +50,12 @@ check: test
 	echo "OK $$f"; done
 
 # Debug build with sanitizers
+SAN_FLAGS = CFLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" LDLIBS="-lm -fsanitize=address,undefined"
 asan: clean
-	$(MAKE) CFLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" LDLIBS="-lm -fsanitize=address,undefined"
+	$(MAKE) $(SAN_FLAGS)
+# whole test suite under ASan + UBSan (rebuilds everything; run `make clean` afterwards)
+asan-test: clean
+	$(MAKE) $(SAN_FLAGS) test
 
 # Firmware-sized variants (object size report for a typical Cortex-M build
 # with arm-none-eabi-gcc if available, else host compiler)
@@ -75,7 +82,7 @@ example: $(OBJ) examples/firmware_example.c examples/app_image.h
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan size clean example cm cm-check bench lfs-test
+.PHONY: all test check asan asan-test size clean example cm cm-check bench lfs-test
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party)
 LFS_DIR = build/third_party/littlefs-2.9.3

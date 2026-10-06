@@ -74,9 +74,15 @@ static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t le
         /* first chunk sized from the remaining source (~1 token per 5 bytes) so the
          * arena rarely holds abandoned copies of a doubled token array */
         uint32_t nc = t->cap ? t->cap * 2 : (uint32_t)((L->end - start) / 5) + 32;
-        token_t* nt = (token_t*)arena_alloc(L->ctx->arena, sizeof(token_t) * nc);
-        if (t->count) memcpy(nt, t->toks, sizeof(token_t) * t->count);
-        t->toks = nt; t->cap = nc;
+        if (t->heap) {   /* main token list: VM heap, so the compiler phase does not carry it */
+            token_t* nt = (token_t*)mcs_realloc(L->ctx->vm, t->toks, sizeof(token_t) * t->cap, sizeof(token_t) * nc);
+            t->toks = nt; t->cap = nc;
+            L->ctx->heap_toks = nt; L->ctx->heap_cap = nc;
+        } else {
+            token_t* nt = (token_t*)arena_alloc(L->ctx->arena, sizeof(token_t) * nc);
+            if (t->count) memcpy(nt, t->toks, sizeof(token_t) * t->count);
+            t->toks = nt; t->cap = nc;
+        }
     }
     token_t* k = &t->toks[t->count++];
     memset(k, 0, sizeof *k);
@@ -263,7 +269,7 @@ bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, tokl
             continue;
         }
         if (c >= '0' && c <= '9') { lex_number(&L); continue; }
-        if (c == '.' && L.p + 1 < L.end && L.p[1] >= '0' && L.p[1] <= '9') { lex_number(&L); continue; }
+        if (c == '.' && L.p + 1 < L.end && L.p[1] >= '0' && L.p[1] <= '9' && !(L.p > src && L.p[-1] == '.')) { lex_number(&L); continue; } /* not the 2nd dot of a range `1..3` */
         if (c == '\'') { lex_char(&L); continue; }
         if (c == '"' || ((c == '@' || c == '$') && L.p + 1 < L.end && (L.p[1] == '"' || ((L.p[1] == '@' || L.p[1] == '$') && L.p + 2 < L.end && L.p[2] == '"')))) {
             bool verbatim = false, interp = false;

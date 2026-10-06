@@ -1,13 +1,16 @@
 # Phase 2 handoff
 
 ## State
-* Version 1.1.0. Phase 1 behaviour unchanged (all Phase 1 tests pass unmodified, image
-  format unchanged — no opcodes were added).
-* `make check` = 24 script runs (10 programs as source and as image + 4 diagnostics),
-  79 C unit checks, 16 shell protocol checks, GC-stress run of every program, 17 feature
-  flag / profile builds with `-Werror`. Extra suites: `make lfs-test` (10 checks),
-  `make cm-check` (3 Cortex-M targets byte-identical to host + 7 UART protocol checks),
-  `tools/verify_dotnet.sh` (3 programs byte-identical to .NET 8).
+* Phase 2 shipped as 1.1.0 without new opcodes. **1.2.0** (see [CHANGELOG](../CHANGELOG.md))
+  added image format v2 (superinstructions; v1 images still load), tuples, ranges, more
+  patterns and library members, loader hardening and a fuzzer. All Phase 1/2 tests pass
+  unmodified.
+* `make check` = 30 script runs (13 programs as source and as image + 4 diagnostics
+  tests), 79 C unit checks, 16 shell protocol checks, examples, GC-stress
+  run of every program, 17 feature flag / profile builds with `-Werror`. Extra suites:
+  `make lfs-test`, `make cm-check` (3 Cortex-M targets byte-identical to host + 7 UART
+  protocol checks), `tools/verify_dotnet.sh` (6 programs byte-identical to .NET 8),
+  `tools/fuzz.py` (source and image modes). Details: [TESTING.md](TESTING.md).
 
 ## Where things are
 | Topic | Code | Doc |
@@ -19,6 +22,9 @@
 | Scheduler | `modules/sched/` | SCHEDULER.md |
 | Standalone shell | `modules/shell/`, `tools/mcs_remote.py` | STANDALONE.md |
 | Cortex-M | `ports/cortex-m/`, `tools/cm_emu.py`, `tools/cm_check.sh` | PORTING.md, PERFORMANCE.md |
+| 1.2 tuples / ranges / `is` patterns | `src/mcs_parser.c` (`tuple_relabel`, `prescan_tuple_members`, `is_as_switch`, deconstruction desugaring), `src/mcs_lib.c` (`__rt` module, `tuple_class`) | LANGUAGE.md |
+| 1.2 superinstructions, field cache | `src/mcs_compiler.c` (`store_pop`, `emit_cond_jump`), `src/mcs_vm.c` | BYTECODE.md, ARCHITECTURE.md |
+| Image validation, fuzzing | `src/mcs_bytecode.c` (`validate_code`), `tools/fuzz.py` | BYTECODE.md, TESTING.md |
 
 ## Rules (in addition to HANDOFF_PHASE1.md)
 * Modules use only public headers and must build with every `MCS_ENABLE_*` combination
@@ -35,4 +41,4 @@
    declaration (compile working set), share inherited method tables.
 3. Streams (`FileStream`), async peripheral events, CAN/I2S/RTC/display bindings, LVGL module.
 4. Image signing + shell authentication; cron schedules.
-5. Debugger (breakpoints over the shell protocol), fuzzing of the image loader.
+5. Debugger (breakpoints over the shell protocol); a stack-balance verifier for images.

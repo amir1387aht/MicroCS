@@ -57,6 +57,8 @@ typedef struct {
     bool force_global;    /* top-level var whose initializer declares pattern locals */
     bool outvar_global;   /* top-level statement: `out var x` declares a global */
     struct fcomp* fc_free; /* recycled function-compiler states (each is ~4-6 KB) */
+    uint32_t last_store;  /* code offset of the last SET_LOCAL/SET_GLOBAL emitted (peephole) */
+    mcs_function_t* last_store_fn;
 } comp_t;
 
 static uint8_t compile_expr(comp_t* c, node_t* n);
@@ -82,6 +84,7 @@ static void emit_op16(comp_t* c, uint8_t op, uint32_t a) { emit(c, op); emit_u16
 static uint32_t here(comp_t* c) { return FN(c)->code_len; }
 static uint32_t emit_jump(comp_t* c, uint8_t op) { emit(c, op); emit(c, 0xff); emit(c, 0xff); return here(c) - 2; }
 static void patch_at(comp_t* c, uint32_t at) {
+    c->last_store_fn = NULL;  /* a jump lands here: no fusion across this point */
     uint32_t off = here(c) - at - 2;
     if (off > 0xFFFF) cerr(c, 0, "jump too large");
     FN(c)->code[at] = (uint8_t)(off >> 8); FN(c)->code[at + 1] = (uint8_t)off;
@@ -465,9 +468,9 @@ static void target_get(comp_t* c, target_t* t) {
 }
 static void target_set(comp_t* c, target_t* t) {
     switch (t->kind) {
-    case T_LOCAL: emit_op8(c, OP_SET_LOCAL, (uint8_t)t->index); break;
+    case T_LOCAL: c->last_store = here(c); c->last_store_fn = FN(c); emit_op8(c, OP_SET_LOCAL, (uint8_t)t->index); break;
     case T_UPVAL: emit_op8(c, OP_SET_UPVAL, (uint8_t)t->index); break;
-    case T_GLOBAL: emit_op16(c, OP_SET_GLOBAL, (uint32_t)t->index); break;
+    case T_GLOBAL: c->last_store = here(c); c->last_store_fn = FN(c); emit_op16(c, OP_SET_GLOBAL, (uint32_t)t->index); break;
     case T_FIELD: emit_op16(c, OP_SET_FIELD, t->name_k); break;
     case T_INDEX: emit_op(c, OP_SET_INDEX); break;
     }
@@ -494,6 +497,40 @@ static uint8_t arith_pt(int op, uint8_t a, uint8_t b) {
     if ((a == PT_FLOAT && (bi || b == PT_FLOAT)) || (b == PT_FLOAT && ai)) return PT_FLOAT;
     if ((op == TK_AMP || op == TK_PIPE || op == TK_CARET) && a == PT_BOOL && b == PT_BOOL) return PT_BOOL;
     return PT_ANY;
+}
+
+/* statement store: SET_x + POP -> SET_x_POP when the store was the last
+ * instruction emitted (nothing can jump between the two) */
+static void store_pop(comp_t* c, target_t* t) {
+    mcs_function_t* f = FN(c);
+    if (t->kind == T_LOCAL && f->code_len >= 2 && f->code[f->code_len - 2] == OP_SET_LOCAL && c->last_store_fn == f && c->last_store == f->code_len - 2) {
+        f->code[f->code_len - 2] = OP_SET_LOCAL_POP; return;
+    }
+    if (t->kind == T_GLOBAL && f->code_len >= 3 && f->code[f->code_len - 3] == OP_SET_GLOBAL && c->last_store_fn == f && c->last_store == f->code_len - 3) {
+        f->code[f->code_len - 3] = OP_SET_GLOBAL_POP; return;
+    }
+    emit_op(c, OP_POP);
+}
+
+/* condition + jump-if-false, fusing `a <cmp> b` into one compare-and-branch */
+static uint32_t emit_cond_jump(comp_t* c, node_t* cond) {
+    mcs_value_t k;
+    if (cond->kind == N_BINARY && !fold(c, cond, &k)) {
+        uint8_t op = 0;
+        switch (cond->op) {
+        case TK_EQ: op = OP_JF_EQ; break; case TK_NE: op = OP_JF_NE; break;
+        case TK_LT: op = OP_JF_LT; break; case TK_LE: op = OP_JF_LE; break;
+        case TK_GT: op = OP_JF_GT; break; case TK_GE: op = OP_JF_GE; break;
+        default: break;
+        }
+        if (op) {
+            compile_expr(c, cond->a);
+            compile_expr(c, cond->b);
+            return emit_jump(c, op);
+        }
+    }
+    compile_expr(c, cond);
+    return emit_jump(c, OP_JUMP_IF_FALSE);
 }
 
 static uint8_t compile_assign(comp_t* c, node_t* n, bool want) {
@@ -536,7 +573,7 @@ static uint8_t compile_assign(comp_t* c, node_t* n, bool want) {
         target_set(c, &t);
         if (t.pt != PT_ANY) pt = t.pt;
     }
-    if (!want) emit_op(c, OP_POP);
+    if (!want) store_pop(c, &t);
     return pt;
 }
 
@@ -560,7 +597,8 @@ static uint8_t compile_incdec(comp_t* c, node_t* n, bool prefix, bool want) {
     if (t.pt == PT_CHAR) emit_op8(c, OP_CONV, CV_CHAR);
     else emit_store_conv(c, t.conv, t.pt);
     target_set(c, &t);
-    if (keep_old || !want) emit_op(c, OP_POP);
+    if (!want) store_pop(c, &t);
+    else if (keep_old) emit_op(c, OP_POP);
     return t.pt;
 }
 
@@ -726,6 +764,15 @@ static void compile_array_lit(comp_t* c, node_t* n) {
 /* ------------------------------------------------------------ expressions */
 static void compile_pattern_test(comp_t* c, node_t* pat) {
     /* subject is on stack top (kept); pushes bool */
+    if (pat->kind == N_AND && pat->flag == 1) { /* p1 and p2 and ... */
+        jlist_t fails = {0};
+        for (node_t* q = pat->a; q; q = q->next) {
+            compile_pattern_test(c, q);
+            if (q->next) { jl_add(c, &fails, emit_jump(c, OP_JUMP_IF_FALSE_KEEP)); emit_op(c, OP_POP); }
+        }
+        jl_patch(c, &fails);
+        return;
+    }
     emit_op(c, OP_DUP);
     if (pat->kind == N_IS && !pat->a) { compile_expr(c, pat); return; }
     if (pat->kind == N_BINARY && pat->b == NULL) {
@@ -887,8 +934,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
     case N_PREINC: pt = compile_incdec(c, n, true, true); break;
     case N_POSTINC: pt = compile_incdec(c, n, false, true); break;
     case N_COND: {
-        compile_expr(c, n->a);
-        uint32_t jf = emit_jump(c, OP_JUMP_IF_FALSE);
+        uint32_t jf = emit_cond_jump(c, n->a);
         uint8_t a = compile_expr(c, n->b);
         uint32_t je = emit_jump(c, OP_JUMP);
         patch_at(c, jf);
@@ -1265,8 +1311,17 @@ static void compile_switch(comp_t* c, node_t* n) {
     end_scope(c);
 }
 
+static void compile_stmt(comp_t* c, node_t* n);
 static void compile_block_list(comp_t* c, node_t* list) {
     for (node_t* s = list; s; s = s->next) compile_stmt(c, s);
+}
+
+/* Body of if/else/while/do/for. Locals it introduces (out var, desugared
+   deconstruction temps) live only for that statement, so it gets its own
+   scope; otherwise every loop iteration would leave a stack slot behind. */
+static void compile_embedded(comp_t* c, node_t* n) {
+    if (n->kind == N_BLOCK && !n->flag) { compile_stmt(c, n); return; }
+    begin_scope(c); compile_stmt(c, n); end_scope(c);
 }
 
 static void compile_stmt(comp_t* c, node_t* n) {
@@ -1297,13 +1352,12 @@ static void compile_stmt(comp_t* c, node_t* n) {
     case N_IF: {
         bool scoped = has_pattern(n->a, false);
         if (scoped) { if (is_global_scope(c)) { begin_scope(c); c->outvar_global = true; } else scoped = false; predeclare(c, n->a, false); c->outvar_global = false; }
-        compile_expr(c, n->a);
-        uint32_t jf = emit_jump(c, OP_JUMP_IF_FALSE);
-        compile_stmt(c, n->b);
+        uint32_t jf = emit_cond_jump(c, n->a);
+        compile_embedded(c, n->b);
         if (n->c) {
             uint32_t je = emit_jump(c, OP_JUMP);
             patch_at(c, jf);
-            compile_stmt(c, n->c);
+            compile_embedded(c, n->c);
             patch_at(c, je);
         } else patch_at(c, jf);
         if (scoped) end_scope(c);
@@ -1314,9 +1368,8 @@ static void compile_stmt(comp_t* c, node_t* n) {
         predeclare(c, n->a, false);
         uint32_t start = here(c);
         loop_t L; push_loop(c, &L, start, false);
-        compile_expr(c, n->a);
-        uint32_t jf = emit_jump(c, OP_JUMP_IF_FALSE);
-        compile_stmt(c, n->b);
+        uint32_t jf = emit_cond_jump(c, n->a);
+        compile_embedded(c, n->b);
         emit_loop(c, start);
         patch_at(c, jf);
         pop_loop(c, &L);
@@ -1326,7 +1379,7 @@ static void compile_stmt(comp_t* c, node_t* n) {
     case N_DO: {
         uint32_t start = here(c);
         loop_t L; push_loop(c, &L, -1, false);
-        compile_stmt(c, n->b);
+        compile_embedded(c, n->b);
         jl_patch(c, &L.conts);
         compile_expr(c, n->a);
         uint32_t jf = emit_jump(c, OP_JUMP_IF_FALSE);
@@ -1341,8 +1394,8 @@ static void compile_stmt(comp_t* c, node_t* n) {
         uint32_t start = here(c);
         uint32_t jf = 0;
         loop_t L; push_loop(c, &L, -1, false);
-        if (n->b) { compile_expr(c, n->b); jf = emit_jump(c, OP_JUMP_IF_FALSE); }
-        compile_stmt(c, n->d);
+        if (n->b) jf = emit_cond_jump(c, n->b);
+        compile_embedded(c, n->d);
         jl_patch(c, &L.conts);
         if (n->c) compile_stmt(c, n->c);
         emit_loop(c, start);
@@ -1714,7 +1767,7 @@ static void topo_visit(comp_t* c, classdecl_t* d, classdecl_t** out, int* n) {
 
 mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
     arena_t arena = { vm, NULL };
-    front_ctx_t ctx = { vm, &arena, name, 0 };
+    front_ctx_t ctx = { vm, &arena, name, 0, NULL, 0 };
     program_t prog; memset(&prog, 0, sizeof prog);
     vm->gc_pause++;
     mcs_function_t* volatile result = NULL;
@@ -1725,6 +1778,7 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
     vm->panic = &pjb;
     if ((pcode = setjmp(pjb)) != 0) {
         vm->panic = prev_panic;
+        mcs_front_free_tokens(&ctx);
         arena_free(&arena);
         vm->gc_pause--;
         if (prev_panic) longjmp(*prev_panic, pcode);

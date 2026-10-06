@@ -339,9 +339,16 @@ int main(int argc, char** argv) {
         }
         mcs_free_image(vm, img);
     } else if (disasm) {
-        char* src = read_file(disasm, NULL);
+        size_t dn = 0;
+        char* src = read_file(disasm, &dn);
         if (!src) return 1;
-        rc = result_code(mcs_disassemble_source(vm, disasm, src));
+        if (dn >= 4 && !memcmp(src, "MCSB", 4)) {
+#if MCS_ENABLE_DISASM && MCS_ENABLE_BYTECODE_LOAD
+            rc = result_code(mcs_disassemble_image(vm, (const uint8_t*)src, dn));
+#else
+            fprintf(stderr, "mcs: image disassembly not built in\n"); rc = 1;
+#endif
+        } else rc = result_code(mcs_disassemble_source(vm, disasm, src));
         if (rc) fprintf(stderr, "%s\n", mcs_last_error(vm));
         free(src);
     } else if (code) {

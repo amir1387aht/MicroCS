@@ -48,7 +48,14 @@ typedef struct mcs_function {
     uint8_t* param_types; /* arity entries or NULL */
     mcs_string_t* name;
     mcs_string_t* source;
+#if MCS_FIELD_CACHE
+    struct mcs_fcache* fcache;  /* lazily allocated, indexed by name constant (const_count entries) */
+    uint32_t fcache_n;
+#endif
 } mcs_function_t;
+#if MCS_FIELD_CACHE
+typedef struct mcs_fcache { struct mcs_class* cls; uint32_t slot; } mcs_fcache_t;
+#endif
 
 typedef struct mcs_upvalue {
     mcs_obj_t obj;
@@ -76,6 +83,7 @@ typedef struct {
 #define CLS_STATIC    2   /* module: only static members           */
 #define CLS_USERDATA  3   /* native class from mcs_class_def_t     */
 #define CLS_INTERFACE 4
+#define CLS_TUPLE     5   /* ValueTuple: structural equality/hash, Item1..ItemN */
 
 typedef struct mcs_rom {        /* lazily materialized registration table */
     const mcs_reg_t* regs;
@@ -178,6 +186,7 @@ struct mcs_vm {
 
     mcs_table_t strings;        /* interned strings */
     mcs_table_t global_index;   /* name -> slot */
+    mcs_table_t tuple_classes;  /* "arity:names" -> ValueTuple class (NOT inside the cls_* range marked by the GC) */
     mcs_value_t* globals;
     mcs_string_t** global_names;
     uint32_t global_count, global_cap;
@@ -257,7 +266,10 @@ struct mcs_vm {
     X(GETTER, 3) X(SETTER, 3) \
     X(ARRAY, 2) X(NEW_ARRAY, 1) X(CONV, 1) X(TOSTR, 0) X(TOSTR_FMT, 0) X(CONCAT, 1) \
     X(IS, 2) X(AS, 2) X(CAST, 2) X(FOR_ITER, 3) \
-    X(TRY, 2) X(END_TRY, 0) X(THROW, 0)
+    X(TRY, 2) X(END_TRY, 0) X(THROW, 0) \
+    /* image v2: superinstructions (statement stores, fused compare-and-branch) */ \
+    X(SET_LOCAL_POP, 1) X(SET_GLOBAL_POP, 2) \
+    X(JF_EQ, 2) X(JF_NE, 2) X(JF_LT, 2) X(JF_LE, 2) X(JF_GT, 2) X(JF_GE, 2)
 
 typedef enum {
 #define X(name, len) OP_##name,
@@ -346,6 +358,7 @@ void mcs_table_init(mcs_table_t* t);
 void mcs_table_free(mcs_vm_t* vm, mcs_table_t* t);
 bool mcs_table_get(const mcs_table_t* t, mcs_value_t key, mcs_value_t* out);
 bool mcs_table_set(mcs_vm_t* vm, mcs_table_t* t, mcs_value_t key, mcs_value_t v);
+bool mcs_tuple_equal(mcs_value_t a, mcs_value_t b, bool same);
 bool mcs_table_delete(mcs_table_t* t, mcs_value_t key);
 void mcs_table_copy(mcs_vm_t* vm, const mcs_table_t* from, mcs_table_t* to);
 mcs_string_t* mcs_table_find_string(const mcs_table_t* t, const char* s, size_t len, uint32_t hash);

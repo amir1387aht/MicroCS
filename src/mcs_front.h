@@ -51,6 +51,7 @@ typedef struct {
 typedef struct {
     token_t* toks;
     uint32_t count, cap;
+    uint8_t heap;            /* toks lives on the VM heap (freed after parsing), else in the arena */
 } toklist_t;
 
 /* ---------------------------------------------------------- types */
@@ -60,6 +61,7 @@ typedef struct typeref {
     uint8_t rank;                    /* array rank (number of []) */
     uint8_t conv;                    /* CV_* for numeric primitives, 0xff = none */
     uint8_t is_var;
+    const char* tnames; uint32_t tnames_len; /* tuple types: element names "x,y" (NULL when unnamed) */
 } typeref_t;
 
 /* ---------------------------------------------------------- AST */
@@ -167,10 +169,12 @@ typedef struct {
     arena_t* arena;
     const char* src_name;
     int errors;
+    token_t* heap_toks; uint32_t heap_cap;   /* main token array, released as soon as parsing ends */
 } front_ctx_t;
 
 bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, toklist_t* out);
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog);
+void mcs_front_free_tokens(front_ctx_t* ctx);
 void mcs_front_error(front_ctx_t* ctx, uint32_t line, uint32_t col, const char* fmt, ...);
 uint8_t mcs_prim_of(const char* name, uint32_t len, uint8_t* conv);
 

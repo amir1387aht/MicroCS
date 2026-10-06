@@ -67,6 +67,9 @@
 #define MCS_ENABLE_LINES 1
 #endif
 /* Use GCC computed-goto dispatch when available (~15-25% faster) */
+#ifndef MCS_FIELD_CACHE
+#define MCS_FIELD_CACHE 1   /* per-function inline cache for obj.field (class -> slot); ~8 B per constant on 32-bit */
+#endif
 #ifndef MCS_COMPUTED_GOTO
 #if defined(__GNUC__)
 #define MCS_COMPUTED_GOTO 1

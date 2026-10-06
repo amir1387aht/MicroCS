@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 1
+#define MCS_VERSION_MINOR 2
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.1.0"
+#define MCS_VERSION_STRING "1.2.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -280,6 +280,10 @@ void* mcs_pool_realloc(void* pool, void* ptr, size_t old_size, size_t new_size);
 #if MCS_ENABLE_DISASM && MCS_ENABLE_COMPILER
 /* Print disassembly of compiled source to the output stream. */
 mcs_result_t mcs_disassemble_source(mcs_vm_t* vm, const char* name, const char* src);
+#endif
+#if MCS_ENABLE_DISASM && MCS_ENABLE_BYTECODE_LOAD
+/* Load (and validate) a bytecode image and print its disassembly. */
+mcs_result_t mcs_disassemble_image(mcs_vm_t* vm, const uint8_t* image, size_t len);
 #endif
 
 /* ======================================================= Phase 2 additions

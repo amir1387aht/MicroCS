@@ -1,29 +1,48 @@
 # Architecture
 
-```
-            C# source ──► lexer ─► parser (AST in an arena) ─► single-pass compiler ─┐
-                                                       (MCS_ENABLE_COMPILER)          │
-            .mcsb image (mcs -c / -C, or mcs_compile_image) ─────────────────────────┴─►
-                     bytecode functions ─► stack VM (computed goto) ─► stdlib natives
-                                             │  mark & sweep GC at safepoints
-     public API include/mcs.h  ──────────────┴───── extension slots (mcs_set_ext)
-         │                 │                     │                      │
-   modules/fs        modules/hal           modules/sched          modules/shell
-   VFS + backends    board ops table       polled job table       boot + protocol
+```mermaid
+flowchart TB
+    subgraph front["Front end — optional (MCS_ENABLE_COMPILER)"]
+        direction LR
+        L[lexer] --> P["parser<br/>AST in arena<br/>desugaring"] --> C["single-pass<br/>compiler"]
+    end
+    IMG[".mcsb image"] --> LD["loader +<br/>validator"]
+    C --> F(("functions<br/>+ constants"))
+    LD --> F
+    F --> VM["VM: value stack, frames,<br/>computed-goto dispatch,<br/>inline caches"]
+    VM <--> GC["precise mark & sweep<br/>(safepoints only)"]
+    VM <--> STD["stdlib natives"]
+    VM <--> API["public API include/mcs.h<br/>+ extension slots"]
+    API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell]
 ```
 
-## Core (src/) — Phase 1, extended compatibly
-* **Lexer → parser → compiler**: tokens and AST live in one arena that is freed after
-  compilation (also on out-of-memory, since Phase 2). The compiler is single-pass per
-  function and emits stack bytecode with line tables. Function-compiler states (~4.5 KB
-  each on 32-bit) are recycled between functions since Phase 2.
-* **VM**: value stack + call frames, computed-goto dispatch, exception handler stack,
-  upvalues for closures. *Safepoints* (calls, backward jumps, allocating opcodes) are the
-  only places where the GC runs and where the host hook and execution limits are checked.
-* **GC**: precise mark & sweep. Allocation never collects; it only requests a collection
-  that the next safepoint performs, so native code can hold unrooted temporaries.
-* **Images**: `.mcsb` = serialised functions/constants/classes, versioned (`IMG_VERSION`);
-  Phase 2 added no opcodes, so images are unchanged.
+## Core (`src/`)
+* **Lexer → parser → compiler.** The lexer produces a token array on the VM heap; the parser
+  builds an AST in an arena and the token array is **freed as soon as parsing ends** (the
+  AST points into the source text). Many newer features are *desugared* in the parser into
+  calls of a hidden `__rt` module (tuples, deconstruction, `^`/ranges) or into existing
+  nodes (`is` patterns → switch expressions), so the compiler and VM stay small. The
+  compiler is single-pass per function, emits stack bytecode with line tables and recycles
+  function-compiler states. The arena is freed after compilation, also on out-of-memory.
+* **Peephole optimisation** happens at emit time: a store followed by `POP` becomes
+  `SET_LOCAL_POP`/`SET_GLOBAL_POP`; conditions in `if`/`while`/`for`/`?:` that are a
+  comparison become one fused `JF_*` compare-and-branch. Jump patching invalidates the
+  peephole state so no rewrite crosses a branch target.
+* **VM.** Value stack + call frames, computed-goto dispatch, exception handler stack,
+  upvalues for closures. Hot paths: int/float arithmetic and comparisons, exact-arity
+  closure calls, positive-divisor `/` `%`, and **per-site field caches** (`MCS_FIELD_CACHE`:
+  each function has a `(class, slot)` cache indexed by the field-name constant; the GC marks
+  the cached classes). *Safepoints* (calls, backward jumps, allocating opcodes) are the only
+  places where the GC runs and where the host hook and execution limits are checked.
+* **GC.** Precise mark & sweep. Allocation never collects; it only requests a collection
+  that the next safepoint performs, so native code can hold unrooted temporaries. The weak
+  string-intern table is rehashed in place when it fills with tombstones and shrunk after a
+  collection when it is mostly empty.
+* **Images.** `.mcsb` = serialised functions/constants with global names re-linked at load
+  time; versioned (`IMG_VERSION` 2, v1 still accepted) and validated. See [BYTECODE.md](BYTECODE.md).
+* **Library.** Builtin classes are described by `mcs_reg_t` tables; with `MCS_LAZY_REGS`
+  a class's natives are only materialised on first use. [STDLIB.md](STDLIB.md) is generated
+  from these tables.
 
 ## Phase 2 core additions (all append-only to `mcs.h`)
 | API | Purpose |
@@ -54,7 +73,8 @@ only process-wide state is the LittleFS file-handle table and C caches documente
 
 ## Invariants for contributors
 * Do not change existing public structs/functions; append new API.
-* Opcodes are append-only; bump `IMG_VERSION` if the image format changes.
+* Opcodes are append-only; bump `IMG_VERSION` if the image format changes, and extend the
+  loader's operand validation for new operand kinds.
 * Never trigger GC inside `mcs_realloc`; new VM roots must be marked in `mark_roots`.
 * `.out` files define behaviour; new language features should match .NET output
   (`tools/verify_dotnet.sh`).

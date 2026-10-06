@@ -1,9 +1,9 @@
 # Porting MicroCS
 
-MicroCS needs a C99 compiler, ~170–210 KB of flash (full build incl. newlib/libm) or
-~165 KB (runtime only), and RAM for: the VM heap (≥ ~50 KB baseline + script working
-set; ~150–170 KB when compiling scripts on the device), ~3–8 KB of C stack for the VM
-task, and static module state. Numbers: `docs/PERFORMANCE.md`.
+MicroCS needs a C99 compiler, ~216 KB of flash (full build incl. newlib/libm) or
+~172 KB (runtime only, no compiler), and RAM for: the VM heap (≥ ~50 KB baseline + script
+working set; ~130–160 KB when compiling scripts on the device), ~3–8 KB of C stack for
+the VM task, and static module state. Numbers: [PERFORMANCE.md](PERFORMANCE.md).
 
 ## Files to compile
 `src/*.c` (core) + the modules you want from `modules/*/` (drop `mcs_vfs_posix.c` on MCUs;
@@ -43,7 +43,7 @@ on the order of 512 KB SRAM (check the exact variant's datasheet/memory map). Su
 integration:
 1. Add `src/*.c`, `modules/{fs,hal,sched,shell}/*.c` (minus `mcs_vfs_posix.c`) to the
    project's SConscript; `CPPDEFINES += MCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"`.
-2. Create an RT-Thread thread (stack 8 KB to start; measured peak for the demo is 2.7 KB)
+2. Create an RT-Thread thread (stack 8 KB to start; measured peak for the demo is 3.5 KB)
    that owns the VM and calls `mcs_sched_poll` / `mcs_shell_step`.
 3. Static pool of 192–256 KB for the VM heap if scripts are compiled on the device; ~100 KB
    if only `.mcsb` images are run.

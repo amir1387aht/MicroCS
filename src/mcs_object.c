@@ -430,9 +430,24 @@ uint32_t mcs_value_hash(mcs_value_t v) {
 #endif
     case MCS_T_OBJ:
         if (OBJ_KIND(v) == MCS_O_STRING) return AS_STRING(v)->hash;
+        if (OBJ_KIND(v) == MCS_O_INSTANCE && AS_INSTANCE(v)->cls->ckind == CLS_TUPLE) { /* structural */
+            mcs_instance_t* t = AS_INSTANCE(v); uint32_t h = 0x811c9dc5u;
+            for (uint16_t i = 0; i < t->cls->field_count; i++) h = (h ^ mcs_value_hash(t->fields[i])) * 16777619u;
+            return h;
+        }
         return mix32((uint32_t)((uintptr_t)v.as.o >> 3));
     default: return 0;
     }
+}
+
+/* ValueTuple: element-wise comparison (same = identity per element, used for hashing) */
+bool mcs_tuple_equal(mcs_value_t a, mcs_value_t b, bool same) {
+    if (!IS_KIND(a, MCS_O_INSTANCE) || !IS_KIND(b, MCS_O_INSTANCE)) return false;
+    mcs_instance_t *x = AS_INSTANCE(a), *y = AS_INSTANCE(b);
+    if (x->cls->ckind != CLS_TUPLE || y->cls->ckind != CLS_TUPLE || x->cls->field_count != y->cls->field_count) return false;
+    for (uint16_t i = 0; i < x->cls->field_count; i++)
+        if (!(same ? mcs_values_same(x->fields[i], y->fields[i]) : mcs_values_equal(x->fields[i], y->fields[i]))) return false;
+    return true;
 }
 
 bool mcs_values_same(mcs_value_t a, mcs_value_t b) {
@@ -444,7 +459,7 @@ bool mcs_values_same(mcs_value_t a, mcs_value_t b) {
 #if MCS_ENABLE_FLOAT
     case MCS_T_FLOAT: return a.as.f == b.as.f;
 #endif
-    case MCS_T_OBJ: return a.as.o == b.as.o;
+    case MCS_T_OBJ: return a.as.o == b.as.o || (a.as.o->kind == MCS_O_INSTANCE && mcs_tuple_equal(a, b, true));
     }
     return false;
 }
@@ -476,6 +491,8 @@ static void adjust_cap(mcs_vm_t* vm, mcs_table_t* t, uint32_t cap) {
     t->entries = ne; t->cap = cap;
 }
 
+static void shrink_strings(mcs_vm_t* vm, uint32_t nc) { adjust_cap(vm, &vm->strings, nc); }
+
 bool mcs_table_get(const mcs_table_t* t, mcs_value_t key, mcs_value_t* out) {
     if (t->count == 0) return false;
     mcs_entry_t* e = find_entry(t->entries, t->cap, key);
@@ -486,7 +503,13 @@ bool mcs_table_get(const mcs_table_t* t, mcs_value_t key, mcs_value_t* out) {
 
 bool mcs_table_set(mcs_vm_t* vm, mcs_table_t* t, mcs_value_t key, mcs_value_t v) {
     if ((t->count + 1) * TABLE_MAX_LOAD_DEN > t->cap * TABLE_MAX_LOAD_NUM) {
-        adjust_cap(vm, t, t->cap < 8 ? 8 : t->cap * 2);
+        /* count includes tombstones: when at least half of the used slots are
+         * tombstones (weak intern table after a GC, Dictionary.Remove churn)
+         * rehash in place instead of doubling, so the table does not grow forever */
+        uint32_t live = 0, nc = t->cap < 8 ? 8 : t->cap * 2;
+        for (uint32_t i = 0; i < t->cap; i++) live += t->entries[i].key.type != MCS_T_NULL;
+        if (t->cap >= 8 && live * 2 <= t->count) nc = t->cap;
+        adjust_cap(vm, t, nc);
     }
     mcs_entry_t* e = find_entry(t->entries, t->cap, key);
     bool is_new = e->key.type == MCS_T_NULL;
@@ -549,6 +572,10 @@ static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {
         mcs_function_t* f = (mcs_function_t*)o;
         mark_obj(vm, (mcs_obj_t*)f->name); mark_obj(vm, (mcs_obj_t*)f->source);
         for (uint32_t i = 0; i < f->const_count; i++) mark_val(vm, f->consts[i]);
+#if MCS_FIELD_CACHE
+        /* keep cached classes alive so a freed class's address can never alias a new one */
+        for (uint32_t i = 0; i < f->fcache_n; i++) mark_obj(vm, (mcs_obj_t*)f->fcache[i].cls);
+#endif
         break;
     }
     case MCS_O_CLOSURE: {
@@ -594,6 +621,9 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
         MCS_FREE(vm, mcs_value_t, f->consts, f->const_cap);
         MCS_FREE(vm, mcs_line_t, f->lines, f->line_cap);
         if (f->param_types) MCS_FREE(vm, uint8_t, f->param_types, f->arity);
+#if MCS_FIELD_CACHE
+        if (f->fcache) MCS_FREE(vm, mcs_fcache_t, f->fcache, f->fcache_n);
+#endif
         mcs_realloc(vm, o, sizeof(mcs_function_t), 0);
         break;
     }
@@ -655,6 +685,7 @@ static void mark_roots(mcs_vm_t* vm) {
     for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) mark_obj(vm, (mcs_obj_t*)u);
     for (uint32_t i = 0; i < vm->global_count; i++) { mark_val(vm, vm->globals[i]); mark_obj(vm, (mcs_obj_t*)vm->global_names[i]); }
     mark_table(vm, &vm->global_index);
+    mark_table(vm, &vm->tuple_classes);
     for (int i = 0; i < vm->root_count; i++) mark_val(vm, vm->roots[i]);
     for (int i = 0; i < MCS_MAX_PINS; i++) mark_val(vm, vm->pins[i]);
     mark_val(vm, vm->exc_value);
@@ -673,9 +704,18 @@ void mcs_collect(mcs_vm_t* vm) {
     mark_roots(vm);
     while (vm->gray_count) blacken(vm, vm->gray[--vm->gray_count]);
     /* weak intern table */
+    uint32_t live = 0;
     for (uint32_t i = 0; i < vm->strings.cap; i++) {
         mcs_entry_t* e = &vm->strings.entries[i];
         if (e->key.type == MCS_T_OBJ && !e->key.as.o->marked) { e->key = mcs_null(); e->value = mcs_bool(true); }
+        else if (e->key.type == MCS_T_OBJ) live++;
+    }
+    /* compact a mostly-dead intern table (one burst of temporary strings must
+     * not pin a large table for the rest of the run) */
+    if (vm->strings.cap > 64 && live * 8 < vm->strings.cap) {
+        uint32_t nc = 64;
+        while ((live + 1) * TABLE_MAX_LOAD_DEN * 2 > nc * TABLE_MAX_LOAD_NUM) nc *= 2;
+        if (vm->cfg.heap_limit == 0 || vm->bytes_allocated + nc * sizeof(mcs_entry_t) <= vm->cfg.heap_limit) shrink_strings(vm, nc);
     }
     mcs_obj_t** pp = &vm->objects;
     while (*pp) {

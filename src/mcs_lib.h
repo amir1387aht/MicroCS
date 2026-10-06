@@ -15,6 +15,8 @@ static inline mcs_value_t lib_str(mcs_vm_t* vm, const char* s, size_t n) { retur
 static inline mcs_value_t lib_cstr(mcs_vm_t* vm, const char* s) { return OBJ_VAL(mcs_intern_c(vm, s)); }
 static inline bool lib_is_seq(mcs_value_t v) { return IS_KIND(v, MCS_O_ARRAY) || IS_KIND(v, MCS_O_LIST); }
 /* `out`/`ref` arguments arrive as 1-element array cells (see compiler); store into one */
+/* builds a ValueTuple; names = "A,B" or NULL (ItemN only) */
+mcs_value_t mcs_lib_tuple(mcs_vm_t* vm, const char* names, int n, mcs_value_t* items);
 static inline void lib_out_set(mcs_value_t cell, mcs_value_t v) {
     if (IS_KIND(cell, MCS_O_ARRAY) && ((mcs_list_t*)AS_OBJ(cell))->count >= 1) ((mcs_list_t*)AS_OBJ(cell))->items[0] = v;
 }
