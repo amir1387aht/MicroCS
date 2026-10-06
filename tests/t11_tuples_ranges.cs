@@ -1,0 +1,53 @@
+// Phase 2.3: tuples, deconstruction, index-from-end, ranges, sizeof, Nullable members
+var p = (1, "x");
+Console.WriteLine(p);
+Console.WriteLine(p.Item1 + " " + p.Item2);
+var q = (x: 3, y: 4);
+Console.WriteLine(q.x * q.y + " " + q.Item2);
+(int min, int max) MinMax(int[] a) {
+    int lo = a[0], hi = a[0];
+    foreach (var v in a) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    return (lo, hi);
+}
+var r = MinMax(new[] { 4, -2, 9, 1 });
+Console.WriteLine($"min={r.min} max={r.max} {r}");
+var (lo, hi) = MinMax(new[] { 7, 3 });
+Console.WriteLine(lo + hi);
+int a = 1, b = 2;
+(a, b) = (b, a);
+Console.WriteLine($"{a} {b}");
+(int c, string d) = (5, "five");
+Console.WriteLine(d + c);
+var dict = new Dictionary<string, int> { { "a", 1 }, { "b", 2 } };
+foreach (var (k, v) in dict) Console.Write(k + "=" + v + " ");
+Console.WriteLine();
+foreach ((string k, int v) in dict) Console.Write(k + v);
+Console.WriteLine();
+var seen = new Dictionary<(int, int), string>();
+seen[(1, 2)] = "one-two";
+Console.WriteLine(seen.ContainsKey((1, 2)) + " " + seen[(1, 2)] + " " + ((1, 2) == (1, 2)) + " " + ((1, 2) != (2, 1)));
+var list = new List<(string name, int age)> { ("ann", 31), ("bob", 25) };
+foreach (var person in list.OrderBy(t => t.Item2)) Console.Write(person.Item1 + " ");
+Console.WriteLine();
+(int x, int y) pt = (10, 20);
+Console.WriteLine(pt.x + pt.y);
+static (int, int) Swap((int a, int b) t) => (t.b, t.a);
+Console.WriteLine(Swap((1, 2)));
+var (_, second) = (8, 9);
+Console.WriteLine(second);
+int[] arr = { 1, 2, 3, 4, 5 };
+Console.WriteLine(arr[^1] + " " + arr[^2]);
+arr[^1] = 50;
+Console.WriteLine(string.Join(",", arr[1..3]) + " | " + string.Join(",", arr[..2]) + " | " + string.Join(",", arr[3..]) + " | " + string.Join(",", arr[^2..]));
+string s = "hello world";
+Console.WriteLine(s[..5] + "|" + s[6..] + "|" + s[^5..^1] + "|" + s[^1]);
+var nums = new List<int> { 1, 2, 3 };
+Console.WriteLine(nums[^1]);
+int? maybe = null;
+Console.WriteLine(maybe.HasValue + " " + maybe.GetValueOrDefault(7));
+maybe = 4;
+Console.WriteLine(maybe.HasValue + " " + maybe.Value);
+Console.WriteLine(sizeof(int) + sizeof(double) + sizeof(byte));
+Console.WriteLine(unchecked(5 + 1) + checked(2 * 3));
+var nested = (1, (2, 3));
+Console.WriteLine(nested + " " + nested.Item2.Item1);

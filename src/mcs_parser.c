@@ -13,6 +13,16 @@ typedef struct {
     jmp_buf jb;
     typeref_t* target_type;   /* for target-typed `new()` */
     const char* cur_class; uint32_t cur_class_len;
+    typeref_t* cur_ret;       /* declared return type of the function being parsed (tuple names) */
+    uint32_t tmp_id;          /* desugaring temporaries ($t0, $t1, ...) */
+    /* variables declared with a named tuple type in the current function, so
+       later `v = (1, 2)` assignments keep the element names (types are erased) */
+    struct { const char* name; uint32_t len; typeref_t* ty; } tvars[24];
+    int ntvars;
+    /* fields/properties/variables declared anywhere with a named tuple type, found
+       by a token pre-scan so `obj.P = (1, 2)` works before the class is parsed */
+    struct { const char* name; uint32_t len; typeref_t* ty; } tmems[32];
+    int ntmems;
 } parser_t;
 
 uint32_t mcs_decode_escape(const char** pp, const char* end);
@@ -127,9 +137,30 @@ static typeref_t* parse_type(parser_t* P, bool spec) {
         ty->name = name; ty->len = len;
         ty->prim = mcs_prim_of(name, len, &ty->conv);
         ty->is_var = (t->type == TK_IDENT && len == 3 && memcmp(name, "var", 3) == 0);
-    } else if (t->type == TK_LPAREN && spec == false) {
-        perr(P, t, "tuple types are not supported");
-        return NULL;
+    } else if (t->type == TK_LPAREN) {
+        /* tuple type: (T1 [name1], T2 [name2], ...) - erased to ValueTuple */
+        adv(P);
+        char* names = NULL; uint32_t nlen = 0, count = 0; bool any_name = false;
+        char nb[256]; uint32_t np = 0;
+        for (;;) {
+            if (!parse_type(P, true)) { if (!spec) perr(P, CUR, "expected a tuple element type"); return NULL; }
+            if (count) { if (np < sizeof nb) nb[np++] = ','; }
+            if (TT == TK_IDENT && (PEEK(1)->type == TK_COMMA || PEEK(1)->type == TK_RPAREN)) {
+                token_t* nm = adv(P); any_name = true;
+                for (uint32_t i = 0; i < nm->len && np < sizeof nb; i++) nb[np++] = nm->start[i];
+            }
+            count++;
+            if (match(P, TK_COMMA)) continue;
+            if (match(P, TK_RPAREN)) break;
+            if (!spec) perr(P, CUR, "expected ',' or ')' in tuple type");
+            return NULL;
+        }
+        if (count < 2) { if (!spec) perr(P, t, "a tuple type needs at least two elements"); return NULL; }
+        if (any_name) { names = arena_strdup(P->A, nb, np); nlen = np; }
+        ty = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
+        ty->name = "ValueTuple"; ty->len = 10;
+        ty->prim = mcs_prim_of(ty->name, ty->len, &ty->conv);
+        ty->tnames = names; ty->tnames_len = nlen;
     } else {
         if (!spec) perr(P, t, "expected a type but found %s", tokname(t));
         return NULL;
@@ -220,9 +251,100 @@ static funcdecl_t* new_fn(parser_t* P, uint32_t line) {
 }
 
 static node_t* lambda_body(parser_t* P, node_t* lam) {
+    typeref_t* sr = P->cur_ret; P->cur_ret = NULL;
     if (check(P, TK_LBRACE)) { lam->fn->body = parse_block(P); lam->fn->expr_body = 0; }
     else { lam->fn->body = parse_expr(P); lam->fn->expr_body = 1; }
+    P->cur_ret = sr;
     return lam;
+}
+
+/* ---- desugaring helpers: runtime intrinsics live in the hidden `__rt` module */
+static node_t* mk_name(parser_t* P, token_t* at, const char* nm) {
+    node_t* n = mk(P, N_NAME, at); n->name = nm; n->len = (uint32_t)strlen(nm); return n;
+}
+static node_t* mk_str(parser_t* P, token_t* at, const char* s, uint32_t len) {
+    node_t* n = mk(P, N_STR, at); n->name = s; n->len = len; return n;
+}
+static node_t* mk_int(parser_t* P, token_t* at, mcs_int_t v) { node_t* n = mk(P, N_INT, at); n->ival = v; return n; }
+static node_t* rt_call(parser_t* P, token_t* at, const char* fn, node_t* args) {
+    node_t* m = mk(P, N_MEMBER, at); m->a = mk_name(P, at, "__rt"); m->name = fn; m->len = (uint32_t)strlen(fn);
+    node_t* c = mk(P, N_CALL, at); c->a = m; c->b = args;
+    return c;
+}
+static node_t* args2(node_t* a, node_t* b) { a->next = b; return a; }
+static const char* tmp_name(parser_t* P) {
+    char b[16]; int n = snprintf(b, sizeof b, "$t%u", (unsigned)P->tmp_id++);
+    return arena_strdup(P->A, b, (size_t)n);
+}
+/* re-label a tuple value with the element names of its declared type */
+static node_t* tuple_relabel(parser_t* P, token_t* at, typeref_t* ty, node_t* e) {
+    if (!e || !ty || !ty->tnames) return e;
+    return rt_call(P, at, "Names", args2(e, mk_str(P, at, ty->tnames, ty->tnames_len)));
+}
+static void tvar_add(parser_t* P, const char* name, uint32_t len, typeref_t* ty) {
+    if (!ty || !ty->tnames) return;
+    int n = P->ntvars;
+    if (n == (int)(sizeof P->tvars / sizeof P->tvars[0])) { /* full: drop the oldest */
+        memmove(&P->tvars[0], &P->tvars[1], sizeof P->tvars[0] * (size_t)(n - 1)); n--;
+    }
+    P->tvars[n].name = name; P->tvars[n].len = len; P->tvars[n].ty = ty;
+    P->ntvars = n + 1;
+}
+static typeref_t* tvar_find(parser_t* P, const char* name, uint32_t len) {
+    for (int i = P->ntvars - 1; i >= 0; i--)
+        if (P->tvars[i].len == len && memcmp(P->tvars[i].name, name, len) == 0) return P->tvars[i].ty;
+    return NULL;
+}
+static typeref_t* tmem_find(parser_t* P, const char* name, uint32_t len) {
+    for (int i = P->ntmems - 1; i >= 0; i--)
+        if (P->tmems[i].len == len && memcmp(P->tmems[i].name, name, len) == 0) return P->tmems[i].ty;
+    return NULL;
+}
+/* `( T a, U b ) Name` followed by ; = { => : record Name -> "a,b" */
+static void prescan_tuple_members(parser_t* P) {
+    for (uint32_t i = 0; i + 3 < P->n && P->ntmems < (int)(sizeof P->tmems / sizeof P->tmems[0]); i++) {
+        if (P->t[i].type != TK_LPAREN) continue;
+        char nb[160]; uint32_t np = 0; bool named = false, ok = true;
+        int depth = 0, angle = 0; uint32_t el_tokens = 0, j = i + 1, el_index = 0;
+        token_t* last = NULL;
+        for (; j < P->n && ok; j++) {
+            token_t* tk = &P->t[j];
+            int ty = tk->type;
+            if (ty == TK_LPAREN) depth++;
+            else if (ty == TK_RPAREN && depth > 0) depth--;
+            else if (ty == TK_LT) angle++;
+            else if (ty == TK_GT && angle > 0) angle--;
+            else if (ty == TK_SEMI || ty == TK_LBRACE || ty == TK_RBRACE || ty == TK_EOF || ty == TK_ASSIGN) ok = false;
+            if (!ok) break;
+            if (depth == 0 && angle == 0 && (ty == TK_COMMA || ty == TK_RPAREN)) {
+                if (el_index++ && np < sizeof nb) nb[np++] = ',';
+                if (el_tokens >= 2 && last && last->type == TK_IDENT) {
+                    for (uint32_t k = 0; k < last->len && np < sizeof nb; k++) nb[np++] = last->start[k];
+                    named = true;
+                } else if (el_tokens < 1) ok = false;
+                el_tokens = 0; last = NULL;
+                if (ty == TK_RPAREN) break;
+                continue;
+            }
+            el_tokens++; last = tk;
+        }
+        if (!ok || !named || j + 2 >= P->n) continue;
+        token_t* nm = &P->t[j + 1];
+        int after = P->t[j + 2].type;
+        if (nm->type != TK_IDENT || !(after == TK_SEMI || after == TK_ASSIGN || after == TK_LBRACE || after == TK_ARROW)) continue;
+        typeref_t* tr = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
+        memset(tr, 0, sizeof *tr);
+        tr->tnames = arena_strdup(P->A, nb, np); tr->tnames_len = np;
+        P->tmems[P->ntmems].name = nm->start; P->tmems[P->ntmems].len = nm->len; P->tmems[P->ntmems].ty = tr;
+        P->ntmems++;
+    }
+}
+/* side-effect free expression that may be evaluated twice (x[^1] -> x[Len(x) - 1]) */
+static bool pure_expr(node_t* e) {
+    if (!e) return false;
+    if (e->kind == N_NAME || e->kind == N_THIS) return true;
+    if (e->kind == N_MEMBER) return !e->flag && pure_expr(e->a);
+    return false;
 }
 
 /* is the '(' at the cursor the start of a lambda parameter list? */
@@ -246,7 +368,7 @@ static node_t* parse_initializer(parser_t* P, node_t* target) {
         if (TT == TK_IDENT && PEEK(1)->type == TK_ASSIGN) {
             token_t* nm = adv(P); adv(P);
             it = mk(P, N_INIT_FIELD, nm); it->name = nm->start; it->len = nm->len;
-            it->a = check(P, TK_LBRACE) ? parse_initializer(P, NULL) : parse_expr(P);
+            it->a = check(P, TK_LBRACE) ? parse_initializer(P, NULL) : tuple_relabel(P, nm, tmem_find(P, nm->start, nm->len), parse_expr(P));
         } else if (check(P, TK_LBRACK)) {
             token_t* at = adv(P);
             it = mk(P, N_INIT_INDEX, at);
@@ -438,6 +560,25 @@ static node_t* parse_primary(parser_t* P) {
         else n->type = P->target_type;
         return n;
     }
+    case TK_CHECKED: case TK_UNCHECKED:
+        if (PEEK(1)->type == TK_LPAREN) { adv(P); adv(P); n = parse_expr(P); expect(P, TK_RPAREN, "')'"); return n; }
+        perr(P, t, "unexpected %s in expression", tokname(t));
+        return NULL;
+    case TK_SIZEOF: {
+        adv(P); expect(P, TK_LPAREN, "'('");
+        token_t* tt = CUR;
+        typeref_t* ty = parse_type(P, false);
+        expect(P, TK_RPAREN, "')'");
+        static const struct { const char* n; int sz; } sizes[] = {
+            {"byte",1},{"sbyte",1},{"bool",1},{"short",2},{"ushort",2},{"char",2},{"int",4},{"uint",4},
+            {"float",4},{"long",8},{"ulong",8},{"double",8},{"decimal",16},
+            {"Byte",1},{"SByte",1},{"Boolean",1},{"Int16",2},{"UInt16",2},{"Char",2},{"Int32",4},{"UInt32",4},
+            {"Single",4},{"Int64",8},{"UInt64",8},{"Double",8},{"Decimal",16},{NULL,0}};
+        for (int i = 0; ty && sizes[i].n; i++)
+            if (strlen(sizes[i].n) == ty->len && memcmp(sizes[i].n, ty->name, ty->len) == 0 && ty->rank == 0) return mk_int(P, tt, sizes[i].sz);
+        perr(P, tt, "sizeof is only supported for built-in numeric types");
+        return NULL;
+    }
     case TK_DELEGATE: {
         adv(P);
         n = mk(P, N_LAMBDA, t); n->fn = new_fn(P, t->line);
@@ -474,8 +615,53 @@ static node_t* parse_primary(parser_t* P) {
             }
         }
         P->pos = save + 1;
+        token_t* el_name = NULL;
+        if (TT == TK_IDENT && PEEK(1)->type == TK_COLON) { el_name = adv(P); adv(P); }
         n = parse_expr(P);
-        if (check(P, TK_COMMA)) perr(P, CUR, "tuples are not supported");
+        if (check(P, TK_COMMA) || el_name) {
+            /* tuple literal (a, b, ...) / (x: a, y: b) -> __rt.Tuple(names, a, b, ...).
+               Unnamed elements that are a variable or member access get its name
+               (C# 7.1 tuple projection), unless that name is duplicated or reserved. */
+            node_t *h = n, *tl = n; uint32_t count = 1;
+            const char* en[8] = {0}; uint32_t el[8] = {0}; bool ex[8] = {0};
+            if (el_name) { en[0] = el_name->start; el[0] = el_name->len; ex[0] = true; }
+            for (;;) {
+                node_t* e = tl;
+                uint32_t i = count - 1;
+                if (i < 8 && !en[i] && (e->kind == N_NAME || (e->kind == N_MEMBER && !e->flag)) && e->name && e->name[0] != '$') {
+                    en[i] = e->name; el[i] = e->len;
+                }
+                if (!match(P, TK_COMMA)) break;
+                token_t* nm = NULL;
+                if (TT == TK_IDENT && PEEK(1)->type == TK_COLON) { nm = adv(P); adv(P); }
+                node_t* e2 = parse_expr(P);
+                tl->next = e2; tl = e2;
+                if (count < 8 && nm) { en[count] = nm->start; el[count] = nm->len; ex[count] = true; }
+                count++;
+            }
+            expect(P, TK_RPAREN, "')'");
+            if (count < 2) perr(P, t, "a tuple needs at least two elements");
+            if (count > 7) perr(P, t, "tuples with more than 7 elements are not supported");
+            static const char* const reserved[] = { "CompareTo", "Deconstruct", "Equals", "GetHashCode", "Rest", "ToString" };
+            for (uint32_t i = 0; i < count && i < 8; i++) {
+                if (!en[i] || ex[i]) continue;
+                bool drop = false;
+                for (size_t r = 0; r < sizeof reserved / sizeof reserved[0]; r++)
+                    if (strlen(reserved[r]) == el[i] && !memcmp(reserved[r], en[i], el[i])) drop = true;
+                if (el[i] > 4 && !memcmp(en[i], "Item", 4)) drop = true;
+                for (uint32_t j = 0; j < count && j < 8; j++)
+                    if (j != i && en[j] && el[j] == el[i] && !memcmp(en[j], en[i], el[i])) drop = true;
+                if (drop) en[i] = NULL;
+            }
+            char nb[256]; uint32_t np = 0; bool any = false;
+            for (uint32_t i = 0; i < count && i < 8; i++) {
+                if (i && np < sizeof nb) nb[np++] = ',';
+                if (en[i]) { any = true; for (uint32_t k2 = 0; k2 < el[i] && np < sizeof nb; k2++) nb[np++] = en[i][k2]; }
+            }
+            node_t* names = any ? mk_str(P, t, arena_strdup(P->A, nb, np), np) : mk(P, N_NULL, t);
+            names->next = h;
+            return rt_call(P, t, "Tuple", names);
+        }
         expect(P, TK_RPAREN, "')'");
         return n;
     }
@@ -524,6 +710,7 @@ static node_t* parse_primary(parser_t* P) {
 static node_t* parse_postfix(parser_t* P, node_t* e) {
     for (;;) {
         token_t* t = CUR;
+        if (t->type == TK_DOT && PEEK(1)->type == TK_DOT) break;   /* range operator a..b */
         if (t->type == TK_DOT || t->type == TK_QDOT) {
             adv(P);
             token_t* nm = CUR;
@@ -542,8 +729,38 @@ static node_t* parse_postfix(parser_t* P, node_t* e) {
             adv(P);
             node_t* ix = mk(P, N_INDEX, t);
             ix->a = e;
-            if (check(P, TK_CARET)) perr(P, CUR, "index-from-end (^) is not supported");
-            ix->b = parse_expr(P);
+            /* [^n]  [a..b]  [..b]  [a..]  [^a..^b] */
+            node_t* lo = NULL; bool lo_end = false;
+            if (match(P, TK_CARET)) { lo_end = true; lo = parse_binary(P, 1); }
+            else if (!(check(P, TK_DOT) && PEEK(1)->type == TK_DOT)) lo = parse_expr(P);
+            if (check(P, TK_DOT) && PEEK(1)->type == TK_DOT) {
+                adv(P); adv(P);
+                node_t* hi = NULL; bool hi_end = false;
+                if (match(P, TK_CARET)) { hi_end = true; hi = parse_binary(P, 1); }
+                else if (!check(P, TK_RBRACK)) hi = parse_expr(P);
+                expect(P, TK_RBRACK, "']'");
+                if (t->type == TK_QLBRACK) perr(P, t, "?[..] is not supported");
+                if (!lo) lo = mk_int(P, t, 0);
+                if (!hi) { hi = mk_int(P, t, 0); hi_end = true; }
+                node_t* a1 = e; a1->next = NULL;
+                node_t* lf = mk(P, N_BOOL, t); lf->ival = lo_end;
+                node_t* hf = mk(P, N_BOOL, t); hf->ival = hi_end;
+                a1->next = lo; lo->next = lf; lf->next = hi; hi->next = hf;
+                e = rt_call(P, t, "Slice", a1);
+                continue;
+            }
+            if (lo_end) {
+                if (pure_expr(e) && t->type != TK_QLBRACK) {
+                    node_t* len = rt_call(P, t, "Len", e);
+                    node_t* sub = mk(P, N_BINARY, t); sub->op = TK_MINUS; sub->a = len; sub->b = lo;
+                    lo = sub;
+                } else {
+                    expect(P, TK_RBRACK, "']'");
+                    e = rt_call(P, t, "AtEnd", args2(e, lo));
+                    continue;
+                }
+            }
+            ix->b = lo;
             if (check(P, TK_COMMA)) perr(P, CUR, "multi-dimensional indexing is not supported");
             expect(P, TK_RBRACK, "']'");
             ix->flag = t->type == TK_QLBRACK;
@@ -569,33 +786,65 @@ static bool arm_type_pattern(parser_t* P) {
     return yes;
 }
 
-/* pattern list: p1 or p2 or ...  (switch-expression arms and case labels) */
+/* one pattern: `_`, relational `< x`, `not null`, type pattern, or constant */
+static node_t* parse_pattern_one(parser_t* P) {
+    node_t* pat;
+    if (is_word(CUR, "_")) { adv(P); pat = mk(P, N_EMPTY, CUR); }
+    else if (check(P, TK_LT) || check(P, TK_GT) || check(P, TK_LE) || check(P, TK_GE)) {
+        token_t* op = adv(P);
+        pat = mk(P, N_BINARY, op); pat->op = (uint8_t)op->type; pat->a = parse_binary(P, 9);
+    } else if (is_word(CUR, "not") && PEEK(1)->type == TK_NULL) {
+        adv(P); adv(P); pat = mk(P, N_BINARY, CUR); pat->op = TK_NE; pat->a = mk(P, N_NULL, CUR);
+    } else if (is_prim_kw(TT) || (TT == TK_IDENT && arm_type_pattern(P))) {
+        /* type pattern:  int i  /  Circle c  /  string  */
+        token_t* tt = CUR;
+        pat = mk(P, N_IS, tt);
+        pat->type = try_type(P);
+        if (!pat->type) perr(P, tt, "expected type pattern");
+        if (TT == TK_IDENT && !is_word(CUR, "when") && !is_word(CUR, "or") && !is_word(CUR, "and")) {
+            token_t* nm = adv(P);
+            if (!(nm->len == 1 && nm->start[0] == '_')) { pat->name = nm->start; pat->len = nm->len; }
+        }
+    } else pat = parse_binary(P, 9);
+    return pat;
+}
+
+/* pattern list: p1 or p2 or ...  where each p may be `a and b and ...`
+   (switch-expression arms, case labels and `is` patterns) */
 static node_t* parse_pattern_list(parser_t* P) {
     node_t *ph = NULL, *pt = NULL;
     for (;;) {
-        node_t* pat;
-        if (is_word(CUR, "_")) { adv(P); pat = mk(P, N_EMPTY, CUR); }
-        else if (check(P, TK_LT) || check(P, TK_GT) || check(P, TK_LE) || check(P, TK_GE)) {
-            token_t* op = adv(P);
-            pat = mk(P, N_BINARY, op); pat->op = (uint8_t)op->type; pat->a = parse_binary(P, 9);
-        } else if (is_word(CUR, "not") && PEEK(1)->type == TK_NULL) {
-            adv(P); adv(P); pat = mk(P, N_BINARY, CUR); pat->op = TK_NE; pat->a = mk(P, N_NULL, CUR);
-        } else if (is_prim_kw(TT) || (TT == TK_IDENT && arm_type_pattern(P))) {
-            /* type pattern:  int i  /  Circle c  /  string  */
-            token_t* tt = CUR;
-            pat = mk(P, N_IS, tt);
-            pat->type = try_type(P);
-            if (!pat->type) perr(P, tt, "expected type pattern");
-            if (TT == TK_IDENT && !is_word(CUR, "when") && !is_word(CUR, "or") && !is_word(CUR, "and")) {
-                token_t* nm = adv(P);
-                if (!(nm->len == 1 && nm->start[0] == '_')) { pat->name = nm->start; pat->len = nm->len; }
-            }
-        } else pat = parse_binary(P, 9);
+        node_t* pat = parse_pattern_one(P);
+        if (is_word(CUR, "and")) {
+            node_t* conj = mk(P, N_AND, CUR);
+            conj->flag = 1; /* pattern conjunction: sub-patterns in a->next chain */
+            node_t *ch = NULL, *ct = NULL;
+            LIST_APPEND(ch, ct, pat);
+            while (is_word(CUR, "and")) { adv(P); node_t* q = parse_pattern_one(P); LIST_APPEND(ch, ct, q); }
+            conj->a = ch;
+            pat = conj;
+        }
         LIST_APPEND(ph, pt, pat);
         if (is_word(CUR, "or")) { adv(P); continue; }
         break;
     }
     return ph;
+}
+
+/* `e is <pattern list>` for the forms N_IS cannot express (relational, or, and):
+   lowered to `e switch { <patterns> => true, _ => false }` */
+static node_t* is_as_switch(parser_t* P, node_t* left, token_t* t, bool negate) {
+    node_t* sw = mk(P, N_SWITCH_EXPR, t);
+    sw->a = left;
+    node_t* a1 = mk(P, N_ARM, t);
+    a1->a = parse_pattern_list(P);
+    a1->b = mk(P, N_BOOL, t); a1->b->ival = !negate;
+    node_t* a2 = mk(P, N_ARM, t);
+    a2->a = mk(P, N_EMPTY, t);
+    a2->b = mk(P, N_BOOL, t); a2->b->ival = negate;
+    a1->next = a2;
+    sw->b = a1;
+    return sw;
 }
 
 static node_t* parse_unary(parser_t* P) {
@@ -678,16 +927,21 @@ static node_t* parse_is(parser_t* P, node_t* left, token_t* t) {
     node_t* n = mk(P, N_IS, t);
     n->a = left;
     if (is_word(CUR, "not")) { adv(P); n->flag = 1; }
-    if (check(P, TK_NULL)) { adv(P); n->op = 1; return n; } /* is null */
+    uint32_t save = P->pos;
+    if (check(P, TK_LT) || check(P, TK_GT) || check(P, TK_LE) || check(P, TK_GE))
+        return is_as_switch(P, left, t, n->flag);
+    if (check(P, TK_NULL) && !is_word(PEEK(1), "or") && !is_word(PEEK(1), "and")) { adv(P); n->op = 1; return n; } /* is null */
     typeref_t* ty = NULL;
     if (TT == TK_IDENT || is_prim_kw(TT)) ty = try_type(P);
     if (ty) {
         n->type = ty;
         if (TT == TK_IDENT && !is_word(CUR, "and") && !is_word(CUR, "or")) { token_t* nm = adv(P); n->name = nm->start; n->len = nm->len; }
+        if (is_word(CUR, "or") || is_word(CUR, "and")) { P->pos = save; return is_as_switch(P, left, t, n->flag); }
         return n;
     }
     n->op = 2; /* constant pattern */
     n->b = parse_binary(P, 8);
+    if (is_word(CUR, "or") || is_word(CUR, "and")) { P->pos = save; return is_as_switch(P, left, t, n->flag); }
     return n;
 }
 
@@ -773,6 +1027,11 @@ static node_t* parse_expr(parser_t* P) {
         node_t* n = mk(P, N_ASSIGN, t);
         n->op = (uint8_t)op; n->a = left;
         n->b = parse_expr(P);
+        if (op == TK_ASSIGN && (k == N_NAME || k == N_MEMBER) && left->name) {
+            typeref_t* tt = k == N_NAME ? tvar_find(P, left->name, left->len) : NULL;
+            if (!tt) tt = tmem_find(P, left->name, left->len);
+            n->b = tuple_relabel(P, t, tt, n->b);
+        }
         return n;
     }
     return left;
@@ -821,9 +1080,34 @@ static void skip_where(parser_t* P) {
 
 static void parse_func_body(parser_t* P, funcdecl_t* f) {
     skip_where(P);
-    if (match(P, TK_ARROW)) { f->body = parse_expr(P); f->expr_body = 1; expect(P, TK_SEMI, "';'"); }
+    typeref_t* sr = P->cur_ret; P->cur_ret = f->ret;
+    int stv = P->ntvars;
+    for (param_t* p = f->params; p; p = p->next) tvar_add(P, p->name, p->len, p->type);
+    token_t* at = CUR;
+    if (match(P, TK_ARROW)) { f->body = tuple_relabel(P, at, f->ret, parse_expr(P)); f->expr_body = 1; expect(P, TK_SEMI, "';'"); }
     else if (check(P, TK_LBRACE)) f->body = parse_block(P);
     else { expect(P, TK_SEMI, "'{' or ';'"); f->body = NULL; }
+    P->cur_ret = sr;
+    P->ntvars = stv;
+    /* named tuple parameters: p = __rt.Names(p, "x,y") on entry */
+    node_t *h = NULL, *tl = NULL;
+    for (param_t* p = f->params; p; p = p->next) {
+        if (!p->type || !p->type->tnames || p->ref_kind) continue;
+        node_t* as = mk(P, N_ASSIGN, at); as->op = TK_ASSIGN;
+        node_t* nm = mk(P, N_NAME, at); nm->name = p->name; nm->len = p->len;
+        node_t* nm2 = mk(P, N_NAME, at); nm2->name = p->name; nm2->len = p->len;
+        as->a = nm; as->b = tuple_relabel(P, at, p->type, nm2);
+        node_t* es = mk(P, N_EXPR_STMT, at); es->a = as;
+        LIST_APPEND(h, tl, es);
+    }
+    if (h && f->body) {
+        node_t* body = f->body;
+        if (f->expr_body) {
+            node_t* r = mk(P, N_RETURN, at); r->a = body;
+            body = mk(P, N_BLOCK, at); body->a = r; f->expr_body = 0;
+        }
+        tl->next = body->a; body->a = h; f->body = body;
+    }
 }
 
 static node_t* parse_block(parser_t* P) {
@@ -842,7 +1126,7 @@ static node_t* parse_block(parser_t* P) {
 
 /* declaration lookahead: Type Ident ( = | ; | , | ( | in ) */
 static typeref_t* decl_type_ahead(parser_t* P, bool for_foreach) {
-    if (!(TT == TK_IDENT || is_prim_kw(TT))) return NULL;
+    if (!(TT == TK_IDENT || is_prim_kw(TT) || TT == TK_LPAREN)) return NULL;
     uint32_t save = P->pos;
     typeref_t* ty = parse_type(P, true);
     if (ty && TT == TK_IDENT) {
@@ -860,9 +1144,11 @@ static node_t* parse_var_decls(parser_t* P, typeref_t* ty, bool need_semi) {
         token_t* nm = expect(P, TK_IDENT, "variable name");
         node_t* v = mk(P, N_VAR, nm);
         v->name = nm->start; v->len = nm->len; v->type = ty;
+        tvar_add(P, nm->start, nm->len, ty);
         if (match(P, TK_ASSIGN)) {
             typeref_t* save = P->target_type; P->target_type = ty->is_var ? NULL : ty;
-            v->a = check(P, TK_LBRACE) ? parse_array_lit(P) : parse_expr(P);
+            token_t* at = CUR;
+            v->a = check(P, TK_LBRACE) ? parse_array_lit(P) : tuple_relabel(P, at, ty, parse_expr(P));
             P->target_type = save;
         } else if (ty->is_var) perr(P, nm, "implicitly-typed variables must be initialized");
         LIST_APPEND(h, tl, v);
@@ -872,6 +1158,97 @@ static node_t* parse_var_decls(parser_t* P, typeref_t* ty, bool need_semi) {
     if (need_semi) expect(P, TK_SEMI, "';'");
     if (h->next) { node_t* b = mk(P, N_BLOCK, CUR); b->flag = 1; b->a = h; return b; }
     return h;
+}
+
+
+/* ------------------------------------------------------------ deconstruction */
+typedef struct { node_t* target; typeref_t* decl; const char* name; uint32_t len; uint8_t discard; token_t* at; } decon_el_t;
+#define DECON_MAX 7
+
+static typeref_t* var_type(parser_t* P) {
+    typeref_t* vt = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
+    vt->name = "var"; vt->len = 3; vt->prim = PT_ANY; vt->conv = 0xff; vt->is_var = 1;
+    return vt;
+}
+static bool is_rt_call(node_t* n, const char* fn) {
+    return n && n->kind == N_CALL && n->a && n->a->kind == N_MEMBER && n->a->a && n->a->a->kind == N_NAME &&
+           n->a->a->len == 4 && memcmp(n->a->a->name, "__rt", 4) == 0 && n->a->len == strlen(fn) && memcmp(n->a->name, fn, n->a->len) == 0;
+}
+/* at '(' : `( ... , ... ) =`  (a deconstructing declaration/assignment) */
+static bool paren_is_decon(parser_t* P, uint32_t i) {
+    int depth = 0; bool comma = false;
+    for (; i < P->n; i++) {
+        int t = P->t[i].type;
+        if (t == TK_LPAREN) depth++;
+        else if (t == TK_RPAREN) { if (--depth == 0) break; }
+        else if (t == TK_COMMA && depth == 1) comma = true;
+        else if (t == TK_SEMI || t == TK_LBRACE || t == TK_EOF || t == TK_ASSIGN || t == TK_ARROW) return false;
+    }
+    return comma && i + 1 < P->n && (P->t[i + 1].type == TK_ASSIGN || P->t[i + 1].type == TK_IN);
+}
+/* ( target, var x, int y, _ )   - all_var: `var (a, b)` form */
+static int parse_decon_targets(parser_t* P, decon_el_t* els, bool all_var) {
+    int n = 0;
+    expect(P, TK_LPAREN, "'('");
+    for (;;) {
+        if (n >= DECON_MAX) perr(P, CUR, "too many deconstruction targets");
+        decon_el_t* e = &els[n++];
+        memset(e, 0, sizeof *e);
+        e->at = CUR;
+        if (is_word(CUR, "_") && (PEEK(1)->type == TK_COMMA || PEEK(1)->type == TK_RPAREN)) { adv(P); e->discard = 1; }
+        else if (check(P, TK_LPAREN)) perr(P, CUR, "nested deconstruction is not supported");
+        else if (all_var) { token_t* nm = expect(P, TK_IDENT, "variable name"); e->decl = var_type(P); e->name = nm->start; e->len = nm->len; }
+        else {
+            uint32_t save = P->pos;
+            typeref_t* ty = try_type(P);
+            if (ty && TT == TK_IDENT && (PEEK(1)->type == TK_COMMA || PEEK(1)->type == TK_RPAREN)) {
+                token_t* nm = adv(P); e->decl = ty; e->name = nm->start; e->len = nm->len;
+            } else {
+                P->pos = save;
+                e->target = parse_ternary(P);
+                int k = e->target ? e->target->kind : 0;
+                if (k != N_NAME && k != N_MEMBER && k != N_INDEX) perr(P, e->at, "invalid deconstruction target");
+            }
+        }
+        if (match(P, TK_COMMA)) continue;
+        expect(P, TK_RPAREN, "')'");
+        break;
+    }
+    if (n < 2) perr(P, CUR, "deconstruction needs at least two elements");
+    return n;
+}
+static node_t* decon_store(parser_t* P, decon_el_t* e, node_t* val) {
+    if (e->decl) { node_t* v = mk(P, N_VAR, e->at); v->name = e->name; v->len = e->len; v->type = e->decl; v->a = val; return v; }
+    node_t* as = mk(P, N_ASSIGN, e->at); as->op = TK_ASSIGN; as->a = e->target; as->b = val;
+    node_t* es = mk(P, N_EXPR_STMT, e->at); es->a = as; return es;
+}
+static node_t* mk_tmp_var(parser_t* P, token_t* at, const char* nm, node_t* init) {
+    node_t* v = mk(P, N_VAR, at); v->name = nm; v->len = (uint32_t)strlen(nm); v->type = var_type(P); v->a = init; return v;
+}
+/* desugar into a scope-less block:
+ *   tuple literal rhs:  $t0 = e0; $t1 = e1; a = $t0; b = $t1;      (no allocation; swaps work)
+ *   otherwise:          $t = rhs; a = __rt.Item($t, 0); b = __rt.Item($t, 1);                   */
+static node_t* build_decon(parser_t* P, token_t* at, decon_el_t* els, int n, node_t* rhs) {
+    node_t *h = NULL, *tl = NULL;
+    node_t* b = mk(P, N_BLOCK, at); b->flag = 1;
+    if (is_rt_call(rhs, "Tuple")) {
+        node_t* el = rhs->b ? rhs->b->next : NULL;  /* skip names */
+        int cnt = 0; for (node_t* x = el; x; x = x->next) cnt++;
+        if (cnt != n) perr(P, at, "cannot deconstruct a tuple of %d elements into %d variables", cnt, n);
+        const char* tn[DECON_MAX];
+        int i = 0;
+        for (node_t* x = el; x; i++) { node_t* nx = x->next; x->next = NULL; tn[i] = tmp_name(P); node_t* v = mk_tmp_var(P, at, tn[i], x); LIST_APPEND(h, tl, v); x = nx; }
+        for (i = 0; i < n; i++) if (!els[i].discard) { node_t* s2 = decon_store(P, &els[i], mk_name(P, at, tn[i])); LIST_APPEND(h, tl, s2); }
+    } else {
+        const char* tn = tmp_name(P);
+        node_t* v = mk_tmp_var(P, at, tn, rhs); LIST_APPEND(h, tl, v);
+        for (int i = 0; i < n; i++) if (!els[i].discard) {
+            node_t* val = rt_call(P, at, "Item", args2(mk_name(P, at, tn), mk_int(P, at, i)));
+            node_t* s2 = decon_store(P, &els[i], val); LIST_APPEND(h, tl, s2);
+        }
+    }
+    b->a = h;
+    return b;
 }
 
 static node_t* parse_local_func(parser_t* P, typeref_t* ret) {
@@ -888,7 +1265,13 @@ static node_t* parse_local_func(parser_t* P, typeref_t* ret) {
     return n;
 }
 
-static node_t* parse_embedded(parser_t* P) { return parse_stmt(P); }
+/* if/else/loop bodies: C# rejects declarations here (CS1023) */
+static node_t* parse_embedded(parser_t* P) {
+    token_t* t = CUR;
+    node_t* n = parse_stmt(P);
+    if (n && (n->kind == N_VAR || n->kind == N_LOCAL_FUNC)) perr(P, t, "embedded statement cannot be a declaration");
+    return n;
+}
 
 static node_t* parse_stmt(parser_t* P) {
     token_t* t = CUR;
@@ -939,21 +1322,36 @@ static node_t* parse_stmt(parser_t* P) {
     case TK_FOREACH: {
         adv(P); expect(P, TK_LPAREN, "'('");
         n = mk(P, N_FOREACH, t);
-        if (check(P, TK_LPAREN)) perr(P, CUR, "deconstruction in foreach is not supported");
-        n->type = parse_type(P, false);
-        token_t* nm = expect(P, TK_IDENT, "loop variable");
-        n->name = nm->start; n->len = nm->len;
+        decon_el_t els[DECON_MAX]; int nel = 0;
+        if (is_word(CUR, "var") && PEEK(1)->type == TK_LPAREN) { adv(P); nel = parse_decon_targets(P, els, true); }
+        else if (check(P, TK_LPAREN) && paren_is_decon(P, P->pos)) nel = parse_decon_targets(P, els, false);
+        if (nel) {
+            /* foreach (var (k, v) in xs) body  ->  foreach (var $t in xs) { var (k, v) = $t; body } */
+            n->type = var_type(P);
+            n->name = tmp_name(P); n->len = (uint32_t)strlen(n->name);
+            for (int i = 0; i < nel; i++) if (!els[i].decl && !els[i].discard) perr(P, els[i].at, "foreach deconstruction must declare variables");
+        } else {
+            n->type = parse_type(P, false);
+            token_t* nm = expect(P, TK_IDENT, "loop variable");
+            n->name = nm->start; n->len = nm->len;
+        }
         expect(P, TK_IN, "'in'");
         n->a = parse_expr(P);
         expect(P, TK_RPAREN, "')'");
         n->b = parse_embedded(P);
+        if (nel) {
+            node_t* d = build_decon(P, t, els, nel, mk_name(P, t, n->name));
+            node_t* blk = mk(P, N_BLOCK, t);
+            d->next = n->b; n->b->next = NULL; blk->a = d;
+            n->b = blk;
+        }
         return n;
     }
     case TK_BREAK: adv(P); expect(P, TK_SEMI, "';'"); return mk(P, N_BREAK, t);
     case TK_CONTINUE: adv(P); expect(P, TK_SEMI, "';'"); return mk(P, N_CONTINUE, t);
     case TK_RETURN:
         adv(P); n = mk(P, N_RETURN, t);
-        if (!check(P, TK_SEMI)) n->a = parse_expr(P);
+        if (!check(P, TK_SEMI)) n->a = tuple_relabel(P, t, P->cur_ret, parse_expr(P));
         expect(P, TK_SEMI, "';'");
         return n;
     case TK_THROW:
@@ -1071,7 +1469,18 @@ static node_t* parse_stmt(parser_t* P) {
     default: break;
     }
     if (is_word(t, "yield")) perr(P, t, "iterators (yield) are not supported");
-    if (check(P, TK_STATIC) && (PEEK(1)->type == TK_IDENT || is_prim_kw(PEEK(1)->type))) adv(P); /* static local function */
+    if (check(P, TK_STATIC) && (PEEK(1)->type == TK_IDENT || is_prim_kw(PEEK(1)->type) || PEEK(1)->type == TK_LPAREN)) adv(P); /* static local function */
+    {   /* var (a, b) = e;   (int a, var b) = e;   (x, y) = (y, x); */
+        decon_el_t els[DECON_MAX]; int nel = 0;
+        if (is_word(t, "var") && PEEK(1)->type == TK_LPAREN && paren_is_decon(P, P->pos + 1)) { adv(P); nel = parse_decon_targets(P, els, true); }
+        else if (t->type == TK_LPAREN && paren_is_decon(P, P->pos)) nel = parse_decon_targets(P, els, false);
+        if (nel) {
+            token_t* eq = expect(P, TK_ASSIGN, "'='");
+            node_t* rhs = parse_expr(P);
+            expect(P, TK_SEMI, "';'");
+            return build_decon(P, eq, els, nel, rhs);
+        }
+    }
     typeref_t* ty = decl_type_ahead(P, false);
     if (ty) {
         if (PEEK(1)->type == TK_LPAREN || PEEK(1)->type == TK_LT) return parse_local_func(P, ty);
@@ -1143,7 +1552,16 @@ static void parse_property_body(parser_t* P, member_t* m) {
         skip_attributes(P);
         parse_modifiers(P);
         token_t* acc = CUR;
-        if (is_word(acc, "get")) { adv(P); m->getter = parse_accessor_body(P, acc->line); if (!m->getter) any_auto = true; any = true; }
+        if (is_word(acc, "get")) {
+            adv(P);
+            typeref_t* sr = P->cur_ret; P->cur_ret = m->type;   /* tuple names on `return (a, b);` */
+            token_t* gat = CUR;
+            m->getter = parse_accessor_body(P, acc->line);
+            if (m->getter && m->getter->expr_body) m->getter->body = tuple_relabel(P, gat, m->type, m->getter->body);
+            P->cur_ret = sr;
+            if (!m->getter) any_auto = true;
+            any = true;
+        }
         else if (is_word(acc, "set") || is_word(acc, "init")) {
             adv(P); m->setter = parse_accessor_body(P, acc->line); if (!m->setter) any_auto = true; any = true;
             if (m->setter) { /* implicit `value` parameter */
@@ -1158,7 +1576,8 @@ static void parse_property_body(parser_t* P, member_t* m) {
     m->auto_prop = any_auto;
     if (match(P, TK_ASSIGN)) {
         typeref_t* save = P->target_type; P->target_type = m->type;
-        m->init = check(P, TK_LBRACE) ? parse_array_lit(P) : parse_expr(P);
+        token_t* iat = CUR;
+        m->init = check(P, TK_LBRACE) ? parse_array_lit(P) : tuple_relabel(P, iat, m->type, parse_expr(P));
         P->target_type = save;
         expect(P, TK_SEMI, "';'");
     }
@@ -1302,7 +1721,8 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
             member_t* m = new_member(P, M_PROP, mods, nm);
             m->name = nm->start; m->len = nm->len; m->type = ty;
             m->getter = new_fn(P, nm->line);
-            m->getter->body = parse_expr(P); m->getter->expr_body = 1;
+            { token_t* gat = CUR; m->getter->body = tuple_relabel(P, gat, ty, parse_expr(P)); }
+            m->getter->expr_body = 1;
             expect(P, TK_SEMI, "';'");
             ADDM(m);
             continue;
@@ -1315,7 +1735,8 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
             m->name = fn->start; m->len = fn->len; m->type = ty;
             if (match(P, TK_ASSIGN)) {
                 typeref_t* save = P->target_type; P->target_type = ty;
-                m->init = check(P, TK_LBRACE) ? parse_array_lit(P) : parse_expr(P);
+                token_t* iat = CUR;
+                m->init = check(P, TK_LBRACE) ? parse_array_lit(P) : tuple_relabel(P, iat, ty, parse_expr(P));
                 P->target_type = save;
             }
             ADDM(m);
@@ -1429,15 +1850,23 @@ static void parse_namespace_members(parser_t* P, bool braced) {
     }
 }
 
+void mcs_front_free_tokens(front_ctx_t* ctx) {
+    if (ctx->heap_toks) mcs_realloc(ctx->vm, ctx->heap_toks, sizeof(token_t) * ctx->heap_cap, 0);
+    ctx->heap_toks = NULL; ctx->heap_cap = 0;
+}
+
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog) {
     toklist_t tl = {0};
-    if (!mcs_lex(ctx, src, strlen(src), 1, &tl)) return false;
+    tl.heap = 1;
+    if (!mcs_lex(ctx, src, strlen(src), 1, &tl)) { mcs_front_free_tokens(ctx); return false; }
     parser_t P_;
     parser_t* P = &P_;
     memset(P, 0, sizeof *P);
     P->ctx = ctx; P->A = ctx->arena; P->t = tl.toks; P->n = tl.count; P->pos = 0; P->prog = prog;
-    if (setjmp(P->jb)) return false;
+    if (setjmp(P->jb)) { mcs_front_free_tokens(ctx); return false; }
+    prescan_tuple_members(P);
     parse_namespace_members(P, false);
+    mcs_front_free_tokens(ctx);   /* the AST points into the source text, not into tokens */
     return ctx->errors == 0;
 }
 #endif

@@ -4,6 +4,7 @@
 # interpreter. Then run the UART shell protocol test on the M33 shell build.
 # Needs: arm-none-eabi-gcc on PATH, python3 with `unicorn`.
 set -e
+if ! python3 -c "import unicorn" 2>/dev/null; then echo "cm-check needs the Unicorn emulator: pip3 install unicorn"; exit 2; fi
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 make -s mcs

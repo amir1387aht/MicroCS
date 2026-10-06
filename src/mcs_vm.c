@@ -327,6 +327,18 @@ static void missing_member(mcs_vm_t* vm, mcs_value_t obj, mcs_string_t* name) {
     else mcs_throw(vm, EXC_MISSINGMEMBER, "'%s' does not contain a definition for '%s'", mcs_type_name(vm, obj), name->chars);
 }
 
+/* Nullable<T> members on erased values: x.HasValue / x.Value (only when the
+ * value's own type has no such member) */
+static int nullable_member(mcs_vm_t* vm, mcs_value_t obj, mcs_string_t* name) {
+    if (name->len == 8 && memcmp(name->chars, "HasValue", 8) == 0) { vm->sp[-1] = mcs_bool(obj.type != MCS_T_NULL); return CALL_DONE; }
+    if (name->len == 5 && memcmp(name->chars, "Value", 5) == 0) {
+        if (obj.type == MCS_T_NULL) { mcs_throw(vm, EXC_INVOP, "Nullable object must have a value."); return CALL_ERR; }
+        return CALL_DONE;
+    }
+    missing_member(vm, obj, name);
+    return CALL_ERR;
+}
+
 /* replaces obj at stack top with obj.name */
 static int get_member_op(mcs_vm_t* vm, mcs_string_t* name) {
     mcs_value_t obj = PEEK(0), v;
@@ -347,12 +359,11 @@ static int get_member_op(mcs_vm_t* vm, mcs_string_t* name) {
         return CALL_ERR;
     } else {
         cls = mcs_class_of(vm, obj);
-        if (!cls) { missing_member(vm, obj, name); return CALL_ERR; }
+        if (!cls) return nullable_member(vm, obj, name);
     }
     if (mcs_cls_get(vm, cls, MCS_TAB_GETTERS, name, &v)) return call_method(vm, v, 0);
     if (mcs_cls_get(vm, cls, MCS_TAB_METHODS, name, &v)) { vm->sp[-1] = OBJ_VAL(mcs_new_bound(vm, obj, v)); return CALL_DONE; }
-    missing_member(vm, obj, name);
-    return CALL_ERR;
+    return nullable_member(vm, obj, name);
 }
 
 /* [obj val] -> [val] */
@@ -402,7 +413,7 @@ static int invoke_op(mcs_vm_t* vm, mcs_string_t* name, int argc) {
         return CALL_ERR;
     } else {
         cls = mcs_class_of(vm, recv);
-        if (!cls) { missing_member(vm, recv, name); return CALL_ERR; }
+        if (!cls) goto nullable;
     }
     if (mcs_cls_get(vm, cls, MCS_TAB_METHODS, name, &v)) return call_method(vm, v, argc);
     if (mcs_cls_get(vm, cls, MCS_TAB_GETTERS, name, &v)) {
@@ -410,6 +421,12 @@ static int invoke_op(mcs_vm_t* vm, mcs_string_t* name, int argc) {
         if (mcs_call_internal(vm, v, recv, 0, NULL, &d) != MCS_OK) return CALL_ERR;
         vm->sp[-argc - 1] = d;
         return call_value(vm, d, argc);
+    }
+nullable:
+    if (name->len == 17 && memcmp(name->chars, "GetValueOrDefault", 17) == 0 && argc <= 1) {
+        mcs_value_t r = recv.type != MCS_T_NULL ? recv : (argc ? PEEK(0) : mcs_int(0));
+        vm->sp -= argc; vm->sp[-1] = r;
+        return CALL_DONE;
     }
     missing_member(vm, recv, name);
     return CALL_ERR;
@@ -770,6 +787,18 @@ static int hook_tick(mcs_vm_t* vm) {
     return 0;
 }
 
+#if MCS_FIELD_CACHE
+static void fcache_put(mcs_vm_t* vm, mcs_function_t* fn, uint32_t k, mcs_class_t* cls, uint32_t slot) {
+    if (!fn->fcache) {
+        if (vm->cfg.heap_limit && vm->bytes_allocated + fn->const_count * sizeof(mcs_fcache_t) > vm->cfg.heap_limit) return; /* cache is optional */
+        fn->fcache = MCS_ALLOC(vm, mcs_fcache_t, fn->const_count);
+        fn->fcache_n = fn->const_count;
+        for (uint32_t i = 0; i < fn->fcache_n; i++) { fn->fcache[i].cls = NULL; fn->fcache[i].slot = 0; }
+    }
+    if (k < fn->fcache_n) { fn->fcache[k].cls = cls; fn->fcache[k].slot = slot; }
+}
+#endif
+
 static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     mcs_frame_t* frame;
     uint8_t* ip;
@@ -843,24 +872,46 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         DISPATCH();
     }
     CASE(SET_GLOBAL) vm->globals[READ16()] = PEEK(0); DISPATCH();
+    CASE(SET_LOCAL_POP) { uint8_t s = READ8(); slots[s] = POP(); DISPATCH(); }
+    CASE(SET_GLOBAL_POP) { uint16_t g = READ16(); vm->globals[g] = POP(); DISPATCH(); }
     CASE(GET_FIELD) {
-        mcs_string_t* nm = KSTR(READ16());
+        uint16_t k = READ16();
+        mcs_string_t* nm = KSTR(k);
         a = PEEK(0);
         if (IS_KIND(a, MCS_O_INSTANCE)) {
+            mcs_instance_t* in = AS_INSTANCE(a);
+#if MCS_FIELD_CACHE
+            mcs_function_t* cf = frame->closure->fn;
+            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { vm->sp[-1] = in->fields[cf->fcache[k].slot]; DISPATCH(); }
+#endif
             mcs_value_t slot;
-            if (mcs_table_get_s(&AS_INSTANCE(a)->cls->fields, nm, &slot)) { vm->sp[-1] = AS_INSTANCE(a)->fields[slot.as.i]; DISPATCH(); }
+            if (mcs_table_get_s(&in->cls->fields, nm, &slot)) {
+#if MCS_FIELD_CACHE
+                fcache_put(vm, cf, k, in->cls, (uint32_t)slot.as.i);
+#endif
+                vm->sp[-1] = in->fields[slot.as.i]; DISPATCH();
+            }
         }
         SAVE();
         CHECKCALL(get_member_op(vm, nm));
         DISPATCH();
     }
     CASE(SET_FIELD) {
-        mcs_string_t* nm = KSTR(READ16());
+        uint16_t k = READ16();
+        mcs_string_t* nm = KSTR(k);
         a = PEEK(1);
         if (IS_KIND(a, MCS_O_INSTANCE)) {
+            mcs_instance_t* in = AS_INSTANCE(a);
+#if MCS_FIELD_CACHE
+            mcs_function_t* cf = frame->closure->fn;
+            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { b = POP(); in->fields[cf->fcache[k].slot] = b; vm->sp[-1] = b; DISPATCH(); }
+#endif
             mcs_value_t slot;
-            if (mcs_table_get_s(&AS_INSTANCE(a)->cls->fields, nm, &slot)) {
-                b = POP(); AS_INSTANCE(a)->fields[slot.as.i] = b; vm->sp[-1] = b; DISPATCH();
+            if (mcs_table_get_s(&in->cls->fields, nm, &slot)) {
+#if MCS_FIELD_CACHE
+                fcache_put(vm, cf, k, in->cls, (uint32_t)slot.as.i);
+#endif
+                b = POP(); in->fields[slot.as.i] = b; vm->sp[-1] = b; DISPATCH();
             }
         }
         SAVE();
@@ -900,10 +951,18 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     BINOP(BOR, OP_BOR, a.as.i | b.as.i)
     BINOP(BXOR, OP_BXOR, a.as.i ^ b.as.i)
 #undef BINOP
+    /* int fast path for / and % (divisor 0 and -1 go to the checked slow path) */
+#define DIVOP(NAME, OPC, OPR) \
+    CASE(NAME) { \
+        a = PEEK(1); b = PEEK(0); \
+        if (a.type == MCS_T_INT && b.type == MCS_T_INT && b.as.i > 0) { vm->sp--; vm->sp[-1] = mcs_int(a.as.i OPR b.as.i); DISPATCH(); } \
+        SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); vm->sp--; vm->sp[-1] = r; DISPATCH(); \
+    }
+    DIVOP(DIV, OP_DIV, /)
+    DIVOP(MOD, OP_MOD, %)
+#undef DIVOP
 #define SLOWOP(NAME, OPC) \
     CASE(NAME) { a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); vm->sp--; vm->sp[-1] = r; DISPATCH(); }
-    SLOWOP(DIV, OP_DIV)
-    SLOWOP(MOD, OP_MOD)
     SLOWOP(SHL, OP_SHL)
     SLOWOP(SHR, OP_SHR)
     SLOWOP(USHR, OP_USHR)
@@ -944,6 +1003,24 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CMPOP(GT, OP_GT, >)
     CMPOP(GE, OP_GE, >=)
 #undef CMPOP
+    /* fused compare-and-branch: jump when !(a CMP b); operands stay rooted on the
+     * stack while a user-defined operator may run */
+#define JCMP(NAME, OPC, CMP) \
+    CASE(NAME) { \
+        uint16_t o = READ16(); \
+        a = PEEK(1); b = PEEK(0); \
+        if (a.type == MCS_T_INT && b.type == MCS_T_INT) { vm->sp -= 2; if (!(a.as.i CMP b.as.i)) ip += o; DISPATCH(); } \
+        SAVE(); \
+        if (!compare_op(vm, OPC, a, b, &r)) THROWN(); \
+        vm->sp -= 2; if (!mcs_truthy(r)) ip += o; DISPATCH(); \
+    }
+    JCMP(JF_EQ, OP_EQ, ==)
+    JCMP(JF_NE, OP_NE, !=)
+    JCMP(JF_LT, OP_LT, <)
+    JCMP(JF_LE, OP_LE, <=)
+    JCMP(JF_GT, OP_GT, >)
+    JCMP(JF_GE, OP_GE, >=)
+#undef JCMP
     CASE(INC_LOCAL) {
         uint8_t s = READ8(); int8_t d = (int8_t)READ8();
         a = slots[s];
@@ -970,7 +1047,19 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         int argc = READ8();
         SAVE();
         SAFEPOINT();
-        CHECKCALL(call_value(vm, PEEK(argc), argc));
+        a = PEEK(argc);
+        if (IS_KIND(a, MCS_O_CLOSURE)) {   /* fast path: exact arity, no params array */
+            mcs_closure_t* cl = AS_CLOSURE(a);
+            mcs_function_t* fn = cl->fn;
+            if (argc == fn->arity && !(fn->flags & FN_HAS_PARAMS) && vm->frame_count < vm->cfg.max_frames &&
+                vm->sp + fn->max_slots + MCS_STACK_MARGIN < vm->stack_end) {
+                frame = &vm->frames[vm->frame_count++];
+                frame->closure = cl; frame->ip = ip = fn->code; frame->slots = slots = vm->sp - argc - 1; frame->argc = (uint8_t)argc;
+                consts = fn->consts;
+                DISPATCH();
+            }
+        }
+        CHECKCALL(call_value(vm, a, argc));
         DISPATCH();
     }
     CASE(INVOKE) {
@@ -1408,6 +1497,19 @@ mcs_result_t mcs_exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len) {
     return r;
 }
 #endif
+#if MCS_ENABLE_DISASM
+mcs_result_t mcs_disassemble_image(mcs_vm_t* vm, const uint8_t* image, size_t len) {
+    GUARD_BEGIN(vm);
+    vm->error[0] = 0;
+    mcs_function_t* fn = mcs_load_image(vm, image, len);
+    if (!fn) { GUARD_END(vm); mcs_report_error(vm, "%s\n", vm->error); return MCS_ERR_BYTECODE; }
+    vm->gc_pause++;
+    mcs_disassemble(vm, fn, 0);
+    vm->gc_pause--;
+    GUARD_END(vm);
+    return MCS_OK;
+}
+#endif
 
 const char* mcs_last_error(mcs_vm_t* vm) { return vm->error; }
 void mcs_request_abort(mcs_vm_t* vm) { vm->abort_req = true; vm->hook_counter = 1; }
@@ -1553,6 +1655,7 @@ void mcs_free(mcs_vm_t* vm) {
     vm->gc_pause++;
     mcs_free_objects(vm);
     mcs_table_free(vm, &vm->strings);
+    mcs_table_free(vm, &vm->tuple_classes);
     mcs_table_free(vm, &vm->global_index);
     MCS_FREE(vm, mcs_value_t, vm->globals, vm->global_cap);
     MCS_FREE(vm, mcs_string_t*, vm->global_names, vm->global_cap);

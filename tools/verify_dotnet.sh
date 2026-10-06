@@ -18,7 +18,7 @@ P
 # t01/t03/t04/t06 intentionally exercise MicroCS-specific behaviour (int64 constant
 # wrap, GroupBy -> Dictionary, catchable StackOverflow, extra index detail, class
 # declarations between statements) and are NOT expected to match.
-[ $# -gt 0 ] || set -- "$ROOT"/tests/t02_*.cs "$ROOT"/tests/t05_*.cs "$ROOT"/tests/t10_*.cs
+[ $# -gt 0 ] || set -- "$ROOT"/tests/t02_*.cs "$ROOT"/tests/t05_*.cs "$ROOT"/tests/t10_*.cs "$ROOT"/tests/t11_*.cs "$ROOT"/tests/t13_*.cs "$ROOT"/examples/tour.cs
 pass=0; fail=0
 for t in "$@"; do
     cp "$t" "$W/Program.cs"

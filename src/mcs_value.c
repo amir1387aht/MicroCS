@@ -144,7 +144,7 @@ bool mcs_values_equal(mcs_value_t a, mcs_value_t b) {
 #if MCS_ENABLE_FLOAT
         case MCS_T_FLOAT: return a.as.f == b.as.f;
 #endif
-        case MCS_T_OBJ: return a.as.o == b.as.o;
+        case MCS_T_OBJ: return a.as.o == b.as.o || (a.as.o->kind == MCS_O_INSTANCE && mcs_tuple_equal(a, b, false));
         default: return false;
         }
     }
