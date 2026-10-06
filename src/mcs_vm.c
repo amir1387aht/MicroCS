@@ -34,18 +34,18 @@ void mcs_report_error(mcs_vm_t* vm, const char* fmt, ...) {
 
 /* ================================================================ globals */
 uint32_t mcs_global_slot(mcs_vm_t* vm, mcs_string_t* name) {
-    mcs_value_t s;
-    if (mcs_table_get_s(&vm->global_index, name, &s)) return (uint32_t)s.as.i;
+    if (name->obj.aux) return (uint32_t)name->obj.aux - 1u;
+    if (vm->global_count >= 0xFFFFu) mcs_panic(vm, MCS_ERR_MEMORY, "too many globals");
     if (vm->global_count == vm->global_cap) {
-        uint32_t nc = vm->global_cap < 64 ? 64 : vm->global_cap * 2;
+        uint32_t nc = vm->global_cap < 64 ? 64 : vm->global_cap + vm->global_cap / 2; /* 1.5x: smaller steps on small heaps */
         vm->globals = MCS_GROW(vm, mcs_value_t, vm->globals, vm->global_cap, nc);
         vm->global_names = MCS_GROW(vm, mcs_string_t*, vm->global_names, vm->global_cap, nc);
         vm->global_cap = nc;
     }
     uint32_t slot = vm->global_count++;
     vm->globals[slot] = mcs_undef();
-    vm->global_names[slot] = name;
-    mcs_table_set(vm, &vm->global_index, OBJ_VAL(name), mcs_int((mcs_int_t)slot));
+    vm->global_names[slot] = name;   /* keeps the name (and its aux slot) alive */
+    name->obj.aux = (uint16_t)(slot + 1u);
     return slot;
 }
 void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v) {
@@ -55,10 +55,9 @@ void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v) {
     vm->globals[s] = v;
 }
 mcs_value_t mcs_get_global(mcs_vm_t* vm, const char* name) {
-    mcs_string_t* s = mcs_table_find_string(&vm->strings, name, strlen(name), mcs_hash_bytes(name, strlen(name)));
-    mcs_value_t slot;
-    if (!s || !mcs_table_get_s(&vm->global_index, s, &slot)) return mcs_null();
-    mcs_value_t v = vm->globals[slot.as.i];
+    mcs_string_t* s = mcs_find_interned(vm, name, strlen(name));
+    if (!s || !s->obj.aux) return mcs_null();
+    mcs_value_t v = vm->globals[s->obj.aux - 1u];
     return v.type == MCS_T_UNDEF ? mcs_null() : v;
 }
 
@@ -445,7 +444,7 @@ static bool overload_op(mcs_vm_t* vm, const char* opname, mcs_value_t a, mcs_val
     for (int k = 0; k < 2; k++) {
         if (!IS_KIND(args[k], MCS_O_INSTANCE)) continue;
         mcs_class_t* cls = AS_INSTANCE(args[k])->cls;
-        mcs_string_t* nm = mcs_table_find_string(&vm->strings, opname, strlen(opname), mcs_hash_bytes(opname, strlen(opname)));
+        mcs_string_t* nm = mcs_find_interned(vm, opname, strlen(opname));
         if (!nm) return true;
         for (mcs_class_t* c = cls; c; c = c->super) {
             mcs_value_t f;
@@ -804,6 +803,14 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     uint8_t* ip;
     mcs_value_t* slots;
     mcs_value_t* consts;
+#if MCS_ENABLE_XIP
+    const uint16_t* gmap;
+#define GSLOT(g) (gmap ? gmap[g] : (g))
+#define LOAD_GMAP(f) (gmap = (f)->gmap)
+#else
+#define GSLOT(g) (g)
+#define LOAD_GMAP(f) ((void)0)
+#endif
     mcs_value_t a, b, r;
     if (vm->run_depth == 0) {
         vm->steps_used = 0;
@@ -812,7 +819,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     vm->run_depth++;
 
-#define LOAD() do { frame = &vm->frames[vm->frame_count - 1]; ip = frame->ip; slots = frame->slots; consts = frame->closure->fn->consts; } while (0)
+#define LOAD() do { frame = &vm->frames[vm->frame_count - 1]; ip = frame->ip; slots = frame->slots; consts = frame->closure->fn->consts; LOAD_GMAP(frame->closure->fn); } while (0)
 #define SAVE() (frame->ip = ip)
 #define READ8() (*ip++)
 #define READ16() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
@@ -865,15 +872,15 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(GET_UPVAL) PUSH(*frame->closure->upvalues[READ8()]->location); DISPATCH();
     CASE(SET_UPVAL) *frame->closure->upvalues[READ8()]->location = PEEK(0); DISPATCH();
     CASE(GET_GLOBAL) {
-        uint16_t s = READ16();
+        uint16_t s = GSLOT(READ16());
         a = vm->globals[s];
         if (a.type == MCS_T_UNDEF) { SAVE(); mcs_throw(vm, EXC_MISSINGMEMBER, "The name '%s' does not exist in the current context", vm->global_names[s]->chars); THROWN(); }
         PUSH(a);
         DISPATCH();
     }
-    CASE(SET_GLOBAL) vm->globals[READ16()] = PEEK(0); DISPATCH();
+    CASE(SET_GLOBAL) { uint16_t g = READ16(); vm->globals[GSLOT(g)] = PEEK(0); DISPATCH(); }
     CASE(SET_LOCAL_POP) { uint8_t s = READ8(); slots[s] = POP(); DISPATCH(); }
-    CASE(SET_GLOBAL_POP) { uint16_t g = READ16(); vm->globals[g] = POP(); DISPATCH(); }
+    CASE(SET_GLOBAL_POP) { uint16_t g = READ16(); vm->globals[GSLOT(g)] = POP(); DISPATCH(); }
     CASE(GET_FIELD) {
         uint16_t k = READ16();
         mcs_string_t* nm = KSTR(k);
@@ -1055,7 +1062,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
                 vm->sp + fn->max_slots + MCS_STACK_MARGIN < vm->stack_end) {
                 frame = &vm->frames[vm->frame_count++];
                 frame->closure = cl; frame->ip = ip = fn->code; frame->slots = slots = vm->sp - argc - 1; frame->argc = (uint8_t)argc;
-                consts = fn->consts;
+                consts = fn->consts; LOAD_GMAP(fn);
                 DISPATCH();
             }
         }
@@ -1086,7 +1093,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         a = POP();
         mcs_value_t m;
         if (!IS_KIND(a, MCS_O_CLASS)) { mcs_throw(vm, EXC_INVOP, "base class is not defined"); THROWN(); }
-        if (!mcs_table_get_s(&AS_CLASS(a)->methods, nm, &m)) {
+        /* mcs_cls_get also materializes lazily registered native members
+         * (e.g. Exception's .ctor when a script class calls base(msg)) */
+        if (!mcs_cls_get(vm, AS_CLASS(a), MCS_TAB_METHODS, nm, &m)) {
             if ((nm == vm->s_ctor || nm == vm->s_init) && argc == 0) DISPATCH();
             missing_member(vm, PEEK(argc), nm);
             THROWN();
@@ -1266,7 +1275,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             mcs_dict_t* d = AS_DICT(a);
             if ((mcs_uint_t)i < d->count) {
                 mcs_instance_t* kv = mcs_new_instance(vm, vm->cls_kvp);
-                kv->fields[0] = d->keys[i]; kv->fields[1] = d->vals[i];
+                kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
                 PUSH(OBJ_VAL(kv));
                 slots[s + 1].as.i = i + 1;
             } else ip += o;
@@ -1359,7 +1368,7 @@ static void report_uncaught(mcs_vm_t* vm) {
         if (mcs_table_get_s(&in->cls->fields, st, &v) && IS_STRING(in->fields[v.as.i])) trace = AS_CSTR(in->fields[v.as.i]);
     } else if (IS_STRING(e)) msg = AS_CSTR(e);
     snprintf(head, sizeof head, "Unhandled exception. %s: %s", tname, msg);
-    snprintf(vm->error, sizeof vm->error, "%s", head);
+    { size_t n = strlen(head); if (n >= sizeof vm->error) n = sizeof vm->error - 1; memcpy(vm->error, head, n); vm->error[n] = 0; }
     mcs_report_error(vm, "%s\n%s", head, trace);
 }
 
@@ -1485,10 +1494,11 @@ mcs_result_t mcs_disassemble_source(mcs_vm_t* vm, const char* name, const char* 
 
 #if MCS_ENABLE_BYTECODE_LOAD
 mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len);
-mcs_result_t mcs_exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len) {
+mcs_function_t* mcs_load_image_ex(mcs_vm_t* vm, const uint8_t* img, size_t len, bool xip);
+static mcs_result_t exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len, bool xip) {
     GUARD_BEGIN(vm);
     vm->error[0] = 0;
-    mcs_function_t* fn = mcs_load_image(vm, image, len);
+    mcs_function_t* fn = mcs_load_image_ex(vm, image, len, xip);
     if (!fn) { GUARD_END(vm); mcs_report_error(vm, "%s\n", vm->error); return MCS_ERR_BYTECODE; }
     mcs_push_root(vm, OBJ_VAL(fn));
     mcs_result_t r = exec_function(vm, fn);
@@ -1496,6 +1506,8 @@ mcs_result_t mcs_exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len) {
     GUARD_END(vm);
     return r;
 }
+mcs_result_t mcs_exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len) { return exec_image(vm, image, len, false); }
+mcs_result_t mcs_exec_image_xip(mcs_vm_t* vm, const uint8_t* image, size_t len) { return exec_image(vm, image, len, MCS_ENABLE_XIP != 0); }
 #endif
 #if MCS_ENABLE_DISASM
 mcs_result_t mcs_disassemble_image(mcs_vm_t* vm, const uint8_t* image, size_t len) {
@@ -1627,7 +1639,7 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->hook_counter = MCS_HOOK_INTERVAL;
     vm->exc_value = mcs_null();
     for (int i = 0; i < MCS_MAX_PINS; i++) vm->pins[i] = mcs_null();
-    mcs_table_init(&vm->strings); mcs_table_init(&vm->global_index);
+    memset(&vm->strings, 0, sizeof vm->strings);
     jmp_buf jb;
     vm->panic = &jb;
     if (setjmp(jb)) { vm->panic = NULL; mcs_free(vm); return NULL; }
@@ -1654,9 +1666,8 @@ void mcs_free(mcs_vm_t* vm) {
     if (!vm) return;
     vm->gc_pause++;
     mcs_free_objects(vm);
-    mcs_table_free(vm, &vm->strings);
+    mcs_strset_free(vm, &vm->strings);
     mcs_table_free(vm, &vm->tuple_classes);
-    mcs_table_free(vm, &vm->global_index);
     MCS_FREE(vm, mcs_value_t, vm->globals, vm->global_cap);
     MCS_FREE(vm, mcs_string_t*, vm->global_names, vm->global_cap);
     if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->cfg.stack_slots);

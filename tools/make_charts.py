@@ -42,9 +42,9 @@ fig.tight_layout()
 fig.savefig("assets/bench.svg", transparent=True)
 
 # --- flash by component (m33-full firmware, bytes) ----------------------------
-parts = [("stdlib", 64617, VIOLET), ("VM core", 53750, "#a78bfa"), ("compiler", 42541, CYAN),
-         ("newlib libm+libc", 50210, GREY), ("fs", 9363, "#22d3ee"), ("hal", 6183, "#67e8f9"),
-         ("other", 7974 + 6760 + 1504 + 76, "#cbd5e1")]
+parts = [("stdlib", 65500, VIOLET), ("VM core", 53822, "#a78bfa"), ("compiler", 44656, CYAN),
+         ("newlib libm+libc", 50210, GREY), ("fs", 9071, "#22d3ee"), ("hal", 5925, "#67e8f9"),
+         ("other", 7974 + 6760 + 1428 + 76, "#cbd5e1")]
 total = sum(p[1] for p in parts)
 fig, ax = plt.subplots(figsize=(8, 1.9))
 left = 0

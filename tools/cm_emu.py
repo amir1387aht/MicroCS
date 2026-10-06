@@ -13,10 +13,12 @@ DERIVED: ticks = instructions / (mhz * 1000), i.e. it assumes 1 instruction per
 cycle; real Cortex-M cores need more cycles (flash wait states, multi-cycle
 loads, branches), so treat it as a lower bound, not a benchmark of real silicon.
 
-usage: cm_emu.py firmware.elf [--cpu m0|m3|m4|m33|m7] [--mhz 48] [--max-insns N]
+usage: cm_emu.py firmware.elf [--cpu m0|m3|m4|m33|m7] [--mhz 48] [--max-insns N] [--profile N]
+  --profile N  print the N functions that executed the most instructions
+               (needs arm-none-eabi-nm on PATH to resolve symbols)
 requires: pip install unicorn
 """
-import argparse, os, select, struct, sys
+import argparse, collections, os, select, struct, subprocess, sys
 from unicorn import Uc, UcError, UC_ARCH_ARM, UC_MODE_THUMB, UC_MODE_MCLASS, UC_HOOK_CODE, \
     UC_HOOK_MEM_WRITE, UC_HOOK_MEM_READ, UC_PROT_ALL
 from unicorn import arm_const as A
@@ -47,6 +49,8 @@ def main():
     ap.add_argument("--mhz", type=float, default=48.0, help="assumed clock for the derived ms tick (1 IPC)")
     ap.add_argument("--max-insns", type=int, default=2_000_000_000)
     ap.add_argument("--quiet", action="store_true", help="no summary on stderr")
+    ap.add_argument("--profile", type=int, default=0, metavar="N", help="report the N hottest functions")
+    ap.add_argument("--callers", metavar="SYMBOL", help="with --profile: also count who calls SYMBOL (e.g. memcpy)")
     a = ap.parse_args()
 
     uc = Uc(UC_ARCH_ARM, UC_MODE_THUMB | UC_MODE_MCLASS)
@@ -62,8 +66,16 @@ def main():
     st = {"n": 0, "exit": None, "rx": b"", "rx_closed": False, "marks": [], "out": sys.stdout.buffer}
     per_ms = a.mhz * 1000.0
 
+    prof = collections.Counter() if a.profile else None
+    callers = collections.Counter()
+    watch = symbol_addr(a.elf, a.callers) if a.callers else None
+
     def on_code(uc_, addr, size, _):
         st["n"] += 1
+        if prof is not None:
+            prof[addr] += 1
+            if addr == watch:
+                callers[uc_.reg_read(A.UC_ARM_REG_LR) & ~1] += 1
         if st["n"] >= a.max_insns:
             st["exit"] = 124
             uc_.emu_stop()
@@ -132,7 +144,49 @@ def main():
         os._exit(st["exit"] or 0)
     if not a.quiet:
         sys.stderr.write("[emu] cpu=cortex-%s instructions=%d exit=%s\n" % (a.cpu, st["n"], st["exit"]))
+    if prof:
+        report_profile(a.elf, prof, a.profile, st["n"])
+        if watch is not None:
+            report_profile(a.elf, callers, a.profile, sum(callers.values()), "calls to %s by caller" % a.callers)
     return st["exit"] if st["exit"] is not None else 2
+
+
+def read_syms(elf):
+    try:
+        out = subprocess.run(["arm-none-eabi-nm", "-S", "--defined-only", elf], capture_output=True, text=True).stdout
+    except OSError:
+        sys.stderr.write("[profile] arm-none-eabi-nm not found\n"); return []
+    syms = []
+    for line in out.splitlines():
+        f = line.split()
+        if len(f) == 4 and f[2] in "tTwW":
+            syms.append((int(f[0], 16) & ~1, int(f[1], 16), f[3]))
+    return sorted(syms)
+
+
+def symbol_addr(elf, name):
+    for start, _, n in read_syms(elf):
+        if n == name:
+            return start
+    sys.stderr.write("[profile] symbol %s not found\n" % name)
+    return None
+
+
+def report_profile(elf, prof, top, total, what="instructions"):
+    """Attribute per-address counts to functions (nm symbol table)."""
+    syms = read_syms(elf)
+    if not syms or not total:
+        return
+    starts = [x[0] for x in syms]
+    import bisect
+    by_fn = collections.Counter()
+    for addr, n in prof.items():
+        i = bisect.bisect_right(starts, addr) - 1
+        name = syms[i][2] if i >= 0 and addr < syms[i][0] + max(syms[i][1], 1) else "?"
+        by_fn[name] += n
+    sys.stderr.write("[profile] top %d of %d %s\n" % (top, total, what))
+    for name, n in by_fn.most_common(top):
+        sys.stderr.write("  %6.2f%% %12d  %s\n" % (100.0 * n / total, n, name))
 
 
 if __name__ == "__main__":

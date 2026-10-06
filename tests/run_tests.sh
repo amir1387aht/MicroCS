@@ -1,6 +1,7 @@
 #!/bin/sh
-# MicroCS test runner: runs every tests/*.cs from source and as a compiled
-# bytecode image (.mcsb), comparing stdout+stderr with tests/*.out.
+# MicroCS test runner: runs every tests/*.cs from source, as a compiled
+# bytecode image (.mcsb) and as the same image executed in place (--xip),
+# comparing stdout+stderr with tests/*.out.
 MCS=${1:-./mcs}
 case "$MCS" in /*) ;; *) MCS="$(pwd)/$MCS" ;; esac
 cd "$(dirname "$0")" || exit 1
@@ -23,6 +24,10 @@ for t in t*.cs; do
         "$MCS" $opts "$TMP/$base.mcsb" > "$TMP/img.txt" 2>&1
         if cmp -s "$TMP/img.txt" "$exp"; then pass=$((pass+1)); echo "PASS $t (image)";
         else fail=$((fail+1)); echo "FAIL $t (image)"; diff "$TMP/img.txt" "$exp" | head -10; fi
+        # same image executed in place (mcs_exec_image_xip)
+        "$MCS" --xip $opts "$TMP/$base.mcsb" > "$TMP/xip.txt" 2>&1
+        if cmp -s "$TMP/xip.txt" "$exp"; then pass=$((pass+1)); echo "PASS $t (xip)";
+        else fail=$((fail+1)); echo "FAIL $t (xip)"; diff "$TMP/xip.txt" "$exp" | head -10; fi
     else fail=$((fail+1)); echo "FAIL $t (compile)"; fi
 done
 # compile-error diagnostics

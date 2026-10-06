@@ -42,10 +42,11 @@ MAP = {
     "array_statics": ("Collections", "Array", "static", ""),
     "list_methods": ("Collections", "List<T>", "instance", "plus every LINQ operator below"),
     "enumerable_fns": ("Collections", "Enumerable", "static", ""),
-    "dict_methods": ("Collections", "Dictionary<K,V>", "instance", "`MCS_ENABLE_DICT`; insertion-ordered"),
-    "set_methods": ("Collections", "HashSet<T>", "instance", ""),
+    "dict_methods": ("Collections", "Dictionary<K,V>", "instance", "`MCS_ENABLE_DICT`; insertion-ordered; plus the LINQ operators below"),
+    "set_methods": ("Collections", "HashSet<T>", "instance", "plus the LINQ operators below"),
     "stack_methods": ("Collections", "Stack<T>", "instance", ""),
     "queue_methods": ("Collections", "Queue<T>", "instance", ""),
+    "coll_linq_methods": ("Collections", "Dictionary / HashSet / Stack / Queue", "instance", "LINQ operators, run on a snapshot (dictionaries yield `KeyValuePair`s); `MCS_ENABLE_LINQ`"),
     "file_fns": ("Filesystem (modules/fs)", "File", "static", "`mcs_fs_open_lib`"),
     "dir_fns": ("Filesystem (modules/fs)", "Directory", "static", ""),
     "path_fns": ("Filesystem (modules/fs)", "Path", "static", ""),
@@ -68,12 +69,16 @@ def strip_comments(s):
 src = {f: strip_comments(open(f, encoding="utf-8").read()) for f in FILES}
 macros = {}
 for s in src.values():
-    for m in re.finditer(r"#define\s+(\w+)\s+((?:[^\n]*\\\n)*[^\n]*)", s):
-        macros[m.group(1)] = m.group(2).replace("\\\n", " ")
+    for m in re.finditer(r"#define[ \t]+(\w+)(?:\([^)]*\))?[ \t]+((?:[^\n]*\\\n)*[^\n]*)", s):
+        # first definition wins: in `#if FEATURE ... #else` pairs it is the feature-enabled one
+        macros.setdefault(m.group(1), m.group(2).replace("\\\n", " "))
 tables = {}
 for s in src.values():
     for m in re.finditer(r"static const mcs_reg_t (\w+)\[\]\s*=\s*\{(.*?)MCS_REG_END", s, re.S):
         body = m.group(2)
+        # X-macro lists: OPS(REG) where OPS is `X(Name, fn, arity) ...`
+        body = re.sub(r"\b([A-Z][A-Z0-9_]+)\(([A-Z][A-Z0-9_]+)\)",
+                      lambda k: " ".join('MCS_FN("%s", %s, %s),' % x for x in re.findall(r"X\((\w+),\s*(\w+),\s*(-?\d+)\)", macros.get(k.group(1), ""))) or k.group(0), body)
         for _ in range(3):  # expand helper macros (SEQ_METHODS, SEQ_FLOAT_REGS, ...)
             body = re.sub(r"\b([A-Z][A-Z0-9_]{3,})\b", lambda k: macros.get(k.group(1), k.group(1)) if not k.group(1).startswith("MCS_") else k.group(1), body)
         items = []
@@ -129,7 +134,9 @@ for sec in ORDER:
     w("")
     if sec == "Collections":
         w("LINQ operators are *eager*: each returns a new `List<T>` (or a scalar) immediately.")
-        w("They are available directly on arrays, `List<T>` and the results of other operators.")
+        w("They are available directly on arrays, `List<T>`, `Dictionary`, `HashSet`, `Stack`, `Queue` and")
+        w("the results of other operators. Building with `MCS_ENABLE_LINQ=0` removes them (and `Enumerable`)")
+        w("to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, `ConvertAll` stay.")
         w("")
 exc = sorted(set(re.findall(r'"([A-Za-z]*Exception)"', src[os.path.join(ROOT, "src", "mcs_lib.c")])) - {"InnerException"})
 w("## Exceptions and enums")

@@ -1,9 +1,11 @@
-/* Unit tests for the Phase 2 C APIs: VFS, RAM fs, scheduler, limits, exec_auto. */
+/* Unit tests for the C APIs: VFS, RAM fs, scheduler, limits, exec_auto,
+ * execute-in-place images, globals, the intern set and shared class layouts. */
 #include "mcs.h"
 #include "mcs_vfs.h"
 #include "mcs_sched.h"
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 static int failures, checks;
 #define CHECK(c) do { checks++; if (!(c)) { failures++; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
@@ -210,6 +212,130 @@ static void test_exec_auto(void) {
     mcs_free(vm);
 }
 
+#if MCS_ENABLE_BYTECODE_SAVE && MCS_ENABLE_BYTECODE_LOAD
+static const char* XIP_SRC =
+    "static int Twice(int x) => x * 2;\n"
+    "static int Mix(int x) { int r = x; r = r * 31 + 7; r ^= r >> 3; r = r * 31 + 11; r ^= r >> 5; r = r * 31 + 13;"
+    " r ^= r >> 7; r = r * 31 + 17; r ^= r >> 9; r = r * 31 + 19; r ^= r >> 11; r = r * 31 + 23; r ^= r >> 13;"
+    " r = r * 31 + 29; r ^= r >> 2; r = r * 31 + 37; r ^= r >> 4; r = r * 31 + 41; r ^= r >> 6; return r & 0xFFFF; }\n"
+    "Func<int, int> Inc = n => n + 1;\n"
+    "class Counter { public int N; public void Bump() { N = Twice(N + 1); } }\n"
+    "var c = new Counter(); c.Bump(); c.Bump();\n"
+    "Console.WriteLine($\"xip {c.N} {Inc(41)} {Mix(5) == Mix(5)}\");\n";
+static size_t image_run_bytes(bool xip, const uint8_t* img, size_t n) {
+    mcs_vm_t* vm = new_vm();
+    uint8_t* buf = (uint8_t*)malloc(n);   /* the image must outlive the VM in XIP mode */
+    memcpy(buf, img, n);
+    mcs_result_t r = xip ? mcs_exec_image_xip(vm, buf, n) : mcs_exec_image(vm, buf, n);
+    CHECK(r == MCS_OK);
+    CHECK(!strcmp(outbuf, "xip 6 42 True\n"));
+    /* call back into image code after the top-level run (code still in `buf`) */
+    mcs_value_t arg = mcs_int(20), res;
+    CHECK(mcs_call(vm, "Twice", 1, &arg, &res) == MCS_OK && res.type == MCS_T_INT && res.as.i == 40);
+    mcs_gc(vm);
+    CHECK(mcs_call(vm, "Twice", 1, &arg, &res) == MCS_OK && res.as.i == 40);
+    mcs_mem_stats_t st; mcs_mem_stats(vm, &st);
+    mcs_free(vm);
+    free(buf);
+    return st.bytes_in_use;
+}
+static void test_xip(void) {
+    mcs_vm_t* vm = new_vm();
+    uint8_t* img; size_t n;
+    CHECK(mcs_compile_image(vm, "x.cs", XIP_SRC, true, &img, &n) == MCS_OK);
+    size_t copy = image_run_bytes(false, img, n);
+    size_t xip = image_run_bytes(true, img, n);
+#if MCS_ENABLE_XIP
+    CHECK(xip < copy);   /* function code is not duplicated on the heap */
+#else
+    CHECK(xip == copy);
+#endif
+    /* a corrupt image must still be rejected in XIP mode */
+    uint8_t* bad = (uint8_t*)malloc(n); memcpy(bad, img, n); bad[n / 2] ^= 0xFF; bad[n / 2 + 1] ^= 0x5A;
+    mcs_vm_t* vm2 = new_vm();
+    mcs_result_t r = mcs_exec_image_xip(vm2, bad, n);
+    CHECK(r == MCS_OK || r == MCS_ERR_BYTECODE || r == MCS_ERR_RUNTIME);   /* never crashes */
+    mcs_free(vm2); free(bad);
+    mcs_free_image(vm, img);
+    mcs_free(vm);
+}
+#endif
+
+/* globals live in a growable array; names carry their slot (no index table) */
+static void test_globals(void) {
+    mcs_vm_t* vm = new_vm();
+    char name[32];
+    for (int i = 0; i < 300; i++) { snprintf(name, sizeof name, "G%d", i); mcs_set_global(vm, name, mcs_int(i * 3)); }
+    int ok = 1;
+    for (int i = 0; i < 300; i++) { snprintf(name, sizeof name, "G%d", i); mcs_value_t v = mcs_get_global(vm, name); ok &= v.type == MCS_T_INT && v.as.i == i * 3; }
+    CHECK(ok);
+    CHECK(mcs_get_global(vm, "NoSuchGlobal").type == MCS_T_NULL);
+    mcs_gc(vm);
+    CHECK(mcs_get_global(vm, "G299").as.i == 897);
+#if MCS_ENABLE_COMPILER
+    CHECK(mcs_exec_source(vm, "g.cs", "Console.WriteLine(G0 + G150 + G299);") == MCS_OK);
+    CHECK(!strcmp(outbuf, "1347\n"));
+#endif
+    mcs_free(vm);
+}
+
+#if MCS_ENABLE_COMPILER
+/* the weak intern set must not keep growing under string churn */
+static void test_intern_churn(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "c.cs",
+        "int total = 0;\n"
+        "for (int i = 0; i < 20000; i++) { string s = \"k\" + i; total += s.Length; }\n"
+        "Console.WriteLine(total);") == MCS_OK);
+    CHECK(!strcmp(outbuf, "108890\n"));
+    mcs_gc(vm); mcs_gc(vm);
+    mcs_mem_stats_t st; mcs_mem_stats(vm, &st);
+    CHECK(st.bytes_in_use < 96 * 1024);   /* 20000 dead strings are gone, set compacted */
+    mcs_free(vm);
+}
+
+/* compact dictionary index: 1/2/4-byte slot widths, removal order, slot reuse,
+ * and the memory it saves (HashSet storage has no values array) */
+static void test_dict_index(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "d.cs",
+        "var d = new Dictionary<int, int>();\n"
+        "for (int i = 0; i < 70000; i++) d[i] = i;\n"           /* > 65536 slots: 4-byte index */
+        "long s = 0; for (int i = 0; i < 70000; i += 7) s += d[i];\n"
+        "for (int i = 0; i < 70000; i += 2) d.Remove(i);\n"
+        "Console.WriteLine(d.Count + \" \" + s + \" \" + d[69999] + \" \" + d.ContainsKey(68000));\n"
+        "int k = 0; foreach (var kv in d) { if (kv.Key != 2 * k + 1) { Console.WriteLine(\"order\"); break; } k++; }\n"
+        "for (int r = 0; r < 50; r++) { d[-1] = r; d.Remove(-1); }\n"     /* deleted slots get reused */
+        "Console.WriteLine(d.Count + \" \" + k);\n") == MCS_OK);
+    CHECK(!strcmp(outbuf, "35000 349965000 69999 False\n35000 35000\n"));
+    mcs_free(vm);
+    vm = new_vm();
+    mcs_mem_stats_t a, b;
+    mcs_gc(vm); mcs_mem_stats(vm, &a);
+    CHECK(mcs_exec_source(vm, "h.cs",
+        "var h = new HashSet<int>(); for (int i = 0; i < 1000; i++) h.Add(i);\n"
+        "var keep = new List<object> { h }; GC.Collect();\n"
+        "Console.WriteLine(h.Count);\n") == MCS_OK);
+    mcs_gc(vm); mcs_mem_stats(vm, &b);
+    /* 1000 ints: keys[] (1024 values) + 2048 two-byte slots; no values array */
+    CHECK(b.bytes_in_use - a.bytes_in_use < 1024 * sizeof(mcs_value_t) + 2048 * 2 + 4096);
+    mcs_free(vm);
+}
+
+/* built-in exception classes share Exception's field layout until a
+ * subclass adds its own field (copy on write) */
+static void test_shared_layout(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "e.cs",
+        "class DeviceError : IOException { public int Code; public DeviceError(string m, int c) : base(m) { Code = c; } }\n"
+        "try { throw new DeviceError(\"bus\", 7); } catch (IOException e) { Console.WriteLine(e.Message + \" \" + ((DeviceError)e).Code); }\n"
+        "var f = new FileNotFoundException(\"nf\"); Console.WriteLine(f.Message + \" \" + (f is IOException));\n"
+        "try { int[] a = new int[1]; a[2] = 0; } catch (Exception e) { Console.WriteLine(e.GetType().Name); }\n") == MCS_OK);
+    CHECK(!strcmp(outbuf, "bus 7\nnf True\nIndexOutOfRangeException\n"));
+    mcs_free(vm);
+}
+#endif
+
 int main(void) {
     test_normalize();
     test_mounts();
@@ -217,6 +343,15 @@ int main(void) {
     test_limits();
     test_time_limit();
     test_exec_auto();
+#if MCS_ENABLE_BYTECODE_SAVE && MCS_ENABLE_BYTECODE_LOAD
+    test_xip();
+#endif
+    test_globals();
+#if MCS_ENABLE_COMPILER
+    test_intern_churn();
+    test_dict_index();
+    test_shared_layout();
+#endif
     printf("%d/%d checks passed\n", checks - failures, checks);
     return failures != 0;
 }
