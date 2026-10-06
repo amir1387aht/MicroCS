@@ -38,24 +38,26 @@ void mcs_front_error(front_ctx_t* ctx, uint32_t line, uint32_t col, const char* 
 }
 
 /* ------------------------------------------------------------ keywords */
-static const struct { const char* s; uint16_t t; } kw[] = {
-    {"abstract", TK_ABSTRACT}, {"as", TK_AS}, {"base", TK_BASE}, {"bool", TK_BOOL}, {"break", TK_BREAK},
-    {"byte", TK_BYTE}, {"case", TK_CASE}, {"catch", TK_CATCH}, {"char", TK_KCHAR}, {"class", TK_CLASS},
-    {"const", TK_CONST}, {"continue", TK_CONTINUE}, {"decimal", TK_DECIMAL}, {"default", TK_DEFAULT},
-    {"delegate", TK_DELEGATE}, {"do", TK_DO}, {"double", TK_DOUBLE}, {"else", TK_ELSE}, {"enum", TK_ENUM},
-    {"event", TK_EVENT}, {"false", TK_FALSE}, {"finally", TK_FINALLY}, {"float", TK_KFLOAT}, {"for", TK_FOR},
-    {"foreach", TK_FOREACH}, {"if", TK_IF}, {"in", TK_IN}, {"int", TK_KINT}, {"interface", TK_INTERFACE},
-    {"internal", TK_INTERNAL}, {"is", TK_IS}, {"long", TK_LONG}, {"namespace", TK_NAMESPACE}, {"new", TK_NEW},
-    {"null", TK_NULL}, {"object", TK_OBJECT}, {"operator", TK_OPERATOR}, {"out", TK_OUT}, {"override", TK_OVERRIDE},
-    {"params", TK_PARAMS}, {"private", TK_PRIVATE}, {"protected", TK_PROTECTED}, {"public", TK_PUBLIC},
-    {"readonly", TK_READONLY}, {"ref", TK_REF}, {"return", TK_RETURN}, {"sbyte", TK_SBYTE}, {"sealed", TK_SEALED},
-    {"short", TK_SHORT}, {"static", TK_STATIC}, {"string", TK_KSTRING}, {"struct", TK_STRUCT}, {"switch", TK_SWITCH},
-    {"this", TK_THIS}, {"throw", TK_THROW}, {"true", TK_TRUE}, {"try", TK_TRY}, {"typeof", TK_TYPEOF},
-    {"uint", TK_UINT}, {"ulong", TK_ULONG}, {"ushort", TK_USHORT}, {"using", TK_USING}, {"virtual", TK_VIRTUAL},
-    {"void", TK_VOID}, {"while", TK_WHILE}, {"extern", TK_EXTERN}, {"unsafe", TK_UNSAFE}, {"volatile", TK_VOLATILE},
-    {"implicit", TK_IMPLICIT}, {"explicit", TK_EXPLICIT}, {"sizeof", TK_SIZEOF}, {"lock", TK_LOCK},
-    {"goto", TK_GOTO}, {"checked", TK_CHECKED}, {"unchecked", TK_UNCHECKED}, {"fixed", TK_FIXED},
-    {NULL, 0}
+/* keyword length is stored so identifiers are rejected without strlen() */
+#define KW(w, t) { w, (uint8_t)(sizeof(w) - 1), t }
+static const struct { const char* s; uint8_t n; uint16_t t; } kw[] = {
+    KW("abstract", TK_ABSTRACT), KW("as", TK_AS), KW("base", TK_BASE), KW("bool", TK_BOOL), KW("break", TK_BREAK),
+    KW("byte", TK_BYTE), KW("case", TK_CASE), KW("catch", TK_CATCH), KW("char", TK_KCHAR), KW("class", TK_CLASS),
+    KW("const", TK_CONST), KW("continue", TK_CONTINUE), KW("decimal", TK_DECIMAL), KW("default", TK_DEFAULT),
+    KW("delegate", TK_DELEGATE), KW("do", TK_DO), KW("double", TK_DOUBLE), KW("else", TK_ELSE), KW("enum", TK_ENUM),
+    KW("event", TK_EVENT), KW("false", TK_FALSE), KW("finally", TK_FINALLY), KW("float", TK_KFLOAT), KW("for", TK_FOR),
+    KW("foreach", TK_FOREACH), KW("if", TK_IF), KW("in", TK_IN), KW("int", TK_KINT), KW("interface", TK_INTERFACE),
+    KW("internal", TK_INTERNAL), KW("is", TK_IS), KW("long", TK_LONG), KW("namespace", TK_NAMESPACE), KW("new", TK_NEW),
+    KW("null", TK_NULL), KW("object", TK_OBJECT), KW("operator", TK_OPERATOR), KW("out", TK_OUT), KW("override", TK_OVERRIDE),
+    KW("params", TK_PARAMS), KW("private", TK_PRIVATE), KW("protected", TK_PROTECTED), KW("public", TK_PUBLIC),
+    KW("readonly", TK_READONLY), KW("ref", TK_REF), KW("return", TK_RETURN), KW("sbyte", TK_SBYTE), KW("sealed", TK_SEALED),
+    KW("short", TK_SHORT), KW("static", TK_STATIC), KW("string", TK_KSTRING), KW("struct", TK_STRUCT), KW("switch", TK_SWITCH),
+    KW("this", TK_THIS), KW("throw", TK_THROW), KW("true", TK_TRUE), KW("try", TK_TRY), KW("typeof", TK_TYPEOF),
+    KW("uint", TK_UINT), KW("ulong", TK_ULONG), KW("ushort", TK_USHORT), KW("using", TK_USING), KW("virtual", TK_VIRTUAL),
+    KW("void", TK_VOID), KW("while", TK_WHILE), KW("extern", TK_EXTERN), KW("unsafe", TK_UNSAFE), KW("volatile", TK_VOLATILE),
+    KW("implicit", TK_IMPLICIT), KW("explicit", TK_EXPLICIT), KW("sizeof", TK_SIZEOF), KW("lock", TK_LOCK),
+    KW("goto", TK_GOTO), KW("checked", TK_CHECKED), KW("unchecked", TK_UNCHECKED), KW("fixed", TK_FIXED),
+    {NULL, 0, 0}
 };
 
 typedef struct {
@@ -68,12 +70,20 @@ typedef struct {
     toklist_t* out;
 } lexer_t;
 
+typedef char mcs_tok_type_fits_u8[(TK_KW_LAST < 256) ? 1 : -1]; /* token_t.type is a uint8_t */
 static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t len) {
     toklist_t* t = L->out;
     if (t->count == t->cap) {
         /* first chunk sized from the remaining source (~1 token per 5 bytes) so the
          * arena rarely holds abandoned copies of a doubled token array */
-        uint32_t nc = t->cap ? t->cap * 2 : (uint32_t)((L->end - start) / 5) + 32;
+        uint32_t nc = (uint32_t)((L->end - start) / 5) + 32;
+        if (t->cap) {
+            /* grow by the token density seen so far instead of doubling: the
+             * token array is the largest single block while parsing */
+            size_t done = (size_t)(start - L->src) + 1, left = (size_t)(L->end - start);
+            size_t more = (size_t)t->count * left / done;
+            nc = t->cap + (uint32_t)(more + more / 8) + 32;
+        }
         if (t->heap) {   /* main token list: VM heap, so the compiler phase does not carry it */
             token_t* nt = (token_t*)mcs_realloc(L->ctx->vm, t->toks, sizeof(token_t) * t->cap, sizeof(token_t) * nc);
             t->toks = nt; t->cap = nc;
@@ -86,8 +96,8 @@ static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t le
     }
     token_t* k = &t->toks[t->count++];
     memset(k, 0, sizeof *k);
-    k->type = type; k->start = start; k->len = (uint32_t)len;
-    k->line = L->line; k->col = (uint16_t)(start - L->line_start + 1);
+    k->start = start; k->len = (uint32_t)len;
+    k->type = (uint8_t)type; k->line = L->line & 0xFFFFF; { size_t col = (size_t)(start - L->line_start + 1); k->col = col > 4095 ? 4095 : (uint32_t)col; }
     return k;
 }
 
@@ -264,7 +274,8 @@ bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, tokl
             while (L.p < L.end && is_ident((uint8_t)*L.p)) L.p++;
             size_t n = (size_t)(L.p - s);
             uint16_t type = TK_IDENT;
-            if (!at) for (int i = 0; kw[i].s; i++) if (strlen(kw[i].s) == n && memcmp(kw[i].s, s, n) == 0) { type = kw[i].t; break; }
+            if (!at && n >= 2 && n <= 9 && *s >= 'a' && *s <= 'z')
+                for (int i = 0; kw[i].s; i++) if (kw[i].n == n && kw[i].s[0] == *s && memcmp(kw[i].s, s, n) == 0) { type = kw[i].t; break; }
             push_tok(&L, type, s, n);
             continue;
         }
@@ -280,7 +291,7 @@ bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, tokl
             const char* ls = L.line_start;
             if (!scan_string(&L, verbatim, interp)) break;
             token_t* t = push_tok(&L, interp ? TK_INTERP : TK_STRING, body, (size_t)(L.p - body));
-            t->line = line; t->col = (uint16_t)(s - ls + 1);
+            t->line = line & 0xFFFFF; { size_t col = (size_t)(s - ls + 1); t->col = col > 4095 ? 4095 : (uint32_t)col; }
             t->verbatim = verbatim;
             L.p++; /* closing quote */
             continue;

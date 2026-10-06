@@ -37,15 +37,17 @@ typedef enum {
     TK_KW_LAST
 } tok_type_t;
 
+/* 24 bytes on 32-bit targets (the whole token array is alive while parsing) */
 typedef struct {
-    uint16_t type;
-    uint16_t col;
-    uint32_t line;
+    uint8_t type;            /* tok_type_t (< 256) */
+    uint8_t is_float32;      /* 'f' suffix */
+    uint8_t verbatim;
+    uint8_t spare;
+    uint32_t line : 20;      /* diagnostics only: lines beyond 1M wrap */
+    uint32_t col : 12;       /* clamped to 4095 */
     const char* start;
     uint32_t len;
     union { mcs_int_t i; mcs_float_t f; } v;
-    uint8_t is_float32; /* 'f' suffix */
-    uint8_t verbatim;
 } token_t;
 
 typedef struct {
@@ -93,14 +95,16 @@ typedef struct node {
     uint8_t op;              /* token type for operators */
     uint8_t flag;            /* misc: nullcond, prefix, etc. */
     uint32_t line;
+    uint32_t len;            /* length of name */
     struct node* next;       /* sibling in lists */
     struct node *a, *b, *c, *d;
-    const char* name; uint32_t len;
+    const char* name;
     typeref_t* type;
-    mcs_int_t ival;
-    mcs_float_t fval;
     struct funcdecl* fn;     /* lambdas, local functions */
+    union { mcs_int_t i; mcs_float_t f; } lit; /* N_FLOAT uses f, everything else i */
 } node_t;
+#define ival lit.i
+#define fval lit.f
 
 /* member kinds */
 enum { M_FIELD, M_METHOD, M_CTOR, M_PROP, M_CONST, M_INDEXER, M_OPERATOR };

@@ -112,6 +112,7 @@ static __attribute__((unused)) mcs_result_t mcs_cli_missing(mcs_vm_t* vm, const 
 #endif
 #if !MCS_ENABLE_BYTECODE_LOAD
 #define mcs_exec_image(vm, d, n) ((void)(d), (void)(n), mcs_cli_missing(vm, "image loading (MCS_ENABLE_BYTECODE_LOAD)"))
+#define mcs_exec_image_xip(vm, d, n) mcs_exec_image(vm, d, n)
 #endif
 
 static void repl(mcs_vm_t* vm) {
@@ -173,6 +174,7 @@ static void usage(void) {
         "  --heap N     heap limit in bytes (emulate a small MCU)\n"
         "  --stack N    value stack slots\n"
         "  --stats      print memory statistics at exit\n"
+        "  --xip        run .mcsb images in place (no code copy, see mcs_exec_image_xip)\n"
         "  --fs DIR     mount host directory DIR at / for File/Directory (default: .)\n"
         "  --ramfs N    mount an N-byte RAM filesystem at / instead\n"
         "  --no-fs      no filesystem (File/Directory unavailable)\n"
@@ -233,7 +235,8 @@ static mcs_sched_t g_sched;
 
 int main(int argc, char** argv) {
     const char *compile = NULL, *compile_h = NULL, *out = NULL, *disasm = NULL, *code = NULL, *file = NULL, *name = "mcs_app";
-    bool strip = false, stats = false;
+    bool strip = false, stats = false, xip = false;
+    char* xip_data = NULL;
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
     size_t ramfs = 0;
@@ -250,6 +253,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "-e") && i + 1 < argc) code = argv[++i];
         else if (!strcmp(a, "-s")) strip = true;
         else if (!strcmp(a, "--stats")) stats = true;
+        else if (!strcmp(a, "--xip")) xip = true;
         else if (!strcmp(a, "--heap") && i + 1 < argc) heap = (size_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--stack") && i + 1 < argc) stack = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--fs") && i + 1 < argc) fs_dir = argv[++i];
@@ -357,9 +361,10 @@ int main(int argc, char** argv) {
         size_t n;
         char* data = read_file(file, &n);
         if (!data) return 1;
-        if (ends_with(file, ".mcsb") || (n >= 4 && !memcmp(data, "MCSB", 4)))
-            rc = result_code(mcs_exec_image(vm, (const uint8_t*)data, n));
-        else
+        if (ends_with(file, ".mcsb") || (n >= 4 && !memcmp(data, "MCSB", 4))) {
+            if (xip) { rc = result_code(mcs_exec_image_xip(vm, (const uint8_t*)data, n)); xip_data = data; data = NULL; }
+            else rc = result_code(mcs_exec_image(vm, (const uint8_t*)data, n));
+        } else
             rc = result_code(mcs_exec_source(vm, file, data));
         free(data);
     } else if (shell) {
@@ -391,5 +396,6 @@ int main(int argc, char** argv) {
         fprintf(stderr, "[mem] in use: %zu bytes, peak: %zu bytes, objects: %u, collections: %u\n", st.bytes_in_use, st.peak_bytes, st.objects, st.collections);
     }
     mcs_free(vm);
+    free(xip_data);   /* --xip: the image buffer must outlive the VM */
     return rc;
 }

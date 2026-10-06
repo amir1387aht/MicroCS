@@ -14,6 +14,11 @@
 static inline mcs_value_t lib_str(mcs_vm_t* vm, const char* s, size_t n) { return OBJ_VAL(mcs_intern(vm, s, n)); }
 static inline mcs_value_t lib_cstr(mcs_vm_t* vm, const char* s) { return OBJ_VAL(mcs_intern_c(vm, s)); }
 static inline bool lib_is_seq(mcs_value_t v) { return IS_KIND(v, MCS_O_ARRAY) || IS_KIND(v, MCS_O_LIST); }
+/* Sequence arguments: replaces *v in place (argv slots are GC roots) with an
+ * array snapshot when it is a HashSet / Stack / Queue (or, with dicts, a
+ * Dictionary as KeyValuePairs) so natives that accept arrays and lists also
+ * accept every built-in collection. Leaves other values unchanged. */
+void lib_seq_arg(mcs_vm_t* vm, mcs_value_t* v, bool dicts);
 /* `out`/`ref` arguments arrive as 1-element array cells (see compiler); store into one */
 /* builds a ValueTuple; names = "A,B" or NULL (ItemN only) */
 mcs_value_t mcs_lib_tuple(mcs_vm_t* vm, const char* names, int n, mcs_value_t* items);

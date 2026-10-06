@@ -8,15 +8,21 @@
 #include <stdarg.h>
 
 #define MCS_UNUSED(x) (void)(x)
+/* small MCS_ERROR_SIZE values truncate messages on purpose */
+#if MCS_ERROR_SIZE < 256 && defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 7
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
 
 /* ----------------------------------------------------------- objects */
 struct mcs_obj {
     uint8_t kind;
     uint8_t marked;
+    uint16_t aux;   /* strings: global slot + 1 (0 = not a global name). Lives in
+                     * what would otherwise be alignment padding: costs no RAM. */
     struct mcs_obj* next;
 };
 
-typedef struct {
+typedef struct mcs_string_s {
     mcs_obj_t obj;
     uint32_t hash;
     uint32_t len;
@@ -24,6 +30,9 @@ typedef struct {
 } mcs_string_t;
 
 typedef struct { mcs_value_t key; mcs_value_t value; } mcs_entry_t;
+/* weak set of interned strings: one pointer per slot instead of a full
+ * key/value entry (4 B vs 16-32 B per slot on 32-bit targets) */
+typedef struct { uint32_t count, cap; struct mcs_string_s** slots; } mcs_strset_t;
 typedef struct { uint32_t count; uint32_t cap; mcs_entry_t* entries; } mcs_table_t;
 
 typedef struct { uint32_t pc; uint32_t line; } mcs_line_t;
@@ -31,6 +40,7 @@ typedef struct { uint32_t pc; uint32_t line; } mcs_line_t;
 #define FN_HAS_PARAMS 0x01   /* last parameter is `params T[]` */
 #define FN_IS_CTOR    0x02
 #define FN_IS_STATIC  0x04
+#define FN_XIP        0x08   /* code points into a caller-owned image (not freed) */
 
 /* parameter type tags used for overload resolution */
 enum { PT_ANY = 0, PT_INT, PT_FLOAT, PT_BOOL, PT_STRING, PT_CHAR, PT_VOID, PT_OBJECT };
@@ -48,6 +58,10 @@ typedef struct mcs_function {
     uint8_t* param_types; /* arity entries or NULL */
     mcs_string_t* name;
     mcs_string_t* source;
+#if MCS_ENABLE_XIP
+    const uint16_t* gmap;          /* XIP: image global index -> VM slot (NULL = identity) */
+    struct mcs_string_s* gmap_obj; /* GC owner of gmap (shared by an image's functions) */
+#endif
 #if MCS_FIELD_CACHE
     struct mcs_fcache* fcache;  /* lazily allocated, indexed by name constant (const_count entries) */
     uint32_t fcache_n;
@@ -94,6 +108,7 @@ typedef struct mcs_rom {        /* lazily materialized registration table */
 typedef struct mcs_class {
     mcs_obj_t obj;
     uint8_t ckind;
+    uint8_t layout_shared;  /* fields + field_defaults borrowed from super (copy on write) */
     uint16_t field_count;
     mcs_string_t* name;
     struct mcs_class* super;
@@ -140,13 +155,22 @@ typedef struct {            /* used for both arrays and List<T> */
     mcs_value_t* items;
 } mcs_list_t;
 
+/* Dictionary / HashSet: insertion-ordered keys[]/vals[] arrays plus a compact
+ * open-addressing index of positions (CPython-style). Index slots are 1, 2 or
+ * 4 bytes wide depending on icap (0 = empty, all-ones = deleted, else
+ * position + 1), so a small dictionary's index costs 1 byte per slot instead
+ * of a full key/value entry. */
 typedef struct {
     mcs_obj_t obj;
-    mcs_table_t index;       /* key -> int position */
-    uint32_t count, cap;
+    uint32_t count, cap;     /* entries in keys[]/vals[] */
+    uint32_t icap, iused;    /* index slots (power of two); used = live + deleted */
+    void* idx;
     mcs_value_t* keys;
     mcs_value_t* vals;
 } mcs_dict_t;
+/* obj.aux flag: keys-only dictionary (HashSet storage, vals == NULL) */
+#define DICT_KEYS_ONLY 1
+#define DICT_VAL(d, i) ((d)->vals ? (d)->vals[i] : mcs_bool(true))
 
 /* --------------------------------------------------------------- VM */
 typedef struct {
@@ -184,8 +208,7 @@ struct mcs_vm {
     int handler_count;
     mcs_upvalue_t* open_upvalues;
 
-    mcs_table_t strings;        /* interned strings */
-    mcs_table_t global_index;   /* name -> slot */
+    mcs_strset_t strings;       /* interned strings (weak) */
     mcs_table_t tuple_classes;  /* "arity:names" -> ValueTuple class (NOT inside the cls_* range marked by the GC) */
     mcs_value_t* globals;
     mcs_string_t** global_names;
@@ -243,7 +266,7 @@ struct mcs_vm {
     jmp_buf* panic;
     void* ext[MCS_EXT__COUNT];
 
-    char error[256];
+    char error[MCS_ERROR_SIZE];
 };
 
 /* -------------------------------------------------------- opcodes */
@@ -322,6 +345,9 @@ void mcs_free_objects(mcs_vm_t* vm);
 mcs_obj_t* mcs_alloc_obj(mcs_vm_t* vm, size_t size, uint8_t kind);
 mcs_string_t* mcs_intern(mcs_vm_t* vm, const char* s, size_t len);
 mcs_string_t* mcs_intern_c(mcs_vm_t* vm, const char* s);
+/* already-interned string or NULL (never allocates) */
+mcs_string_t* mcs_find_interned(mcs_vm_t* vm, const char* s, size_t len);
+void mcs_strset_free(mcs_vm_t* vm, mcs_strset_t* set);
 mcs_string_t* mcs_take_buffer(mcs_vm_t* vm, char* buf, size_t len, size_t cap); /* frees buf */
 uint32_t mcs_hash_bytes(const char* s, size_t len);
 mcs_function_t* mcs_new_function(mcs_vm_t* vm);
@@ -350,6 +376,7 @@ void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v);
 bool mcs_dict_remove(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key);
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d);
 void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs_value_t def);
+void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);
 void mcs_class_inherit(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);
 void mcs_class_add_method(mcs_vm_t* vm, mcs_table_t* t, mcs_string_t* name, mcs_value_t fn, bool first);
 

@@ -120,7 +120,13 @@ void mcs_disassemble(mcs_vm_t* vm, mcs_function_t* fn, int depth) {
         case OP_CONST: case OP_GET_FIELD: case OP_SET_FIELD: case OP_IS: case OP_AS: case OP_CAST: case OP_IMPLEMENTS:
             const_repr(vm, fn->consts[u16], rep, sizeof rep); out(vm, "%5u  %s", u16, rep); break;
         case OP_GET_GLOBAL: case OP_SET_GLOBAL: case OP_SET_GLOBAL_POP:
-            out(vm, "%5u  %s", u16, u16 < vm->global_count ? vm->global_names[u16]->chars : "?"); break;
+        {
+            uint16_t g = u16;
+#if MCS_ENABLE_XIP
+            if (fn->gmap) g = fn->gmap[u16];
+#endif
+            out(vm, "%5u  %s", u16, g < vm->global_count ? vm->global_names[g]->chars : "?"); break;
+        }
         case OP_INVOKE: case OP_SUPER_INVOKE:
             out(vm, "%5u  %s argc=%u", u16, AS_CSTR(fn->consts[u16]), a[2]); break;
         case OP_CLASS: case OP_METHOD: case OP_STATIC: case OP_GETTER: case OP_SETTER:
@@ -296,6 +302,10 @@ typedef struct {
     uint16_t* gslots;
     uint32_t gcount;
     bool bad;
+    bool xip;
+#if MCS_ENABLE_XIP
+    mcs_string_t* gmap_obj;
+#endif
     int depth;
 } loader_t;
 
@@ -372,7 +382,7 @@ static mcs_function_t* read_fn(loader_t* l) {
     if (++l->depth > 64) { l->bad = true; return NULL; }
     mcs_function_t* fn = mcs_new_function(vm);
     fn->name = rstr(l); fn->source = rstr(l);
-    fn->arity = r8(l); fn->min_arity = r8(l); fn->upvalue_count = r8(l); fn->flags = r8(l);
+    fn->arity = r8(l); fn->min_arity = r8(l); fn->upvalue_count = r8(l); fn->flags = (uint8_t)(r8(l) & ~FN_XIP);
     fn->max_slots = r16(l);
     if (r8(l)) {
         fn->param_types = MCS_ALLOC(vm, uint8_t, fn->arity ? fn->arity : 1);
@@ -414,9 +424,20 @@ static mcs_function_t* read_fn(loader_t* l) {
     if (l->bad) return NULL;
     uint32_t clen = r32(l);
     if (!need(l, clen)) return NULL;
-    fn->code = MCS_ALLOC(vm, uint8_t, clen ? clen : 1);
-    fn->code_cap = clen ? clen : 1; fn->code_len = clen;
-    memcpy(fn->code, l->p, clen);
+#if MCS_ENABLE_XIP
+    if (l->xip && clen) {   /* execute in place: the image buffer outlives the VM's use of it */
+        fn->code = (uint8_t*)(uintptr_t)l->p;
+        fn->code_cap = 0; fn->code_len = clen;
+        fn->flags |= FN_XIP;
+        fn->gmap = (const uint16_t*)(const void*)l->gmap_obj->chars;
+        fn->gmap_obj = l->gmap_obj;
+    } else
+#endif
+    {
+        fn->code = MCS_ALLOC(vm, uint8_t, clen ? clen : 1);
+        fn->code_cap = clen ? clen : 1; fn->code_len = clen;
+        memcpy(fn->code, l->p, clen);
+    }
     l->p += clen;
     /* validate & relink */
     for (uint32_t pc = 0; pc < clen;) {
@@ -426,8 +447,10 @@ static mcs_function_t* read_fn(loader_t* l) {
         if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL || op == OP_SET_GLOBAL_POP) {
             uint16_t g = (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]);
             if (g >= l->gcount) { l->bad = true; return NULL; }
-            uint16_t s = l->gslots[g];
-            fn->code[pc + 1] = (uint8_t)(s >> 8); fn->code[pc + 2] = (uint8_t)s;
+            if (!(fn->flags & FN_XIP)) {   /* XIP code keeps image indices; fn->gmap maps them */
+                uint16_t s = l->gslots[g];
+                fn->code[pc + 1] = (uint8_t)(s >> 8); fn->code[pc + 2] = (uint8_t)s;
+            }
         } else if (op == OP_CONST || op == OP_CLOSURE || op == OP_GET_FIELD || op == OP_SET_FIELD || op == OP_INVOKE ||
                    op == OP_SUPER_INVOKE || op == OP_CLASS || op == OP_METHOD || op == OP_STATIC || op == OP_GETTER ||
                    op == OP_SETTER || op == OP_IS || op == OP_AS || op == OP_CAST || op == OP_IMPLEMENTS || op == OP_FIELD) {
@@ -453,7 +476,7 @@ static mcs_function_t* read_fn(loader_t* l) {
     return l->bad ? NULL : fn;
 }
 
-mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) {
+mcs_function_t* mcs_load_image_ex(mcs_vm_t* vm, const uint8_t* img, size_t len, bool xip) {
     if (!img || len < 12 || memcmp(img, "MCSB", 4) != 0) {
         snprintf(vm->error, sizeof vm->error, "not a MicroCS bytecode image");
         return NULL;
@@ -468,7 +491,7 @@ mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) {
 #endif
     MCS_UNUSED(flags);
     loader_t l; memset(&l, 0, sizeof l);
-    l.vm = vm; l.p = img + 8; l.end = img + len;
+    l.vm = vm; l.p = img + 8; l.end = img + len; l.xip = xip;
     vm->gc_pause++;
     l.gcount = r32(&l);
     if (l.gcount > 65535) l.bad = true;
@@ -480,6 +503,16 @@ mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) {
             l.gslots[i] = (uint16_t)mcs_global_slot(vm, s);
         }
     }
+#if MCS_ENABLE_XIP
+    if (!l.bad && xip) {   /* global map as a GC-owned, non-interned string blob */
+        size_t nb = (size_t)(l.gcount ? l.gcount : 1) * sizeof(uint16_t);
+        mcs_string_t* m = (mcs_string_t*)mcs_alloc_obj(vm, sizeof(mcs_string_t) + nb, MCS_O_STRING);
+        m->len = (uint32_t)nb; m->hash = 0;
+        memset(m->chars, 0, nb + 1);
+        if (l.gcount) memcpy(m->chars, l.gslots, nb);
+        l.gmap_obj = m;
+    }
+#endif
     mcs_function_t* fn = l.bad ? NULL : read_fn(&l);
     if (l.gslots) MCS_FREE(vm, uint16_t, l.gslots, l.gcount);
     vm->gc_pause--;
@@ -489,4 +522,5 @@ mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) {
     }
     return fn;
 }
+mcs_function_t* mcs_load_image(mcs_vm_t* vm, const uint8_t* img, size_t len) { return mcs_load_image_ex(vm, img, len, false); }
 #endif

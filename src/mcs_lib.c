@@ -325,7 +325,10 @@ static void open_exceptions(mcs_vm_t* vm) {
     mcs_class_t* arith = NULL;
     for (size_t i = 0; i < sizeof tbl / sizeof tbl[0]; i++) {
         mcs_class_t* parent = tbl[i].parent == -1 ? arith : vm->exc[tbl[i].parent];
-        mcs_class_t* c = mcs_define_builtin_class(vm, tbl[i].name, parent, CLS_SCRIPT);
+        mcs_class_t* c = mcs_define_builtin_class(vm, tbl[i].name, NULL, CLS_SCRIPT);
+        vm->gc_pause++;
+        mcs_class_inherit_shared(vm, c, parent);   /* Exception's layout is final here */
+        vm->gc_pause--;
         if (tbl[i].id == -1) arith = c;
         else if (tbl[i].id >= 0) vm->exc[tbl[i].id] = c;
     }

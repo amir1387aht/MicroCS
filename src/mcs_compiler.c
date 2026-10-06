@@ -239,8 +239,8 @@ static bool is_toplevel_name(comp_t* c, const char* name, uint32_t len) {
         if ((s->kind == N_LOCAL_FUNC || s->kind == N_VAR) && name_eq(s->name, s->len, name, len)) return true;
         if (s->kind == N_BLOCK && s->flag == 1) for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR && name_eq(v->name, v->len, name, len)) return true;
     }
-    mcs_string_t* str = mcs_table_find_string(&c->vm->strings, name, len, mcs_hash_bytes(name, len));
-    if (str) { mcs_value_t slot; if (mcs_table_get_s(&c->vm->global_index, str, &slot)) return true; }
+    mcs_string_t* str = mcs_find_interned(c->vm, name, len);
+    if (str && str->obj.aux) return true;
     return false;
 }
 static uint32_t global_slot(comp_t* c, const char* name, uint32_t len) {
@@ -1725,7 +1725,14 @@ static void emit_static_inits(comp_t* c, classdecl_t* d) {
     mainfc->cls = save;
 }
 
-static bool looks_like_interface(const char* n, uint32_t len) {
+static bool looks_like_interface(comp_t* c, const char* n, uint32_t len) {
+    /* a class that already exists in the VM (built-in or from an earlier run)
+     * decides by its kind: `class E : IOException` must not become an interface */
+    mcs_string_t* nm = mcs_find_interned(c->vm, n, len);
+    if (nm && nm->obj.aux) {
+        mcs_value_t g = c->vm->globals[nm->obj.aux - 1u];
+        if (IS_KIND(g, MCS_O_CLASS)) return AS_CLASS(g)->ckind == CLS_INTERFACE;
+    }
     return len >= 2 && n[0] == 'I' && n[1] >= 'A' && n[1] <= 'Z';
 }
 
@@ -1735,7 +1742,7 @@ static void resolve_classes(comp_t* c) {
         namelist_t* b = d->bases;
         classdecl_t* bd = find_class(c, b->name, b->len);
         if (bd && (bd->kind == C_CLASS || bd->kind == C_STRUCT)) { d->base_decl = bd; d->base = b->name; d->base_len = b->len; }
-        else if (!bd && !looks_like_interface(b->name, b->len)) { d->base = b->name; d->base_len = b->len; }
+        else if (!bd && !looks_like_interface(c, b->name, b->len)) { d->base = b->name; d->base_len = b->len; }
         if (bd == d) cerr(c, d->line, "class '%.*s' cannot inherit from itself", (int)d->len, d->name);
     }
     /* enum values */
