@@ -29,21 +29,24 @@ Console.WriteLine($"range {min}..{max}, last = {squares[^1]}");
 ./mcs hello.cs
 # squares: 1, 4, 9, 16, 25
 # range 1..25, last = 25
-./mcs              # interactive REPL
+./mcs --repl --sim # the device REPL, with a simulated board
 ```
 
 ## 3. Talk to (simulated) hardware
 
-The `--sim` flag gives scripts a virtual board with GPIO, UART, I²C, SPI, ADC and PWM, and
+The `--sim` flag gives scripts a virtual board with every peripheral (GPIO with interrupts,
+UART, I²C sensors, SPI, ADC, DAC, PWM, timers, I²S, QSPI flash, CAN, watchdog, RTC), and
 `--run-for` lets the job scheduler run for a while:
 
 ```sh
-./mcs --sim --run-for 3000 examples/blink.cs
-./mcs --sim --ramfs 32768 --run-for 5500 examples/sensor_logger.cs
+./mcs --sim examples/hardware/01_blink.cs
+./mcs --sim examples/hardware/05_i2c_temperature.cs
+./mcs --sim --ramfs 16384 --run-for 1200 examples/hardware/16_data_logger.cs
 ./mcs --sim --sim-log tests/t08_hal.cs     # trace every peripheral access
 ```
 
-The peripheral API is documented in [HAL.md](HAL.md), the scheduler in [SCHEDULER.md](SCHEDULER.md),
+All 16 hardware examples are listed in [examples/README.md](../examples/README.md). The
+peripheral API is documented in [HAL.md](HAL.md), the scheduler in [SCHEDULER.md](SCHEDULER.md),
 files in [FILESYSTEM.md](FILESYSTEM.md).
 
 ## 4. Precompile for a device
@@ -61,13 +64,15 @@ A runtime-only build (`-DMCS_ENABLE_COMPILER=0`) saves ~44 KB of flash and the c
 RAM. Images are portable between 32- and 64-bit hosts. Format: [BYTECODE.md](BYTECODE.md).
 For 32–64 KB RAM parts see [LOW_RESOURCE.md](LOW_RESOURCE.md).
 
-## 5. Embed the VM in firmware
+## 5. Embed the VM in firmware (Option 1)
 
-1. Add `src/*.c` and the modules you need (`modules/fs`, `modules/hal`, `modules/sched`,
-   `modules/shell`) to your build, with `include/` on the include path.
-2. Pick a profile: `-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'`
-   (`tiny`, `mcu`, `embedded`, `linux` — see `include/profiles/`).
-3. Create a VM on a static pool and run a script:
+1. Add MicroCS to your build — `include microcs.mk`, `add_subdirectory(MicroCS)`, an ESP-IDF
+   component, a Zephyr module, a PlatformIO/Arduino library, or just the `.c` files in your
+   IDE. Every variant is in [PORTING.md](PORTING.md).
+2. Optional: pick a profile: `-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'`
+   (`tiny`, `mcu`, `lowram`, `embedded`, `linux` — see `include/profiles/`).
+3. Create a VM on a static pool and run a script (a runnable version is
+   [`examples/quickstart_embed.c`](../examples/quickstart_embed.c), `make quickstart`):
 
 ```c
 #include "mcs.h"
@@ -90,20 +95,26 @@ void scripts_main(void) {
 }
 ```
 
-Full walkthrough with C bindings, calling script functions from C, limits and the GC
-contract: [EMBEDDING.md](EMBEDDING.md). Board bring-up: [PORTING.md](PORTING.md).
+To let C# use the board's peripherals, add a port and one line:
+`mcs_stm32_hal_init(&hal, &board); mcs_hal_open_lib(vm, &hal);` (or `mcs_esp32_…`,
+`mcs_rp2_…`, `mcs_zephyr_…`, `mcs_arduino_…`). Full walkthrough with C bindings, calling
+script functions from C, limits and the GC contract: [EMBEDDING.md](EMBEDDING.md).
 
-## 6. Update scripts over UART
+## 6. A complete C# firmware with a REPL (Option 2)
 
-Build with the shell module and the device boots `/boot.cs`, starts `/jobs.cfg` and runs
-`/main.cs`; scripts can be uploaded, listed and run over any byte stream:
+`mcs_runtime_run()` turns the board into a C# device: REPL on the console, `/boot.cs` and
+`/main.cs` from the filesystem, jobs, interrupt callbacks and an upload protocol. Start from
+a ready-made project — [Pico](../ports/rp2/example), [ESP32](../ports/esp32/example),
+[STM32 CubeMX](../ports/stm32/example_main.c), [Zephyr](../ports/zephyr/example),
+[Arduino](../ports/arduino/examples/MicroCS_REPL) — then upload programs from the PC:
 
 ```sh
-./mcs --shell --fs device_root      # try it on the host first
+./mcs --shell --fs device_root      # try the protocol on the host first
 python3 tools/mcs_remote.py --exec "./mcs --shell --fs device_root" put app.cs /main.cs + run /main.cs
+python3 tools/mcs_remote.py --port /dev/ttyACM0 repl     # on a real board
 ```
 
-Protocol and boot sequence: [STANDALONE.md](STANDALONE.md).
+Details: [STANDALONE.md](STANDALONE.md).
 
 ## Where next?
 

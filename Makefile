@@ -28,6 +28,8 @@ test: mcs build/test_modules
 	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }
 	@./mcs --sim --run-for 600 examples/blink.cs > /dev/null && echo "PASS examples/blink.cs (smoke)" || { echo "FAIL examples/blink.cs"; exit 1; }
 	@./mcs --sim --ramfs 32768 --run-for 1200 examples/sensor_logger.cs > /dev/null && echo "PASS examples/sensor_logger.cs (smoke)" || { echo "FAIL examples/sensor_logger.cs"; exit 1; }
+	@for f in examples/hardware/*.cs; do ./mcs --sim --sim-virtual --ramfs 16384 --run-for 1500 $$f > /dev/null 2>build/hw.err || { echo "FAIL $$f"; cat build/hw.err; exit 1; }; done; echo "PASS examples/hardware/*.cs (smoke, $$(ls examples/hardware/*.cs | wc -l) scripts)"
+	@$(MAKE) -s quickstart > build/quickstart.txt 2>&1 && grep -q 'Add(40, 2) = 42' build/quickstart.txt && echo "PASS examples/quickstart_embed.c" || { echo "FAIL examples/quickstart_embed.c"; cat build/quickstart.txt; exit 1; }
 	@$(MAKE) -s example-lowram > build/lowram.txt 2>&1 && grep '^\[node\]' build/lowram.txt | cmp -s - examples/lowram/node.expected && echo "PASS examples/lowram (lowram profile, XIP image)" || { echo "FAIL examples/lowram"; cat build/lowram.txt; exit 1; }
 
 build/test_modules: tests/c/test_modules.c $(OBJ)
@@ -88,6 +90,11 @@ example: $(OBJ) examples/firmware_example.c examples/app_image.h
 	$(CC) $(CFLAGS) -Iexamples $(OBJ) examples/firmware_example.c -o build/firmware_example $(LDLIBS)
 	./build/firmware_example
 
+# Option 1 in the README: the smallest drop-in embedding
+quickstart: $(OBJ) examples/quickstart_embed.c
+	$(CC) $(CFLAGS) $(OBJ) examples/quickstart_embed.c -o build/quickstart_embed $(LDLIBS)
+	./build/quickstart_embed
+
 # small-MCU firmware skeleton: whole library built with the lowram profile, image run in place
 LOWRAM_FLAGS = -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
 examples/lowram/node_image.h: examples/lowram/node.cs mcs
@@ -99,7 +106,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example example-lowram cm cm-check bench lfs-test
+.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench lfs-test
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party)
 LFS_DIR = build/third_party/littlefs-2.9.3

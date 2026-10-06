@@ -1,0 +1,4 @@
+name: microcs
+build:
+  cmake: zephyr
+  kconfig: zephyr/Kconfig

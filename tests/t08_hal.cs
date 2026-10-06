@@ -1,6 +1,6 @@
 // args: --sim
 // Peripheral API against the simulator board
-Console.WriteLine("board " + Hal.Board + " gpio=" + Hal.Has("GPIO") + " can=" + Hal.Has("CAN"));
+Console.WriteLine("board " + Hal.Board + " gpio=" + Hal.Has("GPIO") + " ble=" + Hal.Has("BLE"));
 const int Led = 13, Button = 2;
 GPIO.Mode(Led, GPIO.Output);
 GPIO.Mode(Button, GPIO.InputPullUp);

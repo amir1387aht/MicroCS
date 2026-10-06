@@ -1,9 +1,10 @@
 /*
  * MicroCS Cortex-M reference port - board definitions.
  *
- * The "board" is a minimal virtual SoC implemented by tools/cm_emu.py
- * (Unicorn engine). On real hardware replace board.c with your vendor's
- * UART/tick drivers (e.g. SiFli SDK / RT-Thread rt_device for SF32LB525).
+ * A minimal bare-metal SoC (UART data/status registers + millisecond tick)
+ * used by the CI size/speed checks (tools/cm_emu.py). For a real chip use one
+ * of the vendor ports (ports/stm32, ports/rp2, ports/esp32, ports/zephyr,
+ * ports/arduino) or replace board.c with your SDK's UART/tick drivers.
  */
 #ifndef MCS_CM_BOARD_H
 #define MCS_CM_BOARD_H

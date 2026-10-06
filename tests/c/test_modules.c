@@ -3,6 +3,8 @@
 #include "mcs.h"
 #include "mcs_vfs.h"
 #include "mcs_sched.h"
+#include "mcs_hal.h"
+#include "mcs_runtime.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -336,6 +338,138 @@ static void test_shared_layout(void) {
 }
 #endif
 
+static void fake_delay(void* ud, uint32_t ms) { (void)ud; fake_now += ms; }
+
+/* Thread.Sleep honours time limits (sliced sleep + mcs_safepoint) and the
+ * abort does not leak into the next run */
+static void test_sleep_limit(void) {
+    mcs_config_t cfg; mcs_config_default(&cfg);
+    cfg.write_fn = cap_write; cfg.ticks_fn = fake_ticks; cfg.delay_fn = fake_delay;
+    outlen = 0; outbuf[0] = 0;
+    mcs_vm_t* vm = mcs_new(&cfg);
+    mcs_limits_t l = { 100, 0 };
+    mcs_set_limits(vm, &l);
+    fake_now = 0;
+    CHECK(mcs_exec_source(vm, "s.cs", "Thread.Sleep(100000); Console.WriteLine(\"after\");") == MCS_ERR_ABORTED);
+    CHECK(mcs_abort_reason(vm) == MCS_ABORT_TIME);
+    CHECK(fake_now >= 100 && fake_now <= 100 + 2 * MCS_SLEEP_SLICE_MS);
+    CHECK(strstr(outbuf, "after") == NULL);
+    outlen = 0; outbuf[0] = 0;
+    CHECK(mcs_exec_source(vm, "s2.cs", "Thread.Sleep(20); Console.WriteLine(\"ok\");") == MCS_OK);
+    CHECK(!strcmp(outbuf, "ok\n"));
+    mcs_free(vm);
+}
+
+static void test_arity(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "a.cs", "Action a0 = () => {}; Action<int,int> a2 = (x, y) => {}; static int F(int a, int b, int c) => a;") == MCS_OK);
+    CHECK(mcs_arity(mcs_get_global(vm, "a0")) == 0);
+    CHECK(mcs_arity(mcs_get_global(vm, "a2")) == 2);
+    CHECK(mcs_arity(mcs_int(3)) == -1);
+    mcs_free(vm);
+}
+
+#if MCS_ENABLE_HAL
+/* GPIO interrupt from "ISR" (C side), dispatch from the host loop, queue
+ * overflow accounting, close / reopen */
+static void test_hal_events(void) {
+    static mcs_hal_t hal; static mcs_hal_sim_t sim;
+    memset(&sim, 0, sizeof sim);
+    mcs_hal_sim_init(&hal, &sim);
+    mcs_vm_t* vm = new_vm();
+    mcs_hal_open_lib(vm, &hal);
+    CHECK(mcs_hal_get(vm) == &hal);
+    CHECK(mcs_exec_source(vm, "irq.cs",
+        "int n = 0; GPIO.Mode(3, GPIO.Input);"
+        "GPIO.OnChange(3, GPIO.Rising, (int p, bool v) => { n++; Console.WriteLine($\"irq {p} {v} {n}\"); });") == MCS_OK);
+    mcs_hal_sim_set_input(&sim, 3, 1);       /* rising: queued */
+    mcs_hal_sim_set_input(&sim, 3, 0);       /* falling: not armed */
+    mcs_hal_sim_set_input(&sim, 3, 1);
+    CHECK(mcs_hal_poll(vm) == 2);
+    CHECK(!strcmp(outbuf, "irq 3 True 1\nirq 3 True 2\n"));
+    CHECK(mcs_hal_poll(vm) == 0);
+    /* failing callback at top level: reported, poll returns the error */
+    CHECK(mcs_exec_source(vm, "bad.cs", "GPIO.OnChange(4, GPIO.Both, () => throw new InvalidOperationException(\"boom\"));") == MCS_OK);
+    mcs_hal_sim_set_input(&sim, 4, 1);
+    outlen = 0; outbuf[0] = 0;
+    CHECK(mcs_hal_poll(vm) == -(int)MCS_ERR_RUNTIME);
+    CHECK(strstr(outbuf, "boom") != NULL || strstr(mcs_last_error(vm), "boom") != NULL);
+    /* overflow */
+    uint32_t d0 = mcs_hal_dropped_events();
+    for (int i = 0; i < MCS_HAL_EVENT_QUEUE + 5; i++) mcs_hal_post(MCS_HAL_EV_USER + 1, i, i);
+    CHECK(mcs_hal_dropped_events() - d0 == 5);
+    mcs_hal_poll(vm);
+    CHECK(mcs_hal_post(MCS_HAL_EV_USER + 1, 0, 0));
+    mcs_hal_poll(vm);
+    /* close + reopen keeps the VM usable */
+    mcs_hal_close_lib(vm);
+    CHECK(mcs_hal_get(vm) == NULL);
+    CHECK(mcs_hal_poll(vm) == 0);
+    mcs_hal_open_lib(vm, &hal);
+    outlen = 0; outbuf[0] = 0;
+    CHECK(mcs_exec_source(vm, "re.cs", "Console.WriteLine(GPIO.Pin(\"PC3\"));") == MCS_OK);
+    CHECK(!strcmp(outbuf, "35\n"));
+    mcs_free(vm);
+    CHECK(mcs_hal_parse_pin("PA0") == 0 && mcs_hal_parse_pin("pb7") == 23 && mcs_hal_parse_pin("P0.31") == 31);
+    CHECK(mcs_hal_parse_pin("GPIO48") == 48 && mcs_hal_parse_pin("D7") == 7 && mcs_hal_parse_pin("PIN9") == 9);
+    CHECK(mcs_hal_parse_pin("PA16") < 0 && mcs_hal_parse_pin("X1") < 0 && mcs_hal_parse_pin("") < 0 && mcs_hal_parse_pin("12a") < 0);
+}
+#endif
+
+#if MCS_ENABLE_RUNTIME && MCS_ENABLE_COMPILER && MCS_ENABLE_HAL
+/* Whole-firmware runtime over a scripted console: REPL lines, a pin interrupt,
+ * machine protocol via Ctrl-A, and a clean shutdown when the console closes. */
+static const char* rt_script;
+static size_t rt_pos;
+static int rt_con_read(void* ud, uint8_t* b, size_t n, uint32_t timeout_ms) {
+    (void)ud; (void)timeout_ms;
+    fake_now += 1;
+    if (!rt_script[rt_pos]) return -1;
+    size_t k = 0;
+    while (k < n && rt_script[rt_pos] && rt_script[rt_pos] != '\n') b[k++] = (uint8_t)rt_script[rt_pos++];
+    if (k < n && rt_script[rt_pos] == '\n') b[k++] = (uint8_t)rt_script[rt_pos++];
+    return (int)k;
+}
+static void rt_con_write(void* ud, const char* s, size_t n) { cap_write(ud, s, n); }
+static uint32_t rt_ms(void* ud) { (void)ud; return fake_now; }
+static void rt_sleep(void* ud, uint32_t ms) { (void)ud; fake_now += ms; }
+static int rt_setup_called;
+static void rt_setup(mcs_vm_t* vm, void* ud) { (void)vm; (void)ud; rt_setup_called++; }
+
+static void test_runtime(void) {
+    static uint8_t heap[160 * 1024];
+    static mcs_hal_t hal; static mcs_hal_sim_t sim;
+    static mcs_runtime_t rt;
+    memset(&sim, 0, sizeof sim);
+    mcs_hal_sim_init(&hal, &sim);
+    mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+    cfg.heap = heap; cfg.heap_size = sizeof heap; cfg.ramfs_size = 16384;
+    cfg.console.read = rt_con_read; cfg.console.write = rt_con_write;
+    cfg.ticks = rt_ms; cfg.delay = rt_sleep;
+    cfg.echo = false; cfg.hal = &hal; cfg.setup = rt_setup;
+    outlen = 0; outbuf[0] = 0;
+    rt_script =
+        "int x = 20\n"
+        "x * 2 + 2\n"
+        "GPIO.OnChange(5, GPIO.Rising, (int p, bool v) => Console.WriteLine($\"edge {p} {v}\"));\n";
+    rt_pos = 0;
+    CHECK(mcs_runtime_start(&rt, &cfg) == 0);
+    CHECK(rt_setup_called == 1);
+    for (int i = 0; i < 3; i++) CHECK(mcs_runtime_step(&rt, 5));
+    CHECK(strstr(outbuf, "42\n") != NULL);
+    mcs_hal_sim_set_input(&sim, 5, 1);
+    outlen = 0; outbuf[0] = 0;
+    rt_script = "\x01" "ls /\n";       /* Ctrl-A: machine protocol */
+    rt_pos = 0;
+    while (mcs_runtime_step(&rt, 5)) {}
+    CHECK(strstr(outbuf, "edge 5 True\n") != NULL);
+    CHECK(strstr(outbuf, "\x04OK") != NULL);
+    CHECK(!rt.running);
+    mcs_runtime_stop(&rt);
+    CHECK(rt.vm == NULL);
+}
+#endif
+
 int main(void) {
     test_normalize();
     test_mounts();
@@ -348,9 +482,17 @@ int main(void) {
 #endif
     test_globals();
 #if MCS_ENABLE_COMPILER
+    test_sleep_limit();
+    test_arity();
+#if MCS_ENABLE_HAL
+    test_hal_events();
+#endif
     test_intern_churn();
     test_dict_index();
     test_shared_layout();
+#endif
+#if MCS_ENABLE_RUNTIME && MCS_ENABLE_COMPILER && MCS_ENABLE_HAL
+    test_runtime();
 #endif
     printf("%d/%d checks passed\n", checks - failures, checks);
     return failures != 0;

@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 3
+#define MCS_VERSION_MINOR 4
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.3.0"
+#define MCS_VERSION_STRING "1.4.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -348,6 +348,30 @@ enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
        MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
+
+/* ======================================================= 1.4 additions */
+/* Declared arity of a callable (lambda, method, delegate); -1 if variadic or
+ * not callable. Lets natives call user callbacks with the arguments they take. */
+int mcs_arity(mcs_value_t callable);
+/* Milliseconds from cfg.ticks_fn (or clock()). */
+uint32_t mcs_ticks(mcs_vm_t* vm);
+/* Sleep like Thread.Sleep: in slices of MCS_SLEEP_SLICE_MS when a hook, a time
+ * limit or an idle handler is set, so long sleeps stay abortable and events are
+ * dispatched while waiting. */
+void mcs_sleep(mcs_vm_t* vm, uint32_t ms);
+/* For natives that loop or wait for a long time: runs the abort / time-limit /
+ * hook checks. Returns non-zero when the run must stop - return from the native
+ * at once; the run then ends with MCS_ERR_ABORTED. */
+int mcs_safepoint(mcs_vm_t* vm);
+/* Idle handler called while a script sleeps (one per VM; the HAL module uses
+ * it to run GPIO / timer callbacks during Thread.Sleep). */
+typedef int (*mcs_idle_fn)(mcs_vm_t* vm, void* ud);
+void mcs_set_idle(mcs_vm_t* vm, mcs_idle_fn fn, void* ud);
+/* Scratch memory for natives from the VM's own allocator (counted against
+ * cfg.heap_limit; raises the out-of-memory error instead of returning NULL).
+ * realloc semantics: (NULL, 0, n) allocates, (p, n, 0) frees. Not GC-managed:
+ * free it before returning. */
+void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size);
 
 #ifdef __cplusplus
 }

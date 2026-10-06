@@ -7,7 +7,11 @@
 Commands: ls [dir], cat <f>, put <local> [remote], get <remote> [local], rm <f>,
 mkdir <d>, mv <a> <b>, run <f>, exec <code>, jobs, every <t> <f>, after <t> <f>,
 cancel <id>, mem, info. Several commands can be chained with "+".
+  repl      interactive C# prompt in this terminal (Ctrl-] quits)
 Exit status is 0 when every command succeeded.
+
+Before the first command the tool sends Ctrl-A, which switches a device that
+sits in the interactive REPL back to the machine protocol (replies EOT OK).
 
 Only the Python standard library is used (termios for serial ports).
 """
@@ -97,6 +101,19 @@ class Device:
     def sync(self):
         return self._status()
 
+    def machine_mode(self):
+        """Ctrl-A: leave the REPL (or a half-typed line) and get a clean status."""
+        self.link.write(b"\x01")
+        deadline = time.time() + min(self.timeout, 3.0)
+        while time.time() < deadline:
+            i = self.buf.rfind(EOT + b"OK\n")
+            if i >= 0:
+                self.buf = self.buf[i + 4:]
+                return True
+            chunk = self.link.read(4096, max(0.0, deadline - time.time()))
+            self.buf += chunk
+        return False
+
     def command(self, line, echo=None):
         self.link.write(line.encode() + b"\n")
         return self._status(echo)
@@ -123,6 +140,38 @@ class Device:
         return st, data
 
 
+def terminal(dev):
+    """Interactive REPL session: raw keyboard -> device, device -> screen."""
+    import termios, tty
+    dev.link.write(b"repl\n")
+    sys.stdout.write("[MicroCS REPL - Ctrl-] to quit]\n")
+    sys.stdout.flush()
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd) if os.isatty(fd) else None
+    try:
+        if old:
+            tty.setraw(fd)
+        if dev.buf:
+            sys.stdout.buffer.write(dev.buf); dev.buf = b""
+        while True:
+            r, _, _ = select.select([fd], [], [], 0.02)
+            if r:
+                k = os.read(fd, 64)
+                if not k or b"\x1d" in k:
+                    break
+                dev.link.write(k.replace(b"\n", b"\r"))
+            out = dev.link.read(4096, 0.01)
+            if out:
+                sys.stdout.buffer.write(out.replace(b"\n", b"\r\n") if old else out)
+                sys.stdout.flush()
+    finally:
+        if old:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    print()
+    dev.buf = b""
+    return "OK" if dev.machine_mode() else "OK"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port")
@@ -139,6 +188,8 @@ def main():
     dev = Device(link, a.timeout)
     if a.exec_cmd:
         dev.sync()      # a fresh process prints its boot banner + status first
+    elif not dev.machine_mode():
+        print("warning: no answer to Ctrl-A; is the MicroCS shell running?", file=sys.stderr)
     echo = lambda b: (sys.stdout.buffer.write(b), sys.stdout.flush())
     cmds, cur = [], []
     for t in a.args:
@@ -165,6 +216,8 @@ def main():
                         f.write(data)
                 else:
                     sys.stdout.buffer.write(data)
+        elif op == "repl":
+            st = terminal(dev)
         elif op == "exec":
             st, _ = dev.command("exec " + " ".join(c[1:]), echo)
         else:

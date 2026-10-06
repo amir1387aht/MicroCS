@@ -2,6 +2,52 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.4.0 — hardware, ports and the REPL
+
+Focus: run MicroCS on real boards with every peripheral, from any build system — either as a
+library inside existing firmware or as a complete C# firmware with a REPL.
+
+### Hardware API v2 (`modules/hal`)
+- New classes: `Pin`, `I2cDevice`, `SpiDevice`, `DAC`, `Timer`, `I2S`, `QSPI`, `CAN` + `CanFrame`,
+  `Watchdog`, `RTC`; many new members (`GPIO.OnChange/Off/PulseIn/Pin`, `UART.Open(port, baud,
+  bits, parity, stop)`, `ReadLine`, `WriteLine`, `OnReceive`, `I2C.Scan/ReadRegister(s)/WriteRegister`,
+  `SPI.Open(bus, hz, mode)`, `ADC.ReadMillivolts/ReadVoltage/ReadAverage`, `PWM.Servo/Tone/SetPulse/Stop`,
+  `Hal.Poll/Run/Micros/DelayMicroseconds/Reset/UniqueId/CpuHz/OnEvent/Post/DroppedEvents`).
+- Interrupts and timers: ISR-safe event ring (`mcs_hal_post`) or driver queue (`poll_event`);
+  callbacks run in script context and adapt to their parameter count.
+- Pin names (`"PA5"`, `"GPIO21"`, `"P0.13"`, `"LED"`) via `pin_lookup` / `mcs_hal_parse_pin`.
+- `Encoding.UTF8`/`ASCII` and `BitConverter` helpers for packet work.
+- Fixed: `GPIO.Write(pin, 0)` drove the pin high (an `int` 0 was treated as truthy).
+- The simulator board gained interrupts, timers, DAC, I²S, QSPI flash, CAN and an MPU-6050-style
+  register device. v1 board tables compile unchanged.
+
+### Ports
+- `ports/stm32` — every STM32Cube family (C0, F0–F7, G0, G4, H5, H7, L0–L5, U5, WB, WL), using
+  CubeMX handles; compile-checked against 21 family/device combinations.
+- `ports/esp32` — ESP-IDF 5.x for ESP32, S2, S3, C2, C3, C5, C6, H2, P4 (no Wi-Fi/BLE needed).
+- `ports/rp2` — RP2040 and RP2350 with the pico-sdk; example firmware for Pico and Pico 2.
+- `ports/zephyr` — devicetree-driven port + Zephyr module (beta).
+- `ports/arduino` — any 32-bit Arduino core, Arduino library packager (beta).
+- `ports/template` rewritten: every HAL member, both entry points.
+
+### Firmware runtime and REPL
+- `mcs_runtime` (`modules/runtime`): a complete firmware in one call — REPL, filesystem, boot
+  scripts, scheduler, callbacks, upload protocol; or `mcs_runtime_start/step` from your own loop.
+- Shell REPL: multi-line input, expression printing, Ctrl-C, Ctrl-E paste mode, Ctrl-A machine
+  mode, dot commands. CLI: `mcs --repl`; `tools/mcs_remote.py repl` terminal.
+- Core: `mcs_arity`, `mcs_ticks`, `mcs_sleep` (dispatches callbacks while sleeping),
+  `mcs_safepoint`, `mcs_set_idle`; `Thread.Sleep` is abortable.
+
+### Build integration
+- `CMakeLists.txt` (plain CMake, pico-sdk, CubeMX CMake, ESP-IDF component), `microcs.mk`,
+  `idf_component.yml`, `library.json` (PlatformIO), `zephyr/` module, `include/MicroCS.h`.
+- CI: CMake host build, Pico/Pico 2 firmware, ESP-IDF builds (ESP32/S3/C3/C6), STM32 port checks.
+
+### Docs and examples
+- New README (two ways to use MicroCS, build-system matrix, ports, comparison with MicroPython and
+  nanoFramework), rewritten HAL, PORTING and STANDALONE guides, a README per port.
+- 16 commented hardware examples (`examples/hardware/`) run by `make test`; `examples/quickstart_embed.c`.
+
 ## 1.3.0 — small-MCU release
 
 Focus: RAM and flash on weak microcontrollers, without changing script behaviour.

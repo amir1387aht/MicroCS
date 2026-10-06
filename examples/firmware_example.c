@@ -58,7 +58,7 @@ static mcs_value_t board_on_button(mcs_vm_t* vm, mcs_value_t self, int argc, mcs
 }
 static mcs_value_t board_name(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; (void)argv;
-    return mcs_string(vm, "SF32LB525-devkit (simulated)");
+    return mcs_string(vm, "devkit (simulated)");
 }
 static const mcs_reg_t board_fns[] = {
     MCS_FN("OnButton", board_on_button, 1),

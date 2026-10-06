@@ -13,7 +13,7 @@ flowchart TB
     VM <--> GC["precise mark & sweep<br/>(safepoints only)"]
     VM <--> STD["stdlib natives"]
     VM <--> API["public API include/mcs.h<br/>+ extension slots"]
-    API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell]
+    API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell] & RT[modules/runtime]
 ```
 
 ## Core (`src/`)
@@ -84,9 +84,12 @@ optional at link time. Each one registers C# classes with `mcs_register_module`/
   normalisation that cannot escape `/`), backends RAM (quota), POSIX (host directory),
   LittleFS (optional); C# `File`, `Directory`, `Path`. See FILESYSTEM.md.
 * `hal`: one `mcs_hal_t` function table per board; NULL entries hide the C# class.
-  Simulator backend for tests. See HAL.md.
+  ISR-safe event ring + callback dispatch at safe points, simulator backend for tests.
+  Vendor bindings live in `ports/` (STM32, ESP32, RP2, Zephyr, Arduino). See HAL.md.
 * `sched`: fixed table of jobs (file or delegate), polled by the host. See SCHEDULER.md.
-* `shell`: boot sequence and line protocol over any byte transport. See STANDALONE.md.
+* `shell`: boot sequence, interactive C# REPL and line protocol over any byte transport.
+* `runtime`: wires VM + pool heap + filesystem + HAL + scheduler + shell into a complete
+  firmware (`mcs_runtime_run`). See STANDALONE.md.
 
 ## Threading model
 One VM = one thread. The scheduler and shell never create threads; the host drives them

@@ -392,6 +392,15 @@ bool mcs_format_string(mcs_vm_t* vm, mcs_buf_t* b, const char* fmt, size_t flen,
 /* ------------------------------------------------------------ public helpers */
 bool mcs_is_string(mcs_value_t v) { return IS_STRING(v); }
 int mcs_obj_kind(mcs_value_t v) { return IS_OBJ(v) ? (int)OBJ_KIND(v) : -1; }
+int mcs_arity(mcs_value_t v) {
+    switch (mcs_obj_kind(v)) {
+    case MCS_O_CLOSURE: return ((mcs_closure_t*)AS_OBJ(v))->fn->arity;
+    case MCS_O_FUNCTION: return ((mcs_function_t*)AS_OBJ(v))->arity;
+    case MCS_O_NATIVE: return ((mcs_native_t*)AS_OBJ(v))->arity < 0 ? -1 : ((mcs_native_t*)AS_OBJ(v))->arity;
+    case MCS_O_BOUND: return mcs_arity(((mcs_bound_t*)AS_OBJ(v))->method);
+    default: return -1;
+    }
+}
 mcs_value_t mcs_string(mcs_vm_t* vm, const char* s) { return OBJ_VAL(mcs_intern_c(vm, s)); }
 mcs_value_t mcs_string_n(mcs_vm_t* vm, const char* s, size_t n) { return OBJ_VAL(mcs_intern(vm, s, n)); }
 const char* mcs_cstr(mcs_value_t v) { return IS_STRING(v) ? AS_CSTR(v) : NULL; }

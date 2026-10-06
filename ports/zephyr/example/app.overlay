@@ -1,0 +1,9 @@
+/* Optional: tell MicroCS which ADC channels and PWM outputs C# may use.
+ * ADC.Read(0) = first io-channels entry, PWM.Set(0, ...) = first pwms entry.
+ * (Adapt the phandles to your board; this matches the nRF52840 DK.) */
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>;
+		pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+	};
+};

@@ -2,6 +2,7 @@
 #include "mcs_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #if MCS_ENABLE_FLOAT
 #include <math.h>
 #endif
@@ -775,7 +776,7 @@ static uint32_t hook_budget(mcs_vm_t* vm) {
 /* Called every hook_reload safepoints. Non-zero = abort the run. */
 static int hook_tick(mcs_vm_t* vm) {
     vm->steps_used += vm->hook_reload;
-    if (vm->abort_req) { vm->abort_reason = MCS_ABORT_REQUEST; return 1; }
+    if (vm->abort_req) { vm->abort_reason = vm->abort_hint ? vm->abort_hint : MCS_ABORT_REQUEST; vm->abort_hint = 0; return 1; }
     if (vm->limits.steps && vm->steps_used >= vm->limits.steps) { vm->abort_reason = MCS_ABORT_STEPS; return 1; }
     if (vm->limits.time_ms && vm->cfg.ticks_fn &&
         (uint32_t)(vm->cfg.ticks_fn(vm->cfg.user_data) - vm->run_start) >= vm->limits.time_ms) {
@@ -814,6 +815,8 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     mcs_value_t a, b, r;
     if (vm->run_depth == 0) {
         vm->steps_used = 0;
+        /* a budget overrun detected inside a native of the previous run must not leak into this one */
+        if (vm->abort_hint) { vm->abort_req = false; vm->abort_hint = 0; }
         if (vm->limits.time_ms && vm->cfg.ticks_fn) vm->run_start = vm->cfg.ticks_fn(vm->cfg.user_data);
         if (!vm->abort_req) vm->hook_counter = vm->hook_reload = hook_budget(vm);
     }
@@ -1525,6 +1528,45 @@ mcs_result_t mcs_disassemble_image(mcs_vm_t* vm, const uint8_t* image, size_t le
 
 const char* mcs_last_error(mcs_vm_t* vm) { return vm->error; }
 void mcs_request_abort(mcs_vm_t* vm) { vm->abort_req = true; vm->hook_counter = 1; }
+
+int mcs_safepoint(mcs_vm_t* vm) {
+    if (vm->abort_req) return 1;
+    uint8_t why = 0;
+    if (vm->limits.time_ms && vm->cfg.ticks_fn && vm->run_depth > 0 &&
+        (uint32_t)(vm->cfg.ticks_fn(vm->cfg.user_data) - vm->run_start) >= vm->limits.time_ms) why = MCS_ABORT_TIME;
+    else if (vm->cfg.hook_fn && vm->cfg.hook_fn(vm, vm->cfg.user_data)) why = MCS_ABORT_HOOK;
+    if (!why) return 0;
+    vm->abort_hint = why;
+    vm->abort_req = true;
+    vm->hook_counter = 1;        /* the interpreter aborts at its next safepoint */
+    return 1;
+}
+
+uint32_t mcs_ticks(mcs_vm_t* vm) {
+    if (vm->cfg.ticks_fn) return vm->cfg.ticks_fn(vm->cfg.user_data);
+    return (uint32_t)((uint64_t)clock() * 1000u / CLOCKS_PER_SEC);
+}
+
+void mcs_set_idle(mcs_vm_t* vm, mcs_idle_fn fn, void* ud) { vm->idle_fn = fn; vm->idle_ud = ud; }
+
+void mcs_sleep(mcs_vm_t* vm, uint32_t ms) {
+    bool sliced = vm->idle_fn || vm->cfg.hook_fn || vm->limits.time_ms || !vm->cfg.delay_fn;
+    if (!sliced) { vm->cfg.delay_fn(vm->cfg.user_data, ms); return; }
+    uint32_t start = mcs_ticks(vm), left = ms;
+    for (;;) {
+        if (vm->idle_fn) { vm->idle_fn(vm, vm->idle_ud); if (vm->has_exc) return; }
+        if (mcs_safepoint(vm)) return;
+        if (vm->cfg.ticks_fn) {
+            uint32_t el = mcs_ticks(vm) - start;
+            if (el >= ms) return;
+            left = ms - el;
+        } else if (!left) return;
+        uint32_t step = left < MCS_SLEEP_SLICE_MS ? left : MCS_SLEEP_SLICE_MS;
+        if (vm->cfg.delay_fn) vm->cfg.delay_fn(vm->cfg.user_data, step);
+        else { uint32_t t0 = mcs_ticks(vm); while ((uint32_t)(mcs_ticks(vm) - t0) < step) {} }
+        if (!vm->cfg.ticks_fn) left -= step;
+    }
+}
 void mcs_set_limits(mcs_vm_t* vm, const mcs_limits_t* l) {
     if (l) vm->limits = *l; else memset(&vm->limits, 0, sizeof vm->limits);
 }

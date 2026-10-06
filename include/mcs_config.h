@@ -168,6 +168,13 @@
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
 #endif
+#ifndef MCS_ENABLE_RUNTIME
+#define MCS_ENABLE_RUNTIME MCS_ENABLE_SHELL /* mcs_runtime_run(): whole firmware in one call */
+#endif
+#if MCS_ENABLE_RUNTIME && !MCS_ENABLE_SHELL
+#undef MCS_ENABLE_RUNTIME
+#define MCS_ENABLE_RUNTIME 0       /* the runtime is built on the shell */
+#endif
 
 /* Size of the last-error message buffer inside the VM (mcs_last_error). */
 #ifndef MCS_ERROR_SIZE
@@ -176,6 +183,10 @@
 /* Persistent handles available to C code via mcs_pin(). */
 #ifndef MCS_MAX_PINS
 #define MCS_MAX_PINS 16
+#endif
+
+#ifndef MCS_SLEEP_SLICE_MS
+#define MCS_SLEEP_SLICE_MS 10      /* Thread.Sleep granularity for abort checks / event dispatch */
 #endif
 
 #ifndef MCS_STACK_MARGIN

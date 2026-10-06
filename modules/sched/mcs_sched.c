@@ -6,6 +6,9 @@
 #if MCS_ENABLE_FS
 #include "mcs_vfs.h"
 #endif
+#if MCS_ENABLE_HAL
+#include "mcs_hal.h"
+#endif
 
 static uint32_t now(mcs_sched_t* s) { return s->ticks ? s->ticks(s->ticks_ud) : 0; }
 
@@ -131,7 +134,11 @@ void mcs_sched_run(mcs_sched_t* s, mcs_delay_fn delay, void* ud, volatile int* s
         if (next < 0) break;
         uint32_t elapsed = now(s) - start;
         if (run_for && elapsed >= run_for) break;
-        uint32_t sl = (uint32_t)next < max_sleep ? (uint32_t)next : max_sleep;
+        uint32_t cap = max_sleep;
+#if MCS_ENABLE_HAL
+        if (mcs_hal_get(s->vm)) { mcs_hal_poll(s->vm); if (cap > MCS_SLEEP_SLICE_MS) cap = MCS_SLEEP_SLICE_MS; }  /* GPIO / timer callbacks */
+#endif
+        uint32_t sl = (uint32_t)next < cap ? (uint32_t)next : cap;
         if (run_for && sl > run_for - elapsed) sl = run_for - elapsed;
         if (sl && delay) delay(ud, sl);
     }

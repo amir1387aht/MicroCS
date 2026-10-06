@@ -27,7 +27,7 @@ m0-lowram_F  := $(M0)  -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' 
 m0-lowram_M  := FLASH_SIZE=256K RAM_SIZE=64K
 m4-full_F    := $(M4)  -DCM_HEAP_SIZE=163840
 m4-full_M    := FLASH_SIZE=512K RAM_SIZE=192K
-# m33: sized like SiFli SF32LB525 (Cortex-M33, 512 KB SRAM); heap kept at 256 KB
+# m33: sized like a Cortex-M33 part with 512 KB SRAM (STM32H5/U5, RP2350 class); heap kept at 256 KB
 m33-full_F   := $(M33) -DCM_HEAP_SIZE=262144
 m33-full_M   := FLASH_SIZE=1024K RAM_SIZE=512K
 m33-shell_F  := $(M33) -DCM_HEAP_SIZE=262144 -DCM_SHELL=1 -DCM_RAMFS_SIZE=32768

@@ -14,6 +14,13 @@
  *     put <path> <len>   -> "\x04READY", then exactly <len> raw bytes, -> "\x04OK"
  *     get <path>         -> "\x04DATA <len>", <len> raw bytes, "\x04OK"
  * A 0x03 byte (Ctrl-C) received while a script runs stops it.
+ *
+ * Interactive REPL (MCS_SHELL_REPL_MAX > 0): the `repl` command - or
+ * sh->repl = true before mcs_shell_boot() - turns the session into a C# prompt
+ * for humans on a serial terminal: multi-line input, expressions are printed,
+ * Ctrl-E paste mode (Ctrl-D runs), Ctrl-C clears, dot commands (.help, .ls,
+ * .run, ...). Ctrl-A (0x01) always returns to the machine protocol and replies
+ * "\x04OK", so tools can take over from any state.
  * See docs/STANDALONE.md and tools/mcs_remote.py.
  */
 #ifndef MCS_SHELL_H
@@ -25,6 +32,9 @@ extern "C" {
 
 #ifndef MCS_SHELL_LINE_MAX
 #define MCS_SHELL_LINE_MAX 256
+#endif
+#ifndef MCS_SHELL_REPL_MAX
+#define MCS_SHELL_REPL_MAX 1024    /* multi-line REPL input buffer; 0 removes the REPL */
 #endif
 
 typedef struct {
@@ -48,6 +58,15 @@ typedef struct mcs_shell {
     uint16_t in_pos, in_len;
     bool quit;
     bool overflow;
+    /* interactive REPL */
+    bool repl;                  /* REPL mode active (set before boot to start in it) */
+    bool echo;                  /* echo typed characters + line editing (raw UART terminals) */
+    bool paste;                 /* Ctrl-E paste mode */
+    bool last_cr;
+#if MCS_SHELL_REPL_MAX > 0
+    char code[MCS_SHELL_REPL_MAX];
+    size_t code_len;
+#endif
 } mcs_shell_t;
 
 void mcs_shell_init(mcs_shell_t* sh, mcs_vm_t* vm, struct mcs_vfs* vfs, struct mcs_sched* sched, mcs_transport_t t);
@@ -58,6 +77,16 @@ bool mcs_shell_step(mcs_shell_t* sh, uint32_t timeout_ms);
 void mcs_shell_run(mcs_shell_t* sh);
 /* Call from cfg.hook_fn: returns 1 if Ctrl-C arrived on the transport. */
 int mcs_shell_poll_break(mcs_vm_t* vm);
+/* Switch between the interactive REPL and the machine protocol. */
+void mcs_shell_set_repl(mcs_shell_t* sh, bool on);
+
+/* REPL helpers (also used by the host CLI):
+ * mcs_repl_complete: false while brackets / strings / comments are still open.
+ * mcs_repl_prepare: turns one REPL entry into a program - a bare expression
+ *   becomes Console.WriteLine(expr); a statement without ';' gets one.
+ *   Returns the length written to out, or -1 if it does not fit. */
+bool mcs_repl_complete(const char* src, size_t len);
+int mcs_repl_prepare(const char* src, size_t len, char* out, size_t cap);
 
 #ifdef __cplusplus
 }

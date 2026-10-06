@@ -7,10 +7,14 @@ number or "supported" claim in the docs points at a test or a measurement.
 
 | Command | What it runs | Needs |
 |---|---|---|
-| `make test` | 46 script runs (14 programs as **source**, as a copied **bytecode image** and as an image **executed in place**, plus 4 diagnostics tests), 104 C unit checks, 16 shell-protocol checks, the examples (incl. `examples/lowram` built with the lowram profile) | C compiler, python3 |
+| `make test` | 52 script runs (16 programs as **source**, as a copied **bytecode image** and as an image **executed in place**, plus 4 diagnostics tests), 141 C unit checks (incl. `test_runtime`), 16 shell-protocol checks, the examples (`tour.cs` byte-exact, every `examples/hardware/*.cs` script on the simulator, `examples/quickstart_embed.c`, `examples/lowram` built with the lowram profile) | C compiler, python3 |
 | `make check` | `make test` + GC-stress build (collect at every safepoint) running every `t*.cs` + 22 feature-flag / profile builds with `-Werror` + the whole script suite under 5 alternative configurations (`ALT_CONFIGS`: compact values, no XIP, big tables, no computed goto / field cache, tiny GC threshold + 16-byte pool alignment) | same |
 | `make lfs-test` | LittleFS backend on a RAM block device: mount, remount, ENOSPC, atomic upload | curl (downloads littlefs 2.9.3) |
-| `make cm-check` | builds 6 Cortex-M firmwares, runs 5 in the Unicorn emulator (`m0-runtime`, `m0-lowram`, `m0-node`, `m4-full`, `m33-full`; output must equal the host byte-for-byte), 7 UART protocol checks on the M33 shell build | `arm-none-eabi-gcc`, `pip3 install unicorn` |
+| `make cm-check` | builds 6 Cortex-M firmwares and executes 5 of them instruction by instruction (`m0-runtime`, `m0-lowram`, `m0-node`, `m4-full`, `m33-full`; output must equal the host byte-for-byte), 7 UART protocol checks on the M33 shell build | `arm-none-eabi-gcc`, `pip3 install unicorn` |
+| `tools/check_ports.sh stm32 <family> <device> <cpu>` | compiles the STM32 port and its example with `-Werror` against the official STM32Cube HAL headers (downloaded into `build/sdk`) | `arm-none-eabi-gcc`, git |
+| CI `pico` job | builds `ports/rp2/example` for `pico` (RP2040) and `pico2` (RP2350) with the pico-sdk | — |
+| CI `esp-idf` job | builds `ports/esp32/example` for ESP32, ESP32-S3, ESP32-C3, ESP32-C6 in the `espressif/idf:v5.3.2` container | — |
+| CI `cmake` job | configures and builds the library + CLI with CMake and runs a script | cmake |
 | `tools/verify_dotnet.sh` | compiles `t02 t05 t10 t11 t13 t14` and `examples/tour.cs` with **.NET 8** and diffs the output against MicroCS's `.out` | `dotnet` 8+ |
 | `make asan-test` | the whole suite under AddressSanitizer + UBSan | gcc/clang with sanitizers |
 | `python3 tools/fuzz.py` | mutation fuzzer (source or images), see below | a sanitizer build |
@@ -27,13 +31,15 @@ number or "supported" claim in the docs points at a test or a measurement.
 | `t05_functional` | lambdas, closures, delegates, events, local functions *(.NET-identical)* |
 | `t06_gc_stress` | allocation churn in a small heap |
 | `t07_filesystem` | `File`, `Directory`, `Path` on a RAM filesystem |
-| `t08_hal` | GPIO/UART/I2C/SPI/ADC/PWM against the simulator |
+| `t08_hal` | GPIO/UART/I2C/SPI/ADC/PWM against the simulator (HAL v1 API, kept for compatibility) |
 | `t09_scheduler` | periodic / one-shot / file jobs |
 | `t10_lang_phase2` | `ref`/`out`/`in`, `case` patterns *(.NET-identical)* |
 | `t11_tuples_ranges` | tuples, deconstruction, `^` and ranges, `sizeof`, nullable members *(.NET-identical)* |
 | `t12_memory_churn` | 300 k temporary strings in a 128 KB heap (intern-table regression) |
 | `t13_stdlib_more` | `Zip`, `Chunk`, `TryPop`/`TryDequeue`, `is` patterns, tuple names *(.NET-identical)* |
 | `t14_low_resource` | exceptions derived from built-ins (`: IOException` with fields and `base(msg)`), many globals, string churn, dictionary index widths and removal order, LINQ / sequence arguments on `HashSet` `Stack` `Queue` `Dictionary` *(.NET-identical)* |
+| `t15_hal_v2` | HAL v2: `Pin`, pin names, interrupts (1- and 2-argument handlers), timers, user events, UART frames/`ReadLine`/`OnReceive`, `I2cDevice` registers, `SpiDevice`, ADC/DAC, PWM servo/tone, I²S, QSPI flash, CAN frames, watchdog, RTC, `Hal.*` |
+| `t16_bytes` | `Encoding.UTF8`/`ASCII`, `BitConverter` |
 | `err_*` | compile errors, runtime errors, member errors, limits — exact diagnostics |
 
 A test can pass CLI options on its first line: `// args: --heap 131072`.
@@ -41,7 +47,7 @@ A test can pass CLI options on its first line: `// args: --heap 131072`.
 image twice — copied (`mcs_exec_image`) and executed in place (`mcs --xip`,
 `mcs_exec_image_xip`); all three outputs must match the `.out` file.
 
-## Emulator profiling
+## Instruction-level profiling (Cortex-M)
 
 `tools/cm_emu.py ELF --cpu m0 --profile 20` prints the 20 functions that executed the most
 instructions; `--callers memcpy` lists who calls a symbol. Use it after `make cm` to find

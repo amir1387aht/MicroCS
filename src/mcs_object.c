@@ -47,6 +47,10 @@ void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
     return r;
 }
 
+void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size) {
+    return mcs_realloc(vm, p, old_size, new_size);
+}
+
 /* ============================================================== pool heap */
 #if MCS_ENABLE_POOL_HEAP
 typedef struct pool_blk { size_t size; struct pool_blk* next; } pool_blk_t;

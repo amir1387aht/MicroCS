@@ -1,4 +1,4 @@
-board sim gpio=True can=False
+board sim gpio=True ble=False
 led True button True
 led True
 uart avail 4 -> ping

@@ -1,0 +1,40 @@
+{
+  "name": "MicroCS",
+  "version": "1.4.0",
+  "description": "C# scripting engine and firmware runtime for microcontrollers: REPL, filesystem, scheduler, GPIO/UART/I2C/SPI/ADC/DAC/PWM/Timer/I2S/QSPI/CAN classes. Runs on ESP32, STM32, RP2040/RP2350, nRF, SAMD and any Cortex-M or RISC-V MCU.",
+  "keywords": "csharp, c#, scripting, interpreter, repl, vm, embedded, esp32, stm32, rp2040",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/amir1387aht/MicroCS.git"
+  },
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": [
+    "mcs.h",
+    "mcs_runtime.h",
+    "mcs_hal.h"
+  ],
+  "build": {
+    "includeDir": "include",
+    "srcDir": ".",
+    "extraScript": "tools/pio_build.py",
+    "libArchive": false
+  },
+  "export": {
+    "include": [
+      "include",
+      "src",
+      "modules",
+      "ports",
+      "examples",
+      "docs",
+      "LICENSE",
+      "README.md",
+      "library.json"
+    ]
+  },
+  "examples": [
+    "ports/arduino/examples/*/*.ino"
+  ]
+}
