@@ -89,6 +89,7 @@ static char* decode_str(parser_t* P, const char* s, size_t len, bool verbatim, b
 }
 
 uint8_t mcs_prim_of(const char* s, uint32_t n, uint8_t* conv) {
+    if (n < 3 || n > 7) { if (conv) *conv = 0xff; return PT_ANY; }   /* all names are 3..7 chars */
     static const struct { const char* name; uint8_t pt, cv; } tab[] = {
         {"int", PT_INT, CV_INT}, {"Int32", PT_INT, CV_INT}, {"long", PT_INT, CV_INT}, {"Int64", PT_INT, CV_INT},
         {"uint", PT_INT, CV_UINT}, {"UInt32", PT_INT, CV_UINT}, {"ulong", PT_INT, CV_INT}, {"nint", PT_INT, CV_INT},
@@ -102,7 +103,7 @@ uint8_t mcs_prim_of(const char* s, uint32_t n, uint8_t* conv) {
         {NULL, 0, 0}
     };
     for (int i = 0; tab[i].name; i++)
-        if (strlen(tab[i].name) == n && memcmp(tab[i].name, s, n) == 0) { if (conv) *conv = tab[i].cv; return tab[i].pt; }
+        if (tab[i].name[0] == s[0] && strncmp(tab[i].name, s, n) == 0 && tab[i].name[n] == 0) { if (conv) *conv = tab[i].cv; return tab[i].pt; }
     if (conv) *conv = 0xff;
     return PT_ANY;
 }

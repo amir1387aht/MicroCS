@@ -1,7 +1,7 @@
 /* MicroCS - arrays, List<T>, Dictionary<K,V>, HashSet<T>, Stack<T>,
  * Queue<T> and LINQ-style sequence operators (Where, Select, OrderBy...). */
 #include "mcs_lib.h"
-#if (!MCS_ENABLE_LIST || !MCS_ENABLE_DICT) && defined(__GNUC__)
+#if (!MCS_ENABLE_LIST || !MCS_ENABLE_DICT || !MCS_ENABLE_LINQ) && defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-const-variable"
 #endif
@@ -463,6 +463,7 @@ NATIVE(seq_aggregate) {
 }
 NATIVE(seq_sequenceequal) {
     SELF_SEQ();
+    lib_seq_arg(vm, &argv[0], true);
     if (!lib_is_seq(argv[0])) return mcs_bool(false);
     mcs_list_t* o = AS_LIST(argv[0]);
     if (o->count != l->count) return mcs_bool(false);
@@ -471,6 +472,7 @@ NATIVE(seq_sequenceequal) {
 }
 NATIVE(seq_zip) { /* Zip(second) -> (First, Second) tuples; Zip(second, (a, b) => ...) */
     SELF_SEQ();
+    if (argc >= 1) lib_seq_arg(vm, &argv[0], true);
     if (argc < 1 || !lib_is_seq(argv[0])) { mcs_throw(vm, EXC_ARGNULL, "Value cannot be null. (Parameter 'second')"); return mcs_null(); }
     bool sel = argc >= 2;
     if (sel && !need_fn(vm, argc, argv, 1, "resultSelector")) return mcs_null();
@@ -500,6 +502,7 @@ NATIVE(seq_chunk) { /* Chunk(size) -> List of arrays */
 }
 NATIVE(seq_concat) {
     SELF_SEQ();
+    lib_seq_arg(vm, &argv[0], true);
     if (!lib_is_seq(argv[0])) { mcs_throw(vm, EXC_ARGNULL, "Value cannot be null. (Parameter 'second')"); return mcs_null(); }
     mcs_list_t* b = AS_LIST(argv[0]);
     vm->gc_pause++;
@@ -700,7 +703,25 @@ NATIVE(arrs_convertall) {
 NATIVE(arrs_empty) { return OBJ_VAL(mcs_new_listobj(vm, MCS_O_ARRAY, 0)); }
 
 /* ------------------------------------------------------------ List */
+#if MCS_ENABLE_DICT
+static mcs_value_t dict_list(mcs_vm_t* vm, mcs_dict_t* d, int which);
+#endif
+void lib_seq_arg(mcs_vm_t* vm, mcs_value_t* v, bool dicts) {
+#if MCS_ENABLE_DICT
+    if (dicts && IS_KIND(*v, MCS_O_DICT)) { *v = dict_list(vm, AS_DICT(*v), 2); return; }
+#else
+    (void)dicts;
+#endif
+    if (!IS_KIND(*v, MCS_O_INSTANCE)) return;
+    mcs_instance_t* in = AS_INSTANCE(*v);
+    if (in->cls->ckind != CLS_BUILTIN || in->cls->field_count < 1) return;
+    if (!IS_KIND(in->fields[0], MCS_O_LIST) && !IS_KIND(in->fields[0], MCS_O_DICT)) return;
+    mcs_value_t m;
+    if (mcs_cls_get(vm, in->cls, MCS_TAB_METHODS, mcs_intern_c(vm, "ToArray"), &m) && IS_KIND(m, MCS_O_NATIVE))
+        *v = AS_NATIVE(m)->fn(vm, *v, 0, NULL);
+}
 NATIVE(list_new) {
+    if (argc >= 1) lib_seq_arg(vm, &argv[0], false);
     vm->gc_pause++;
     mcs_list_t* o = mcs_new_listobj(vm, MCS_O_LIST, 0);
     vm->gc_pause--;
@@ -729,6 +750,7 @@ NATIVE(list_capacity) { SELF_SEQ(); return mcs_int((mcs_int_t)l->cap); }
 NATIVE(list_add) { SELF_LIST(); mcs_listobj_push(vm, l, argv[0]); return mcs_null(); }
 NATIVE(list_addrange) {
     SELF_LIST();
+    lib_seq_arg(vm, &argv[0], false);
     if (lib_is_seq(argv[0])) {
         mcs_list_t* s = AS_LIST(argv[0]);
         uint32_t n = s->count; /* AddRange(self) safe */
@@ -848,27 +870,36 @@ static const mcs_reg_t enumerable_fns[] = {
     MCS_FN("Range", enum_range, 2), MCS_FN("Repeat", enum_repeat, 2), MCS_FN("Empty", enum_empty, 0), MCS_REG_END
 };
 
-/* sequence operators shared by arrays and lists */
-#define SEQ_REGS \
+/* sequence operators shared by arrays and lists. The List<T>/Array instance
+ * methods are always present; the LINQ operators can be dropped with
+ * MCS_ENABLE_LINQ=0 to save flash on small parts. */
+#define SEQ_BASE_REGS \
     MCS_FN("GetEnumerator", seq_getenum, 0), MCS_FN("Contains", seq_contains, 1), MCS_FN("IndexOf", seq_indexof, -1), \
-    MCS_FN("LastIndexOf", seq_lastindexof, 1), MCS_FN("Where", seq_where, 1), MCS_FN("Select", seq_select, 1), \
+    MCS_FN("LastIndexOf", seq_lastindexof, 1), MCS_FN("ToList", seq_tolist, 0), MCS_FN("ToArray", seq_toarray, 0), \
+    MCS_FN("ForEach", seq_foreach, 1), \
+    MCS_FN("Find", seq_firstordefault, 1), MCS_FN("FindLast", seq_lastordefault, 1), MCS_FN("FindIndex", seq_findindex, 1), \
+    MCS_FN("FindLastIndex", seq_findlastindex, 1), MCS_FN("FindAll", seq_findall, 1), MCS_FN("Exists", seq_any, 1), \
+    MCS_FN("TrueForAll", seq_all, 1), MCS_FN("ConvertAll", seq_select, 1), MCS_FN("CopyTo", seq_copyto, -1), \
+    MCS_FN("BinarySearch", seq_binarysearch, -1), MCS_FN("Cast", seq_tolist, 0), MCS_FN("AsEnumerable", seq_getenum, 0)
+#if MCS_ENABLE_LINQ
+#define SEQ_REGS SEQ_BASE_REGS, \
+    MCS_FN("Where", seq_where, 1), MCS_FN("Select", seq_select, 1), \
     MCS_FN("SelectMany", seq_selectmany, 1), MCS_FN("Any", seq_any, -1), MCS_FN("All", seq_all, 1), MCS_FN("Count", seq_count, -1), \
     MCS_FN("Sum", seq_sum, -1), MCS_FN("Min", seq_min, -1), MCS_FN("Max", seq_max, -1), MCS_FN("MinBy", seq_minby, 1), \
     MCS_FN("MaxBy", seq_maxby, 1), MCS_FN("First", seq_first, -1), MCS_FN("FirstOrDefault", seq_firstordefault, -1), \
     MCS_FN("Last", seq_last, -1), MCS_FN("LastOrDefault", seq_lastordefault, -1), MCS_FN("Single", seq_single, -1), \
     MCS_FN("ElementAt", seq_elementat, 1), MCS_FN("ElementAtOrDefault", seq_elementatordefault, 1), \
     MCS_FN("OrderBy", seq_orderby, -1), MCS_FN("OrderByDescending", seq_orderbydesc, -1), MCS_FN("Order", seq_order, 0), MCS_FN("ThenBy", seq_thenby, 1), MCS_FN("ThenByDescending", seq_thenbydesc, 1), \
-    MCS_FN("OrderDescending", seq_orderdesc, 0), MCS_FN("ToList", seq_tolist, 0), MCS_FN("ToArray", seq_toarray, 0), \
+    MCS_FN("OrderDescending", seq_orderdesc, 0), \
     MCS_FN("Skip", seq_skip, 1), MCS_FN("Take", seq_take, 1), MCS_FN("SkipWhile", seq_skipwhile, 1), MCS_FN("TakeWhile", seq_takewhile, 1), \
     MCS_FN("Distinct", seq_distinct, 0), MCS_FN("DistinctBy", seq_distinct, 1), MCS_FN("Aggregate", seq_aggregate, -1), \
     MCS_FN("SequenceEqual", seq_sequenceequal, 1), MCS_FN("Concat", seq_concat, 1), MCS_FN("Append", seq_append, 1), \
     MCS_FN("Zip", seq_zip, -1), MCS_FN("Chunk", seq_chunk, 1), \
-    MCS_FN("ToDictionary", seq_todictionary, -1), MCS_FN("GroupBy", seq_groupby, 1), MCS_FN("ForEach", seq_foreach, 1), \
-    MCS_FN("Find", seq_firstordefault, 1), MCS_FN("FindLast", seq_lastordefault, 1), MCS_FN("FindIndex", seq_findindex, 1), \
-    MCS_FN("FindLastIndex", seq_findlastindex, 1), MCS_FN("FindAll", seq_findall, 1), MCS_FN("Exists", seq_any, 1), \
-    MCS_FN("TrueForAll", seq_all, 1), MCS_FN("ConvertAll", seq_select, 1), MCS_FN("CopyTo", seq_copyto, -1), \
-    MCS_FN("BinarySearch", seq_binarysearch, -1), MCS_FN("Cast", seq_tolist, 0), MCS_FN("AsEnumerable", seq_getenum, 0)
-#if MCS_ENABLE_FLOAT
+    MCS_FN("ToDictionary", seq_todictionary, -1), MCS_FN("GroupBy", seq_groupby, 1)
+#else
+#define SEQ_REGS SEQ_BASE_REGS
+#endif
+#if MCS_ENABLE_FLOAT && MCS_ENABLE_LINQ
 #define SEQ_FLOAT_REGS MCS_FN("Average", seq_average, -1),
 #else
 #define SEQ_FLOAT_REGS
@@ -915,7 +946,7 @@ NATIVE(dict_new) {
     mcs_dict_t* d = mcs_new_dict(vm);
     if (argc >= 1 && IS_KIND(argv[0], MCS_O_DICT)) {
         mcs_dict_t* s = AS_DICT(argv[0]);
-        for (uint32_t i = 0; i < s->count; i++) mcs_dict_set(vm, d, s->keys[i], s->vals[i]);
+        for (uint32_t i = 0; i < s->count; i++) mcs_dict_set(vm, d, s->keys[i], DICT_VAL(s, i));
     }
     vm->gc_pause--;
     return OBJ_VAL(d);
@@ -926,10 +957,10 @@ static mcs_value_t dict_list(mcs_vm_t* vm, mcs_dict_t* d, int which) {
     mcs_list_t* o = mcs_new_listobj(vm, MCS_O_LIST, d->count);
     for (uint32_t i = 0; i < d->count; i++) {
         if (which == 0) o->items[i] = d->keys[i];
-        else if (which == 1) o->items[i] = d->vals[i];
+        else if (which == 1) o->items[i] = DICT_VAL(d, i);
         else {
             mcs_instance_t* kv = mcs_new_instance(vm, vm->cls_kvp);
-            kv->fields[0] = d->keys[i]; kv->fields[1] = d->vals[i];
+            kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
             o->items[i] = OBJ_VAL(kv);
         }
     }
@@ -967,7 +998,7 @@ NATIVE(dict_trygetvalue) { /* TryGetValue(key, out value); missing key stores nu
 }
 NATIVE(dict_containsvalue) {
     SELF_DICT();
-    for (uint32_t i = 0; i < d->count; i++) { if (lib_equals(vm, d->vals[i], argv[0])) return mcs_bool(true); CHECK(); }
+    for (uint32_t i = 0; i < d->count; i++) { if (lib_equals(vm, DICT_VAL(d, i), argv[0])) return mcs_bool(true); CHECK(); }
     return mcs_bool(false);
 }
 NATIVE(dict_remove) { SELF_DICT(); if (!key_ok(vm, argv[0])) return mcs_null(); return mcs_bool(mcs_dict_remove(vm, d, argv[0])); }
@@ -980,39 +1011,52 @@ NATIVE(dict_getordefault) {
     return argc > 1 ? argv[1] : mcs_null();
 }
 NATIVE(dict_getenum) { return self; }
-/* LINQ on dictionaries: materialise KeyValuePairs then forward */
-#define DICT_LINQ(fname, target) NATIVE(fname) { \
-    SELF_DICT(); mcs_value_t lst = dict_list(vm, d, 2); mcs_push_root(vm, lst); \
+/* Dictionary.ForEach is not LINQ: always available */
+NATIVE(dict_foreach) {
+    SELF_DICT(); mcs_value_t lst = dict_list(vm, d, 2); mcs_push_root(vm, lst);
+    mcs_value_t r = seq_foreach(vm, lst, argc, argv); mcs_pop_root(vm, 1); return r; }
+#if MCS_ENABLE_LINQ
+/* LINQ on Dictionary / HashSet / Stack / Queue: materialise a snapshot of the
+ * sequence (KeyValuePairs for dictionaries, enumeration order for the wrapper
+ * collections) and forward to the List<T> operator. Operators never mutate the
+ * receiver, so working on a snapshot is equivalent. */
+static mcs_value_t coll_snapshot(mcs_vm_t* vm, mcs_value_t self) {
+    if (IS_KIND(self, MCS_O_DICT)) return dict_list(vm, AS_DICT(self), 2);
+    mcs_value_t m;
+    if (IS_KIND(self, MCS_O_INSTANCE) && mcs_cls_get(vm, AS_INSTANCE(self)->cls, MCS_TAB_METHODS, mcs_intern_c(vm, "ToArray"), &m) && IS_KIND(m, MCS_O_NATIVE))
+        return AS_NATIVE(m)->fn(vm, self, 0, NULL);
+    mcs_throw(vm, EXC_INVOP, "sequence expected");
+    return mcs_null();
+}
+#define LINQ_FWD_OPS(X) \
+    X(Where, seq_where, 1) X(Select, seq_select, 1) X(SelectMany, seq_selectmany, 1) X(Any, seq_any, -1) \
+    X(All, seq_all, 1) X(Count, seq_count, -1) X(Sum, seq_sum, -1) X(Min, seq_min, -1) X(Max, seq_max, -1) \
+    X(MinBy, seq_minby, 1) X(MaxBy, seq_maxby, 1) X(First, seq_first, -1) X(FirstOrDefault, seq_firstordefault, -1) \
+    X(Last, seq_last, -1) X(LastOrDefault, seq_lastordefault, -1) X(Single, seq_single, -1) X(ElementAt, seq_elementat, 1) \
+    X(ElementAtOrDefault, seq_elementatordefault, 1) X(OrderBy, seq_orderby, -1) X(OrderByDescending, seq_orderbydesc, -1) \
+    X(Order, seq_order, 0) X(OrderDescending, seq_orderdesc, 0) X(Skip, seq_skip, 1) X(Take, seq_take, 1) \
+    X(SkipWhile, seq_skipwhile, 1) X(TakeWhile, seq_takewhile, 1) X(Distinct, seq_distinct, 0) X(DistinctBy, seq_distinct, 1) \
+    X(Aggregate, seq_aggregate, -1) X(SequenceEqual, seq_sequenceequal, 1) X(Concat, seq_concat, 1) X(Append, seq_append, 1) \
+    X(Zip, seq_zip, -1) X(Chunk, seq_chunk, 1) X(ToDictionary, seq_todictionary, -1) X(GroupBy, seq_groupby, 1)
+#define LINQ_FWD_FN(name, target, arity) NATIVE(fwd_##name) { \
+    mcs_value_t lst = coll_snapshot(vm, self); CHECK(); mcs_push_root(vm, lst); \
     mcs_value_t r = target(vm, lst, argc, argv); mcs_pop_root(vm, 1); return r; }
-DICT_LINQ(dict_where, seq_where)
-DICT_LINQ(dict_select, seq_select)
-DICT_LINQ(dict_any, seq_any)
-DICT_LINQ(dict_all, seq_all)
-DICT_LINQ(dict_countm, seq_count)
-DICT_LINQ(dict_sum, seq_sum)
-DICT_LINQ(dict_min, seq_min)
-DICT_LINQ(dict_max, seq_max)
-DICT_LINQ(dict_first, seq_first)
-DICT_LINQ(dict_firstordefault, seq_firstordefault)
-DICT_LINQ(dict_orderby, seq_orderby)
-DICT_LINQ(dict_orderbydesc, seq_orderbydesc)
-DICT_LINQ(dict_todictionary, seq_todictionary)
-DICT_LINQ(dict_aggregate, seq_aggregate)
-DICT_LINQ(dict_foreach, seq_foreach)
-DICT_LINQ(dict_maxby, seq_maxby)
-DICT_LINQ(dict_minby, seq_minby)
+LINQ_FWD_OPS(LINQ_FWD_FN)
+#if MCS_ENABLE_FLOAT
+LINQ_FWD_FN(Average, seq_average, -1)
+#define LINQ_FWD_AVG MCS_FN("Average", fwd_Average, -1),
+#else
+#define LINQ_FWD_AVG
+#endif
+#define LINQ_FWD_REG(name, target, arity) MCS_FN(#name, fwd_##name, arity),
+static const mcs_reg_t coll_linq_methods[] = { LINQ_FWD_OPS(LINQ_FWD_REG) LINQ_FWD_AVG MCS_REG_END };
+#endif
 static const mcs_reg_t dict_methods[] = {
     MCS_GET("Count", dict_count), MCS_GET("Keys", dict_keys), MCS_GET("Values", dict_values),
     MCS_FN("Add", dict_add, 2), MCS_FN("TryAdd", dict_tryadd, 2), MCS_FN("ContainsKey", dict_containskey, 1), MCS_FN("TryGetValue", dict_trygetvalue, 2),
     MCS_FN("ContainsValue", dict_containsvalue, 1), MCS_FN("Remove", dict_remove, 1), MCS_FN("Clear", dict_clear, 0),
     MCS_FN("GetValueOrDefault", dict_getordefault, -1), MCS_FN("GetEnumerator", dict_getenum, 0),
-    MCS_FN("ToList", dict_tolist, 0), MCS_FN("ToArray", dict_tolist, 0), MCS_FN("Where", dict_where, 1),
-    MCS_FN("Select", dict_select, 1), MCS_FN("Any", dict_any, -1), MCS_FN("All", dict_all, 1), MCS_FN("Count", dict_countm, -1),
-    MCS_FN("Sum", dict_sum, -1), MCS_FN("Min", dict_min, -1), MCS_FN("Max", dict_max, -1), MCS_FN("First", dict_first, -1),
-    MCS_FN("FirstOrDefault", dict_firstordefault, -1), MCS_FN("OrderBy", dict_orderby, -1),
-    MCS_FN("OrderByDescending", dict_orderbydesc, -1), MCS_FN("ToDictionary", dict_todictionary, -1),
-    MCS_FN("Aggregate", dict_aggregate, -1), MCS_FN("ForEach", dict_foreach, 1), MCS_FN("MaxBy", dict_maxby, 1),
-    MCS_FN("MinBy", dict_minby, 1),
+    MCS_FN("ToList", dict_tolist, 0), MCS_FN("ToArray", dict_tolist, 0), MCS_FN("ForEach", dict_foreach, 1),
     MCS_REG_END
 };
 #endif
@@ -1049,6 +1093,7 @@ static mcs_dict_t* set_of(mcs_value_t v) {
 }
 NATIVE(set_new) {
     mcs_value_t s = wrap_new(vm, self, MCS_O_DICT);
+    AS_DICT(AS_INSTANCE(s)->fields[0])->obj.aux = DICT_KEYS_ONLY; /* no vals[] array */
     if (argc >= 1) { mcs_push_root(vm, s); set_add_all(vm, AS_DICT(AS_INSTANCE(s)->fields[0]), argv[0]); mcs_pop_root(vm, 1); }
     return s;
 }
@@ -1077,18 +1122,44 @@ NATIVE(set_except) {
 }
 NATIVE(set_subset) { SET(); for (uint32_t i = 0; i < d->count; i++) if (!in_other(argv[0], d->keys[i])) return mcs_bool(false); return mcs_bool(true); }
 NATIVE(set_overlaps) { SET(); for (uint32_t i = 0; i < d->count; i++) if (in_other(argv[0], d->keys[i])) return mcs_bool(true); return mcs_bool(false); }
+/* distinct elements of any sequence / set argument, as a temporary keys-only dict */
+static mcs_dict_t* set_tmp(mcs_vm_t* vm, mcs_value_t src) {
+    mcs_dict_t* t = mcs_new_dict(vm); t->obj.aux = DICT_KEYS_ONLY;
+    set_add_all(vm, t, src);
+    return t;
+}
+NATIVE(set_superset) {
+    SET(); vm->gc_pause++; mcs_dict_t* t = set_tmp(vm, argv[0]); vm->gc_pause--;
+    for (uint32_t i = 0; i < t->count; i++) if (!mcs_dict_get(d, t->keys[i], NULL)) return mcs_bool(false);
+    return mcs_bool(true);
+}
+NATIVE(set_equals) {
+    SET(); vm->gc_pause++; mcs_dict_t* t = set_tmp(vm, argv[0]); vm->gc_pause--;
+    if (t->count != d->count) return mcs_bool(false);
+    for (uint32_t i = 0; i < t->count; i++) if (!mcs_dict_get(d, t->keys[i], NULL)) return mcs_bool(false);
+    return mcs_bool(true);
+}
+NATIVE(set_symexcept) {
+    SET(); vm->gc_pause++; mcs_dict_t* t = set_tmp(vm, argv[0]);
+    for (uint32_t i = 0; i < t->count; i++)
+        if (!mcs_dict_remove(vm, d, t->keys[i])) mcs_dict_set(vm, d, t->keys[i], mcs_bool(true));
+    vm->gc_pause--;
+    return mcs_null();
+}
 NATIVE(set_tolist) { SET(); return dict_list(vm, d, 0); }
 static const mcs_reg_t set_methods[] = {
     MCS_FN("Add", set_add, 1), MCS_FN("Remove", set_remove, 1), MCS_FN("Contains", set_contains, 1),
     MCS_FN("Clear", set_clear, 0), MCS_GET("Count", set_count), MCS_FN("UnionWith", set_union, 1),
     MCS_FN("IntersectWith", set_intersect, 1), MCS_FN("ExceptWith", set_except, 1), MCS_FN("IsSubsetOf", set_subset, 1),
-    MCS_FN("Overlaps", set_overlaps, 1), MCS_FN("ToList", set_tolist, 0), MCS_FN("ToArray", set_tolist, 0),
+    MCS_FN("Overlaps", set_overlaps, 1), MCS_FN("IsSupersetOf", set_superset, 1), MCS_FN("SetEquals", set_equals, 1),
+    MCS_FN("SymmetricExceptWith", set_symexcept, 1), MCS_FN("ToList", set_tolist, 0), MCS_FN("ToArray", set_tolist, 0),
     MCS_FN("GetEnumerator", set_tolist, 0), MCS_REG_END
 };
 #endif
 
 #define STK() mcs_value_t lv = inner(vm, self, MCS_O_LIST); CHECK(); mcs_list_t* l = AS_LIST(lv)
 NATIVE(stack_new) {
+    if (argc >= 1) lib_seq_arg(vm, &argv[0], false);
     mcs_value_t s = wrap_new(vm, self, MCS_O_LIST);
     if (argc >= 1 && lib_is_seq(argv[0])) {
         mcs_list_t* src = AS_LIST(argv[0]), *l = AS_LIST(AS_INSTANCE(s)->fields[0]);
@@ -1164,16 +1235,27 @@ void mcs_lib_open_collections(mcs_vm_t* vm, uint8_t mask) {
 #if MCS_ENABLE_LIST
     vm->cls_list->native_ctor = list_new;
     mcs_add_regs(vm, vm->cls_list, list_methods, false);
+#if MCS_ENABLE_LINQ
     mcs_register_module(vm, "Enumerable", enumerable_fns);
+#endif
     {
         mcs_class_t* st = wrapper_class(vm, "Stack", stack_new, stack_methods);
         mcs_class_t* q = wrapper_class(vm, "Queue", stack_new, queue_methods);
+#if MCS_ENABLE_DICT && MCS_ENABLE_LINQ
+        mcs_add_regs(vm, st, coll_linq_methods, false);
+        mcs_add_regs(vm, q, coll_linq_methods, false);
+#endif
         (void)st; (void)q;
     }
 #endif
 #if MCS_ENABLE_DICT
     vm->cls_dict->native_ctor = dict_new;
     mcs_add_regs(vm, vm->cls_dict, dict_methods, false);
-    wrapper_class(vm, "HashSet", set_new, set_methods);
+    mcs_class_t* hs = wrapper_class(vm, "HashSet", set_new, set_methods);
+#if MCS_ENABLE_LINQ
+    mcs_add_regs(vm, vm->cls_dict, coll_linq_methods, false);
+    mcs_add_regs(vm, hs, coll_linq_methods, false);
+#endif
+    (void)hs;
 #endif
 }

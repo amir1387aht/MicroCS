@@ -83,6 +83,7 @@ NATIVE(str_join) {
     ARGN(1);
     piece_t sep = { "", 0, {0} };
     if (argv[0].type != MCS_T_NULL && !piece_of(vm, argv[0], &sep, "separator")) return mcs_null();
+    if (argc == 2) lib_seq_arg(vm, &argv[1], false);
     mcs_buf_t b; mcs_buf_init(&b, vm);
     bool ok;
     if (argc == 2 && lib_is_seq(argv[1])) ok = append_seq(vm, &b, sep.p, sep.n, AS_LIST(argv[1])->items, AS_LIST(argv[1])->count);
@@ -94,7 +95,7 @@ NATIVE(str_join) {
             mcs_buf_putc(&b, '[');
             ok = mcs_value_to_buf(vm, &b, d->keys[i]);
             mcs_buf_puts(&b, ", ");
-            ok = ok && mcs_value_to_buf(vm, &b, d->vals[i]);
+            ok = ok && mcs_value_to_buf(vm, &b, DICT_VAL(d, i));
             mcs_buf_putc(&b, ']');
         }
     } else ok = append_seq(vm, &b, sep.p, sep.n, argv + 1, (uint32_t)(argc - 1));
@@ -102,6 +103,7 @@ NATIVE(str_join) {
     return OBJ_VAL(mcs_buf_to_string(&b));
 }
 NATIVE(str_concat) {
+    if (argc == 1) lib_seq_arg(vm, &argv[0], false);
     mcs_buf_t b; mcs_buf_init(&b, vm);
     bool ok = (argc == 1 && lib_is_seq(argv[0])) ? append_seq(vm, &b, "", 0, AS_LIST(argv[0])->items, AS_LIST(argv[0])->count)
                                                  : append_seq(vm, &b, "", 0, argv, (uint32_t)argc);

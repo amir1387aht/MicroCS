@@ -50,7 +50,8 @@ void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
 /* ============================================================== pool heap */
 #if MCS_ENABLE_POOL_HEAP
 typedef struct pool_blk { size_t size; struct pool_blk* next; } pool_blk_t;
-#define POOL_ALIGN 8u
+/* never below pointer size: free-list links and object pointers live in blocks */
+#define POOL_ALIGN ((size_t)MCS_POOL_ALIGN > sizeof(void*) ? (size_t)MCS_POOL_ALIGN : sizeof(void*))
 #define POOL_HDR ((sizeof(size_t) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
 #define POOL_ROUND(n) (((n) + POOL_ALIGN - 1) & ~(size_t)(POOL_ALIGN - 1))
 
@@ -115,7 +116,7 @@ void* mcs_pool_realloc(void* ud, void* ptr, size_t old, size_t nsz) {
 /* ================================================================ objects */
 mcs_obj_t* mcs_alloc_obj(mcs_vm_t* vm, size_t size, uint8_t kind) {
     mcs_obj_t* o = (mcs_obj_t*)mcs_realloc(vm, NULL, 0, size);
-    o->kind = kind; o->marked = 0;
+    o->kind = kind; o->marked = 0; o->aux = 0;
     o->next = vm->objects; vm->objects = o;
     vm->object_count++;
     return o;
@@ -127,22 +128,71 @@ uint32_t mcs_hash_bytes(const char* s, size_t len) {
     return h;
 }
 
+/* --------------------------------------------------------- intern set
+ * Open addressing, linear probing, power-of-two capacity. NULL = empty slot,
+ * STRSET_TOMB = deleted (left by the GC sweep). `count` includes tombstones. */
+#define STRSET_TOMB ((mcs_string_t*)(uintptr_t)1)
+#define STRSET_MIN 16u
+static mcs_string_t* strset_find(const mcs_strset_t* t, const char* s, size_t len, uint32_t hash) {
+    if (!t->cap) return NULL;
+    uint32_t idx = hash & (t->cap - 1);
+    for (;;) {
+        mcs_string_t* k = t->slots[idx];
+        if (!k) return NULL;
+        if (k != STRSET_TOMB && k->hash == hash && k->len == len && memcmp(k->chars, s, len) == 0) return k;
+        idx = (idx + 1) & (t->cap - 1);
+    }
+}
+static void strset_resize(mcs_vm_t* vm, mcs_strset_t* t, uint32_t cap) {
+    mcs_string_t** ns = MCS_ALLOC(vm, mcs_string_t*, cap);
+    memset(ns, 0, sizeof(mcs_string_t*) * cap);
+    uint32_t n = 0;
+    for (uint32_t i = 0; i < t->cap; i++) {
+        mcs_string_t* k = t->slots[i];
+        if (!k || k == STRSET_TOMB) continue;
+        uint32_t idx = k->hash & (cap - 1);
+        while (ns[idx]) idx = (idx + 1) & (cap - 1);
+        ns[idx] = k; n++;
+    }
+    if (t->slots) MCS_FREE(vm, mcs_string_t*, t->slots, t->cap);
+    t->slots = ns; t->cap = cap; t->count = n;
+}
+static void strset_add(mcs_vm_t* vm, mcs_strset_t* t, mcs_string_t* str) {
+    if ((t->count + 1) * 4 > t->cap * 3) {
+        uint32_t live = 0, nc = t->cap < STRSET_MIN ? STRSET_MIN : t->cap * 2;
+        for (uint32_t i = 0; i < t->cap; i++) live += t->slots[i] && t->slots[i] != STRSET_TOMB;
+        if (t->cap >= STRSET_MIN && live * 2 <= t->count) nc = t->cap; /* mostly tombstones: rehash in place */
+        strset_resize(vm, t, nc);
+    }
+    uint32_t idx = str->hash & (t->cap - 1);
+    while (t->slots[idx] && t->slots[idx] != STRSET_TOMB) idx = (idx + 1) & (t->cap - 1);
+    if (!t->slots[idx]) t->count++;
+    t->slots[idx] = str;
+}
+void mcs_strset_free(mcs_vm_t* vm, mcs_strset_t* t) {
+    if (t->slots) MCS_FREE(vm, mcs_string_t*, t->slots, t->cap);
+    t->slots = NULL; t->cap = t->count = 0;
+}
+
 static mcs_string_t* alloc_string(mcs_vm_t* vm, const char* s, size_t len, uint32_t hash) {
     mcs_string_t* str = (mcs_string_t*)mcs_alloc_obj(vm, sizeof(mcs_string_t) + len, MCS_O_STRING);
     str->len = (uint32_t)len; str->hash = hash;
     if (len) memcpy(str->chars, s, len);
     str->chars[len] = 0;
     vm->gc_pause++;
-    mcs_table_set(vm, &vm->strings, OBJ_VAL(str), mcs_null());
+    strset_add(vm, &vm->strings, str);
     vm->gc_pause--;
     return str;
 }
 
 mcs_string_t* mcs_intern(mcs_vm_t* vm, const char* s, size_t len) {
     uint32_t h = mcs_hash_bytes(s, len);
-    mcs_string_t* f = mcs_table_find_string(&vm->strings, s, len, h);
+    mcs_string_t* f = strset_find(&vm->strings, s, len, h);
     if (f) return f;
     return alloc_string(vm, s, len, h);
+}
+mcs_string_t* mcs_find_interned(mcs_vm_t* vm, const char* s, size_t len) {
+    return strset_find(&vm->strings, s, len, mcs_hash_bytes(s, len));
 }
 mcs_string_t* mcs_intern_c(mcs_vm_t* vm, const char* s) { return mcs_intern(vm, s, strlen(s)); }
 
@@ -180,20 +230,55 @@ mcs_native_t* mcs_new_native(mcs_vm_t* vm, mcs_native_fn fn, int arity, mcs_stri
 
 mcs_class_t* mcs_new_class(mcs_vm_t* vm, mcs_string_t* name, uint8_t ckind) {
     mcs_class_t* c = (mcs_class_t*)mcs_alloc_obj(vm, sizeof(mcs_class_t), MCS_O_CLASS);
-    c->ckind = ckind; c->field_count = 0; c->name = name; c->super = NULL;
+    c->ckind = ckind; c->layout_shared = 0; c->field_count = 0; c->name = name; c->super = NULL;
     mcs_table_init(&c->methods); mcs_table_init(&c->getters); mcs_table_init(&c->setters);
     mcs_table_init(&c->statics); mcs_table_init(&c->fields); mcs_table_init(&c->ifaces);
     c->field_defaults = NULL; c->native_ctor = NULL; c->def = NULL; c->rom = NULL;
     return c;
 }
 
+/* give a class that borrows its parent's field layout its own copy */
+static void own_layout(mcs_vm_t* vm, mcs_class_t* cls) {
+    if (!cls->layout_shared) return;
+    mcs_table_t shared = cls->fields;
+    const mcs_value_t* defs = cls->field_defaults;
+    mcs_table_init(&cls->fields);
+    cls->field_defaults = NULL;
+    cls->layout_shared = 0;
+    mcs_table_copy(vm, &shared, &cls->fields);
+    if (cls->field_count) {
+        cls->field_defaults = MCS_ALLOC(vm, mcs_value_t, cls->field_count);
+        memcpy(cls->field_defaults, defs, sizeof(mcs_value_t) * cls->field_count);
+    }
+}
+
 void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs_value_t def) {
     mcs_value_t slot;
+    own_layout(vm, cls);
     if (mcs_table_get_s(&cls->fields, name, &slot)) { cls->field_defaults[slot.as.i] = def; return; }
     cls->field_defaults = MCS_GROW(vm, mcs_value_t, cls->field_defaults, cls->field_count, cls->field_count + 1);
     cls->field_defaults[cls->field_count] = def;
     mcs_table_set(vm, &cls->fields, OBJ_VAL(name), mcs_int(cls->field_count));
     cls->field_count++;
+}
+
+/* Like mcs_class_inherit, but the field table and defaults are borrowed from
+ * `super` instead of copied (saves ~300 B per built-in exception class).
+ * Only valid when super's field layout never changes afterwards (built-in
+ * classes set up by C code); the borrower copies on its first own field. */
+void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
+    if (!super->field_count || cls->field_count || cls->fields.count) { mcs_class_inherit(vm, cls, super); return; }
+    cls->super = super;
+    mcs_table_copy(vm, &super->methods, &cls->methods);
+    mcs_table_copy(vm, &super->getters, &cls->getters);
+    mcs_table_copy(vm, &super->setters, &cls->setters);
+    mcs_table_copy(vm, &super->ifaces, &cls->ifaces);
+    cls->fields = super->fields;
+    cls->field_defaults = super->field_defaults;
+    cls->field_count = super->field_count;
+    cls->layout_shared = 1;
+    if (!cls->native_ctor) cls->native_ctor = super->native_ctor;
+    if (!cls->def) cls->def = super->def;
 }
 
 void mcs_class_inherit(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
@@ -364,55 +449,108 @@ void mcs_listobj_remove_at(mcs_list_t* l, uint32_t at) {
     l->count--;
 }
 
+#define TABLE_MAX_LOAD_NUM 3
+#define TABLE_MAX_LOAD_DEN 4
+/* ------------------------------------------------- compact dictionary index */
+static inline uint32_t ix_width(uint32_t icap) { return icap <= 256 ? 1u : icap <= 65536 ? 2u : 4u; }
+static inline uint32_t ix_tomb(uint32_t icap) { return icap <= 256 ? 0xFFu : icap <= 65536 ? 0xFFFFu : 0xFFFFFFFFu; }
+static inline uint32_t ix_get(const mcs_dict_t* d, uint32_t i) {
+    if (d->icap <= 256) return ((const uint8_t*)d->idx)[i];
+    if (d->icap <= 65536) return ((const uint16_t*)d->idx)[i];
+    return ((const uint32_t*)d->idx)[i];
+}
+static inline void ix_set(mcs_dict_t* d, uint32_t i, uint32_t v) {
+    if (d->icap <= 256) ((uint8_t*)d->idx)[i] = (uint8_t)v;
+    else if (d->icap <= 65536) ((uint16_t*)d->idx)[i] = (uint16_t)v;
+    else ((uint32_t*)d->idx)[i] = v;
+}
+/* true: *slot holds key. false: *slot is where key would be inserted. */
+static bool dict_find(const mcs_dict_t* d, mcs_value_t key, uint32_t* slot) {
+    uint32_t mask = d->icap - 1, i = mcs_value_hash(key) & mask, tomb = ix_tomb(d->icap), first_free = UINT32_MAX;
+    for (;;) {
+        uint32_t v = ix_get(d, i);
+        if (v == 0) { *slot = first_free != UINT32_MAX ? first_free : i; return false; }
+        if (v == tomb) { if (first_free == UINT32_MAX) first_free = i; }
+        else if (mcs_values_same(d->keys[v - 1], key)) { *slot = i; return true; }
+        i = (i + 1) & mask;
+    }
+}
+/* rebuild the index for at least `need` live entries (drops deleted slots) */
+static void dict_reindex(mcs_vm_t* vm, mcs_dict_t* d, uint32_t need) {
+    uint32_t nc = MCS_TABLE_MIN_CAP;
+    while (need * TABLE_MAX_LOAD_DEN > nc * TABLE_MAX_LOAD_NUM) nc *= 2;
+    void* ni = mcs_realloc(vm, NULL, 0, (size_t)nc * ix_width(nc));
+    memset(ni, 0, (size_t)nc * ix_width(nc));
+    mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
+    d->idx = ni; d->icap = nc; d->iused = d->count;
+    for (uint32_t p = 0; p < d->count; p++) {
+        uint32_t i = mcs_value_hash(d->keys[p]) & (nc - 1);
+        while (ix_get(d, i)) i = (i + 1) & (nc - 1);
+        ix_set(d, i, p + 1);
+    }
+}
+
 mcs_dict_t* mcs_new_dict(mcs_vm_t* vm) {
     mcs_dict_t* d = (mcs_dict_t*)mcs_alloc_obj(vm, sizeof(mcs_dict_t), MCS_O_DICT);
-    mcs_table_init(&d->index); d->count = d->cap = 0; d->keys = d->vals = NULL;
+    d->count = d->cap = d->icap = d->iused = 0; d->idx = NULL; d->keys = d->vals = NULL;
     return d;
 }
 
 bool mcs_dict_get(mcs_dict_t* d, mcs_value_t key, mcs_value_t* out) {
-    mcs_value_t idx;
-    if (!mcs_table_get(&d->index, key, &idx)) return false;
-    if (out) *out = d->vals[idx.as.i];
+    uint32_t s;
+    if (d->count == 0 || !dict_find(d, key, &s)) return false;
+    if (out) *out = DICT_VAL(d, ix_get(d, s) - 1);
     return true;
 }
 
 void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v) {
-    mcs_value_t idx;
-    if (mcs_table_get(&d->index, key, &idx)) { d->vals[idx.as.i] = v; return; }
+    uint32_t s;
+    if (d->icap && dict_find(d, key, &s)) { if (d->vals) d->vals[ix_get(d, s) - 1] = v; return; }
+    if ((d->iused + 1) * TABLE_MAX_LOAD_DEN > d->icap * TABLE_MAX_LOAD_NUM) {
+        dict_reindex(vm, d, d->count + 1);
+        dict_find(d, key, &s);
+    }
     if (d->count == d->cap) {
         uint32_t nc = d->cap < 4 ? 4 : d->cap * 2;
         d->keys = MCS_GROW(vm, mcs_value_t, d->keys, d->cap, nc);
-        d->vals = MCS_GROW(vm, mcs_value_t, d->vals, d->cap, nc);
+        if (!(d->obj.aux & DICT_KEYS_ONLY)) d->vals = MCS_GROW(vm, mcs_value_t, d->vals, d->cap, nc);
         d->cap = nc;
     }
-    d->keys[d->count] = key; d->vals[d->count] = v;
-    mcs_table_set(vm, &d->index, key, mcs_int((mcs_int_t)d->count));
-    d->count++;
+    d->keys[d->count] = key;
+    if (d->vals) d->vals[d->count] = v;
+    if (ix_get(d, s) == 0) d->iused++;   /* else: reusing a deleted slot */
+    ix_set(d, s, ++d->count);
 }
 
 bool mcs_dict_remove(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key) {
-    mcs_value_t idx;
-    if (!mcs_table_get(&d->index, key, &idx)) return false;
-    uint32_t i = (uint32_t)idx.as.i, last = d->count - 1;
-    mcs_table_delete(&d->index, key);
+    (void)vm;
+    uint32_t s;
+    if (d->count == 0 || !dict_find(d, key, &s)) return false;
+    uint32_t pos = ix_get(d, s) - 1, tomb = ix_tomb(d->icap);
+    ix_set(d, s, tomb);
     /* keep insertion order (matches .NET enumeration order for remove-only use) */
-    for (uint32_t j = i; j < last; j++) {
-        d->keys[j] = d->keys[j + 1]; d->vals[j] = d->vals[j + 1];
-        mcs_table_set(vm, &d->index, d->keys[j], mcs_int((mcs_int_t)j));
+    if (pos + 1 < d->count) {
+        memmove(&d->keys[pos], &d->keys[pos + 1], sizeof(mcs_value_t) * (d->count - pos - 1));
+        if (d->vals) memmove(&d->vals[pos], &d->vals[pos + 1], sizeof(mcs_value_t) * (d->count - pos - 1));
+        for (uint32_t i = 0; i < d->icap; i++) {
+            uint32_t v = ix_get(d, i);
+            if (v != 0 && v != tomb && v - 1 > pos) ix_set(d, i, v - 1);
+        }
     }
     d->count--;
     return true;
 }
 
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d) {
-    mcs_table_free(vm, &d->index);
+    mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
+    d->idx = NULL; d->icap = d->iused = 0;
     d->count = 0;
 }
 
 /* ================================================================= tables */
-#define TABLE_MAX_LOAD_NUM 3
-#define TABLE_MAX_LOAD_DEN 4
+#if MCS_TABLE_MIN_CAP < 4 || (MCS_TABLE_MIN_CAP & (MCS_TABLE_MIN_CAP - 1))
+#error "MCS_TABLE_MIN_CAP must be a power of two >= 4"
+#endif
 
 void mcs_table_init(mcs_table_t* t) { t->count = 0; t->cap = 0; t->entries = NULL; }
 void mcs_table_free(mcs_vm_t* vm, mcs_table_t* t) { MCS_FREE(vm, mcs_entry_t, t->entries, t->cap); mcs_table_init(t); }
@@ -491,7 +629,6 @@ static void adjust_cap(mcs_vm_t* vm, mcs_table_t* t, uint32_t cap) {
     t->entries = ne; t->cap = cap;
 }
 
-static void shrink_strings(mcs_vm_t* vm, uint32_t nc) { adjust_cap(vm, &vm->strings, nc); }
 
 bool mcs_table_get(const mcs_table_t* t, mcs_value_t key, mcs_value_t* out) {
     if (t->count == 0) return false;
@@ -506,9 +643,9 @@ bool mcs_table_set(mcs_vm_t* vm, mcs_table_t* t, mcs_value_t key, mcs_value_t v)
         /* count includes tombstones: when at least half of the used slots are
          * tombstones (weak intern table after a GC, Dictionary.Remove churn)
          * rehash in place instead of doubling, so the table does not grow forever */
-        uint32_t live = 0, nc = t->cap < 8 ? 8 : t->cap * 2;
+        uint32_t live = 0, nc = t->cap < MCS_TABLE_MIN_CAP ? MCS_TABLE_MIN_CAP : t->cap * 2;
         for (uint32_t i = 0; i < t->cap; i++) live += t->entries[i].key.type != MCS_T_NULL;
-        if (t->cap >= 8 && live * 2 <= t->count) nc = t->cap;
+        if (t->cap >= MCS_TABLE_MIN_CAP && live * 2 <= t->count) nc = t->cap;
         adjust_cap(vm, t, nc);
     }
     mcs_entry_t* e = find_entry(t->entries, t->cap, key);
@@ -571,6 +708,9 @@ static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {
     case MCS_O_FUNCTION: {
         mcs_function_t* f = (mcs_function_t*)o;
         mark_obj(vm, (mcs_obj_t*)f->name); mark_obj(vm, (mcs_obj_t*)f->source);
+#if MCS_ENABLE_XIP
+        mark_obj(vm, (mcs_obj_t*)f->gmap_obj);
+#endif
         for (uint32_t i = 0; i < f->const_count; i++) mark_val(vm, f->consts[i]);
 #if MCS_FIELD_CACHE
         /* keep cached classes alive so a freed class's address can never alias a new one */
@@ -605,7 +745,7 @@ static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {
     case MCS_O_ARRAY: case MCS_O_LIST: { mcs_list_t* l = (mcs_list_t*)o; for (uint32_t i = 0; i < l->count; i++) mark_val(vm, l->items[i]); break; }
     case MCS_O_DICT: {
         mcs_dict_t* d = (mcs_dict_t*)o;
-        for (uint32_t i = 0; i < d->count; i++) { mark_val(vm, d->keys[i]); mark_val(vm, d->vals[i]); }
+        for (uint32_t i = 0; i < d->count; i++) { mark_val(vm, d->keys[i]); if (d->vals) mark_val(vm, d->vals[i]); }
         break;
     }
     }
@@ -617,7 +757,7 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
     case MCS_O_STRING: mcs_realloc(vm, o, sizeof(mcs_string_t) + ((mcs_string_t*)o)->len, 0); break;
     case MCS_O_FUNCTION: {
         mcs_function_t* f = (mcs_function_t*)o;
-        MCS_FREE(vm, uint8_t, f->code, f->code_cap);
+        if (!(f->flags & FN_XIP)) MCS_FREE(vm, uint8_t, f->code, f->code_cap);
         MCS_FREE(vm, mcs_value_t, f->consts, f->const_cap);
         MCS_FREE(vm, mcs_line_t, f->lines, f->line_cap);
         if (f->param_types) MCS_FREE(vm, uint8_t, f->param_types, f->arity);
@@ -639,8 +779,8 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
         mcs_class_t* c = (mcs_class_t*)o;
         mcs_table_free(vm, &c->methods); mcs_table_free(vm, &c->getters); mcs_table_free(vm, &c->setters);
         for (mcs_rom_t* r = c->rom; r;) { mcs_rom_t* nx = r->next; mcs_realloc(vm, r, sizeof(mcs_rom_t), 0); r = nx; }
-        mcs_table_free(vm, &c->statics); mcs_table_free(vm, &c->fields); mcs_table_free(vm, &c->ifaces);
-        MCS_FREE(vm, mcs_value_t, c->field_defaults, c->field_count);
+        mcs_table_free(vm, &c->statics); mcs_table_free(vm, &c->ifaces);
+        if (!c->layout_shared) { mcs_table_free(vm, &c->fields); MCS_FREE(vm, mcs_value_t, c->field_defaults, c->field_count); }
         mcs_realloc(vm, o, sizeof(mcs_class_t), 0);
         break;
     }
@@ -670,9 +810,9 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
     }
     case MCS_O_DICT: {
         mcs_dict_t* d = (mcs_dict_t*)o;
-        mcs_table_free(vm, &d->index);
+        mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
         MCS_FREE(vm, mcs_value_t, d->keys, d->cap);
-        MCS_FREE(vm, mcs_value_t, d->vals, d->cap);
+        if (d->vals) MCS_FREE(vm, mcs_value_t, d->vals, d->cap);
         mcs_realloc(vm, o, sizeof(mcs_dict_t), 0);
         break;
     }
@@ -684,7 +824,6 @@ static void mark_roots(mcs_vm_t* vm) {
     for (int i = 0; i < vm->frame_count; i++) mark_obj(vm, (mcs_obj_t*)vm->frames[i].closure);
     for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) mark_obj(vm, (mcs_obj_t*)u);
     for (uint32_t i = 0; i < vm->global_count; i++) { mark_val(vm, vm->globals[i]); mark_obj(vm, (mcs_obj_t*)vm->global_names[i]); }
-    mark_table(vm, &vm->global_index);
     mark_table(vm, &vm->tuple_classes);
     for (int i = 0; i < vm->root_count; i++) mark_val(vm, vm->roots[i]);
     for (int i = 0; i < MCS_MAX_PINS; i++) mark_val(vm, vm->pins[i]);
@@ -706,16 +845,17 @@ void mcs_collect(mcs_vm_t* vm) {
     /* weak intern table */
     uint32_t live = 0;
     for (uint32_t i = 0; i < vm->strings.cap; i++) {
-        mcs_entry_t* e = &vm->strings.entries[i];
-        if (e->key.type == MCS_T_OBJ && !e->key.as.o->marked) { e->key = mcs_null(); e->value = mcs_bool(true); }
-        else if (e->key.type == MCS_T_OBJ) live++;
+        mcs_string_t* k = vm->strings.slots[i];
+        if (!k || k == STRSET_TOMB) continue;
+        if (!k->obj.marked) vm->strings.slots[i] = STRSET_TOMB;
+        else live++;
     }
     /* compact a mostly-dead intern table (one burst of temporary strings must
      * not pin a large table for the rest of the run) */
     if (vm->strings.cap > 64 && live * 8 < vm->strings.cap) {
         uint32_t nc = 64;
         while ((live + 1) * TABLE_MAX_LOAD_DEN * 2 > nc * TABLE_MAX_LOAD_NUM) nc *= 2;
-        if (vm->cfg.heap_limit == 0 || vm->bytes_allocated + nc * sizeof(mcs_entry_t) <= vm->cfg.heap_limit) shrink_strings(vm, nc);
+        if (vm->cfg.heap_limit == 0 || vm->bytes_allocated + nc * sizeof(mcs_string_t*) <= vm->cfg.heap_limit) strset_resize(vm, &vm->strings, nc);
     }
     mcs_obj_t** pp = &vm->objects;
     while (*pp) {
