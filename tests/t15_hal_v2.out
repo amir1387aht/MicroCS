@@ -1,0 +1,35 @@
+api 2 irq=True i2s=True qspi=True
+pins 5 28 35 21 13
+int levels True False
+unknown pin 'nope'
+led 13 True
+led False
+led True
+  edge pin 7 -> True
+  edge pin 7 -> False
+queued, dispatched 2 edges=2
+  rising True
+after off 0
+timer ticks 3
+once True
+  user event 9 42
+line 'hello' rx=7 next=True
+scan 0x48,0x50,0x68
+whoami 0x68
+regs 1 5,6,7
+static 6
+spi 9,8 cs=True
+spi wr 255,255 rd 2
+adc 356 raw = 287 mV, avg 356, vref 3300
+dac bits 12
+dac range
+pwm ok
+i2s wrote 4 samples
+i2s read 1000,-1000,32767,-32768
+jedec EF 40 16
+flash DE AD BE EF
+erased FF
+can 123 [3] 01 02 03 | 01ABCDEF [1] FF ext=True next=True
+rtc True uid 4D43532D53494D31 cpu 160 MHz
+delay True
+Timer.Start: not supported

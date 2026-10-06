@@ -1,0 +1,22 @@
+config MICROCS
+	bool "MicroCS C# runtime"
+	select REQUIRES_FULL_LIBC
+	help
+	  MicroCS: run C# scripts on the device - REPL, filesystem, scheduler
+	  and the GPIO/UART/I2C/SPI/ADC/DAC/PWM/Timer/CAN/Watchdog classes.
+
+if MICROCS
+
+config MICROCS_PORT
+	bool "Zephyr board port (mcs_zephyr_hal_init)"
+	default y
+	select GPIO
+	imply UART_INTERRUPT_DRIVEN
+	imply UART_USE_RUNTIME_CONFIGURE
+	imply HWINFO
+	imply REBOOT
+
+config MICROCS_PROFILE_LOWRAM
+	bool "Low-RAM profile (16-32 KB targets)"
+
+endif
