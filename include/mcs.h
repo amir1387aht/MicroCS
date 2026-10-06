@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 2
+#define MCS_VERSION_MINOR 3
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.2.0"
+#define MCS_VERSION_STRING "1.3.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -52,6 +52,9 @@ typedef enum {
     MCS_T_UNDEF /* internal: unassigned global */
 } mcs_type_t;
 
+#if MCS_COMPACT_VALUES
+#pragma pack(push, 4)   /* 12-byte values: 8-byte payload at offset 4 */
+#endif
 typedef struct {
     uint8_t type;
     union {
@@ -61,6 +64,9 @@ typedef struct {
         mcs_obj_t* o;
     } as;
 } mcs_value_t;
+#if MCS_COMPACT_VALUES
+#pragma pack(pop)
+#endif
 
 /* Object kinds (returned by mcs_obj_kind) */
 typedef enum {
@@ -170,6 +176,12 @@ void mcs_free_image(mcs_vm_t* vm, uint8_t* image);
 #if MCS_ENABLE_BYTECODE_LOAD
 /* Run a bytecode image (e.g. linked into flash as a const array). */
 mcs_result_t mcs_exec_image(mcs_vm_t* vm, const uint8_t* image, size_t len);
+/* Same, but executes bytecode directly from `image` (execute in place) instead
+ * of copying each function's code to the heap: saves RAM roughly equal to the
+ * code size of the image. `image` must stay valid and unchanged until
+ * mcs_free(vm) - functions and classes it defines keep pointing into it.
+ * Ideal for images linked into flash. Without MCS_ENABLE_XIP it copies. */
+mcs_result_t mcs_exec_image_xip(mcs_vm_t* vm, const uint8_t* image, size_t len);
 #endif
 
 /* Call a global function, or "Class.StaticMethod". */

@@ -13,6 +13,7 @@
 | 🧭 | [Porting](PORTING.md) | host hooks per RTOS, Cortex-M reference port, SF32LB525 + RT-Thread outline |
 | 🏗️ | [Architecture](ARCHITECTURE.md) | pipeline, VM, GC, modules, invariants for contributors |
 | 🧱 | [Bytecode](BYTECODE.md) | `.mcsb` image format, loader validation, full instruction set |
+| 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, value size, GC tuning, measured results |
 | 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
 | 🛡️ | [Security](SECURITY.md) | what the sandbox guarantees and what it does not |
 | 🧪 | [Testing](TESTING.md) | test matrix, fuzzing, sanitizers, .NET parity, adding tests |

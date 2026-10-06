@@ -1,9 +1,11 @@
 # Porting MicroCS
 
-MicroCS needs a C99 compiler, ~216 KB of flash (full build incl. newlib/libm) or
-~172 KB (runtime only, no compiler), and RAM for: the VM heap (≥ ~50 KB baseline + script
-working set; ~130–160 KB when compiling scripts on the device), ~3–8 KB of C stack for
-the VM task, and static module state. Numbers: [PERFORMANCE.md](PERFORMANCE.md).
+MicroCS needs a C99 compiler, ~213 KB of flash (full build incl. newlib/libm), ~168 KB
+(runtime only, no compiler) or ~144 KB (lowram profile without modules), and RAM for: the VM
+heap (13–25 KB after `mcs_new` on Cortex-M depending on profile and libraries, plus the
+script's working set; ~90 KB when compiling a small script on the device), ~3–8 KB of C stack
+for the VM task, and static module state. Numbers: [PERFORMANCE.md](PERFORMANCE.md);
+small parts: [LOW_RESOURCE.md](LOW_RESOURCE.md).
 
 ## Files to compile
 `src/*.c` (core) + the modules you want from `modules/*/` (drop `mcs_vfs_posix.c` on MCUs;
@@ -26,8 +28,11 @@ called from an ISR or another task to stop a script at the next safepoint.
 * `startup.c` (vector table, .data/.bss init, stack painting, FPU enable), `cm.ld`,
   `board.c` (UART/tick drivers for the emulator's virtual board + newlib stubs), `main.c`
   (pool heap, VM, RAM FS, HAL simulator, scheduler, demo image, optional shell on UART).
-* Targets (`make cm`): `m0-runtime` (Cortex-M0, no compiler), `m4-full` (M4F), `m33-full`
-  and `m33-shell` (M33 with FPv5, sized like a 512 KB-SRAM part).
+* Targets (`make cm`): `m0-runtime` (Cortex-M0, no compiler), `m0-lowram` (M0 with 64 KB
+  RAM, lowram profile, 40 KB pool), `m0-node` ([examples/lowram](../examples/lowram/) on an M0
+  with 48 KB RAM, 32 KB pool), `m4-full` (M4F), `m33-full` and `m33-shell` (M33 with FPv5,
+  sized like a 512 KB-SRAM part). `main.c` runs the demo image in place from flash
+  (`CM_XIP=1`, default) and takes `CM_HEAP_SIZE`, `CM_RAMFS_SIZE`, `CM_STACK_SLOTS`, `CM_FRAMES`.
 * `make cm-check` runs every target in the Unicorn emulator (`tools/cm_emu.py`) and requires
   the script output to be byte-identical to the host interpreter, then runs the UART
   protocol test against `m33-shell`. **This validates code generation, ABI, alignment,
@@ -45,8 +50,10 @@ integration:
    project's SConscript; `CPPDEFINES += MCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"`.
 2. Create an RT-Thread thread (stack 8 KB to start; measured peak for the demo is 3.5 KB)
    that owns the VM and calls `mcs_sched_poll` / `mcs_shell_step`.
-3. Static pool of 192–256 KB for the VM heap if scripts are compiled on the device; ~100 KB
-   if only `.mcsb` images are run.
+3. Static pool for the VM heap: 128 KB leaves room for compiling small scripts on the device
+   (the 2.5 KB demo peaks at ~90 KB on the emulated M33); 48–64 KB is enough when only
+   `.mcsb` images are run, preferably with `mcs_exec_image_xip` from flash. Size it with
+   `mcs_mem_stats()` for your scripts.
 4. Filesystem: either mount LittleFS directly on the SPI/NOR flash via `mcs_lfs_ops`, or
    write a small VFS backend over RT-Thread DFS (`open/read/write/stat/opendir`, ~150
    lines, modelled on `mcs_vfs_posix.c`).

@@ -40,6 +40,28 @@ flowchart TB
   collection when it is mostly empty.
 * **Images.** `.mcsb` = serialised functions/constants with global names re-linked at load
   time; versioned (`IMG_VERSION` 2, v1 still accepted) and validated. See [BYTECODE.md](BYTECODE.md).
+  With **execute in place** (`mcs_exec_image_xip`) a function's `code` points into the image
+  buffer; such functions are flagged `FN_XIP` (a runtime-only flag, masked out of image
+  flags) and carry a `gmap` (image global index → VM global slot) that `GET/SET_GLOBAL`
+  go through, because the image's global indices cannot be patched in flash.
+
+## Memory layout (what costs RAM)
+* **Values** are a type tag plus an 8- or 4-byte payload. With `MCS_COMPACT_VALUES` (default
+  on 32-bit) the struct is packed to 4-byte alignment: 12 bytes with a double/int64 payload,
+  8 bytes with single floats and 32-bit ints. See [LOW_RESOURCE.md](LOW_RESOURCE.md).
+* **Strings** are always interned. The intern set (`mcs_strset_t`) is weak and holds one
+  pointer per slot; the GC sweep turns dead entries into tombstones. A string that names a
+  global stores the global's slot + 1 in `obj.aux` (padding in the object header), so
+  name → slot lookups need no separate table.
+* **Classes**: built-in exception classes share their base's field layout
+  (`layout_shared`) until a subclass adds a field (copy on write). Member tables start at
+  `MCS_TABLE_MIN_CAP` entries; native members are materialised lazily from ROM tables.
+* **Dictionary/HashSet**: insertion-ordered `keys[]`/`vals[]` arrays plus an open-addressing
+  index of positions whose slot width (1, 2 or 4 bytes) follows the index capacity;
+  `HashSet` storage is keys-only (`DICT_KEYS_ONLY` in `obj.aux`). `Remove` keeps insertion
+  order by shifting the arrays and renumbering index slots.
+* **Compiler**: tokens are 24 bytes and AST nodes keep literal payloads in a union; the
+  token array grows by the observed token density and is freed after parsing.
 * **Library.** Builtin classes are described by `mcs_reg_t` tables; with `MCS_LAZY_REGS`
   a class's natives are only materialised on first use. [STDLIB.md](STDLIB.md) is generated
   from these tables.

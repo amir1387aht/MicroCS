@@ -10,8 +10,8 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.2.0-8b5cf6?style=flat-square)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-30%20scripts%20·%2079%20unit%20·%2023%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-46%20script%20runs%20·%20104%20unit%20·%2023%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Cortex-M](https://img.shields.io/badge/Cortex--M0%20·%20M4%20·%20M33-emulated-f59e0b?style=flat-square&logo=arm)](docs/PORTING.md)
 
@@ -62,8 +62,8 @@ tuples, ranges `x[1..^1]`, exceptions with filters, string interpolation — out
 
 ### 🪶 Small & portable
 One C99 library, no dependencies, no OS required. Pluggable allocator (pool heap
-included), 17 feature flags and 4 build profiles. A full VM starts in
-~50 KB of heap.
+included), feature flags and 5 build profiles. A full VM starts in ~25 KB of heap,
+a trimmed one in 13 KB; images can run straight from flash.
 
 </td>
 <td width="33%" valign="top">
@@ -107,7 +107,7 @@ experimental or planned are labelled so — see [Status](#-status).
 git clone https://github.com/amir1387aht/MicroCS && cd MicroCS
 make                          # builds ./mcs — CLI, REPL and standalone runtime
 ./mcs -e 'Console.WriteLine($"Hello from C# {1 + 1}!")'
-make test                     # 30 script runs, 79 C unit checks, shell protocol tests
+make test                     # 46 script runs, 104 C unit checks, shell protocol tests
 ```
 
 <details>
@@ -117,6 +117,7 @@ make test                     # 30 script runs, 79 C unit checks, shell protocol
 ./mcs app.cs                                  # compile + run source
 ./mcs -c app.cs && ./mcs app.mcsb             # precompile to a bytecode image, run it
 ./mcs -C app.cs -n app_image -o app_image.h   # image as a const C array for flash
+./mcs --xip app.mcsb                          # run an image in place (no bytecode copy in RAM)
 ./mcs -d app.cs                               # disassemble (also works on .mcsb images)
 ./mcs --sim tests/t08_hal.cs                  # peripherals against the simulator board
 ./mcs --heap 65536 --stats app.cs             # emulate a small MCU heap, print GC stats
@@ -182,7 +183,7 @@ flowchart LR
 ```
 
 The compiler (dashed) is optional: ship only the VM and load precompiled images to save
-~42 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
 ## 🧩 Language at a glance
@@ -231,14 +232,29 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 
 | Cortex-M (gcc 13.2 `-Os`, emulated) | Flash `.text` | Heap after `mcs_new` | Demo as image | Demo from source |
 |---|---:|---:|---:|---:|
-| **M0**, runtime only (no compiler) | 172 KB | 50 KB | 18.2 M instr · 86 KB peak | — |
-| **M4F**, full | 216 KB | 50 KB | 3.29 M instr | 4.92 M instr · 132 KB peak |
-| **M33**, full (+ shell 219 KB) | 216 KB | 50 KB | 3.29 M instr | 4.92 M instr |
+| **M0**, runtime only (no compiler) | 167.6 KB | 25.1 KB | 4.56 M instr · 63.5 KB peak | — |
+| **M0**, `lowram` profile, 40 KB pool | 158.5 KB | 19.9 KB | 4.59 M instr · 33.3 KB peak | — |
+| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 144.1 KB | 13.0 KB | 1.28 M instr · 27.4 KB peak | — |
+| **M4F**, full | 213.5 KB | 25.3 KB | 3.47 M instr | 4.32 M instr · 88.4 KB peak |
+| **M33**, full (+ shell 216.5 KB) | 213.4 KB | 25.3 KB | 3.47 M instr | 4.32 M instr |
 
 > [!NOTE]
 > Cortex-M numbers are *instruction counts* from the Unicorn emulator (`make cm-check`), not
-> cycles on silicon. Flash includes newlib + libm (~49 KB) and the optional modules. Method and
+> cycles on silicon. 1 KB = 1024 B. Flash includes newlib + libm (~49 KB) and the optional modules. Method and
 > raw data: [PERFORMANCE.md](docs/PERFORMANCE.md).
+
+### 🪫 Small MCUs (32–64 KB RAM)
+
+Use `profiles/mcs_profile_lowram.h`, precompiled images run with `mcs_exec_image_xip()` and
+a reduced `cfg.stdlib`. Every option, what it costs and what it saves:
+[docs/LOW_RESOURCE.md](docs/LOW_RESOURCE.md) · a complete 48 KB-RAM firmware:
+[examples/lowram](examples/lowram/).
+
+```c
+#define MCS_USER_CONFIG_FILE "profiles/mcs_profile_lowram.h"   /* or -D on the command line */
+cfg.stdlib = MCS_LIB_CORE | MCS_LIB_COLLECTIONS;                 /* skip unused classes */
+mcs_exec_image_xip(vm, node_image, sizeof node_image);          /* bytecode stays in flash */
+```
 
 ## 🚦 Status
 
@@ -246,15 +262,16 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 
 | Area | Status | Evidence |
 |---|:---:|---|
-| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 17 feature-flag builds `-Werror` |
+| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 22 feature-flag builds `-Werror`, whole suite under 6 configurations |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, `case` patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
-| Bytecode images (v2) + loader validation | ✅ | every test runs as source **and** image; image fuzzer (`tools/fuzz.py --image`) |
+| Bytecode images (v2) + loader validation | ✅ | every test runs as source, image **and** XIP image; image fuzzer (`tools/fuzz.py --image`) |
+| Low-RAM profile, XIP images, compact values | 🧪 | `make check` (lowram config), `m0-lowram` / `m0-node` in `make cm-check`; emulated only |
 | VFS (RAM / POSIX), `File` `Directory` `Path` | ✅ host | `t07_filesystem`, C unit tests |
 | LittleFS backend | 🧪 | `make lfs-test` on a RAM block device; not yet on real flash |
 | HAL + C# peripheral API | ✅ API · 🧪 drivers | `t08_hal` on the simulator board; no real board driver included |
 | Scheduler, execution limits | ✅ | `t09_scheduler`, `err_limits` |
 | Standalone shell / script manager | ✅ host + emulated M33 | `test_shell.py`, `test_cm_shell.py` |
-| Cortex-M0 / M4 / M33 builds | 🧪 | built with arm-none-eabi-gcc, run in an emulator; **never on silicon** |
+| Cortex-M0 / M4 / M33 builds | 🧪 | 6 firmwares built with arm-none-eabi-gcc, 5 run in an emulator; **never on silicon** |
 | RT-Thread / SiFli SF32LB525 port | 🗓️ | outline in [PORTING.md](docs/PORTING.md) |
 | LVGL bindings, debugger, signed images, cron syntax | 🗓️ | [roadmap](#-roadmap) |
 | 2 KB RAM / 16 KB flash "tiny" class | ⛔ | needs a different VM design (see PERFORMANCE.md) |
@@ -265,7 +282,8 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 - [x] **Phase 2** — filesystem, HAL, scheduler, standalone shell, limits, Cortex-M ports
 - [x] **1.2** — tuples, ranges, superinstructions, inline caches, loader hardening, fuzzing
 - [ ] Real hardware bring-up: SF32LB525 + RT-Thread (board HAL, flash FS, UART transport)
-- [ ] ROM-resident class metadata (−40 KB RAM per VM), streaming compilation
+- [x] **1.3** — small-MCU release: lowram profile, XIP images, VM baseline 50 → 25 KB, compact collections
+- [ ] ROM-resident class metadata, streaming compilation
 - [ ] LVGL module, async peripheral events, `FileStream`
 - [ ] Signed images + authenticated shell, on-device debugger
 
@@ -276,7 +294,7 @@ include/        public API: mcs.h, mcs_config.h, mcs_bind.h, module headers, pro
 src/            core: lexer, parser, compiler, bytecode, VM, GC, stdlib
 modules/        optional: fs/ hal/ sched/ shell/   (public API only)
 ports/          unix (CLI) · cortex-m (bare-metal reference firmware) · template
-examples/       C# examples + firmware embedding example
+examples/       C# examples, firmware embedding example, lowram/ 48 KB-RAM firmware
 tests/          *.cs with expected .out, C unit tests, protocol tests
 tools/          fuzzer, emulator harness, .NET parity check, size + doc generators
 docs/           everything else → docs/README.md

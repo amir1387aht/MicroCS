@@ -8,6 +8,7 @@
 | [`app.cs`](app.cs) | the script used by the C embedding example | `./mcs examples/app.cs` |
 | [`firmware_example.c`](firmware_example.c) | embedding: pool heap, limits, HAL table, C bindings, calling script functions from C, running a flash image | `make example` |
 | [`app_image.h`](app_image.h) | `app.cs` precompiled with `./mcs -C` | — |
+| [`lowram/`](lowram/) | firmware for a ~48 KB-RAM MCU: lowram profile, image executed in place from flash, 32 KB pool — also runs on the emulated Cortex-M0 | `make example-lowram` |
 
 `--sim` attaches the simulator board (its I²C sensor always reads 25 °C); add `--sim-log` to
 trace every peripheral access. On a device the same scripts run against your board's

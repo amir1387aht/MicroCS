@@ -54,10 +54,12 @@ On small parts, compile on the PC and ship only the VM:
 ./mcs -c app.cs -o app.mcsb                    # image file (copy to the device FS)
 ./mcs -C app.cs -n app_image -o app_image.h -s # const array to link into flash
 ./mcs -d app.mcsb                              # check what is inside
+./mcs --xip app.mcsb                           # run it the way mcs_exec_image_xip() does on flash
 ```
 
-A runtime-only build (`-DMCS_ENABLE_COMPILER=0`) saves ~42 KB of flash and the compiler's
+A runtime-only build (`-DMCS_ENABLE_COMPILER=0`) saves ~44 KB of flash and the compiler's
 RAM. Images are portable between 32- and 64-bit hosts. Format: [BYTECODE.md](BYTECODE.md).
+For 32–64 KB RAM parts see [LOW_RESOURCE.md](LOW_RESOURCE.md).
 
 ## 5. Embed the VM in firmware
 

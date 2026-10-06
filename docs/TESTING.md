@@ -7,11 +7,11 @@ number or "supported" claim in the docs points at a test or a measurement.
 
 | Command | What it runs | Needs |
 |---|---|---|
-| `make test` | 30 script runs (13 programs as **source** and as **bytecode image**, plus 4 diagnostics tests), 79 C unit checks of the modules, 16 shell-protocol checks, the examples | C compiler, python3 |
-| `make check` | `make test` + GC-stress build (collect at every safepoint) running every `t*.cs` + 17 feature-flag / profile builds with `-Werror` | same |
+| `make test` | 46 script runs (14 programs as **source**, as a copied **bytecode image** and as an image **executed in place**, plus 4 diagnostics tests), 104 C unit checks, 16 shell-protocol checks, the examples (incl. `examples/lowram` built with the lowram profile) | C compiler, python3 |
+| `make check` | `make test` + GC-stress build (collect at every safepoint) running every `t*.cs` + 22 feature-flag / profile builds with `-Werror` + the whole script suite under 5 alternative configurations (`ALT_CONFIGS`: compact values, no XIP, big tables, no computed goto / field cache, tiny GC threshold + 16-byte pool alignment) | same |
 | `make lfs-test` | LittleFS backend on a RAM block device: mount, remount, ENOSPC, atomic upload | curl (downloads littlefs 2.9.3) |
-| `make cm-check` | builds 4 Cortex-M firmwares, runs 3 in the Unicorn emulator (output must equal the host byte-for-byte), 7 UART protocol checks on the M33 shell build | `arm-none-eabi-gcc`, `pip3 install unicorn` |
-| `tools/verify_dotnet.sh` | compiles `t02 t05 t10 t11 t13` and `examples/tour.cs` with **.NET 8** and diffs the output against MicroCS's `.out` | `dotnet` 8+ |
+| `make cm-check` | builds 6 Cortex-M firmwares, runs 5 in the Unicorn emulator (`m0-runtime`, `m0-lowram`, `m0-node`, `m4-full`, `m33-full`; output must equal the host byte-for-byte), 7 UART protocol checks on the M33 shell build | `arm-none-eabi-gcc`, `pip3 install unicorn` |
+| `tools/verify_dotnet.sh` | compiles `t02 t05 t10 t11 t13 t14` and `examples/tour.cs` with **.NET 8** and diffs the output against MicroCS's `.out` | `dotnet` 8+ |
 | `make asan-test` | the whole suite under AddressSanitizer + UBSan | gcc/clang with sanitizers |
 | `python3 tools/fuzz.py` | mutation fuzzer (source or images), see below | a sanitizer build |
 | `make bench` | startup / compile / image load / run timings | — |
@@ -33,11 +33,20 @@ number or "supported" claim in the docs points at a test or a measurement.
 | `t11_tuples_ranges` | tuples, deconstruction, `^` and ranges, `sizeof`, nullable members *(.NET-identical)* |
 | `t12_memory_churn` | 300 k temporary strings in a 128 KB heap (intern-table regression) |
 | `t13_stdlib_more` | `Zip`, `Chunk`, `TryPop`/`TryDequeue`, `is` patterns, tuple names *(.NET-identical)* |
+| `t14_low_resource` | exceptions derived from built-ins (`: IOException` with fields and `base(msg)`), many globals, string churn, dictionary index widths and removal order, LINQ / sequence arguments on `HashSet` `Stack` `Queue` `Dictionary` *(.NET-identical)* |
 | `err_*` | compile errors, runtime errors, member errors, limits — exact diagnostics |
 
 A test can pass CLI options on its first line: `// args: --heap 131072`.
 `tests/run_tests.sh` runs each file from source, then compiles it to `.mcsb` and runs the
-image; both outputs must match the `.out` file.
+image twice — copied (`mcs_exec_image`) and executed in place (`mcs --xip`,
+`mcs_exec_image_xip`); all three outputs must match the `.out` file.
+
+## Emulator profiling
+
+`tools/cm_emu.py ELF --cpu m0 --profile 20` prints the 20 functions that executed the most
+instructions; `--callers memcpy` lists who calls a symbol. Use it after `make cm` to find
+hot spots that only exist on a given core (the 1.3 `memcpy` value-copy finding on Cortex-M0
+came from this).
 
 ## Fuzzing
 
@@ -60,7 +69,8 @@ strings (OOM), and a stack-slot leak from declarations used as loop bodies
 (`while (c) int i = 0;` — now a compile error, as in C#). Image mode found that running
 mutated images can crash (stack balance is not verified — documented in SECURITY.md), which
 is why it loads and disassembles instead of executing. Final 1.2 runs under ASan/UBSan:
-2 500 source + 1 500 image iterations, no findings.
+2 500 source + 1 500 image iterations, no findings. 1.3 runs under ASan/UBSan: 1 500 source
+(seed 7) + 1 500 image (seed 8) iterations, no findings.
 
 ## Adding a test
 

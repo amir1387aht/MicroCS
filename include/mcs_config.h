@@ -26,6 +26,21 @@
 #define MCS_FLOAT_DOUBLE 1
 #endif
 
+/* Pack mcs_value_t to 4-byte alignment. Only matters when the payload is
+ * 8 bytes (MCS_FLOAT_DOUBLE=1 or MCS_INT64=1) on a 32-bit CPU: values shrink
+ * from 16 to 12 bytes (stack, globals, fields, arrays, tables: -25% RAM) and
+ * GCC copies them with LDM/STM instead of calling memcpy - on Cortex-M0 with
+ * newlib-nano that alone made the demo ~4x faster. The compiler knows the
+ * payload is only word aligned, so the generated code is correct on every
+ * CPU. Default: on for 32-bit targets, off for 64-bit hosts. */
+#ifndef MCS_COMPACT_VALUES
+#if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 4
+#define MCS_COMPACT_VALUES 1
+#else
+#define MCS_COMPACT_VALUES 0
+#endif
+#endif
+
 /* ---------------------------------------------------------------- features */
 /* On-device compiler (source -> bytecode). Set 0 to run only precompiled
  * .mcsb images produced by the host tool: saves ~60% of code size. */
@@ -39,9 +54,18 @@
 #ifndef MCS_ENABLE_BYTECODE_SAVE
 #define MCS_ENABLE_BYTECODE_SAVE MCS_ENABLE_COMPILER
 #endif
+/* Execute-in-place images: mcs_exec_image_xip() runs bytecode directly from
+ * the image buffer (e.g. flash) instead of copying every function's code to
+ * the heap. Costs one table lookup per global access in all builds. */
+#ifndef MCS_ENABLE_XIP
+#define MCS_ENABLE_XIP MCS_ENABLE_BYTECODE_LOAD
+#endif
 /* Standard library pieces */
 #ifndef MCS_ENABLE_LIST
 #define MCS_ENABLE_LIST 1          /* List<T>, LINQ-style helpers */
+#endif
+#ifndef MCS_ENABLE_LINQ
+#define MCS_ENABLE_LINQ 1          /* Where/Select/OrderBy/GroupBy/Sum/... + Enumerable */
 #endif
 #ifndef MCS_ENABLE_DICT
 #define MCS_ENABLE_DICT 1          /* Dictionary<K,V> */
@@ -81,6 +105,13 @@
 #ifndef MCS_ENABLE_POOL_HEAP
 #define MCS_ENABLE_POOL_HEAP 1
 #endif
+/* Block alignment of the pool allocator (also its per-block header size).
+ * 8 is safe everywhere. 4 saves 4+ bytes per allocation and is safe on
+ * Cortex-M (ARMv6-M/v7-M/v8-M only need word alignment for every load,
+ * including LDRD/VLDR); never set below the pointer size (it is clamped). */
+#ifndef MCS_POOL_ALIGN
+#define MCS_POOL_ALIGN 8
+#endif
 
 /* ---------------------------------------------------------------- limits */
 /* Native members registered via mcs_reg_t tables stay in ROM/flash and are
@@ -88,6 +119,13 @@
  * registration API must then have static storage duration. */
 #ifndef MCS_LAZY_REGS
 #define MCS_LAZY_REGS 1
+#endif
+
+/* First allocation size (entries) of every hash table: class member tables,
+ * Dictionary/HashSet indexes. Most built-in classes have 1-3 members per table,
+ * so 4 halves their RAM compared with 8. Power of two, >= 4. */
+#ifndef MCS_TABLE_MIN_CAP
+#define MCS_TABLE_MIN_CAP 4
 #endif
 
 #ifndef MCS_DEFAULT_STACK
@@ -129,6 +167,15 @@
 #endif
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
+#endif
+
+/* Size of the last-error message buffer inside the VM (mcs_last_error). */
+#ifndef MCS_ERROR_SIZE
+#define MCS_ERROR_SIZE 256
+#endif
+/* Persistent handles available to C code via mcs_pin(). */
+#ifndef MCS_MAX_PINS
+#define MCS_MAX_PINS 16
 #endif
 
 #ifndef MCS_STACK_MARGIN

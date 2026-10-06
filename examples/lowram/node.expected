@@ -1,0 +1,25 @@
+[node] t=1 avg=23.7C max=23.7C led=off
+[node] t=2 avg=25.5C max=27.4C led=off
+[node] t=3 avg=27.4C max=31.1C led=off
+[node] t=4 avg=25.7C max=31.1C led=green
+[node] t=5 avg=25.5C max=31.1C led=green
+[node] t=6 avg=25.9C max=31.1C led=green
+[node] t=7 avg=26.8C max=31.9C led=green
+[node] t=8 avg=26.1C max=31.9C led=green
+[node] t=9 avg=26.3C max=31.9C led=green
+[node] t=10 avg=26.5C max=31.9C led=green
+[node] t=11 avg=26.7C max=32.7C led=green
+[node] t=12 avg=26.9C max=32.7C led=green
+[node] t=13 fault raw=-1
+[node] t=14 avg=27.6C max=32.7C led=green
+[node] t=15 avg=28.2C max=33.5C led=green
+[node] t=16 avg=27.1C max=33.5C led=green
+[node] t=17 avg=27.8C max=33.5C led=green
+[node] t=18 avg=28.5C max=33.5C led=red
+[node] t=19 avg=27.4C max=33.5C led=green
+[node] t=20 avg=26.3C max=33.5C led=green
+[node] t=21 avg=27.0C max=33.5C led=green
+[node] t=22 avg=27.2C max=33.5C led=green
+[node] t=23 avg=25.6C max=31.4C led=green
+[node] t=24 avg=25.8C max=31.4C led=green
+[node] ticks=24 faults=1 alarms=1

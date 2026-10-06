@@ -3,7 +3,7 @@
  *
  * 1. creates a VM on a static pool heap (no malloc)
  * 2. installs optional modules: RAM filesystem, HAL simulator, scheduler
- * 3. runs the demo as a precompiled bytecode image (always)
+ * 3. runs the demo as a precompiled bytecode image (always; executed in place from flash)
  * 4. full profile: compiles + runs the same demo from source on the device
  * 5. prints measurements (instructions from the emulator, heap/stack peaks)
  * 6. shell profile: serves the script-manager protocol on the UART until EOF
@@ -39,6 +39,16 @@
 #endif
 #ifndef CM_RAMFS_SIZE
 #define CM_RAMFS_SIZE (4 * 1024)
+#endif
+#ifndef CM_STACK_SLOTS
+#define CM_STACK_SLOTS 256
+#endif
+#ifndef CM_FRAMES
+#define CM_FRAMES 48
+#endif
+/* run the demo image in place from flash (mcs_exec_image_xip); 0 = copy to heap */
+#ifndef CM_XIP
+#define CM_XIP 1
 #endif
 #ifndef CM_TARGET
 #define CM_TARGET "cortex-m"
@@ -87,7 +97,7 @@ static mcs_vm_t* make_vm(void) {
     mcs_config_default(&cfg);
     cfg.realloc_fn = CM_REALLOC; cfg.alloc_ud = &g_pool;
     cfg.write_fn = w_out; cfg.ticks_fn = w_ticks; cfg.delay_fn = w_delay; cfg.hook_fn = w_hook;
-    cfg.stack_slots = 256; cfg.max_frames = 48;
+    cfg.stack_slots = CM_STACK_SLOTS; cfg.max_frames = CM_FRAMES;
     cfg.heap_limit = CM_HEAP_SIZE - 2048;
     mcs_vm_t* vm = mcs_new(&cfg);
     if (!vm) return NULL;
@@ -135,7 +145,11 @@ int main(void) {
 
     EMU_MARK = 1;
     i0 = board_insns();
+#if CM_XIP
+    mcs_result_t r = mcs_exec_image_xip(vm, demo_image, demo_image_len);
+#else
     mcs_result_t r = mcs_exec_image(vm, demo_image, demo_image_len);
+#endif
     report("image", i0, r);
     mcs_mem_stats_t st; mcs_mem_stats(vm, &st);
     printf("[image] gc_peak=%lu collections=%lu\n", (unsigned long)st.peak_bytes, (unsigned long)st.collections);

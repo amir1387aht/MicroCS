@@ -48,7 +48,7 @@ a 64-bit-int image loads on a 32-bit-int VM (constants are truncated).
 
 ## Loader validation
 
-`mcs_load_image` / `mcs_exec_image` reject an image unless:
+`mcs_load_image` / `mcs_exec_image` / `mcs_exec_image_xip` reject an image unless:
 
 * magic, version, every length and count are within the buffer (`corrupt bytecode image`);
 * every opcode is known and its operands fit inside `code`;
@@ -65,6 +65,22 @@ a 64-bit-int image loads on a 32-bit-int VM (constants are truncated).
 > authenticate them (signing is planned — see [SECURITY.md](SECURITY.md)).
 > `tools/fuzz.py --image` mutates real images and checks that loading + disassembling never
 > crashes under ASan/UBSan.
+
+## Copy vs execute in place
+
+| | `mcs_exec_image` (copy) | `mcs_exec_image_xip` (execute in place) |
+|---|---|---|
+| function code | copied to the heap | read from the image buffer |
+| global operands | patched to VM slots while copying | looked up through a per-function `gmap` table at run time |
+| constants, line tables, class metadata | heap | heap (same) |
+| image buffer after the call | may be freed | must stay valid and unchanged until `mcs_free(vm)` |
+| CLI | `./mcs app.mcsb` | `./mcs --xip app.mcsb` |
+
+Both paths run the same validation. XIP is meant for images linked into flash; RAM saved is
+roughly the bytecode size of the image (measurements in [LOW_RESOURCE.md](LOW_RESOURCE.md)).
+The image format is identical; `FN_XIP` (0x08) is a runtime-only function flag and is masked
+off when an image's flags are read. `make test` runs every test from source, as a copied
+image and as an XIP image. Builds with `MCS_ENABLE_XIP=0` fall back to copying.
 
 ## Instruction set
 

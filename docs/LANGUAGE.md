@@ -87,10 +87,15 @@ names in one program may get the wrong labels (positional `ItemN` access is alwa
 
 ## Types and values
 * `int`, `uint`, `short`, `byte`, `sbyte`, `char`, `bool`, `double`, `float`, `string`,
-  `object`; `long`/`ulong` are 64-bit with `MCS_INT64=1` (default on the host) and 32-bit
-  otherwise. `float` and `double` share one representation (`MCS_FLOAT_DOUBLE`).
+  `object`; all integer types share one representation: 32-bit by default (also in the
+  host `mcs` build — `long.MaxValue` prints 2147483647), 64-bit with `MCS_INT64=1`
+  (`profiles/mcs_profile_linux.h`). `float` and `double` share one representation: double
+  by default, single with `MCS_FLOAT_DOUBLE=0` (lowram profile).
 * Strings are UTF-8 and **byte-indexed** (`s.Length` counts bytes; `foreach` yields code points).
 * LINQ is **eager** and returns `List<T>`; `GroupBy` returns `Dictionary<key, List<item>>`.
+  The operators work on arrays, `List<T>`, `Dictionary` (as `KeyValuePair`s), `HashSet`,
+  `Stack` and `Queue`; the last four are enumerated from a snapshot. `MCS_ENABLE_LINQ=0`
+  removes them.
 * Value-type semantics for `struct` are not implemented — structs are references.
 
 ## Deliberate MicroCS behaviour (differs from .NET)

@@ -28,6 +28,7 @@ test: mcs build/test_modules
 	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }
 	@./mcs --sim --run-for 600 examples/blink.cs > /dev/null && echo "PASS examples/blink.cs (smoke)" || { echo "FAIL examples/blink.cs"; exit 1; }
 	@./mcs --sim --ramfs 32768 --run-for 1200 examples/sensor_logger.cs > /dev/null && echo "PASS examples/sensor_logger.cs (smoke)" || { echo "FAIL examples/sensor_logger.cs"; exit 1; }
+	@$(MAKE) -s example-lowram > build/lowram.txt 2>&1 && grep '^\[node\]' build/lowram.txt | cmp -s - examples/lowram/node.expected && echo "PASS examples/lowram (lowram profile, XIP image)" || { echo "FAIL examples/lowram"; cat build/lowram.txt; exit 1; }
 
 build/test_modules: tests/c/test_modules.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_modules.c -o $@ $(LDLIBS)
@@ -39,7 +40,12 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
 	"-DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_mcu.h\"" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_linux.h\""
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_linux.h\"" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_lowram.h\"" "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_LINQ=0" \
+	"-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16 -DMCS_POOL_ALIGN=16 -DMCS_ERROR_SIZE=64"
+# configurations whose whole script suite must still pass (not just build)
+ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
+	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16"
 check: test
 	@echo "== GC stress"; $(CC) -std=gnu99 -O1 -Iinclude -DMCS_GC_STRESS=1 $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_gc && \
 	cd tests && for t in t*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
@@ -48,6 +54,9 @@ check: test
 	@echo "== feature flag builds"; for f in $(FLAG_SETS); do \
 	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_flags || { echo "BUILD FAIL $$f"; exit 1; }; \
 	echo "OK $$f"; done
+	@echo "== alternate configurations (full script suite)"; for f in $(ALT_CONFIGS); do \
+	$(CC) -std=gnu99 -O1 -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_alt || { echo "BUILD FAIL $$f"; exit 1; }; \
+	sh tests/run_tests.sh ./build/mcs_alt > build/alt.txt 2>&1 && echo "OK $$f ($$(tail -n 1 build/alt.txt))" || { cat build/alt.txt | grep FAIL; echo "FAIL $$f"; exit 1; }; done
 
 # Debug build with sanitizers
 SAN_FLAGS = CFLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" LDLIBS="-lm -fsanitize=address,undefined"
@@ -79,10 +88,18 @@ example: $(OBJ) examples/firmware_example.c examples/app_image.h
 	$(CC) $(CFLAGS) -Iexamples $(OBJ) examples/firmware_example.c -o build/firmware_example $(LDLIBS)
 	./build/firmware_example
 
+# small-MCU firmware skeleton: whole library built with the lowram profile, image run in place
+LOWRAM_FLAGS = -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
+examples/lowram/node_image.h: examples/lowram/node.cs mcs
+	./mcs -C examples/lowram/node.cs -n node_image -o $@
+example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c | build
+	$(CC) -std=gnu99 -O2 -Wall -Wextra -Werror -Iinclude -Iexamples/lowram $(LOWRAM_FLAGS) $(SRC) examples/lowram/lowram_firmware.c -o build/lowram_firmware $(LDLIBS)
+	./build/lowram_firmware
+
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example cm cm-check bench lfs-test
+.PHONY: all test check asan asan-test size clean example example-lowram cm cm-check bench lfs-test
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party)
 LFS_DIR = build/third_party/littlefs-2.9.3

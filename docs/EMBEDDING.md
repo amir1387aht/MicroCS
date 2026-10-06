@@ -15,14 +15,18 @@ cfg.stack_slots = 256; cfg.max_frames = 48;
 cfg.stdlib = MCS_LIB_ALL;      /* or MCS_LIB_CORE | MCS_LIB_COLLECTIONS ... */
 mcs_vm_t* vm = mcs_new(&cfg);
 ```
-Measured baseline after `mcs_new` with the full stdlib: ~50 KB of heap on Cortex-M
-(~41 KB with `MCS_LIB_CORE` only, host measurement). Budget for it.
+Measured heap right after `mcs_new` (emulated Cortex-M0, 1 KB = 1024 B): **25.1 KB** with
+the default config and the full stdlib, **13.0 KB** with the lowram profile,
+`MCS_LIB_CORE | MCS_LIB_COLLECTIONS` and no FS/HAL/scheduler modules. A 64-bit host needs
+about 44 KB for the default config. Budget for it, then add the script's live data; small
+targets: [LOW_RESOURCE.md](LOW_RESOURCE.md).
 
 ## 2. Run code
 | Call | Input |
 |---|---|
 | `mcs_exec_source(vm, name, src)` | C# source (needs `MCS_ENABLE_COMPILER`) |
-| `mcs_exec_image(vm, img, len)` | `.mcsb` image, e.g. a const array in flash |
+| `mcs_exec_image(vm, img, len)` | `.mcsb` image, e.g. a const array in flash (code is copied to the heap) |
+| `mcs_exec_image_xip(vm, img, len)` | same, but bytecode is executed in place: `img` must stay valid until `mcs_free` |
 | `mcs_exec_auto(vm, name, buf, len)` | either, detected by the image magic |
 | `mcs_exec_file(vm, vfs, path)` | file from the VFS (honours NOEXEC mounts) |
 | `mcs_call(vm, "App.Loop", argc, argv, &res)` | call a script function from C |
@@ -65,6 +69,16 @@ temporaries with `mcs_push_root/mcs_pop_root` if you call back into the VM; keep
 values in C with `mcs_pin/mcs_unpin`. Register tables must be `static const`.
 
 ## 6. Build profiles
-`-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_mcu.h"'` (or `tiny`, `embedded`, `linux`)
-selects a coherent set of `MCS_ENABLE_*` flags; any flag can still be overridden with `-D`.
-All four profiles are built with `-Werror` by `make check`.
+`-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_mcu.h"'` (or `lowram`, `tiny`, `embedded`,
+`linux`) selects a coherent set of `MCS_ENABLE_*` flags; any flag can still be overridden
+with `-D`. All five profiles are built with `-Werror` by `make check`.
+
+| Profile | For | Compiler | Notes |
+|---|---|:---:|---|
+| `linux` | hosts | ✅ | 64-bit ints, big stacks |
+| `embedded` | ≥ 256 KB RAM (e.g. SF32LB525) | ✅ | shell, FS, HAL, scheduler |
+| `mcu` | 64–160 KB RAM | — | images only, all modules |
+| `lowram` | 24–64 KB RAM | — | single floats (8-byte values), small limits, 4-byte pool alignment |
+| `tiny` | smallest flash | — | no float, no `Dictionary`, no modules |
+
+A complete small-RAM integration is in [examples/lowram/](../examples/lowram/).
