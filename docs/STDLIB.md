@@ -79,13 +79,26 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **Hal** | static | — | `Has(·)` | `Hal.Board` is a constant |
-| **GPIO** | static | — | `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` | consts `Input Output InputPullUp InputPullDown OpenDrain High Low` |
-| **UART** | static | — | `Open(·, ·)` `Write(·, ·)` `Read(…)` `ReadString(…)` `Available(·)` |  |
-| **I2C** | static | — | `Write(·, ·, ·)` `Read(·, ·, ·)` `WriteRead(·, ·, ·, ·)` |  |
-| **SPI** | static | — | `Transfer(·, ·)` |  |
-| **ADC** | static | — | `Read(·)` | const `ADC.Resolution` |
-| **PWM** | static | — | `Set(·, ·, ·)` `SetPermille(·, ·, ·)` |  |
+| **Hal** | static | `Micros` `UniqueId` `CpuHz` `DroppedEvents` | `Has(·)` `Poll()` `Run(…)` `DelayMicroseconds(·)` `Reset()` `OnEvent(·, ·)` `Post(…)` | consts `Board`, `ApiVersion` |
+| **GPIO** | static | — | `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` `Pin(·)` `OnChange(·, ·, ·)` `Off(·)` `PulseIn(…)` | consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both` |
+| **Pin** | instance | `Value` `Number` | `Write(·)` `Read()` `Toggle()` `High()` `Low()` `SetMode(·)` `OnChange(·, ·)` | `new Pin(pin[, mode])`; pin = number or name (`"PA5"`, `"GPIO21"`, `"LED"`) |
+| **UART** | static | — | `Open(…)` `Close(·)` `Write(·, ·)` `WriteLine(…)` `Read(…)` `ReadString(…)` `ReadLine(…)` `Available(·)` `OnReceive(·, ·)` | consts `ParityNone ParityOdd ParityEven` |
+| **I2C** | static | — | `Open(…)` `Write(·, ·, ·)` `Read(·, ·, ·)` `WriteRead(·, ·, ·, ·)` `ReadRegister(·, ·, ·)` `ReadRegisters(·, ·, ·, ·)` `WriteRegister(·, ·, ·, ·)` `Scan(·)` |  |
+| **I2cDevice** | instance | `Address` `Bus` | `Write(·)` `Read(·)` `WriteRead(·, ·)` `ReadRegister(·)` `ReadRegisters(·, ·)` `WriteRegister(·, ·)` | `new I2cDevice(bus, address)` |
+| **SPI** | static | — | `Open(…)` `Transfer(…)` `Write(…)` `Read(…)` |  |
+| **SpiDevice** | instance | — | `Transfer(·)` `Write(·)` `Read(·)` `WriteRead(·, ·)` | `new SpiDevice(bus, csPin, hz, mode)` — drives CS for you |
+| **ADC** | static | — | `Read(·)` `ReadMillivolts(·)` `ReadVoltage(·)` `ReadAverage(…)` | consts `Resolution`, `ReferenceMillivolts` |
+| **DAC** | static | — | `Write(·, ·)` `WriteMillivolts(·, ·)` | const `Resolution` |
+| **PWM** | static | — | `Set(·, ·, ·)` `SetPermille(·, ·, ·)` `SetPulse(·, ·, ·)` `Servo(…)` `Tone(·, ·)` `Stop(·)` | duty for `Set` is 0.0–1.0 |
+| **Timer** | static | — | `Start(·, ·, ·)` `Once(·, ·, ·)` `Stop(·)` | periods in microseconds |
+| **I2S** | static | — | `Open(…)` `Write(…)` `Read(…)` `WriteSamples(…)` `ReadSamples(…)` `Close(·)` | consts `Tx Rx Duplex` |
+| **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` | address `-1` = no address phase |
+| **CAN** | static | — | `Open(…)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` |  |
+| **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
+| **Watchdog** | static | — | `Start(·)` `Feed()` |  |
+| **RTC** | static | `Now` | `Set(·)` | Unix seconds |
+| **BitConverter** | static | — | `ToInt16(…)` `ToUInt16(…)` `ToInt32(…)` `ToUInt32(…)` `ToInt64(…)` `ToBoolean(…)` `ToSingle(…)` `ToDouble(…)` `GetBytes(·)` `ToString(·)` | little-endian; const `IsLittleEndian` |
+| **Encoding.UTF8 / Encoding.ASCII** | instance | — | `GetBytes(·)` `GetString(…)` `GetByteCount(·)` |  |
 
 ## Scheduler (modules/sched)
 
@@ -103,4 +116,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_455 members in 46 tables._
+_552 members in 59 tables._

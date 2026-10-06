@@ -263,6 +263,9 @@ struct mcs_vm {
     uint32_t run_start;
     mcs_limits_t limits;
     uint8_t abort_reason;
+    uint8_t abort_hint;         /* reason recorded by mcs_safepoint() for the pending abort */
+    mcs_idle_fn idle_fn;        /* run while Thread.Sleep waits (HAL event dispatch) */
+    void* idle_ud;
     jmp_buf* panic;
     void* ext[MCS_EXT__COUNT];
 

@@ -764,11 +764,7 @@ static const mcs_reg_t env_fns[] = { MCS_GET("TickCount", env_tickcount), MCS_GE
 NATIVE(th_sleep) {
     mcs_int_t ms = mcs_to_int(vm, argv[0]); CHECK();
     if (ms < 0) ms = 0;
-    if (vm->cfg.delay_fn) { vm->cfg.delay_fn(vm->cfg.user_data, (uint32_t)ms); return mcs_null(); }
-    uint32_t start = lib_ticks(vm);
-    while ((uint32_t)(lib_ticks(vm) - start) < (uint32_t)ms) {
-        if (vm->cfg.hook_fn && vm->cfg.hook_fn(vm, vm->cfg.user_data)) { vm->abort_req = true; break; }
-    }
+    mcs_sleep(vm, (uint32_t)ms);
     return mcs_null();
 }
 static const mcs_reg_t thread_fns[] = { MCS_FN("Sleep", th_sleep, 1), MCS_REG_END };

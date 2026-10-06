@@ -84,7 +84,7 @@ static bool ends_with(const char* s, const char* suf) {
 static int result_code(mcs_result_t r) { return r == MCS_OK ? 0 : r == MCS_ERR_COMPILE ? 2 : r == MCS_ERR_ABORTED ? 130 : 1; }
 
 /* ------------------------------------------------------------ REPL */
-static bool balanced(const char* s) {
+static __attribute__((unused)) bool balanced(const char* s) {
     int depth = 0; bool str = false, chr = false;
     for (const char* p = s; *p; p++) {
         if (str) { if (*p == '\\' && p[1]) p++; else if (*p == '"') str = false; continue; }
@@ -129,6 +129,12 @@ static void repl(mcs_vm_t* vm) {
         if (len + n + 2 > cap) { cap = (len + n) * 2 + 2; src = (char*)realloc(src, cap); }
         memcpy(src + len, line, n + 1);
         len += n;
+#if MCS_ENABLE_SHELL
+        if (!mcs_repl_complete(src, len)) continue;
+        char* tmp = (char*)malloc(len + 64);
+        int pn = mcs_repl_prepare(src, len, tmp, len + 64);
+        char* code = pn < 0 ? src : tmp;
+#else
         if (!balanced(src)) continue;
         /* bare expression? print its value */
         size_t e = len;
@@ -140,6 +146,7 @@ static void repl(mcs_vm_t* vm) {
             snprintf(tmp, e + 64, "Console.WriteLine(%.*s);", (int)e, src);
             code = tmp;
         }
+#endif
         g_interrupted = 0;
         mcs_exec_source(vm, "<repl>", code);
         free(tmp);
@@ -179,11 +186,13 @@ static void usage(void) {
         "  --ramfs N    mount an N-byte RAM filesystem at / instead\n"
         "  --no-fs      no filesystem (File/Directory unavailable)\n"
         "  --ro         mount the filesystem read-only\n"
-        "  --sim        simulated board for GPIO/UART/I2C/SPI/ADC/PWM (--sim-log traces it)\n"
+        "  --sim        simulated board with every peripheral (--sim-log traces it,\n"
+        "               --sim-virtual uses a deterministic virtual clock for timers)\n"
         "  --time-limit MS, --step-limit N   abort a run that exceeds the budget\n"
         "  --run-for MS stop the job scheduler after MS (default: until no jobs or Ctrl-C)\n"
         "  --shell      standalone runtime: boot scripts, jobs, script upload protocol\n"
-        "  --no-boot    with --shell: do not run /boot.cs, /jobs.cfg, /main.cs\n"
+        "  --repl       like --shell but starts at the interactive C# prompt (the device REPL)\n"
+        "  --no-boot    with --shell/--repl: do not run /boot.cs, /jobs.cfg, /main.cs\n"
         "  --features   print compile-time features and exit\n"
         "  -v           version\n");
 }
@@ -228,6 +237,11 @@ static mcs_ramfs_t g_ramfs;
 static mcs_hal_t g_hal;
 static mcs_hal_sim_t g_sim;
 static void sim_log(void* ud, const char* s, size_t n) { (void)ud; fwrite(s, 1, n, stderr); }
+static uint32_t sim_clock_us(void* ud) {
+    (void)ud;
+    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)((uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u);
+}
 #endif
 #if MCS_ENABLE_SCHED
 static mcs_sched_t g_sched;
@@ -240,7 +254,7 @@ int main(int argc, char** argv) {
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
     size_t ramfs = 0;
-    bool no_fs = false, ro = false, sim = false, sim_log_on = false, shell = false, boot = true;
+    bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true;
     mcs_limits_t limits = { 0, 0 };
     uint32_t run_for = 0;
     for (int i = 1; i < argc; i++) {
@@ -262,10 +276,12 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "--ro")) ro = true;
         else if (!strcmp(a, "--sim")) sim = true;
         else if (!strcmp(a, "--sim-log")) sim = sim_log_on = true;
+        else if (!strcmp(a, "--sim-virtual")) sim = sim_virtual = true;
         else if (!strcmp(a, "--time-limit") && i + 1 < argc) limits.time_ms = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--step-limit") && i + 1 < argc) limits.steps = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--run-for") && i + 1 < argc) run_for = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--shell")) shell = true;
+        else if (!strcmp(a, "--repl")) shell = repl_mode = true;
         else if (!strcmp(a, "--no-boot")) boot = false;
         else if (!strcmp(a, "--features")) { print_features(); return 0; }
         else if (!strcmp(a, "-v") || !strcmp(a, "--version")) { printf("MicroCS %s\n", MCS_VERSION_STRING); return 0; }
@@ -306,11 +322,12 @@ int main(int argc, char** argv) {
 #if MCS_ENABLE_HAL
     if (sim) {
         g_sim.log = sim_log_on ? sim_log : NULL;
+        g_sim.clock_us = sim_virtual ? NULL : sim_clock_us;   /* virtual: 1 ms per event poll, deterministic */
         mcs_hal_sim_init(&g_hal, &g_sim);
         mcs_hal_open_lib(vm, &g_hal);
     }
 #else
-    (void)sim; (void)sim_log_on;
+    (void)sim; (void)sim_log_on; (void)sim_virtual;
 #endif
 #if MCS_ENABLE_SCHED
 #if MCS_ENABLE_FS
@@ -375,6 +392,11 @@ int main(int argc, char** argv) {
         mcs_shell_init(&sh, vm, vfs, &g_sched, stdio_transport());
 #else
         mcs_shell_init(&sh, vm, vfs, NULL, stdio_transport());
+#endif
+#if MCS_SHELL_REPL_MAX > 0
+        sh.repl = repl_mode;
+#else
+        (void)repl_mode;
 #endif
         mcs_shell_boot(&sh, boot);
         mcs_shell_run(&sh);

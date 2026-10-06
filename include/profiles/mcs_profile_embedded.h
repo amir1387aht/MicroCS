@@ -1,6 +1,6 @@
 /* MicroCS build profile: embedded standalone runtime (on-device compiler,
- * filesystem, HAL, scheduler, script-manager shell). Intended for parts like
- * SiFli SF32LB525 (Cortex-M33, 512 KB SRAM).
+ * filesystem, HAL, scheduler, script-manager shell). Intended for
+ * Cortex-M33/M7 or ESP32-class parts with 256 KB+ SRAM (e.g. STM32H5, RP2350, ESP32-S3).
  * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'
  * Measured (arm-none-eabi-gcc 13.2, -Os, Cortex-M0 object totals): ~169 KB flash for
  * MicroCS + modules (+ newlib/libm); compiling + running the 2.5 KB ports/cortex-m

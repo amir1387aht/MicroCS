@@ -15,7 +15,7 @@ cfg.stack_slots = 256; cfg.max_frames = 48;
 cfg.stdlib = MCS_LIB_ALL;      /* or MCS_LIB_CORE | MCS_LIB_COLLECTIONS ... */
 mcs_vm_t* vm = mcs_new(&cfg);
 ```
-Measured heap right after `mcs_new` (emulated Cortex-M0, 1 KB = 1024 B): **25.1 KB** with
+Measured heap right after `mcs_new` (Cortex-M0 build, `make cm-check`, 1 KB = 1024 B): **25.1 KB** with
 the default config and the full stdlib, **13.0 KB** with the lowram profile,
 `MCS_LIB_CORE | MCS_LIB_COLLECTIONS` and no FS/HAL/scheduler modules. A 64-bit host needs
 about 44 KB for the default config. Budget for it, then add the script's live data; small
@@ -76,9 +76,40 @@ with `-D`. All five profiles are built with `-Werror` by `make check`.
 | Profile | For | Compiler | Notes |
 |---|---|:---:|---|
 | `linux` | hosts | ✅ | 64-bit ints, big stacks |
-| `embedded` | ≥ 256 KB RAM (e.g. SF32LB525) | ✅ | shell, FS, HAL, scheduler |
+| `embedded` | ≥ 256 KB RAM (STM32H7/H5/U5, RP2350, ESP32-S3 …) | ✅ | shell, REPL runtime, FS, HAL, scheduler |
 | `mcu` | 64–160 KB RAM | — | images only, all modules |
 | `lowram` | 24–64 KB RAM | — | single floats (8-byte values), small limits, 4-byte pool alignment |
 | `tiny` | smallest flash | — | no float, no `Dictionary`, no modules |
 
 A complete small-RAM integration is in [examples/lowram/](../examples/lowram/).
+
+## 7. Interrupt callbacks and your main loop
+C# callbacks registered with `GPIO.OnChange`, `Timer.Start`, `UART.OnReceive`, `CAN.OnReceive`
+or `Hal.OnEvent` run when the VM reaches a safe point: during `Thread.Sleep`, in
+`Hal.Poll()`/`Hal.Run()`, and whenever you call `mcs_hal_poll(vm)`. When your C code owns the
+loop:
+
+```c
+for (;;) {
+    my_firmware_work();
+    mcs_hal_poll(vm);                       /* run queued interrupt callbacks */
+    mcs_sched_poll(&sched);                 /* run due Scheduler jobs (if used) */
+}
+```
+
+From any ISR, `mcs_hal_post(MCS_HAL_EV_USER + n, source, value)` raises a C# event handled by
+`Hal.OnEvent(n, (int source, int value) => ...)`.
+
+## 8. Useful helpers (1.4)
+| Function | Purpose |
+|---|---|
+| `mcs_arity(fn)` | number of parameters of a C# callable (adapt the arguments you pass) |
+| `mcs_ticks(vm)` | the VM's millisecond clock |
+| `mcs_sleep(vm, ms)` | sleep while still dispatching callbacks (what `Thread.Sleep` does) |
+| `mcs_safepoint(vm)` | run the hook/limits check from long native functions |
+| `mcs_set_idle(vm, fn, ud)` | called while the VM sleeps (the HAL uses it to dispatch events) |
+| `mcs_mem_realloc(vm, p, old, new)` | scratch buffers for natives from the VM heap (counted against `heap_limit`) |
+
+## 9. Whole firmware instead of a library
+If MicroCS should own the main loop (REPL, boot scripts, upload protocol), use
+`mcs_runtime_run()` — see [STANDALONE.md](STANDALONE.md).

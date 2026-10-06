@@ -5,6 +5,9 @@
 #if MCS_ENABLE_SCHED
 #include "mcs_sched.h"
 #endif
+#if MCS_ENABLE_HAL
+#include "mcs_hal.h"
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,6 +66,9 @@ void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts) {
 #endif
         run_first(sh, "/main.mcsb", "/main.cs");
     }
+#if MCS_SHELL_REPL_MAX > 0
+    if (sh->repl) { mcs_shell_set_repl(sh, true); return; }
+#endif
     outf(sh, "MicroCS %s shell. Type 'help'.\n", MCS_VERSION_STRING);
     ok(sh);
 }
@@ -151,10 +157,126 @@ static bool parse_ms(const char* s, uint32_t* out) {
 }
 #endif
 
+
+/* ------------------------------------------------------------ REPL helpers */
+bool mcs_repl_complete(const char* s, size_t len) {
+    int depth = 0;
+    enum { CODE, STR, CHR, VERB, LINE, BLOCK } st = CODE;
+    for (size_t i = 0; i < len; i++) {
+        char c = s[i], n = i + 1 < len ? s[i + 1] : 0;
+        switch (st) {
+        case STR: if (c == '\\' && n) i++; else if (c == '"') st = CODE; break;
+        case CHR: if (c == '\\' && n) i++; else if (c == '\'') st = CODE; break;
+        case VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = CODE; break;
+        case LINE: if (c == '\n') st = CODE; break;
+        case BLOCK: if (c == '*' && n == '/') { st = CODE; i++; } break;
+        case CODE:
+            if (c == '/' && n == '/') { st = LINE; i++; }
+            else if (c == '/' && n == '*') { st = BLOCK; i++; }
+            else if (c == '@' && n == '"') { st = VERB; i++; }
+            else if (c == '$' && n == '@' && i + 2 < len && s[i + 2] == '"') { st = VERB; i += 2; }
+            else if (c == '"') st = STR;
+            else if (c == '\'') st = CHR;
+            else if (c == '{' || c == '(' || c == '[') depth++;
+            else if (c == '}' || c == ')' || c == ']') depth--;
+            break;
+        }
+    }
+    return depth <= 0 && (st == CODE || st == LINE);
+}
+
+static bool ident_char(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
+/* statement keywords / declarations that must not be wrapped in Console.WriteLine */
+static bool is_statement(const char* s, size_t n) {
+    static const char* const kw[] = { "var", "const", "if", "for", "foreach", "while", "do", "switch", "try",
+        "class", "struct", "interface", "enum", "static", "using", "return", "throw", "break", "continue",
+        "public", "private", "abstract", "sealed", "void", "record", "delegate", "event", "readonly", NULL };
+    size_t i = 0;
+    while (i < n && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) i++;
+    size_t w = i;
+    while (w < n && ident_char(s[w])) w++;
+    for (int k = 0; kw[k]; k++) if (strlen(kw[k]) == w - i && !strncmp(s + i, kw[k], w - i)) return true;
+    if (w == i) return false;
+    /* `Type name ...` / `Type<T> name` / `Type[] name` / `Type? name`: a declaration */
+    size_t j = w;
+    if (j < n && s[j] == '<') { int d = 0; for (; j < n; j++) { if (s[j] == '<') d++; else if (s[j] == '>' && --d == 0) { j++; break; } } }
+    while (j < n && (s[j] == '[' || s[j] == ']' || s[j] == '?')) j++;
+    size_t sp = j;
+    while (j < n && s[j] == ' ') j++;
+    if (j == sp && j == w) return false;
+    size_t k = j;
+    while (k < n && ident_char(s[k])) k++;
+    if (k == j) return false;
+    while (k < n && s[k] == ' ') k++;
+    return k >= n || s[k] == '=' || s[k] == ';' || s[k] == '(' || s[k] == '{' || s[k] == ',';
+}
+
+/* end of the significant code: trailing whitespace and comments do not count */
+static size_t code_end(const char* s, size_t len) {
+    enum { CODE, STR, CHR, VERB, LINE, BLOCK } st = CODE;
+    size_t end = 0;
+    for (size_t i = 0; i < len; i++) {
+        char c = s[i], n = i + 1 < len ? s[i + 1] : 0;
+        switch (st) {
+        case STR: if (c == '\\' && n) i++; else if (c == '"') st = CODE; end = i + 1; break;
+        case CHR: if (c == '\\' && n) i++; else if (c == '\'') st = CODE; end = i + 1; break;
+        case VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = CODE; end = i + 1; break;
+        case LINE: if (c == '\n') st = CODE; break;
+        case BLOCK: if (c == '*' && n == '/') { st = CODE; i++; } break;
+        case CODE:
+            if (c == '/' && n == '/') { st = LINE; i++; }
+            else if (c == '/' && n == '*') { st = BLOCK; i++; }
+            else {
+                if (c == '"' || (c == '@' && n == '"')) st = c == '@' ? (i++, VERB) : STR;
+                else if (c == '\'') st = CHR;
+                if (c != ' ' && c != '\t' && c != '\r' && c != '\n') end = i + 1;
+            }
+            break;
+        }
+    }
+    return end;
+}
+
+int mcs_repl_prepare(const char* s, size_t len, char* out, size_t cap) {
+    size_t e = code_end(s, len);
+    size_t b = 0;
+    while (b < e && (s[b] == ' ' || s[b] == '\t' || s[b] == '\n' || s[b] == '\r')) b++;
+    int n;
+    if (b >= e) n = snprintf(out, cap, "%s", "");
+    else if (s[e - 1] == ';') n = snprintf(out, cap, "%.*s", (int)(len - b), s + b);
+    /* statements and blocks get a ';' (a stray ';' after a block is legal C#) */
+    else if (s[b] == '{' || is_statement(s + b, e - b)) n = snprintf(out, cap, "%.*s\n;", (int)(len - b), s + b);
+    else n = snprintf(out, cap, "Console.WriteLine(%.*s\n);", (int)(len - b), s + b);
+    return n < 0 || (size_t)n >= cap ? -1 : n;
+}
+
+#if MCS_SHELL_REPL_MAX > 0
+static void prompt(mcs_shell_t* sh) {
+    if (sh->paste) return;
+    out(sh, sh->code_len ? "... " : "> ");
+}
+static void repl_banner(mcs_shell_t* sh) {
+    outf(sh, "MicroCS %s C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.\n", MCS_VERSION_STRING);
+}
+static void repl_exec(mcs_shell_t* sh, const char* src, size_t len, bool raw) {
+#if MCS_ENABLE_COMPILER
+    static char prog[MCS_SHELL_REPL_MAX + 32];
+    int n = raw ? (int)len : mcs_repl_prepare(src, len, prog, sizeof prog);
+    if (n < 0) { out(sh, "error: input too long\n"); return; }
+    if (n == 0) return;
+    if (raw) { memcpy(prog, src, len); prog[len] = 0; }
+    mcs_exec_source(sh->vm, "<repl>", prog);
+#else
+    (void)src; (void)len; (void)raw;
+    out(sh, "error: no compiler in this build - upload .mcsb images instead\n");
+#endif
+}
+#endif
+
 static void cmd_help(mcs_shell_t* sh) {
     out(sh, "ls [dir] | cat <f> | put <f> <len> | get <f> | rm <f> | mkdir <d> | mv <a> <b>\n"
             "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>\n"
-            "mem | info | quit       (Ctrl-C stops a running script)\n");
+            "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
 }
 
@@ -181,7 +303,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     int argc = 0;
     for (char* p = strtok(line, " "); p && argc < 4; p = strtok(NULL, " ")) argv[argc++] = p;
     const char* c = argv[0];
-    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel");
+    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
     if (need_fs && !sh->vfs) { err(sh, "no filesystem"); return; }
     int e;
     if (!strcmp(c, "help")) cmd_help(sh);
@@ -239,11 +361,150 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         if (mcs_sched_cancel(sh->sched, atoi(argv[1]))) ok(sh); else err(sh, "no such job");
     }
 #endif
+    else if (!strcmp(c, "repl")) {
+#if MCS_SHELL_REPL_MAX > 0
+        ok(sh); mcs_shell_set_repl(sh, true);
+#else
+        err(sh, "REPL not built (MCS_SHELL_REPL_MAX = 0)");
+#endif
+    }
     else if (!strcmp(c, "quit") || !strcmp(c, "exit")) { sh->quit = true; ok(sh); }
     else { outf(sh, EOT "ERR unknown command '%s'\n", c); }
 }
 
+#if MCS_SHELL_REPL_MAX > 0
+static void repl_command(mcs_shell_t* sh, char* line) {
+    char* a = line + 1;
+    while (*a && *a != ' ') a++;
+    if (*a) *a++ = 0;
+    while (*a == ' ') a++;
+    const char* c = line + 1;
+    int e;
+    if (!strcmp(c, "help")) {
+        out(sh, "C# statements and expressions run as you type them; expressions are printed.\n"
+                ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .mem  .info  .jobs  .clear  .exit (machine mode)\n"
+                "Ctrl-C clears / stops a script, Ctrl-E paste mode (Ctrl-D runs), Ctrl-A machine mode\n");
+    } else if (!strcmp(c, "clear")) sh->code_len = 0;
+    else if (!strcmp(c, "exit") || !strcmp(c, "shell")) { mcs_shell_set_repl(sh, false); ok(sh); return; }
+    else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) && !sh->vfs) out(sh, "error: no filesystem\n");
+    else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
+        if (!strcmp(c, "run")) { if (*a) mcs_exec_file(sh->vm, sh->vfs, a); else out(sh, "usage: .run <file>\n"); }
+        else if (!strcmp(c, "ls")) { if ((e = mcs_vfs_list(sh->vfs, *a ? a : "/", ls_cb, sh))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
+        else if (!strcmp(c, "cat")) {
+            char* d; size_t n;
+            if ((e = mcs_vfs_read_file(sh->vfs, a, &d, &n))) outf(sh, "error: %s\n", mcs_vfs_strerror(e));
+            else { sh->t.write(sh->t.ud, d, n); if (n && d[n - 1] != '\n') out(sh, "\n"); mcs_vfs_free(sh->vfs, d, n); }
+        } else if (!strcmp(c, "rm")) { if ((e = mcs_vfs_remove(sh->vfs, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
+        else if (!strcmp(c, "mem")) {
+            mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
+            outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
+                 (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+        } else if (!strcmp(c, "info")) outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));
+#if MCS_ENABLE_SCHED
+        else if (!strcmp(c, "jobs") && sh->sched) {
+            for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+                mcs_job_t* j = &sh->sched->jobs[i];
+                if (j->state == MCS_JOB_FREE) continue;
+                outf(sh, "%d %s %s %u ms runs=%u %s\n", j->id, job_state(j->state), j->periodic ? "every" : "once",
+                     (unsigned)j->period_ms, (unsigned)j->runs, j->is_file ? j->path : "<delegate>");
+            }
+        }
+#endif
+    } else outf(sh, "unknown command '.%s' (.help)\n", c);
+    prompt(sh);
+}
+
+static void repl_line(mcs_shell_t* sh, char* line, size_t len) {
+    if (sh->paste) {                      /* collect verbatim until Ctrl-D */
+        if (sh->code_len + len + 1 >= sizeof sh->code) { out(sh, "error: paste too long\n"); sh->paste = false; sh->code_len = 0; prompt(sh); return; }
+        memcpy(sh->code + sh->code_len, line, len); sh->code_len += len;
+        sh->code[sh->code_len++] = '\n';
+        out(sh, "=== ");
+        return;
+    }
+    size_t i = 0;
+    while (i < len && line[i] == ' ') i++;
+    if (!sh->code_len && line[i] == '.' && line[i + 1] >= 'a' && line[i + 1] <= 'z') { repl_command(sh, line + i); return; }
+    if (sh->code_len + len + 2 >= sizeof sh->code) { out(sh, "error: input too long, cleared\n"); sh->code_len = 0; prompt(sh); return; }
+    memcpy(sh->code + sh->code_len, line, len); sh->code_len += len;
+    sh->code[sh->code_len++] = '\n';
+    sh->code[sh->code_len] = 0;
+    if (!mcs_repl_complete(sh->code, sh->code_len)) { prompt(sh); return; }
+    size_t n = sh->code_len;
+    sh->code_len = 0;
+    repl_exec(sh, sh->code, n, false);
+    prompt(sh);
+}
+#endif
+
+void mcs_shell_set_repl(mcs_shell_t* sh, bool on) {
+#if MCS_SHELL_REPL_MAX > 0
+    sh->repl = on; sh->paste = false; sh->code_len = 0; sh->len = 0;
+    if (on) { repl_banner(sh); prompt(sh); }
+#else
+    (void)sh; (void)on;
+#endif
+}
+
 static void feed(mcs_shell_t* sh, uint8_t b) {
+    if (b == 0x01) {                       /* Ctrl-A: machine protocol, from any state */
+        sh->len = 0; sh->overflow = false;
+#if MCS_SHELL_REPL_MAX > 0
+        if (sh->repl) { sh->repl = false; sh->paste = false; sh->code_len = 0; out(sh, "\n"); }
+#endif
+        ok(sh);
+        return;
+    }
+#if MCS_SHELL_REPL_MAX > 0
+    if (sh->repl) {
+        bool cr = b == '\r';
+        if (b == '\n' && sh->last_cr) { sh->last_cr = false; return; }   /* CR LF from terminals */
+        sh->last_cr = cr;
+        if (cr) b = '\n';
+        if (b == '\n') {
+            if (sh->echo) out(sh, "\r\n");
+            sh->line[sh->len] = 0;
+            size_t n = sh->len;
+            sh->len = 0;
+            if (sh->overflow) { sh->overflow = false; out(sh, "error: line too long\n"); prompt(sh); return; }
+            repl_line(sh, sh->line, n);
+            return;
+        }
+        if (b == 0x03) {                   /* Ctrl-C: cancel input / paste */
+            sh->len = 0; sh->code_len = 0; sh->paste = false; sh->overflow = false;
+            out(sh, sh->echo ? "^C\r\n" : "\n");
+            prompt(sh);
+            return;
+        }
+        if (b == 0x05) {                   /* Ctrl-E: paste mode */
+            sh->paste = true; sh->code_len = 0; sh->len = 0;
+            out(sh, "\npaste mode; Ctrl-D runs, Ctrl-C cancels\n=== ");
+            return;
+        }
+        if (b == 0x04) {                   /* Ctrl-D: run paste buffer */
+            if (sh->paste) {
+                if (sh->len) repl_line(sh, sh->line, sh->len);
+                sh->len = 0;
+                sh->paste = false;
+                out(sh, "\n");
+                size_t n = sh->code_len; sh->code_len = 0;
+                repl_exec(sh, sh->code, n, true);
+                prompt(sh);
+            }
+            return;
+        }
+        if (b == 0x08 || b == 0x7F) {      /* backspace */
+            if (sh->len) { sh->len--; if (sh->echo) out(sh, "\b \b"); }
+            return;
+        }
+        if (b < 0x20 && b != '\t') return; /* other control bytes / escape sequences start */
+        if (sh->len + 1 < sizeof sh->line) {
+            sh->line[sh->len++] = (char)b;
+            if (sh->echo) sh->t.write(sh->t.ud, (const char*)&b, 1);
+        } else sh->overflow = true;
+        return;
+    }
+#endif
     if (b == '\n') {
         sh->line[sh->len] = 0;
         if (sh->overflow) err(sh, "line too long");
@@ -270,12 +531,18 @@ bool mcs_shell_step(mcs_shell_t* sh, uint32_t timeout_ms) {
 #if MCS_ENABLE_SCHED
     if (sh->sched) mcs_sched_poll(sh->sched);
 #endif
+#if MCS_ENABLE_HAL
+    if (mcs_hal_get(sh->vm)) mcs_hal_poll(sh->vm);
+#endif
     return !sh->quit;
 }
 
 void mcs_shell_run(mcs_shell_t* sh) {
     for (;;) {
         uint32_t wait = 100;
+#if MCS_ENABLE_HAL
+        if (mcs_hal_get(sh->vm)) wait = MCS_SLEEP_SLICE_MS;   /* keep interrupt callbacks responsive */
+#endif
 #if MCS_ENABLE_SCHED
         if (sh->sched) {
             int32_t next = mcs_sched_poll(sh->sched);

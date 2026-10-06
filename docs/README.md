@@ -1,23 +1,28 @@
 # MicroCS documentation
 
+**New here?** Read the [main README](../README.md) first: it shows the two ways to use
+MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
+
 | | Guide | What you will find |
 |---|---|---|
-| 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, precompiling, embedding in 5 minutes |
+| 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
+| 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
+| 🧭 | [Porting & build systems](PORTING.md) | Make, CMake, ESP-IDF, Zephyr, PlatformIO, Arduino, CubeIDE/Keil/IAR; the vendor ports; new chips |
+| 📟 | [Standalone firmware](STANDALONE.md) | `mcs_runtime`, the REPL, boot sequence, upload protocol, `mcs_remote.py` |
+| 🔧 | [Embedding](EMBEDDING.md) | the C API: VMs, running code, C bindings, calling scripts, limits, GC rules |
 | 🧩 | [Language](LANGUAGE.md) | the supported C# subset, feature by feature, and every known difference from .NET |
 | 📚 | [Standard library](STDLIB.md) | generated reference of every class and member a script can call |
-| 🔧 | [Embedding](EMBEDDING.md) | the C API: VMs, running code, C bindings, calling scripts, GC rules |
-| 🔌 | [HAL](HAL.md) | GPIO / UART / I²C / SPI / ADC / PWM from C#, writing a board table |
 | 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / LittleFS backends, `File` / `Directory` / `Path` |
 | ⏱️ | [Scheduler](SCHEDULER.md) | startup / once / periodic jobs, `jobs.cfg` |
-| 📟 | [Standalone runtime](STANDALONE.md) | boot sequence and the UART script-manager protocol |
-| 🧭 | [Porting](PORTING.md) | host hooks per RTOS, Cortex-M reference port, SF32LB525 + RT-Thread outline |
+| 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, GC tuning, measured results |
+| 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
 | 🏗️ | [Architecture](ARCHITECTURE.md) | pipeline, VM, GC, modules, invariants for contributors |
 | 🧱 | [Bytecode](BYTECODE.md) | `.mcsb` image format, loader validation, full instruction set |
-| 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, value size, GC tuning, measured results |
-| 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
 | 🛡️ | [Security](SECURITY.md) | what the sandbox guarantees and what it does not |
-| 🧪 | [Testing](TESTING.md) | test matrix, fuzzing, sanitizers, .NET parity, adding tests |
+| 🧪 | [Testing](TESTING.md) | test matrix, port checks, fuzzing, sanitizers, .NET parity, adding tests |
 
-Project history: [CHANGELOG](../CHANGELOG.md) · [Phase 1 handoff](HANDOFF_PHASE1.md) ·
-[Phase 2 handoff](HANDOFF_PHASE2.md) · [Phase 2 roadmap & design notes](PHASE2_ROADMAP.md) ·
-[Contributing](../CONTRIBUTING.md)
+Port guides: [STM32](../ports/stm32/README.md) · [ESP32](../ports/esp32/README.md) ·
+[RP2040/RP2350](../ports/rp2/README.md) · [Zephyr](../ports/zephyr/README.md) ·
+[Arduino](../ports/arduino/README.md) · examples: [examples/](../examples/README.md)
+
+Project history: [CHANGELOG](../CHANGELOG.md) · [Contributing](../CONTRIBUTING.md)

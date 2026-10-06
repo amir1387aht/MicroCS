@@ -71,3 +71,75 @@ jobs:
           DOTNET_CLI_TELEMETRY_OPTOUT: 1
           DOTNET_NOLOGO: 1
         run: sh tools/verify_dotnet.sh
+
+  cmake:
+    name: CMake build (host)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build/cmake && cmake --build build/cmake -j && echo 'Console.WriteLine(6 * 7);' > /tmp/a.cs && build/cmake/mcs /tmp/a.cs
+
+  pico:
+    name: Raspberry Pi Pico · ${{ matrix.board }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        board: [pico, pico2]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain + pico-sdk
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
+          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
+      - name: Build ports/rp2/example
+        run: |
+          cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk
+          cmake --build build/${{ matrix.board }}
+          arm-none-eabi-size build/${{ matrix.board }}/microcs_pico.elf
+
+  esp-idf:
+    name: ESP-IDF · ${{ matrix.target }}
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v5.3.2
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [esp32, esp32s3, esp32c3, esp32c6]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ports/esp32/example
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          cd ports/esp32/example
+          idf.py set-target ${{ matrix.target }}
+          idf.py build
+
+  stm32:
+    name: STM32 HAL · ${{ matrix.family }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { family: f0, device: STM32F072xB, cpu: cortex-m0 }
+          - { family: f1, device: STM32F103xB, cpu: cortex-m3 }
+          - { family: f4, device: STM32F446xx, cpu: cortex-m4 }
+          - { family: f7, device: STM32F767xx, cpu: cortex-m7 }
+          - { family: g0, device: STM32G071xx, cpu: cortex-m0plus }
+          - { family: g4, device: STM32G474xx, cpu: cortex-m4 }
+          - { family: h5, device: STM32H563xx, cpu: cortex-m33 }
+          - { family: h7, device: STM32H743xx, cpu: cortex-m7 }
+          - { family: l0, device: STM32L073xx, cpu: cortex-m0plus }
+          - { family: l4, device: STM32L476xx, cpu: cortex-m4 }
+          - { family: u5, device: STM32U575xx, cpu: cortex-m33 }
+          - { family: wb, device: STM32WB55xx, cpu: cortex-m4 }
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: Compile the port against STM32Cube${{ matrix.family }} headers
+        run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
