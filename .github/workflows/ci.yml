@@ -85,7 +85,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        board: [pico, pico2]
+        board: [pico, pico2, pico_w]
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
