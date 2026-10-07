@@ -116,7 +116,11 @@ jobs:
         shell: bash
         run: |
           . $IDF_PATH/export.sh
-          cd ports/esp32/example
+          # build it the way users do: the example as a project, MicroCS in components/MicroCS
+          mkdir -p /tmp/proj/components
+          cp -r ports/esp32/example/. /tmp/proj/
+          cp -r . /tmp/proj/components/MicroCS
+          cd /tmp/proj
           idf.py set-target ${{ matrix.target }}
           idf.py build
 

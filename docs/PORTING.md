@@ -95,7 +95,7 @@ registers behind the SDK's back.
 | Port | SDK | Chips | Console helper | Docs |
 |---|---|---|---|---|
 | `ports/stm32` | STM32Cube HAL (CubeMX) | C0, F0–F7, G0, G4, H5, H7, L0–L5, U5, WB, WL | `mcs_stm32_console(&board, uart)` | [README](../ports/stm32/README.md) |
-| `ports/esp32` | ESP-IDF 5.0+ | ESP32, S2, S3, C3, C6, H2, P4 | `mcs_esp32_console_usb()` / `_uart(n, baud)` | [README](../ports/esp32/README.md) |
+| `ports/esp32` | ESP-IDF 5.0+ | ESP32, S2, S3, C3, C6, H2, P4 | `mcs_esp32_console()` (UART0 + USB) / `_usb()` / `_uart(n, baud)` | [README](../ports/esp32/README.md) |
 | `ports/rp2` | pico-sdk 1.5 / 2.x | RP2040, RP2350 (Arm and RISC-V) | `mcs_rp2_console_stdio()` | [README](../ports/rp2/README.md) |
 | `ports/zephyr` | Zephyr 3.4+ | every board with devicetree support | `mcs_zephyr_console()` | [README](../ports/zephyr/README.md) |
 | `ports/arduino` | Arduino API | ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, Renesas | `mcs_arduino_console(&Serial)` | [README](../ports/arduino/README.md) |

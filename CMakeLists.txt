@@ -1,7 +1,7 @@
 # MicroCS - one CMakeLists.txt for every CMake-based build:
 #
 #   * plain CMake / any toolchain:  add_subdirectory(MicroCS) + target_link_libraries(app PRIVATE microcs)
-#   * ESP-IDF:                      the repository is an IDF component (EXTRA_COMPONENT_DIRS or idf_component.yml)
+#   * ESP-IDF:                      clone the repository into components/MicroCS (it is an IDF component)
 #   * Raspberry Pi pico-sdk:        set(MICROCS_PORT rp2) before add_subdirectory
 #   * STM32CubeMX / CubeIDE CMake:  set(MICROCS_PORT stm32); links the generated `stm32cubemx` target
 #   * Zephyr:                       see zephyr/ (module.yml points there)

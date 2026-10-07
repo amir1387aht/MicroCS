@@ -3,19 +3,41 @@
 ESP32, ESP32-S2, S3, C2, C3, C5, C6, H2 and P4. Peripherals only — Wi-Fi and Bluetooth are not
 used (and not required), so the port works on every variant including the H2 and P4.
 
-## Quick start
+## Quick start — MicroCS as the whole firmware
+
+[`example/`](example) is a complete ESP-IDF project. Copy it, put MicroCS in
+`components/MicroCS`, build:
 
 ```sh
-cd ports/esp32/example
+cp -r MicroCS/ports/esp32/example my_board && cd my_board   # or start from your own project
+git clone https://github.com/amir1387aht/MicroCS components/MicroCS
 idf.py set-target esp32s3          # or esp32, esp32c2, esp32c3, esp32c6, ...
-idf.py build flash monitor         # type C# at the "> " prompt
+idf.py build flash monitor         # press Enter, type C# at the "> " prompt
 ```
 
-The example's top-level `CMakeLists.txt` adds the MicroCS repository as an extra component.
-In your own project either clone MicroCS into `components/` or set
-`EXTRA_COMPONENT_DIRS` — the repository root is an ESP-IDF component.
+```
+my_board/
+├── CMakeLists.txt          # plain IDF project file, nothing MicroCS-specific
+├── sdkconfig.defaults      # 16 KB main-task stack (delete an old sdkconfig after adding it)
+├── main/
+│   ├── CMakeLists.txt      # idf_component_register(SRCS "main.c")
+│   └── main.c              # ~35 lines: heap, console, mcs_runtime_run()
+└── components/
+    └── MicroCS/            # this repository (git clone or git submodule)
+```
+
+In VS Code (ESP-IDF extension): *Set Espressif Device Target* → *Build, Flash and Monitor*.
+There is no `idf_component.yml` to add to your project; the one in the repository root
+belongs to MicroCS itself.
+
+The console (`mcs_esp32_console()`) is UART0 **and** USB-Serial-JTAG at the same time, so
+the prompt shows up on either USB connector of an S3/C3/C6 DevKit. The banner is printed
+once at boot — if the monitor attached later, press Enter for a fresh `> `.
 
 ## Pins
+
+The example sets no pins: `GPIO`, `ADC`, `Timer`, `Watchdog` and `RTC` work without any.
+For `UART` 1/2, `I2C`, `SPI`, `PWM`, `I2S` and `CAN`, tell the port which GPIOs to use:
 
 ```c
 mcs_esp32_cfg_t pins = MCS_ESP32_CFG_DEFAULT;                 // everything -1 = unused / default
@@ -44,13 +66,14 @@ mcs_esp32_hal_init(&hal, &pins);
 | `RTC` | `gettimeofday` / `settimeofday` |
 | `Hal.UniqueId` | eFuse MAC |
 
-Console: `mcs_esp32_console_usb()` (USB-Serial-JTAG on S3/C3/C6/H2/P4, UART0 otherwise) or
-`mcs_esp32_console_uart(0, 115200)`.
+Console: `mcs_esp32_console()` (UART0 + USB-Serial-JTAG where the chip has it, input from
+either), `mcs_esp32_console_usb()` (USB-Serial-JTAG only) or `mcs_esp32_console_uart(0, 115200)`.
 
 ## Memory
 
-The example allocates 192 KB for the VM with `heap_caps_malloc` (128 KB on the C2), clamped
-to the largest free block minus a 32 KB reserve for drivers and FreeRTOS; 96 KB is plenty
+The example allocates up to 192 KB for the VM with `heap_caps_malloc`, clamped to the largest
+free block minus a 32 KB reserve for drivers and FreeRTOS (~120 KB on the C2), and gives a
+sixth of it to the RAM disk; 96 KB is plenty
 for the REPL on the C3. On boards with PSRAM you can pass `MALLOC_CAP_SPIRAM`.
 
 ## Build profile per chip
@@ -67,8 +90,8 @@ compiled in every profile.
 idf.py set-target esp32c2 && idf.py build flash monitor
 ```
 
-* **Memory**: 272 KB SRAM (~180 KB free after boot) → embedded profile, 128 KB VM heap,
-  16 KB RAM disk (`sdkconfig.defaults.esp32c2`).
+* **Memory**: 272 KB SRAM (~180 KB free after boot) → embedded profile
+  (`sdkconfig.defaults.esp32c2`), ~120 KB VM heap incl. a ~20 KB RAM disk.
 * **printf**: IDF enables the ROM "nano" formatter on the C2 by default
   (`CONFIG_NEWLIB_NANO_FORMAT`), which cannot print floats — MicroCS formats `double` with
   `snprintf`, so the example turns it off. The port prints a `#warning` if it is on with
@@ -81,10 +104,11 @@ idf.py set-target esp32c2 && idf.py build flash monitor
   (`MCS_ESP32_HW_TIMERS` is clamped to what the chip has). Not on the C2: `DAC`, `I2S`,
   `CAN` (TWAI), USB-Serial-JTAG (the console uses UART0) — those C# classes report
   `NotSupportedException`.
-* **Pins in the example** (ESP8684-DevKitC): UART1 TX 7 / RX 10, I²C SDA 5 / SCL 6,
+* **Pins** that suit an ESP8684-DevKitC: UART1 TX 7 / RX 10, I²C SDA 5 / SCL 6,
   SPI SCLK 4 / MOSI 3 / MISO 2, PWM 0 on GPIO 1.
 
 ## Checked in CI
 
-The example is built with the `espressif/idf:v5.3.2` image for ESP32, ESP32-S3, ESP32-C2,
+The example is built the way a user builds it (copied to a new folder, MicroCS in
+`components/MicroCS`) with the `espressif/idf:v5.3.2` image for ESP32, ESP32-S3, ESP32-C2,
 ESP32-C3 and ESP32-C6.

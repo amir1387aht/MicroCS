@@ -357,7 +357,7 @@ integrations:
 |---|---|---|
 | **Make** (any project) | `include path/to/MicroCS/microcs.mk` → `$(MICROCS_SRCS)` `$(MICROCS_INCS)` | variables only, adds no rules |
 | **CMake** | `add_subdirectory(MicroCS)` → `target_link_libraries(app microcs)` | options `MICROCS_PORT`, `MICROCS_PROFILE`, `MICROCS_MODULES` |
-| **ESP-IDF** | put the repo in `components/` (or the IDF component manager) | the same `CMakeLists.txt` registers an IDF component |
+| **ESP-IDF** | `git clone https://github.com/amir1387aht/MicroCS components/MicroCS` | the same `CMakeLists.txt` registers the IDF component `MicroCS` |
 | **STM32CubeIDE / CubeMX** | add `src/`, `modules/`, `ports/stm32` to the project, `include/` to the include paths | uses the Cube HAL headers of your project; family detected automatically |
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | add as a west module, `CONFIG_MICROCS=y` | devicetree aliases select the devices |

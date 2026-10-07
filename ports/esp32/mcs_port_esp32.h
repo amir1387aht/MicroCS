@@ -3,9 +3,8 @@
  * ESP32, ESP32-S2, ESP32-S3, ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C6, ESP32-H2, ESP32-P4.
  * (Wi-Fi / Bluetooth classes are not part of this port yet.)
  *
- * Use it as an ESP-IDF component (the repository root has the CMakeLists.txt
- * and idf_component.yml): set EXTRA_COMPONENT_DIRS to the MicroCS folder or
- * add it to main/idf_component.yml, then
+ * Use it as an ESP-IDF component: clone the repository into components/MicroCS
+ * of your project (the repository root has the CMakeLists.txt), then
  *
  *     #include "mcs_port_esp32.h"
  *     static mcs_hal_t hal;
@@ -89,6 +88,7 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg);
 /* Console for the REPL / shell / mcs_runtime. */
 mcs_transport_t mcs_esp32_console_uart(int port, uint32_t baud);  /* UART0 = the USB-UART bridge on most boards */
 mcs_transport_t mcs_esp32_console_usb(void);   /* USB-Serial-JTAG (C3, C6, S3, H2, P4); falls back to UART0 */
+mcs_transport_t mcs_esp32_console(void);       /* both: UART0 + USB-Serial-JTAG (use this if unsure) */
 uint32_t mcs_esp32_ticks(void* ud);            /* milliseconds since boot */
 void mcs_esp32_delay(void* ud, uint32_t ms);   /* vTaskDelay, at least one tick */
 

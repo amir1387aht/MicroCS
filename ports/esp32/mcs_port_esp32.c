@@ -789,6 +789,44 @@ mcs_transport_t mcs_esp32_console_usb(void) {
     return mcs_esp32_console_uart(0, 115200);
 }
 
+/* both consoles at once: output goes to UART0 (the USB-UART bridge, where the
+ * boot log is) and to USB-Serial-JTAG (when a host is attached), input is taken
+ * from whichever has data - works whichever USB connector the board is on */
+#if SOC_USB_SERIAL_JTAG_SUPPORTED
+static int con_auto_read(void* ud, uint8_t* buf, size_t n, uint32_t timeout_ms) {
+    (void)ud;
+    uint32_t waited = 0;
+    for (;;) {
+        int r = usb_serial_jtag_read_bytes(buf, n, 0);
+        if (r > 0) return r;
+        uint32_t step = timeout_ms - waited < 10 ? timeout_ms - waited : 10;
+        r = e_uart_read(NULL, 0, buf, n, step);    /* waits up to `step` ms */
+        if (r > 0) return r;
+        waited += step;
+        if (waited >= timeout_ms) return 0;
+    }
+}
+static void con_auto_write(void* ud, const char* s, size_t n) {
+    (void)ud;
+    e_uart_write(NULL, 0, (const uint8_t*)s, n);
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
+    if (!usb_serial_jtag_is_connected()) return;   /* no host on the USB port: don't stall */
+#endif
+    con_usb_write(NULL, s, n);
+}
+#endif
+mcs_transport_t mcs_esp32_console(void) {
+    mcs_transport_t t = mcs_esp32_console_uart(0, 115200);
+#if SOC_USB_SERIAL_JTAG_SUPPORTED
+    usb_serial_jtag_driver_config_t c = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    esp_err_t e = usb_serial_jtag_driver_install(&c);
+    if (e == ESP_OK || e == ESP_ERR_INVALID_STATE) {
+        t.read = con_auto_read; t.write = con_auto_write; t.ud = NULL;
+    }
+#endif
+    return t;
+}
+
 static int e_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
     if ((!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) && g_cfg.led >= 0) return g_cfg.led;
