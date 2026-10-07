@@ -16,16 +16,25 @@
 #endif
 static uint8_t g_heap[CM_HEAP_SIZE] __attribute__((aligned(8)));
 static mcs_pool_t g_pool;
-static void w_out(void* ud, const char* s, size_t n) { (void)ud; board_write(s, (unsigned)n); }
+static size_t g_pool_size = CM_HEAP_SIZE;
+static char g_cap[256]; static unsigned g_cap_n; static int g_capture;
+static void w_out(void* ud, const char* s, size_t n) {
+    (void)ud;
+    if (g_capture) { while (n-- && g_cap_n < sizeof g_cap - 1) g_cap[g_cap_n++] = *s++; return; }
+    board_write(s, (unsigned)n);
+}
 static uint32_t w_ticks(void* ud) { (void)ud; return board_ticks_ms(); }
 
 static mcs_vm_t* make_vm(void) {
-    mcs_pool_init(&g_pool, g_heap, sizeof g_heap);
+    mcs_pool_init(&g_pool, g_heap, g_pool_size);
     mcs_config_t cfg;
     mcs_config_default(&cfg);
     cfg.realloc_fn = mcs_pool_realloc; cfg.alloc_ud = &g_pool; cfg.alloc_overhead = MCS_POOL_OVERHEAD;
     cfg.write_fn = w_out; cfg.ticks_fn = w_ticks;
-    cfg.heap_limit = CM_HEAP_SIZE - 2048;
+    cfg.heap_limit = g_pool_size == CM_HEAP_SIZE ? CM_HEAP_SIZE - 2048 : g_pool_size;
+#ifdef BENCH_MINHEAP
+    cfg.stack_slots = 256; /* MCS_DEFAULT_STACK of profiles/mcs_profile_mcu.h */
+#endif
     return mcs_new(&cfg);
 }
 
@@ -60,6 +69,21 @@ int main(void) {
         if (BENCH_MODES & 2) n[M_O0] = run(b, M_O0, &rc[M_O0], &pk[M_O0]);
 #if MCS_ENABLE_COMPILER
         if (BENCH_MODES & 4) n[M_SRC] = run(b, M_SRC, &rc[M_SRC], &pk[M_SRC]);
+#endif
+#ifdef BENCH_MINHEAP
+        /* smallest pool (VM state + value stack + frames + GC heap) that still
+           prints the same output from the optimized image; for comparison with
+           the MicroPython GC heap size (bench/compare/) */
+        g_capture = 1; g_cap_n = 0; { int r; unsigned long p; run(b, M_OPT, &r, &p); } g_cap[g_cap_n] = 0;
+        char want[256]; strcpy(want, g_cap);
+        size_t lo = 512, hi = CM_HEAP_SIZE;
+        while (hi - lo > 64) {
+            g_pool_size = ((lo + hi) / 2) & ~(size_t)15;
+            g_cap_n = 0; { int r; unsigned long p; run(b, M_OPT, &r, &p); } g_cap[g_cap_n] = 0;
+            if (strcmp(g_cap, want) == 0) hi = g_pool_size; else lo = g_pool_size;
+        }
+        g_capture = 0; g_pool_size = CM_HEAP_SIZE;
+        printf("[minheap] %-8s %u\n", b->name, (unsigned)hi);
 #endif
         printf("[bench] %-8s src=%u B image=%u B (-O0 %u B) | image %lu | image -O0 %lu | source %lu | rc %d %d %d | peak %lu %lu %lu\n",
                b->name, (unsigned)strlen(b->src), b->opt_len, b->o0_len,

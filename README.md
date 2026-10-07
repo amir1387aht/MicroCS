@@ -60,7 +60,7 @@ Scheduler.Every(1000, () => {
 
 <div align="center">
 
-| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **up to 2.2× faster in 1.6** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 🧱 **8 build systems** |
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 🧱 **8 build systems** |
 |:---:|:---:|:---:|:---:|:---:|
 | smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
 
@@ -438,6 +438,9 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
 | Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
 | Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
+| Speed on Cortex-M (same 5 scripts, emulated M4F + M0, same toolchain) | **2.3–3.7× fewer instructions** than MicroPython precompiled, 1.8–3.6× compiling on the device | 1× | not measured (no bare-metal build for the emulator) |
+| Speed on a PC — fib(30) / 10 M loop / 1 M objects | **41 / 95 / 132 ms** | 254 / 780 / 548 ms | 717 / 1485 / 4272 ms (nanoCLR virtual device) |
+| Smallest heap for those 5 scripts | 7.6–42 KB (incl. ~5.7 KB VM state + stack) | **0.7–21 KB** | not measured |
 | Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
@@ -447,9 +450,14 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
-Where MicroCS wins: you keep your firmware and your toolchain, scripts cannot hang or
-starve the device, and C# developers get a REPL on a $4 board. Where it does not (yet):
-networking stacks, a step debugger and the size of the ecosystem.
+<p align="center"><img src="assets/compare.svg" alt="MicroCS vs MicroPython vs nanoFramework: emulated Cortex-M4F instructions and PC run times" width="100%"></p>
+
+Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
+nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve
+the device, and C# developers get a REPL on a $4 board. Where it does not (yet): heap use
+on small scripts, networking stacks, a step debugger and the size of the ecosystem.
+Method, all numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
+· reproduce: [`bench/compare/`](bench/compare).
 
 ## 🏗️ Architecture
 

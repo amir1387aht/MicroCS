@@ -89,6 +89,77 @@ sets `MCS_ENABLE_SUPEROPS=0` and `MCS_FIELD_CACHE=0` so the 64 KB-flash build ke
 `-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
 same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 
+## MicroCS vs MicroPython vs .NET nanoFramework
+
+The `bench/mcu/` scripts (and the three host scripts) ported idiomatically to Python and to
+nanoFramework C#, same output everywhere. Sources, build scripts and exact configurations:
+[`bench/compare/`](../bench/compare). MicroPython **1.26.0**, nanoFramework **nanoCLR 1.1.311**
+with `mscorlib` 1.17.12, MicroCS **1.6.0**; all measured in one session on the same machine.
+
+### Cortex-M (emulated) — MicroCS vs MicroPython
+
+MicroPython built from `ports/embed` with the same toolchain (GCC 13.2.1, `-Os`), CPU flags,
+linker script and board code as the MicroCS bench firmware, `EXTRA_FEATURES` ROM level (as on
+stm32/rp2), computed goto, map lookup cache, `double` floats (MicroCS also uses
+`MCS_FLOAT_DOUBLE=1`). Emulated instructions for a cold run: interpreter init + load + run.
+MicroCS optimized image vs MicroPython `.mpy` (mpy-cross), and both compiling from source on
+the device.
+
+| Cortex-M4F | MicroCS image | MicroPython `.mpy` | ratio | MicroCS source | MicroPython source | ratio |
+|---|---:|---:|---:|---:|---:|---:|
+| `fib` | **1.43 M** | 5.23 M | 3.7× | **2.07 M** | 5.36 M | 2.6× |
+| `loop` | **6.70 M** | 23.71 M | 3.5× | **13.16 M** | 23.94 M | 1.8× |
+| `objects` | **3.19 M** | 7.45 M | 2.3× | **3.64 M** | 7.96 M | 2.2× |
+| `sensor` | **0.68 M** | 2.15 M | 3.2× | **0.95 M** | 2.80 M | 2.9× |
+| `strings` | **0.49 M** | 1.79 M | 3.7× | **0.63 M** | 2.29 M | 3.6× |
+
+| Cortex-M0 | MicroCS image | MicroPython `.mpy` | ratio |
+|---|---:|---:|---:|
+| `fib` | **1.95 M** | 6.99 M | 3.6× |
+| `loop` | **13.23 M** | 38.56 M | 2.9× |
+| `objects` | **4.37 M** | 11.94 M | 2.7× |
+| `sensor` | **1.21 M** | 3.16 M | 2.6× |
+| `strings` | **0.77 M** | 2.46 M | 3.2× |
+
+**RAM** — smallest heap each script still runs in (binary search on the output, M4F,
+precompiled code; MicroCS: `BENCH_CFLAGS="-DBENCH_MINHEAP -DBENCH_MODES=1"`, pool with the
+`mcu` profile's 256-slot value stack):
+
+| | `fib` | `loop` | `objects` | `sensor` | `strings` |
+|---|---:|---:|---:|---:|---:|
+| MicroCS pool | 7.6 KB | 7.6 KB | 41.7 KB | 9.5 KB | 25.1 KB |
+| MicroPython GC heap | **0.7 KB** | **0.7 KB** | **21.3 KB** | **2.9 KB** | **17.3 KB** |
+
+MicroPython needs less heap here. Part of it is accounting: about 5.7 KB of the MicroCS pool
+is the VM itself (1.6 KB state, 256-slot value stack, 64 call frames), which MicroPython keeps
+in static RAM and on the C stack (not counted). The rest is real: MicroCS's per-object and
+collection overhead and the headroom its GC needs. Flash is in the same class: the M4F bench firmwares (VM, compiler,
+stdlib, newlib) are 170 KB (MicroCS, incl. the fs/hal modules) and 166 KB (MicroPython).
+
+### PC — all three
+
+x86-64, same machine. MicroCS `make bench` (optimized image, `gcc -O2`), MicroPython unix
+port (standard build), nanoFramework on the nanoCLR virtual device (the native x64 nanoCLR
+the `nanoclr` tool ships). Best of 3–50 runs.
+
+| | MicroCS | MicroPython | nanoFramework |
+|---|---:|---:|---:|
+| `fib(30)` | **41 ms** | 254 ms | 717 ms |
+| loop 10 M | **95 ms** | 780 ms | 1485 ms |
+| objects 1 M | **132 ms** | 548 ms | 4272 ms |
+| `bench/mcu` fib | **128 µs** | 760 µs | 2251 µs |
+| `bench/mcu` loop | **493 µs** | 3042 µs | 9523 µs |
+| `bench/mcu` objects | **253 µs** | 974 µs | 8566 µs |
+| `bench/mcu` sensor | **35 µs** | 194 µs | 407 µs |
+| `bench/mcu` strings | **43 µs** | 265 µs | 2080 µs |
+
+Caveats: none of this ran on silicon; instruction counts ignore flash wait states and memory
+speed (identical for both firmwares). nanoFramework was not measured on a Cortex-M — it has
+no bare-metal build for this emulator — so its MCU speed and footprint are not compared; its
+PC numbers come from a different native build than its firmware, and `objects` uses
+`ArrayList` (nanoFramework's `mscorlib` has no `List<T>`). MicroPython `-O2` instead of the
+default unix build is 4–16 % faster on the PC.
+
 ## Host interpreter — `make bench`
 
 x86-64 Xeon @ 2.9 GHz, gcc 11.5 `-O2`, best of 5. "Compile" = source → image without running.

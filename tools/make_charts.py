@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the README charts (assets/bench.svg, assets/footprint.svg).
+"""Render the README charts (assets/bench.svg, assets/footprint.svg, assets/compare.svg).
 
 Numbers are copied from `make bench` and `tools/map_sizes.py` output (see
 docs/PERFORMANCE.md); update them here and re-run after re-measuring.
@@ -60,4 +60,36 @@ ax.set_title("Cortex-M33 firmware (-Os), flash by component — the compiler is 
 style(ax); ax.spines["bottom"].set_visible(False)
 fig.tight_layout()
 fig.savefig("assets/footprint.svg", transparent=True)
-print("wrote assets/bench.svg assets/footprint.svg")
+
+# --- MicroCS vs MicroPython vs .NET nanoFramework (bench/compare/) -------------
+# M4F: emulated instructions (millions), MicroCS optimized image vs MicroPython .mpy
+mcu = [("fib", 1.43, 5.23), ("loop", 6.70, 23.71), ("objects", 3.19, 7.45), ("sensor", 0.68, 2.15), ("strings", 0.49, 1.79)]
+# PC x86-64, ms: MicroCS image, MicroPython 1.26 unix port, nanoFramework nanoCLR 1.1.311 virtual device
+pc = [("fib(30)", 41, 254, 717), ("loop 10 M", 95, 780, 1485), ("objects 1 M", 132, 548, 4272)]
+ORANGE, BLUE = "#f59e0b", "#3b82f6"
+fig, (a1, a2) = plt.subplots(1, 2, figsize=(10, 3.6), gridspec_kw={"width_ratios": [1.15, 1]})
+h = 0.38
+for k, (col, color, label) in enumerate([(1, VIOLET, "MicroCS 1.6"), (2, ORANGE, "MicroPython 1.26")]):
+    bars = a1.barh([i + (k - 0.5) * h for i in range(len(mcu))], [m[col] for m in mcu], h, color=color, label=label)
+    for r in bars:
+        a1.text(r.get_width() + 0.3, r.get_y() + r.get_height() / 2, "%.2f M" % r.get_width(), va="center", color=FG, fontsize=9)
+a1.set_yticks(range(len(mcu))); a1.set_yticklabels([m[0] for m in mcu], color=FG)
+a1.invert_yaxis(); a1.set_xlim(0, 29); a1.set_xticks([])
+a1.set_title("Cortex-M4F (emulated), instructions", fontsize=11, loc="left", color=FG)
+h = 0.27
+for k, (col, color, label) in enumerate([(1, VIOLET, "MicroCS 1.6"), (2, ORANGE, "MicroPython 1.26"), (3, BLUE, ".NET nanoFramework")]):
+    bars = a2.barh([i + (k - 1) * h for i in range(len(pc))], [m[col] for m in pc], h, color=color, label=label)
+    for r in bars:
+        a2.text(r.get_width() * 1.08, r.get_y() + r.get_height() / 2, "%d ms" % r.get_width(), va="center", color=FG, fontsize=9)
+a2.set_xscale("log"); a2.set_xlim(20, 20000); a2.set_xticks([]); a2.minorticks_off()
+a2.set_yticks(range(len(pc))); a2.set_yticklabels([m[0] for m in pc], color=FG); a2.invert_yaxis()
+a2.set_title("PC x86-64, ms (log scale)", fontsize=11, loc="left", color=FG)
+for ax in (a1, a2):
+    style(ax); ax.spines["bottom"].set_visible(False)
+fig.suptitle("Same scripts, same machine — lower is better", x=0.01, y=0.97, ha="left", color=FG, fontsize=11)
+fig.tight_layout(rect=(0, 0, 1, 0.93))
+hs, ls = a2.get_legend_handles_labels()
+leg = fig.legend(hs, ls, loc="upper right", ncol=3, frameon=False, fontsize=9, bbox_to_anchor=(0.99, 0.995))
+for t in leg.get_texts(): t.set_color(FG)
+fig.savefig("assets/compare.svg", transparent=True)
+print("wrote assets/bench.svg assets/footprint.svg assets/compare.svg")
