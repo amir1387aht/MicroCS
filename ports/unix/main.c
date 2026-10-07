@@ -300,6 +300,7 @@ int main(int argc, char** argv) {
         else if (a[0] == '-' && a[1]) { usage(); return 64; }
         else { file = a; break; }
     }
+    (void)echo;                              /* only used by the shell */
 
     mcs_config_t cfg;
     mcs_config_default(&cfg);
