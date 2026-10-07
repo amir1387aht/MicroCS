@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.5.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.6.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-52%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -133,7 +133,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.5.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.6.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -219,7 +219,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | add as a west module, `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.5.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.6.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -417,16 +417,27 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 
 | Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
 |---|---:|---:|---:|---:|---:|
-| **M0**, runtime only (no compiler) | 197.6 KB | 128 KB part | 7.8 KB | 4.54 M instr · 38.0 KB peak | — |
-| **M0**, `lowram` profile, 40 KB pool | 185.7 KB | 64 KB part | 5.0 KB | 4.49 M instr · 30.0 KB peak | — |
-| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 146.7 KB | 48 KB part | 1.7 KB | 1.04 M instr · 14.3 KB peak | — |
-| **M0**, same node in **16 KB RAM** (`m0-16k`), 12 KB pool | 146.7 KB | 16 KB | 1.7 KB | 1.03 M instr · 11.2 KB peak | — |
-| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **60.9 KB** | 16 KB | 1.7 KB | 0.93 M instr · 11.0 KB peak | — |
-| **M4F**, full | 242.0 KB | 192 KB part | 7.9 KB | 3.44 M instr | 4.41 M instr · 71.8 KB peak |
-| **M33**, full (+ shell 248.1 KB) | 241.9 KB | 288 KB part | 7.9 KB | 3.44 M instr | 4.41 M instr |
+| **M0**, runtime only (no compiler) | 208.5 KB | 128 KB part | 8.0 KB | 2.96 M instr · 38.2 KB peak | — |
+| **M0**, `lowram` profile, 40 KB pool | 196.5 KB | 64 KB part | 5.1 KB | 2.90 M instr · 30.0 KB peak | — |
+| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 157.2 KB | 48 KB part | 1.8 KB | 0.95 M instr · 13.8 KB peak | — |
+| **M0**, same node in **16 KB RAM** (`m0-16k`), 12 KB pool | 157.2 KB | 16 KB | 1.8 KB | 0.84 M instr · 11.0 KB peak | — |
+| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **60.6 KB** | 16 KB | 1.8 KB | 0.93 M instr · 10.4 KB peak | — |
+| **M4F**, full | 253.1 KB | 192 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr · 71.9 KB peak |
+| **M33**, full (+ shell 259.2 KB) | 253.0 KB | 288 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr |
+
+**Images vs source** (`make mcu-bench`, Cortex-M4F, emulated instructions; images are
+optimized with superinstructions, `-O0` = plain bytecode):
+
+| `bench/mcu/` | Source size | Image size | From source | Image `-O0` | **Image** | vs 1.5 image | RAM peak src → image |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `fib` (recursion) | 102 B | 146 B | 2.07 M | 2.00 M | **1.43 M** | 1.7× faster | 31.4 → 15.1 KB |
+| `loop` (int arithmetic) | 232 B | 166 B | 13.16 M | 13.07 M | **6.70 M** | 2.2× faster | 31.4 → 15.1 KB |
+| `objects` (classes, fields, calls) | 406 B | 356 B | 3.64 M | 3.50 M | **3.19 M** | 1.8× faster | 72.2 → 72.2 KB |
+| `sensor` (double math, arrays) | 581 B | 501 B | 0.95 M | 0.71 M | **0.68 M** | 1.3× faster | 40.7 → 17.0 KB |
+| `strings` (string building) | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 1.3× faster | 31.7 → 30.6 KB |
 
 > [!NOTE]
-> Instruction counts and memory peaks are measured by `make cm-check`. 1 KB = 1024 B. Flash
+> Instruction counts and memory peaks are measured by `make cm-check` and `make mcu-bench`. 1 KB = 1024 B. Flash
 > includes newlib + libm (~49 KB; the `min` build uses the built-in tiny printf and no libm)
 > and the optional modules. Method and raw data: [PERFORMANCE.md](docs/PERFORMANCE.md). For
 > 16–64 KB RAM parts see [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) and the firmware in
@@ -438,10 +449,10 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 
 | Area | Status | Evidence |
 |---|:---:|---|
-| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 29 feature-flag / profile builds `-Werror`, whole suite under 9 configurations |
+| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 32 feature-flag / profile builds `-Werror`, whole suite under 12 configurations |
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
-| Bytecode images + loader validation, XIP | ✅ | every test runs as source, image **and** XIP image; image fuzzer |
+| Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API v2 (14 classes, callbacks, events) | ✅ | `t08_hal`, `t15_hal_v2`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
@@ -458,6 +469,8 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
       STM32 / ESP32 / RP2040 / RP2350 / Zephyr / Arduino ports, CMake / ESP-IDF / PlatformIO / Arduino packaging
 - [x] **1.5** — 16 KB RAM / 64 KB flash (`min` profile, lazy class tables, optional stdlib parts),
       `auto` profile per MCU, ESP32-C2, LittleFS + YAFFS2 on SPI NOR / NAND
+- [x] **1.6** — fast images: bytecode optimizer + superinstructions, method/constructor caches,
+      compact image format v3 (images 1.3–2.2× faster than 1.5 and smaller than the source)
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
 - [ ] Flash filesystems on internal flash in every port example, USB mass-storage

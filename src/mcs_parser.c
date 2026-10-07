@@ -329,7 +329,7 @@ static void prescan_tuple_members(parser_t* P) {
             }
             el_tokens++; last = tk;
         }
-        if (!ok || !named || j + 2 >= P->n) continue;
+        if (!ok || !named || el_index < 2 || j + 2 >= P->n) continue;   /* a tuple type has >= 2 elements */
         token_t* nm = &P->t[j + 1];
         int after = P->t[j + 2].type;
         if (nm->type != TK_IDENT || !(after == TK_SEMI || after == TK_ASSIGN || after == TK_LBRACE || after == TK_ARROW)) continue;

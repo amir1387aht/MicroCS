@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 5
+#define MCS_VERSION_MINOR 6
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.5.0"
+#define MCS_VERSION_STRING "1.6.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -187,6 +187,13 @@ mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src);
 /* Compile source to a portable bytecode image (free with mcs_free_image). */
 mcs_result_t mcs_compile_image(mcs_vm_t* vm, const char* name, const char* src,
                                bool strip_lines, uint8_t** out, size_t* out_len);
+/* Same with MCS_IMAGE_* flags. Images are optimized by default (superinstructions,
+ * see docs/BYTECODE.md); MCS_IMAGE_NO_OPT produces an image for a VM built with
+ * MCS_ENABLE_SUPEROPS=0. */
+#define MCS_IMAGE_STRIP  1u   /* drop line tables and source names */
+#define MCS_IMAGE_NO_OPT 2u   /* skip the optimizer */
+mcs_result_t mcs_compile_image_ex(mcs_vm_t* vm, const char* name, const char* src,
+                                  unsigned flags, uint8_t** out, size_t* out_len);
 void mcs_free_image(mcs_vm_t* vm, uint8_t* image);
 #endif
 #if MCS_ENABLE_BYTECODE_LOAD

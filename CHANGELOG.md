@@ -2,6 +2,64 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.6.0 — fast bytecode images
+
+Focus: a precompiled image is now clearly the fast path. Up to 1.5 an image held the same
+bytecode the on-device compiler emits, so it only saved the compile step (a few ms) and was
+larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#16--fast-bytecode-images).
+
+### Speed (emulated Cortex-M4F instructions, image run, 1.5 → 1.6)
+- `fib` 2.43 → 1.43 M (1.7×), `loop` 15.0 → 6.70 M (2.2×), `objects` 5.64 → 3.19 M (1.8×),
+  `sensor` 0.87 → 0.68 M (1.3×), `strings` 0.63 → 0.49 M (1.3×); `demo.cs` image 3.44 → 2.18 M
+  on M4F and 4.54 → 2.96 M on M0. Host: fib(30) 73 → 41 ms, 10 M loop 322 → 95 ms.
+- Images now run 1.1–2.0× faster than the same script from source and need about half the RAM
+  peak (no compiler state): e.g. `fib` 31.4 → 15.1 KB, `sensor` 40.7 → 17.0 KB.
+
+### Bytecode optimizer (`src/mcs_opt.c`)
+- 71 **superinstructions** (opcodes 86–156, image version 2+): local/immediate/constant
+  arithmetic with optional store, compare-and-branch on locals/immediates/constants,
+  accumulate (`x += e`), `a[i]` / `a[i] = v` and `obj.f` / `obj.f = v` on locals,
+  `return local`. Jump threading, loop rotation (one branch per iteration), dead-code removal.
+- `mcs -c` / `mcs -C` / `mcs_compile_image*` optimize by default; `mcs -O0` and
+  `MCS_IMAGE_NO_OPT` produce plain bytecode. Source run on the device is unchanged unless
+  `MCS_OPTIMIZE_SOURCE=1`.
+- New switches `MCS_ENABLE_SUPEROPS` (default 1; **0 in `mcs_profile_min.h`**, which also turns
+  `MCS_FIELD_CACHE` off) and
+  `MCS_ENABLE_OPTIMIZER`. A VM without superinstructions rejects optimized images with a clear
+  error; `examples/lowram/node_image.h` is now built with `-O0` so it runs on every profile.
+
+### VM
+- Stack pointer kept in a register; in-place int fast paths for arithmetic, shifts, compares,
+  `a[i]`, `a[i] = v`; `array.Length` / `List.Count` / `string.Length` without lookup.
+- `INVOKE` method inline cache per call site, constructor cache for `new C(...)`, direct
+  closure entry, cheaper `RETURN`; caches are invalidated by a class epoch.
+
+### Image format v3
+- Varints, delta-coded line tables, every string stored once, f32 constants when exact.
+  Images are 25–45 % smaller (host `demo.cs` 2763 → 1942 B; `bench/mcu/loop.cs` image 166 B for
+  232 B of source). v1 and v2 images still load.
+
+### Fixes
+- Typed top-level variables used inside functions declared before them had the wrong type
+  (`double ema = 0; void F() { ema = ema * 0.5; }` did integer arithmetic).
+- Calls of hoisted top-level functions keep the declared return type (no extra conversion).
+- `foreach (var p in list) acc = …` no longer emitted a stray tuple-names call.
+- An interpolation format spec longer than 95 characters overflowed a compiler buffer (found by
+  `tools/fuzz.py`; present since 1.0).
+- Image loader: `FIELD`'s default-value operand is range-checked (found by `tools/fuzz.py --image`).
+- CLI builds with `MCS_ENABLE_COMPILER=0` / `MCS_ENABLE_BYTECODE_SAVE=0` compile warning-free.
+
+### Tooling
+- `make mcu-bench` (`tools/mcu_bench.sh`, `bench/mcu/*.cs`, `ports/cortex-m/bench.c`):
+  image vs `-O0` image vs source on emulated M4F/M0, outputs checked against the host.
+- `make check`: +3 flag builds and +3 full-suite configurations (`MCS_ENABLE_SUPEROPS=0`,
+  `MCS_OPTIMIZE_SOURCE=1`, switch dispatch); new `tests/t17_optimizer.cs`.
+
+### Costs
+- Flash: +8–11 KB on Cortex-M with superinstructions (`m0-runtime` 208.5 KB, `m4-full`
+  253.1 KB); the `min` build (superinstructions and inline caches off) stays at 60.6 KB of 64 KB.
+- Compiling an image on the PC takes longer (optimizer): host `demo.cs` 83 → 120 µs.
+
 ## 1.5.0 — 16 KB RAM / 64 KB flash, per-MCU configuration, flash filesystems
 
 Focus: run on the smallest 32-bit parts (the same 16 KB RAM floor as MicroPython, but in

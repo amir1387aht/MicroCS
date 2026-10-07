@@ -50,6 +50,7 @@ def main():
     ap.add_argument("--max-insns", type=int, default=2_000_000_000)
     ap.add_argument("--quiet", action="store_true", help="no summary on stderr")
     ap.add_argument("--profile", type=int, default=0, metavar="N", help="report the N hottest functions")
+    ap.add_argument("--lines", type=int, default=0, metavar="N", help="with --profile: also report the N hottest source lines (addr2line)")
     ap.add_argument("--callers", metavar="SYMBOL", help="with --profile: also count who calls SYMBOL (e.g. memcpy)")
     a = ap.parse_args()
 
@@ -146,6 +147,8 @@ def main():
         sys.stderr.write("[emu] cpu=cortex-%s instructions=%d exit=%s\n" % (a.cpu, st["n"], st["exit"]))
     if prof:
         report_profile(a.elf, prof, a.profile, st["n"])
+        if a.lines:
+            report_lines(a.elf, prof, a.lines, st["n"])
         if watch is not None:
             report_profile(a.elf, callers, a.profile, sum(callers.values()), "calls to %s by caller" % a.callers)
     return st["exit"] if st["exit"] is not None else 2
@@ -187,6 +190,22 @@ def report_profile(elf, prof, top, total, what="instructions"):
     sys.stderr.write("[profile] top %d of %d %s\n" % (top, total, what))
     for name, n in by_fn.most_common(top):
         sys.stderr.write("  %6.2f%% %12d  %s\n" % (100.0 * n / total, n, name))
+
+
+def report_lines(elf, prof, top, total):
+    """Attribute per-address counts to source lines (arm-none-eabi-addr2line)."""
+    addrs = sorted(prof)
+    try:
+        out = subprocess.run(["arm-none-eabi-addr2line", "-e", elf] + ["0x%x" % x for x in addrs],
+                             capture_output=True, text=True).stdout.splitlines()
+    except OSError:
+        sys.stderr.write("[profile] arm-none-eabi-addr2line not found\n"); return
+    by_line = collections.Counter()
+    for addr, loc in zip(addrs, out):
+        by_line[os.path.basename(loc.split(" ")[0])] += prof[addr]
+    sys.stderr.write("[profile] top %d source lines\n" % top)
+    for loc, n in by_line.most_common(top):
+        sys.stderr.write("  %6.2f%% %12d  %s\n" % (100.0 * n / total, n, loc))
 
 
 if __name__ == "__main__":

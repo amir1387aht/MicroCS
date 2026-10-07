@@ -11,22 +11,28 @@ run without the compiler (`MCS_ENABLE_COMPILER=0`).
 ./mcs -d app.mcsb                    # validate + disassemble an image
 ```
 
-## Image layout (version 2)
+## Image layout (version 3)
 
-All header integers are **little-endian**; instruction operands inside `code` are
-**big-endian** (`hi, lo`).
+`mcs -c` writes **optimized** images (superinstructions, see below); `mcs -O0 -c` writes plain
+bytecode for a VM built with `MCS_ENABLE_SUPEROPS=0`. Version 3 is a compact encoding of the
+same records; the loader still accepts version 1 and 2 images.
+
+Header integers are **little-endian**; `vN` is an unsigned LEB128 varint, `zN` a zig-zag
+varint. Instruction operands inside `code` are **big-endian** (`hi, lo`).
 
 | Offset | Size | Field |
 |---:|---:|---|
 | 0 | 4 | magic `MCSB` |
-| 4 | 1 | version — `2` (the loader also accepts `1`) |
+| 4 | 1 | version — `3` (the loader also accepts `1` and `2`) |
 | 5 | 1 | flags: bit0 `MCS_INT64`, bit1 `MCS_ENABLE_FLOAT`, bit2 `MCS_FLOAT_DOUBLE` of the producer |
 | 6 | 2 | reserved (0) |
-| 8 | 4 | `gcount` — number of global names |
-| 12 | … | `gcount` × string — global names (re-linked to VM global slots at load) |
+| 8 | vN | `gcount` — number of global names |
+| … | … | `gcount` × string — global names (re-linked to VM global slots at load) |
 | … | … | main function (recursive *function record*) |
 
-**String** = `u16 length` (`0xFFFF` = null) + bytes (UTF-8, no terminator).
+**String** = `vN v`: `0` = null; odd = reference to the `(v >> 1)`-th string already stored in
+the image (names, file names and string constants are stored once); even = a new string of
+`(v >> 1) - 1` bytes (UTF-8, no terminator) follows.
 
 **Function record**
 
@@ -34,17 +40,24 @@ All header integers are **little-endian**; instruction operands inside `code` ar
 |---|---|
 | name, source | string, string |
 | arity, min_arity, upvalue_count, flags | u8 ×4 |
-| max_slots | u16 |
+| max_slots | vN |
 | has_param_types (+ `arity` × u8 conversion codes) | u8 |
-| const_count, then constants | u32, tagged values |
-| code_len, code | u32, bytes |
-| line_count, then `(pc, line)` pairs | u32, u32×2 each (0 when stripped) |
+| const_count, then constants | vN, tagged values |
+| code_len, code | vN, bytes (kept verbatim so it can execute in place) |
+| line_count, then `(pc, line)` pairs | vN, `vN` pc delta + `zN` line delta each (0 when stripped) |
 
-Constant tags: `0` null · `1` false · `2` true · `3` int (i64) · `4` float (f64 bits) ·
-`5` char (u32) · `6` string · `7` function record (nested, depth ≤ 64).
+Constant tags: `0` null · `1` false · `2` true · `3` int (`zN`) · `4` float (f64 bits) ·
+`5` char (`vN`) · `6` string · `7` function record (nested, depth ≤ 64) · `8` float stored as
+f32 bits (used when the value is exactly representable).
+
+Version 1/2 used `u32` counts, `u16`-length strings (`0xFFFF` = null) without sharing, `u64`
+ints and `u32` `(pc, line)` pairs. Version 3 images are 25–45 % smaller
+([PERFORMANCE.md](PERFORMANCE.md#16--fast-bytecode-images)).
 
 An image with floating-point constants is rejected by a VM built with `MCS_ENABLE_FLOAT=0`;
-a 64-bit-int image loads on a 32-bit-int VM (constants are truncated).
+a 64-bit-int image loads on a 32-bit-int VM (constants are truncated). An optimized image is
+rejected by a VM built with `MCS_ENABLE_SUPEROPS=0` ("image uses superinstructions; rebuild
+with MCS_ENABLE_SUPEROPS=1 or compile with -O0").
 
 ## Loader validation
 
@@ -52,12 +65,14 @@ a 64-bit-int image loads on a 32-bit-int VM (constants are truncated).
 
 * magic, version, every length and count are within the buffer (`corrupt bytecode image`);
 * every opcode is known and its operands fit inside `code`;
-* constant operands are in range and of the right kind (strings for names, functions for `CLOSURE`);
+* constant operands are in range and of the right kind (strings for names, functions for `CLOSURE`,
+  including the default-value operand of `FIELD` and the constants of superinstructions);
 * global operands are in range (they are re-linked to the VM's global slots);
 * local-slot operands are `< max_slots` (`FOR_ITER` uses two slots), upvalue operands are
   `< upvalue_count`, and `CLOSURE` captures reference valid locals / upvalues;
-* every branch target (`JUMP*`, `JF_*`, `LOOP`, `TRY`, `ARGC_JUMP`, `FOR_ITER`) lands on an
-  instruction boundary inside the function.
+* every branch target (`JUMP*`, `JF_*`, `LOOP`, `TRY`, `ARGC_JUMP`, `FOR_ITER` and the fused
+  compare-and-branch superinstructions) lands on an instruction boundary inside the function;
+* superinstruction sub-operations (`BX_*` / `JX_*` bytes) are in range.
 
 > [!WARNING]
 > The loader does **not** verify stack balance or operand types. An image crafted by hand can
@@ -179,6 +194,82 @@ Operand legend: `k16` constant index · `g16` global · `s8` local slot · `u8` 
 
 Opcodes are **append-only**: new instructions get new numbers at the end and bump
 `IMG_VERSION`; existing numbers never change meaning, so old images keep loading.
+
+### Superinstructions (v2)
+
+Emitted only by the image optimizer (`src/mcs_opt.c`), never by the compiler itself. Operand
+letters: `L` local slot (u8), `K` constant (k16), `I` signed 8-bit immediate, `S` the value on
+top of the stack. `op8` is a `BX_*` operation (`+ - * / % & | ^ << >> >>>`), `c8` a `JX_*`
+comparison (`== != < <= > >=`). Every form has an int fast path; any other operand types
+(floats, strings, operator overloads) take the same generic code as the plain instructions,
+with identical results and exceptions.
+
+| # | Mnemonic | Operands | Effect |
+|---:|---|---|---|
+| 86 | `BIN_LL` | op8 s8 s8 | push `L[a] op L[b]` |
+| 87 | `BIN_LK` | op8 s8 k16 | push `L[a] op K` |
+| 88 | `BIN_SL` | op8 s8 | `top = top op L[b]` |
+| 89 | `BIN_SK` | op8 k16 | `top = top op K` |
+| 90 | `BIN_LLS` | op8 s8 s8 s8 | `L[d] = L[a] op L[b]` |
+| 91 | `BIN_LKS` | op8 s8 k16 s8 | `L[d] = L[a] op K` |
+| 92 | `BIN_LIS` | op8 s8 i8 s8 | `L[d] = L[a] op I` |
+| 93 | `JF_LK` | c8 s8 k16 o16 | jump forward unless `L[a] c K` |
+| 94 | `JF_SL` | c8 s8 o16 | pop `x`; jump forward unless `x c L[b]` |
+| 95 | `JF_SK` | c8 k16 o16 | pop `x`; jump forward unless `x c K` |
+| 96 | `JB_LK` | c8 s8 k16 o16 | jump **back** (safepoint) if `L[a] c K` — rotated loop test |
+| 97 | `GET_FIELD_L` | s8 k16 | push `L[s].name` (field cache, `Length`/`Count` fast path) |
+| 98 | `RETURN_LOCAL` | s8 | return `L[s]` |
+| 99 | `ACC` | op8 s8 | `L[d] = L[d] op pop` |
+| 100 | `ACC_ADD` | s8 | `L[d] = L[d] + pop` |
+| 101 | `ACC_SUB` | s8 | `L[d] = L[d] - pop` |
+| 102 | `SETF_L` | s8 k16 | `L[s].name = pop` (statement; setters run normally) |
+| 103 | `GET_INDEX_LL` | s8 s8 | push `L[a][L[i]]` |
+| 104 | `SET_INDEX_LL` | s8 s8 | `L[a][L[i]] = pop` (statement; user indexers run normally) |
+| 105–115 | `LI_ADD` … `LI_USHR` | s8 i8 | push `L[a] op I` (one opcode per operation) |
+| 116–126 | `SI_ADD` … `SI_USHR` | i8 | `top = top op I` |
+| 127–132 | `JFLI_EQ` … `JFLI_GE` | s8 i8 o16 | jump forward unless `L[a] c I` |
+| 133–138 | `JFSI_EQ` … `JFSI_GE` | i8 o16 | pop `x`; jump forward unless `x c I` |
+| 139–144 | `JBLI_EQ` … `JBLI_GE` | s8 i8 o16 | jump back (safepoint) if `L[a] c I` |
+| 145–150 | `JFLL_EQ` … `JFLL_GE` | s8 s8 o16 | jump forward unless `L[a] c L[b]` |
+| 151–156 | `JBLL_EQ` … `JBLL_GE` | s8 s8 o16 | jump back (safepoint) if `L[a] c L[b]` |
+
+`/` and `%` immediates are only fused for positive divisors (0 and −1 keep the checked path).
+
+### The optimizer
+
+`mcs_optimize` (run by `mcs -c`, `mcs -C` and `mcs_compile_image*`; on-device source only with
+`MCS_OPTIMIZE_SOURCE=1`) repeats until nothing changes (≤ 6 passes):
+
+1. **fusion** of the patterns above (e.g. `GET_LOCAL a; INT8 1; SUB` → `LI_SUB a 1`;
+   `GET_LOCAL i; GET_LOCAL n; LT; JF` → `JFLL_LT i n`; `x = x + e` → `e; ACC_ADD x` when `e` is
+   a pure expression and `x` is not captured by a closure), constant folding of `INT8; CONV
+   float`;
+2. **jump threading**: a `JUMP` that lands on a return becomes that return;
+3. **loop rotation**: when the loop head is a fused compare-and-branch, the back edge
+   re-tests the condition (`JBLI_*`, `JBLL_*`, `JB_LK` — "jump back if true") instead of
+   `LOOP` + test, so each iteration executes one branch instead of two;
+4. **dead-code removal** (unreachable instructions after unconditional jumps/returns);
+5. **relayout**: branch offsets (including `TRY` handler offsets) and the line table are remapped.
+
+Only instructions that are not branch targets are fused, so control flow is unchanged;
+`make test` runs every test as source (unoptimized), optimized image and XIP image and
+compares the output byte for byte (`tests/t17_optimizer.cs` covers every pattern and the
+slow paths).
+
+### Run-time caches
+
+* `GET_FIELD`/`SET_FIELD`/`GET_FIELD_L`/`SETF_L`: per-function `(class, slot)` cache.
+* `INVOKE`: per-call-site method cache keyed by class (`MCS_FIELD_CACHE`), invalidated when
+  any class gains members (`vm->cls_epoch`).
+* `CALL` of a script class: cached constructor closure (`new C(...)` skips the lookup).
+* `array.Length`, `List.Count`, `string.Length` are read directly.
+
+| Switch | Default | Effect |
+|---|---|---|
+| `MCS_ENABLE_SUPEROPS` | 1 (0 in `min`) | VM handlers for the table above (~8 KB Thumb code) |
+| `MCS_ENABLE_OPTIMIZER` | compiler && superops | `mcs_optimize` in the compiler build |
+| `MCS_OPTIMIZE_SOURCE` | 0 | also optimize `mcs_exec_source` (more compile time and RAM) |
+| `MCS_FIELD_CACHE` | 1 (0 in `min`) | field / method / constructor caches |
 
 ## Execution model
 

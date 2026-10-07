@@ -655,6 +655,15 @@ static uint8_t compile_call(comp_t* c, node_t* n) {
         }
         int argc = compile_args(c, n->b);
         emit_op8(c, OP_CALL, (uint8_t)argc);
+        if (r.kind == R_GLOBAL) {
+            /* a hoisted top-level function: its returns are converted to the declared type */
+            node_t* hit = NULL; int hits = 0;
+            for (node_t* s = c->prog->stmts; s; s = s->next) {
+                if ((s->kind == N_LOCAL_FUNC || s->kind == N_VAR) && name_eq(s->name, s->len, f->name, f->len)) { hit = s; hits++; }
+                if (s->kind == N_BLOCK && s->flag == 1) for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR && name_eq(v->name, v->len, f->name, f->len)) hits++;
+            }
+            if (hits == 1 && hit->kind == N_LOCAL_FUNC && hit->fn) return pt_of_type(hit->fn->ret);
+        }
         return PT_ANY;
     }
     if (f->kind == N_MEMBER) {
@@ -829,6 +838,8 @@ static uint8_t compile_interp(comp_t* c, node_t* n) {
                 int k = 0;
                 if (p->ival) k = snprintf(spec, sizeof spec, ",%d", (int)p->ival);
                 if (p->name) k += snprintf(spec + k, sizeof spec - (size_t)k, ":%.*s", (int)p->len, p->name);
+                if (k < 0) k = 0;
+                if (k >= (int)sizeof spec) k = (int)sizeof spec - 1;   /* over-long format spec: truncated */
                 emit_op16(c, OP_CONST, kstr(c, spec, (uint32_t)k));
                 emit_op(c, OP_TOSTR_FMT);
             } else if (pt != PT_STRING) emit_op(c, OP_TOSTR);
@@ -1056,6 +1067,13 @@ static void compile_expr_stmt(comp_t* c, node_t* e) {
 }
 
 static bool is_global_scope(comp_t* c) { return c->fc->kind == FK_MAIN && c->fc->depth == 0; }
+
+static void pre_gvar(comp_t* c, node_t* v) {
+    typeref_t* t = v->type;
+    if (!t || t->is_var) return;
+    gvar_t* g = (gvar_t*)arena_alloc(c->ctx->arena, sizeof(gvar_t));
+    g->name = v->name; g->len = v->len; g->pt = pt_of_type(t); g->conv = conv_of(t); g->next = c->gvars; c->gvars = g;
+}
 
 static void compile_var(comp_t* c, node_t* v) {
     typeref_t* t = v->type;
@@ -1814,6 +1832,12 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
         int n = 0;
         for (classdecl_t* d = prog.classes; d; d = d->next) topo_visit(c, d, order, &n);
         for (int i = 0; i < n; i++) emit_class(c, order[i]);
+        /* declared types of top-level variables, needed by the hoisted functions
+         * compiled before the declarations (implicit conversions on assignment) */
+        for (node_t* s = prog.stmts; s; s = s->next) {
+            if (s->kind == N_VAR) pre_gvar(c, s);
+            else if (s->kind == N_BLOCK && s->flag == 1) for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR) pre_gvar(c, v);
+        }
         /* hoisted top-level functions */
         for (node_t* s = prog.stmts; s; s = s->next) {
             if (s->kind != N_LOCAL_FUNC) continue;
