@@ -130,7 +130,8 @@ The tool sends Ctrl-A first, so it works whether the device sits in the REPL or 
 ## 6. In the browser: `mcs_studio.html`
 
 [`tools/mcs_studio.html`](../tools/mcs_studio.html) is a single, self-contained HTML file (no
-server, no install, works offline). Open it in **Chrome or Edge** on a desktop — they have
+server, no install, works offline), also published at **https://amir1387aht.github.io/MicroCS/**
+(updated from `main` by `.github/workflows/pages.yml`). Open it in **Chrome or Edge** on a desktop — they have
 [Web Serial](https://developer.mozilla.org/docs/Web/API/Web_Serial_API) — click **Connect**
 and pick the board's port. It speaks the protocol above, like `mcs_remote.py`.
 

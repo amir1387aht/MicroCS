@@ -261,8 +261,8 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 put app.cs /main.cs + run /main.
 python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-] quits); Windows: --port COM5
 ```
 
-Or do it all in the browser: open [`tools/mcs_studio.html`](tools/mcs_studio.html) in Chrome or
-Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
+Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
+(or the local file [`tools/mcs_studio.html`](tools/mcs_studio.html)) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor with highlighting and completion that saves to and runs on the device, and the REPL —
 one HTML file, no install ([details](docs/STANDALONE.md#6-in-the-browser-mcs_studiohtml)).
 

@@ -70,7 +70,7 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
 * **From C#**: `File.WriteAllText("/log.txt", ...)`, `File.ReadAllText`, `File.AppendAllText`,
   `Directory.CreateDirectory`, ... — see [FILESYSTEM.md](../../docs/FILESYSTEM.md#c-api).
   Free space: `new DriveInfo("/").AvailableFreeSpace` (bytes; also `TotalSize`).
-* **From the browser**: open `tools/mcs_studio.html` in Chrome/Edge → **Connect** — file
+* **From the browser**: open [MicroCS Studio](https://amir1387aht.github.io/MicroCS/) (or `tools/mcs_studio.html`) in Chrome/Edge → **Connect** — file
   manager, C# editor (save + run on the board) and REPL in one page
   ([STANDALONE.md](../../docs/STANDALONE.md#6-in-the-browser-mcs_studiohtml)).
 * **From the PC**:
