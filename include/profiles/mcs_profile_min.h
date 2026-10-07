@@ -23,6 +23,11 @@
 #ifndef MCS_ENABLE_COMPILER
 #define MCS_ENABLE_COMPILER 0
 #endif
+/* superinstructions cost ~8 KB of Thumb code; without them the VM runs
+ * images compiled with `mcs -c -O0` (the loader rejects optimized images) */
+#ifndef MCS_ENABLE_SUPEROPS
+#define MCS_ENABLE_SUPEROPS 0
+#endif
 #ifndef MCS_ENABLE_DISASM
 #define MCS_ENABLE_DISASM 0
 #endif

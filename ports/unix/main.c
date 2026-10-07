@@ -104,7 +104,14 @@ static __attribute__((unused)) mcs_result_t mcs_cli_missing(mcs_vm_t* vm, const 
 #define mcs_exec_source(vm, n, s) ((void)(n), (void)(s), mcs_cli_missing(vm, "the compiler (MCS_ENABLE_COMPILER)"))
 #endif
 #if !(MCS_ENABLE_COMPILER && MCS_ENABLE_BYTECODE_SAVE)
-#define mcs_compile_image(vm, n, s, st, img, len) ((void)(n), (void)(s), (void)(st), *(img) = NULL, *(len) = 0, mcs_cli_missing(vm, "image output (MCS_ENABLE_BYTECODE_SAVE)"))
+#ifndef MCS_IMAGE_STRIP
+#define MCS_IMAGE_STRIP  1u
+#define MCS_IMAGE_NO_OPT 2u
+#endif
+static mcs_result_t mcs_compile_image_ex(mcs_vm_t* vm, const char* n, const char* s, unsigned fl, uint8_t** img, size_t* len) {
+    (void)n; (void)s; (void)fl; *img = NULL; *len = 0;
+    return mcs_cli_missing(vm, "image output (MCS_ENABLE_BYTECODE_SAVE)");
+}
 #define mcs_free_image(vm, img) ((void)(vm), (void)(img))
 #endif
 #if !(MCS_ENABLE_DISASM && MCS_ENABLE_COMPILER)
@@ -176,6 +183,7 @@ static void usage(void) {
         "  -o OUT       output path for -c / -C\n"
         "  -n NAME      array name for -C (default: mcs_app)\n"
         "  -s           strip debug line info from images\n"
+        "  -O0          do not optimize the image (for VMs built with MCS_ENABLE_SUPEROPS=0)\n"
         "  -d FILE      disassemble\n"
         "  -e CODE      execute code string\n"
         "  --heap N     heap limit in bytes (emulate a small MCU)\n"
@@ -249,7 +257,7 @@ static mcs_sched_t g_sched;
 
 int main(int argc, char** argv) {
     const char *compile = NULL, *compile_h = NULL, *out = NULL, *disasm = NULL, *code = NULL, *file = NULL, *name = "mcs_app";
-    bool strip = false, stats = false, xip = false;
+    bool strip = false, stats = false, xip = false, no_opt = false;
     char* xip_data = NULL;
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
@@ -266,6 +274,7 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "-d") && i + 1 < argc) disasm = argv[++i];
         else if (!strcmp(a, "-e") && i + 1 < argc) code = argv[++i];
         else if (!strcmp(a, "-s")) strip = true;
+        else if (!strcmp(a, "-O0")) no_opt = true;
         else if (!strcmp(a, "--stats")) stats = true;
         else if (!strcmp(a, "--xip")) xip = true;
         else if (!strcmp(a, "--heap") && i + 1 < argc) heap = (size_t)strtoul(argv[++i], NULL, 0);
@@ -346,7 +355,7 @@ int main(int argc, char** argv) {
         char* src = read_file(in, NULL);
         if (!src) return 1;
         uint8_t* img; size_t n;
-        mcs_result_t r = mcs_compile_image(vm, in, src, strip, &img, &n);
+        mcs_result_t r = mcs_compile_image_ex(vm, in, src, (strip ? MCS_IMAGE_STRIP : 0u) | (no_opt ? MCS_IMAGE_NO_OPT : 0u), &img, &n);
         free(src);
         if (r != MCS_OK) { fprintf(stderr, "%s\n", mcs_last_error(vm)); mcs_free(vm); return 2; }
         if (compile_h) rc = write_header(out, name, img, n);

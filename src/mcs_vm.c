@@ -330,7 +330,12 @@ static int call_value(mcs_vm_t* vm, mcs_value_t callee, int argc) {
             mcs_instance_t* in = mcs_new_instance(vm, cls);
             vm->sp[-argc - 1] = OBJ_VAL(in);
             mcs_value_t ctor;
-            if (mcs_cls_get(vm, cls, MCS_TAB_METHODS, vm->s_ctor, &ctor)) return call_method(vm, ctor, argc);
+            if (mcs_cls_get(vm, cls, MCS_TAB_METHODS, vm->s_ctor, &ctor)) {
+#if MCS_FIELD_CACHE
+                if (IS_KIND(ctor, MCS_O_CLOSURE)) { cls->ctor_cl = AS_CLOSURE(ctor); cls->ctor_epoch = vm->cls_epoch; }
+#endif
+                return call_method(vm, ctor, argc);
+            }
             if (argc != 0) { mcs_throw(vm, EXC_ARGUMENT, "'%s' does not contain a constructor that takes %d arguments", cls->name->chars, argc); return CALL_ERR; }
             return CALL_DONE;
         }
@@ -409,6 +414,52 @@ static int set_member_op(mcs_vm_t* vm, mcs_string_t* name) {
     missing_member(vm, obj, name);
     return CALL_ERR;
 }
+
+#if MCS_ENABLE_SUPEROPS
+static mcs_result_t run(mcs_vm_t* vm, int base_frame);
+static int set_index_op(mcs_vm_t* vm);
+/* SET_INDEX_LL slow path: [obj, index, value] -> obj[index] = value, nothing
+ * left on the stack; a user indexer runs to completion right here */
+static bool index_set_stmt(mcs_vm_t* vm) {
+    mcs_value_t* base = vm->sp - 3;
+    int bf = vm->frame_count, bh = vm->handler_count;
+    int rc = set_index_op(vm);
+    if (rc == CALL_ERR) return false;
+    if (rc == CALL_FRAME && run(vm, bf) != MCS_OK) {
+        close_upvalues(vm, base);
+        vm->frame_count = bf; vm->handler_count = bh;
+        vm->sp = base;
+        return false;
+    }
+    vm->sp = base;
+    return true;
+}
+/* SETF_L slow path: obj.name = top-of-stack as a statement (the value is
+ * popped, nothing pushed); a property setter runs to completion right here */
+static bool setf_slow(mcs_vm_t* vm, mcs_value_t obj, mcs_string_t* name) {
+    mcs_value_t val = PEEK(0), v;
+    bool setter = false;
+    if (IS_KIND(obj, MCS_O_INSTANCE)) {
+        mcs_class_t* c = AS_INSTANCE(obj)->cls;
+        setter = !mcs_table_get_s(&c->fields, name, NULL) && mcs_cls_get(vm, c, MCS_TAB_SETTERS, name, &v);
+    } else if (IS_KIND(obj, MCS_O_CLASS)) {
+        bool st = false;
+        for (mcs_class_t* c = AS_CLASS(obj); c && !st; c = c->super) st = mcs_cls_get(vm, c, MCS_TAB_STATICS, name, NULL);
+        setter = !st && mcs_cls_get(vm, AS_CLASS(obj), MCS_TAB_SETTERS, name, &v);
+    } else {
+        mcs_class_t* c = mcs_class_of(vm, obj);
+        setter = c && mcs_cls_get(vm, c, MCS_TAB_SETTERS, name, &v);
+    }
+    if (setter) {
+        vm->sp--;
+        return mcs_call_internal(vm, v, obj, 1, &val, NULL) == MCS_OK;
+    }
+    vm->sp[-1] = obj; PUSH(val);   /* [obj, val] as SET_FIELD sees it */
+    if (set_member_op(vm, name) == CALL_ERR) return false;
+    vm->sp--;
+    return true;
+}
+#endif
 
 static int invoke_op(mcs_vm_t* vm, mcs_string_t* name, int argc) {
     mcs_value_t recv = PEEK(argc), v;
@@ -815,12 +866,31 @@ static void fcache_put(mcs_vm_t* vm, mcs_function_t* fn, uint32_t k, mcs_class_t
         if (vm->cfg.heap_limit && vm->bytes_allocated + fn->const_count * sizeof(mcs_fcache_t) > vm->cfg.heap_limit) return; /* cache is optional */
         fn->fcache = MCS_ALLOC(vm, mcs_fcache_t, fn->const_count);
         fn->fcache_n = fn->const_count;
-        for (uint32_t i = 0; i < fn->fcache_n; i++) { fn->fcache[i].cls = NULL; fn->fcache[i].slot = 0; }
+        for (uint32_t i = 0; i < fn->fcache_n; i++) { fn->fcache[i].cls = NULL; fn->fcache[i].u.slot = 0; }
     }
-    if (k < fn->fcache_n) { fn->fcache[k].cls = cls; fn->fcache[k].slot = slot; }
+    if (k < fn->fcache_n) { fn->fcache[k].cls = cls; fn->fcache[k].u.slot = slot; }
+}
+static void mcache_put(mcs_vm_t* vm, mcs_function_t* fn, uint32_t k, mcs_class_t* cls, mcs_obj_t* m) {
+    if (fn->fcache && fn->fc_epoch != vm->cls_epoch)   /* classes changed: drop every method entry */
+        for (uint32_t i = 0; i < fn->fcache_n; i++) if ((uintptr_t)fn->fcache[i].cls & 1) fn->fcache[i].cls = NULL;
+    fcache_put(vm, fn, k, cls, 0);
+    if (k < fn->fcache_n && fn->fcache[k].cls == cls) { fn->fcache[k].cls = MCS_FC_METHOD(cls); fn->fcache[k].u.m = m; }
+    fn->fc_epoch = vm->cls_epoch;
 }
 #endif
 
+#if MCS_ENABLE_SUPEROPS
+static const uint8_t bx_ops[16] = { OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_BAND, OP_BOR, OP_BXOR, OP_SHL, OP_SHR, OP_USHR,
+                                    OP_ADD, OP_ADD, OP_ADD, OP_ADD, OP_ADD };
+static const uint8_t jx_ops[8] = { OP_EQ, OP_NE, OP_LT, OP_LE, OP_GT, OP_GE, OP_GE, OP_GE };
+#endif
+
+/* the superinstruction handlers select their operation with a second computed
+ * goto; GCC then cannot prove that their operands are set on every path */
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     mcs_frame_t* frame;
     uint8_t* ip;
@@ -835,6 +905,20 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LOAD_GMAP(f) ((void)0)
 #endif
     mcs_value_t a, b, r;
+    /* the stack pointer lives in a register inside the loop; vm->sp is only
+     * written back (SAVE/SYNC) before anything that may look at the stack */
+    mcs_value_t* sp;
+    uint16_t fk;
+#if MCS_ENABLE_SUPEROPS
+    int sop;   /* operation of a superinstruction slow path */
+#endif
+#undef PUSH
+#undef POP
+#undef PEEK
+#define PUSH(v) (*sp++ = (v))
+#define POP() (*--sp)
+#define PEEK(n) (sp[-1 - (n)])
+#define SYNC() (vm->sp = sp)
     if (vm->run_depth == 0) {
         vm->steps_used = 0;
         /* a budget overrun detected inside a native of the previous run must not leak into this one */
@@ -845,15 +929,27 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     vm->run_depth++;
 
 #define LOAD() do { frame = &vm->frames[vm->frame_count - 1]; ip = frame->ip; slots = frame->slots; consts = frame->closure->fn->consts; LOAD_GMAP(frame->closure->fn); } while (0)
-#define SAVE() (frame->ip = ip)
+#define SAVE() (frame->ip = ip, SYNC())
 #define READ8() (*ip++)
 #define READ16() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define KSTR(i) AS_STRING(consts[i])
 #define THROWN() goto on_exception
-#define CHECKCALL(res) do { int _r = (res); if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) LOAD(); } while (0)
+#define CHECKCALL(res) do { int _r = (res); sp = vm->sp; if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) LOAD(); } while (0)
+/* push a frame for closure CL called with ARGC arguments and continue in it,
+ * when the call needs no adjustment (exact arity, no params array, room left) */
+#define ENTER_FAST(CL, ARGC) do { \
+        mcs_function_t* fn_ = (CL)->fn; \
+        if ((ARGC) == fn_->arity && !(fn_->flags & FN_HAS_PARAMS) && vm->frame_count < vm->cfg.max_frames && \
+            sp + fn_->max_slots + MCS_STACK_MARGIN < vm->stack_end) { \
+            frame = &vm->frames[vm->frame_count++]; \
+            frame->closure = (CL); frame->ip = ip = fn_->code; frame->slots = slots = sp - (ARGC) - 1; frame->argc = (uint8_t)(ARGC); \
+            consts = fn_->consts; LOAD_GMAP(fn_); \
+            DISPATCH(); \
+        } \
+    } while (0)
 #define GCPOINT() do { if (vm->gc_wanted) { SAVE(); mcs_collect(vm); } } while (0)
 #define SAFEPOINT() do { \
-        if (vm->gc_wanted) mcs_collect(vm); \
+        if (vm->gc_wanted) { SYNC(); mcs_collect(vm); } \
         if (--vm->hook_counter == 0) { SAVE(); if (hook_tick(vm)) goto on_abort; } \
     } while (0)
 
@@ -874,22 +970,22 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define DISPATCH_END() default: mcs_throw(vm, EXC_SYSTEM, "invalid opcode"); THROWN(); }
 #endif
 
-    LOAD();
+    LOAD(); sp = vm->sp;
     DISPATCH_START()
     CASE(CONST) { uint16_t k = READ16(); PUSH(consts[k]); DISPATCH(); }
     CASE(NULL) PUSH(mcs_null()); DISPATCH();
     CASE(TRUE) PUSH(mcs_bool(true)); DISPATCH();
     CASE(FALSE) PUSH(mcs_bool(false)); DISPATCH();
     CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH(mcs_int(v)); DISPATCH(); }
-    CASE(POP) vm->sp--; DISPATCH();
+    CASE(POP) sp--; DISPATCH();
     CASE(DUP) { a = PEEK(0); PUSH(a); DISPATCH(); }
     CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH(b); DISPATCH(); }
-    CASE(SWAP) { a = PEEK(0); vm->sp[-1] = vm->sp[-2]; vm->sp[-2] = a; DISPATCH(); }
+    CASE(SWAP) { a = PEEK(0); sp[-1] = sp[-2]; sp[-2] = a; DISPATCH(); }
     CASE(ROT) {
         int n = READ8();
         a = PEEK(0);
-        memmove(vm->sp - n, vm->sp - n - 1, sizeof(mcs_value_t) * (size_t)n);
-        vm->sp[-n - 1] = a;
+        memmove(sp - n, sp - n - 1, sizeof(mcs_value_t) * (size_t)n);
+        sp[-n - 1] = a;
         DISPATCH();
     }
     CASE(GET_LOCAL) PUSH(slots[READ8()]); DISPATCH();
@@ -898,7 +994,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(SET_UPVAL) *frame->closure->upvalues[READ8()]->location = PEEK(0); DISPATCH();
     CASE(GET_GLOBAL) {
         uint16_t s = GSLOT(READ16());
-        a = vm->globals[s];
+        const mcs_value_t* gv = &vm->globals[s];
+        if (gv->type != MCS_T_UNDEF) { *sp++ = *gv; DISPATCH(); }
+        a = *gv;
         if (a.type == MCS_T_UNDEF) {   /* first use of a built-in / registered class */
             SAVE();
             mcs_string_t* gn = vm->global_names[s];
@@ -912,21 +1010,30 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(SET_LOCAL_POP) { uint8_t s = READ8(); slots[s] = POP(); DISPATCH(); }
     CASE(SET_GLOBAL_POP) { uint16_t g = READ16(); vm->globals[GSLOT(g)] = POP(); DISPATCH(); }
     CASE(GET_FIELD) {
-        uint16_t k = READ16();
+        fk = READ16();
+#if MCS_ENABLE_SUPEROPS
+    get_field_k: ;
+#endif
+        uint16_t k = fk;
         mcs_string_t* nm = KSTR(k);
         a = PEEK(0);
+        if (IS_OBJ(a)) {   /* .Length / .Count of the built-in sequences */
+            uint8_t ok_ = OBJ_KIND(a);
+            if ((ok_ == MCS_O_ARRAY && nm == vm->s_length) || (ok_ == MCS_O_LIST && nm == vm->s_count)) { sp[-1] = mcs_int((mcs_int_t)AS_LIST(a)->count); DISPATCH(); }
+            if (ok_ == MCS_O_STRING && nm == vm->s_length) { sp[-1] = mcs_int((mcs_int_t)AS_STRING(a)->len); DISPATCH(); }
+        }
         if (IS_KIND(a, MCS_O_INSTANCE)) {
             mcs_instance_t* in = AS_INSTANCE(a);
 #if MCS_FIELD_CACHE
             mcs_function_t* cf = frame->closure->fn;
-            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { vm->sp[-1] = in->fields[cf->fcache[k].slot]; DISPATCH(); }
+            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { sp[-1] = in->fields[cf->fcache[k].u.slot]; DISPATCH(); }
 #endif
             mcs_value_t slot;
             if (mcs_table_get_s(&in->cls->fields, nm, &slot)) {
 #if MCS_FIELD_CACHE
                 fcache_put(vm, cf, k, in->cls, (uint32_t)slot.as.i);
 #endif
-                vm->sp[-1] = in->fields[slot.as.i]; DISPATCH();
+                sp[-1] = in->fields[slot.as.i]; DISPATCH();
             }
         }
         SAVE();
@@ -941,33 +1048,34 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             mcs_instance_t* in = AS_INSTANCE(a);
 #if MCS_FIELD_CACHE
             mcs_function_t* cf = frame->closure->fn;
-            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { b = POP(); in->fields[cf->fcache[k].slot] = b; vm->sp[-1] = b; DISPATCH(); }
+            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { b = POP(); in->fields[cf->fcache[k].u.slot] = b; sp[-1] = b; DISPATCH(); }
 #endif
             mcs_value_t slot;
             if (mcs_table_get_s(&in->cls->fields, nm, &slot)) {
 #if MCS_FIELD_CACHE
                 fcache_put(vm, cf, k, in->cls, (uint32_t)slot.as.i);
 #endif
-                b = POP(); in->fields[slot.as.i] = b; vm->sp[-1] = b; DISPATCH();
+                b = POP(); in->fields[slot.as.i] = b; sp[-1] = b; DISPATCH();
             }
         }
         SAVE();
         CHECKCALL(set_member_op(vm, nm));
         DISPATCH();
     }
+#define IS_SEQ(v) (IS_OBJ(v) && (OBJ_KIND(v) == MCS_O_ARRAY || OBJ_KIND(v) == MCS_O_LIST))
     CASE(GET_INDEX) {
-        a = PEEK(1); b = PEEK(0);
-        if ((IS_KIND(a, MCS_O_ARRAY) || IS_KIND(a, MCS_O_LIST)) && b.type == MCS_T_INT && (mcs_uint_t)b.as.i < AS_LIST(a)->count) {
-            vm->sp--; vm->sp[-1] = AS_LIST(a)->items[b.as.i]; DISPATCH();
+        const mcs_value_t* pa_ = sp - 2;
+        if (IS_SEQ(pa_[0]) && pa_[1].type == MCS_T_INT && (mcs_uint_t)pa_[1].as.i < AS_LIST(pa_[0])->count) {
+            sp[-2] = AS_LIST(pa_[0])->items[pa_[1].as.i]; sp--; DISPATCH();
         }
         SAVE();
         CHECKCALL(get_index_op(vm));
         DISPATCH();
     }
     CASE(SET_INDEX) {
-        a = PEEK(2); b = PEEK(1);
-        if ((IS_KIND(a, MCS_O_ARRAY) || IS_KIND(a, MCS_O_LIST)) && b.type == MCS_T_INT && (mcs_uint_t)b.as.i < AS_LIST(a)->count) {
-            r = PEEK(0); AS_LIST(a)->items[b.as.i] = r; vm->sp -= 2; vm->sp[-1] = r; DISPATCH();
+        const mcs_value_t* pa_ = sp - 3;
+        if (IS_SEQ(pa_[0]) && pa_[1].type == MCS_T_INT && (mcs_uint_t)pa_[1].as.i < AS_LIST(pa_[0])->count) {
+            AS_LIST(pa_[0])->items[pa_[1].as.i] = sp[-1]; sp[-3] = sp[-1]; sp -= 2; DISPATCH();
         }
         SAVE();
         CHECKCALL(set_index_op(vm));
@@ -975,63 +1083,76 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
 #define BINOP(NAME, OPC, EXPR) \
     CASE(NAME) { \
+        mcs_value_t* pa_ = sp - 2; \
+        if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { pa_->as.i = (mcs_int_t)(EXPR); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
-        if (a.type == MCS_T_INT && b.type == MCS_T_INT) { vm->sp--; vm->sp[-1] = mcs_int((mcs_int_t)(EXPR)); DISPATCH(); } \
         SAVE(); \
         if (!arith(vm, OPC, a, b, &r)) THROWN(); \
-        vm->sp--; vm->sp[-1] = r; DISPATCH(); \
+        sp--; sp[-1] = r; DISPATCH(); \
     }
-    BINOP(ADD, OP_ADD, (mcs_uint_t)a.as.i + (mcs_uint_t)b.as.i)
-    BINOP(SUB, OP_SUB, (mcs_uint_t)a.as.i - (mcs_uint_t)b.as.i)
-    BINOP(MUL, OP_MUL, (mcs_uint_t)a.as.i * (mcs_uint_t)b.as.i)
-    BINOP(BAND, OP_BAND, a.as.i & b.as.i)
-    BINOP(BOR, OP_BOR, a.as.i | b.as.i)
-    BINOP(BXOR, OP_BXOR, a.as.i ^ b.as.i)
+    BINOP(ADD, OP_ADD, (mcs_uint_t)pa_[0].as.i + (mcs_uint_t)pa_[1].as.i)
+    BINOP(SUB, OP_SUB, (mcs_uint_t)pa_[0].as.i - (mcs_uint_t)pa_[1].as.i)
+    BINOP(MUL, OP_MUL, (mcs_uint_t)pa_[0].as.i * (mcs_uint_t)pa_[1].as.i)
+    BINOP(BAND, OP_BAND, pa_[0].as.i & pa_[1].as.i)
+    BINOP(BOR, OP_BOR, pa_[0].as.i | pa_[1].as.i)
+    BINOP(BXOR, OP_BXOR, pa_[0].as.i ^ pa_[1].as.i)
 #undef BINOP
     /* int fast path for / and % (divisor 0 and -1 go to the checked slow path) */
 #define DIVOP(NAME, OPC, OPR) \
     CASE(NAME) { \
+        mcs_value_t* pa_ = sp - 2; \
+        if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT && pa_[1].as.i > 0) { pa_->as.i = pa_[0].as.i OPR pa_[1].as.i; sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
-        if (a.type == MCS_T_INT && b.type == MCS_T_INT && b.as.i > 0) { vm->sp--; vm->sp[-1] = mcs_int(a.as.i OPR b.as.i); DISPATCH(); } \
-        SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); vm->sp--; vm->sp[-1] = r; DISPATCH(); \
+        SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); \
     }
     DIVOP(DIV, OP_DIV, /)
     DIVOP(MOD, OP_MOD, %)
 #undef DIVOP
 #define SLOWOP(NAME, OPC) \
-    CASE(NAME) { a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); vm->sp--; vm->sp[-1] = r; DISPATCH(); }
-    SLOWOP(SHL, OP_SHL)
-    SLOWOP(SHR, OP_SHR)
-    SLOWOP(USHR, OP_USHR)
+    CASE(NAME) { a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); }
+#define SHIFTOP(NAME, OPC, EXPR) \
+    CASE(NAME) { \
+        mcs_value_t* pa_ = sp - 2; \
+        if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { \
+            mcs_uint_t x_ = (mcs_uint_t)pa_[0].as.i, n_ = (mcs_uint_t)pa_[1].as.i & (mcs_uint_t)(sizeof(mcs_int_t) * 8 - 1); \
+            pa_->as.i = (mcs_int_t)(EXPR); sp--; DISPATCH(); \
+        } \
+        a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); \
+    }
+    SHIFTOP(SHL, OP_SHL, x_ << n_)
+    SHIFTOP(SHR, OP_SHR, ((void)x_, pa_[0].as.i >> n_))
+    SHIFTOP(USHR, OP_USHR, x_ >> n_)
+#undef SHIFTOP
 #undef SLOWOP
     CASE(NEG) {
         a = PEEK(0);
-        if (a.type == MCS_T_INT || a.type == MCS_T_CHAR) { vm->sp[-1] = mcs_int((mcs_int_t)(0 - (mcs_uint_t)a.as.i)); DISPATCH(); }
+        if (a.type == MCS_T_INT || a.type == MCS_T_CHAR) { sp[-1] = mcs_int((mcs_int_t)(0 - (mcs_uint_t)a.as.i)); DISPATCH(); }
 #if MCS_ENABLE_FLOAT
-        if (a.type == MCS_T_FLOAT) { vm->sp[-1] = mcs_float(-a.as.f); DISPATCH(); }
+        if (a.type == MCS_T_FLOAT) { sp[-1] = mcs_float(-a.as.f); DISPATCH(); }
 #endif
         if (IS_KIND(a, MCS_O_INSTANCE)) {
             mcs_value_t f; mcs_string_t* nm = mcs_intern_c(vm, "op_UnaryNegation");
             if (mcs_table_get_s(&AS_INSTANCE(a)->cls->statics, nm, &f)) {
                 SAVE(); if (mcs_call_internal(vm, f, mcs_null(), 1, &a, &r) != MCS_OK) THROWN();
-                vm->sp[-1] = r; DISPATCH();
+                sp[-1] = r; DISPATCH();
             }
         }
         SAVE(); mcs_throw(vm, EXC_INVOP, "Operator '-' cannot be applied to operand of type '%s'", mcs_type_name(vm, a)); THROWN();
     }
     CASE(BNOT) {
         a = PEEK(0);
-        if (a.type == MCS_T_INT || a.type == MCS_T_CHAR) { vm->sp[-1] = mcs_int(~a.as.i); DISPATCH(); }
+        if (a.type == MCS_T_INT || a.type == MCS_T_CHAR) { sp[-1] = mcs_int(~a.as.i); DISPATCH(); }
         SAVE(); mcs_throw(vm, EXC_INVOP, "Operator '~' cannot be applied to operand of type '%s'", mcs_type_name(vm, a)); THROWN();
     }
-    CASE(NOT) vm->sp[-1] = mcs_bool(!mcs_truthy(PEEK(0))); DISPATCH();
+    CASE(NOT) sp[-1] = mcs_bool(!mcs_truthy(PEEK(0))); DISPATCH();
 #define CMPOP(NAME, OPC, CMP) \
     CASE(NAME) { \
+        mcs_value_t* pa_ = sp - 2; \
+        if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { *pa_ = mcs_bool(pa_[0].as.i CMP pa_[1].as.i); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
-        if (a.type == MCS_T_INT && b.type == MCS_T_INT) { vm->sp--; vm->sp[-1] = mcs_bool(a.as.i CMP b.as.i); DISPATCH(); } \
         SAVE(); \
         if (!compare_op(vm, OPC, a, b, &r)) THROWN(); \
-        vm->sp--; vm->sp[-1] = r; DISPATCH(); \
+        sp--; sp[-1] = r; DISPATCH(); \
     }
     CMPOP(EQ, OP_EQ, ==)
     CMPOP(NE, OP_NE, !=)
@@ -1045,11 +1166,12 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define JCMP(NAME, OPC, CMP) \
     CASE(NAME) { \
         uint16_t o = READ16(); \
+        const mcs_value_t* pa_ = sp - 2; \
+        if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { sp -= 2; if (!(pa_[0].as.i CMP pa_[1].as.i)) ip += o; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
-        if (a.type == MCS_T_INT && b.type == MCS_T_INT) { vm->sp -= 2; if (!(a.as.i CMP b.as.i)) ip += o; DISPATCH(); } \
         SAVE(); \
         if (!compare_op(vm, OPC, a, b, &r)) THROWN(); \
-        vm->sp -= 2; if (!mcs_truthy(r)) ip += o; DISPATCH(); \
+        sp -= 2; if (!mcs_truthy(r)) ip += o; DISPATCH(); \
     }
     JCMP(JF_EQ, OP_EQ, ==)
     JCMP(JF_NE, OP_NE, !=)
@@ -1058,10 +1180,338 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JCMP(JF_GT, OP_GT, >)
     JCMP(JF_GE, OP_GE, >=)
 #undef JCMP
+#if MCS_ENABLE_SUPEROPS
+    /* ---- optimizer superinstructions (src/mcs_opt.c, layout in mcs_internal.h).
+     * Operands are read in place (no value copies). The hot int forms have one
+     * opcode per operation and only an int fast path inline; anything else
+     * (floats, strings, operator overloads, division by <= 0) re-decodes the
+     * operands in a shared slow path that calls arith()/compare_op(), with the
+     * operands still on the stack (a nested call may collect garbage). The
+     * generic forms select their operation with a switch (a computed goto here
+     * would make every local live across the whole dispatch loop and spill it). */
+#define K16(p) ((uint16_t)(((p)[0] << 8) | (p)[1]))
+#define IBITS ((mcs_uint_t)(sizeof(mcs_int_t) * 8 - 1))
+    /* int result of x <op> y (E) and when the fast path applies (G) */
+#define BXE_ADD(x, y) (mcs_int_t)((mcs_uint_t)(x) + (mcs_uint_t)(y))
+#define BXE_SUB(x, y) (mcs_int_t)((mcs_uint_t)(x) - (mcs_uint_t)(y))
+#define BXE_MUL(x, y) (mcs_int_t)((mcs_uint_t)(x) * (mcs_uint_t)(y))
+#define BXE_DIV(x, y) ((x) / (y))
+#define BXE_MOD(x, y) ((x) % (y))
+#define BXE_BAND(x, y) ((x) & (y))
+#define BXE_BOR(x, y) ((x) | (y))
+#define BXE_BXOR(x, y) ((x) ^ (y))
+#define BXE_SHL(x, y) (mcs_int_t)((mcs_uint_t)(x) << ((mcs_uint_t)(y) & IBITS))
+#define BXE_SHR(x, y) ((x) >> ((mcs_uint_t)(y) & IBITS))
+#define BXE_USHR(x, y) (mcs_int_t)((mcs_uint_t)(x) >> ((mcs_uint_t)(y) & IBITS))
+#define BXG_ADD(y) 1
+#define BXG_SUB(y) 1
+#define BXG_MUL(y) 1
+#define BXG_DIV(y) ((y) > 0)
+#define BXG_MOD(y) ((y) > 0)
+#define BXG_BAND(y) 1
+#define BXG_BOR(y) 1
+#define BXG_BXOR(y) 1
+#define BXG_SHL(y) 1
+#define BXG_SHR(y) 1
+#define BXG_USHR(y) 1
+#define BX_EACH(M) M(ADD) M(SUB) M(MUL) M(DIV) M(MOD) M(BAND) M(BOR) M(BXOR) M(SHL) M(SHR) M(USHR)
+#define JX_EACH(M) M(EQ, ==) M(NE, !=) M(LT, <) M(LE, <=) M(GT, >) M(GE, >=)
+    /* LI_<op> a i: push slots[a] <op> i */
+#define LI_FORM(O) \
+    CASE(LI_##O) { \
+        const mcs_value_t* pa_ = &slots[ip[0]]; mcs_int_t y_ = (int8_t)ip[1]; \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { sp->as.i = BXE_##O(pa_->as.i, y_); sp->type = MCS_T_INT; sp++; ip += 2; DISPATCH(); } \
+        sop = OP_##O; goto li_slow; \
+    }
+    BX_EACH(LI_FORM)
+    li_slow: {
+        const mcs_value_t* pa_ = &slots[ip[0]];
+        b = mcs_int((int8_t)ip[1]); ip += 2; SAVE();
+        if (!arith(vm, sop, *pa_, b, &r)) THROWN();
+        PUSH(r); DISPATCH();
+    }
+    /* SI_<op> i: top = top <op> i */
+#define SI_FORM(O) \
+    CASE(SI_##O) { \
+        mcs_value_t* pa_ = sp - 1; mcs_int_t y_ = (int8_t)ip[0]; \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { pa_->as.i = BXE_##O(pa_->as.i, y_); ip++; DISPATCH(); } \
+        sop = OP_##O; goto si_slow; \
+    }
+    BX_EACH(SI_FORM)
+    si_slow: {
+        b = mcs_int((int8_t)ip[0]); ip++; SAVE();
+        if (!arith(vm, sop, sp[-1], b, &r)) THROWN();
+        sp[-1] = r; DISPATCH();
+    }
+    /* ACC_ADD / ACC_SUB d: slots[d] = slots[d] <op> pop */
+    CASE(ACC_ADD) {
+        mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = sp - 1;
+        if (pa_->type == MCS_T_INT && pb_->type == MCS_T_INT) { pa_->as.i = BXE_ADD(pa_->as.i, pb_->as.i); sp--; ip++; DISPATCH(); }
+        sop = OP_ADD; goto acc_slow;
+    }
+    CASE(ACC_SUB) {
+        mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = sp - 1;
+        if (pa_->type == MCS_T_INT && pb_->type == MCS_T_INT) { pa_->as.i = BXE_SUB(pa_->as.i, pb_->as.i); sp--; ip++; DISPATCH(); }
+        sop = OP_SUB; goto acc_slow;
+    }
+    CASE(ACC) { sop = bx_ops[ip[0] & 15]; ip++; goto acc_slow; }
+    acc_slow: {
+        uint8_t d_ = ip[0]; ip++; SAVE();
+        if (!arith(vm, sop, slots[d_], sp[-1], &r)) THROWN();
+        slots[d_] = r; sp--; DISPATCH();
+    }
+    /* JFLI_<c> a i o16: jump forward unless slots[a] <c> i;  JBLI_<c>: jump back if true */
+#define JFLI_FORM(C, CMP) \
+    CASE(JFLI_##C) { \
+        const mcs_value_t* pa_ = &slots[ip[0]]; \
+        if (pa_->type == MCS_T_INT) { ip += (pa_->as.i CMP (int8_t)ip[1]) ? 4 : 4 + K16(ip + 2); DISPATCH(); } \
+        sop = OP_##C; goto jfli_slow; \
+    }
+    JX_EACH(JFLI_FORM)
+    jfli_slow: {
+        const mcs_value_t* pa_ = &slots[ip[0]];
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        if (!compare_op(vm, sop, *pa_, b, &r)) THROWN();
+        if (!mcs_truthy(r)) ip += o_;
+        DISPATCH();
+    }
+#define JBLI_FORM(C, CMP) \
+    CASE(JBLI_##C) { \
+        const mcs_value_t* pa_ = &slots[ip[0]]; \
+        if (pa_->type == MCS_T_INT) { \
+            if (pa_->as.i CMP (int8_t)ip[1]) { ip = ip + 4 - K16(ip + 2); SAFEPOINT(); } else ip += 4; \
+            DISPATCH(); \
+        } \
+        sop = OP_##C; goto jbli_slow; \
+    }
+    JX_EACH(JBLI_FORM)
+    jbli_slow: {
+        const mcs_value_t* pa_ = &slots[ip[0]];
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        if (!compare_op(vm, sop, *pa_, b, &r)) THROWN();
+        if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
+        DISPATCH();
+    }
+    /* JFSI_<c> i o16: pop x; jump forward unless x <c> i */
+#define JFSI_FORM(C, CMP) \
+    CASE(JFSI_##C) { \
+        const mcs_value_t* pa_ = sp - 1; \
+        if (pa_->type == MCS_T_INT) { sp--; ip += (pa_->as.i CMP (int8_t)ip[0]) ? 3 : 3 + K16(ip + 1); DISPATCH(); } \
+        sop = OP_##C; goto jfsi_slow; \
+    }
+    JX_EACH(JFSI_FORM)
+    jfsi_slow: {
+        b = mcs_int((int8_t)ip[0]); uint16_t o_ = K16(ip + 1); ip += 3; SAVE();
+        if (!compare_op(vm, sop, sp[-1], b, &r)) THROWN();
+        sp--;
+        if (!mcs_truthy(r)) ip += o_;
+        DISPATCH();
+    }
+    /* JFLL_<c> a b o16 / JBLL_<c> a b o16: local <c> local */
+#define JFLL_FORM(C, CMP) \
+    CASE(JFLL_##C) { \
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]]; \
+        if (pa_->type == MCS_T_INT && pb_->type == MCS_T_INT) { ip += (pa_->as.i CMP pb_->as.i) ? 4 : 4 + K16(ip + 2); DISPATCH(); } \
+        sop = OP_##C; goto jfll_slow; \
+    }
+    JX_EACH(JFLL_FORM)
+    jfll_slow: {
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
+        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        if (!compare_op(vm, sop, *pa_, *pb_, &r)) THROWN();
+        if (!mcs_truthy(r)) ip += o_;
+        DISPATCH();
+    }
+#define JBLL_FORM(C, CMP) \
+    CASE(JBLL_##C) { \
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]]; \
+        if (pa_->type == MCS_T_INT && pb_->type == MCS_T_INT) { \
+            if (pa_->as.i CMP pb_->as.i) { ip = ip + 4 - K16(ip + 2); SAFEPOINT(); } else ip += 4; \
+            DISPATCH(); \
+        } \
+        sop = OP_##C; goto jbll_slow; \
+    }
+    JX_EACH(JBLL_FORM)
+    jbll_slow: {
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
+        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        if (!compare_op(vm, sop, *pa_, *pb_, &r)) THROWN();
+        if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
+        DISPATCH();
+    }
+#undef LI_FORM
+#undef SI_FORM
+#undef JFLI_FORM
+#undef JBLI_FORM
+#undef JFSI_FORM
+#undef JFLL_FORM
+#undef JBLL_FORM
+    /* ---- generic forms: operation byte first */
+#define BX_SELECT(F, OPB) switch ((OPB) & 15) { case BX_ADD: goto F##_add; case BX_SUB: goto F##_sub; case BX_MUL: goto F##_mul; \
+        case BX_DIV: goto F##_div; case BX_MOD: goto F##_mod; case BX_BAND: goto F##_band; case BX_BOR: goto F##_bor; \
+        case BX_BXOR: goto F##_bxor; case BX_SHL: goto F##_shl; case BX_SHR: goto F##_shr; case BX_USHR: goto F##_ushr; default: goto F##_slow; }
+#define JX_SELECT(F, CB) switch ((CB) & 7) { case JX_EQ: goto F##_eq; case JX_NE: goto F##_ne; case JX_LT: goto F##_lt; \
+        case JX_LE: goto F##_le; case JX_GT: goto F##_gt; default: goto F##_ge; }
+    /* F: name, LEN: instruction length, PA/PB: operand pointers, PRE: operand
+     * decoding, PUT(v): store an mcs_int_t result, PUTV(v): store a value */
+#define BINFORM(F, LEN, PRE, PA, PB, PUT, PUTV) \
+    CASE(F) { \
+        PRE; \
+        const mcs_value_t* pa_ = (PA); const mcs_value_t* pb_ = (PB); \
+        mcs_int_t x_, y_; mcs_uint_t z_; \
+        if (pa_->type != MCS_T_INT || pb_->type != MCS_T_INT) goto F##_slow; \
+        x_ = pa_->as.i; y_ = pb_->as.i; \
+        BX_SELECT(F, op_) \
+        F##_add: z_ = (mcs_uint_t)x_ + (mcs_uint_t)y_; goto F##_int; \
+        F##_sub: z_ = (mcs_uint_t)x_ - (mcs_uint_t)y_; goto F##_int; \
+        F##_mul: z_ = (mcs_uint_t)x_ * (mcs_uint_t)y_; goto F##_int; \
+        F##_div: if (y_ <= 0) goto F##_slow; z_ = (mcs_uint_t)(x_ / y_); goto F##_int; \
+        F##_mod: if (y_ <= 0) goto F##_slow; z_ = (mcs_uint_t)(x_ % y_); goto F##_int; \
+        F##_band: z_ = (mcs_uint_t)(x_ & y_); goto F##_int; \
+        F##_bor: z_ = (mcs_uint_t)(x_ | y_); goto F##_int; \
+        F##_bxor: z_ = (mcs_uint_t)(x_ ^ y_); goto F##_int; \
+        F##_shl: z_ = (mcs_uint_t)x_ << ((mcs_uint_t)y_ & IBITS); goto F##_int; \
+        F##_shr: z_ = (mcs_uint_t)(x_ >> ((mcs_uint_t)y_ & IBITS)); goto F##_int; \
+        F##_ushr: z_ = (mcs_uint_t)x_ >> ((mcs_uint_t)y_ & IBITS); \
+        F##_int: ip += LEN; PUT((mcs_int_t)z_); DISPATCH(); \
+        F##_slow: \
+        ip += LEN; SAVE(); \
+        if (!arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)) THROWN(); \
+        PUTV(r); DISPATCH(); \
+    }
+#define PUT_PUSH(v) do { sp->type = MCS_T_INT; sp->as.i = (v); sp++; } while (0)
+#define PUTV_PUSH(v) PUSH(v)
+#define PUT_TOP(v) do { sp[-1].type = MCS_T_INT; sp[-1].as.i = (v); } while (0)
+#define PUTV_TOP(v) (sp[-1] = (v))
+#define PUT_SLOT(v) do { slots[d_].type = MCS_T_INT; slots[d_].as.i = (v); } while (0)
+#define PUTV_SLOT(v) (slots[d_] = (v))
+    BINFORM(BIN_LL, 3, uint8_t op_ = ip[0], &slots[ip[1]], &slots[ip[2]], PUT_PUSH, PUTV_PUSH)
+    BINFORM(BIN_LK, 4, uint8_t op_ = ip[0], &slots[ip[1]], &consts[K16(ip + 2)], PUT_PUSH, PUTV_PUSH)
+    BINFORM(BIN_SL, 2, uint8_t op_ = ip[0], sp - 1, &slots[ip[1]], PUT_TOP, PUTV_TOP)
+    BINFORM(BIN_SK, 3, uint8_t op_ = ip[0], sp - 1, &consts[K16(ip + 1)], PUT_TOP, PUTV_TOP)
+    BINFORM(BIN_LLS, 4, uint8_t op_ = ip[0]; uint8_t d_ = ip[3], &slots[ip[1]], &slots[ip[2]], PUT_SLOT, PUTV_SLOT)
+    BINFORM(BIN_LKS, 5, uint8_t op_ = ip[0]; uint8_t d_ = ip[4], &slots[ip[1]], &consts[K16(ip + 2)], PUT_SLOT, PUTV_SLOT)
+    CASE(BIN_LIS) {   /* slots[d] = slots[a] <op> i */
+        uint8_t d_ = ip[3];
+        a = slots[ip[1]]; b = mcs_int((int8_t)ip[2]); sop = bx_ops[ip[0] & 15];
+        ip += 4;
+        if (a.type == MCS_T_INT) {
+            mcs_int_t x_ = a.as.i, y_ = b.as.i;
+            switch (sop) {
+            case OP_ADD: slots[d_] = mcs_int(BXE_ADD(x_, y_)); DISPATCH();
+            case OP_SUB: slots[d_] = mcs_int(BXE_SUB(x_, y_)); DISPATCH();
+            case OP_MUL: slots[d_] = mcs_int(BXE_MUL(x_, y_)); DISPATCH();
+            case OP_BAND: slots[d_] = mcs_int(BXE_BAND(x_, y_)); DISPATCH();
+            default: break;
+            }
+        }
+        SAVE();
+        if (!arith(vm, sop, a, b, &r)) THROWN();
+        slots[d_] = r; DISPATCH();
+    }
+    /* compare-and-branch: POPN values popped, BACK = jump backwards when true */
+#define JFORM(F, LEN, OFF, PA, PB, POPN, BACK) \
+    CASE(F) { \
+        uint8_t c_ = ip[0]; \
+        const mcs_value_t* pa_ = (PA); const mcs_value_t* pb_ = (PB); \
+        uint16_t o_ = K16(ip + (OFF)); \
+        mcs_int_t x_, y_; bool t_; \
+        ip += LEN; \
+        if (pa_->type != MCS_T_INT || pb_->type != MCS_T_INT) goto F##_slow; \
+        x_ = pa_->as.i; y_ = pb_->as.i; \
+        JX_SELECT(F, c_) \
+        F##_eq: t_ = x_ == y_; goto F##_done; \
+        F##_ne: t_ = x_ != y_; goto F##_done; \
+        F##_lt: t_ = x_ < y_; goto F##_done; \
+        F##_le: t_ = x_ <= y_; goto F##_done; \
+        F##_gt: t_ = x_ > y_; goto F##_done; \
+        F##_ge: t_ = x_ >= y_; goto F##_done; \
+        F##_slow: \
+        SAVE(); \
+        if (!compare_op(vm, jx_ops[c_ & 7], *pa_, *pb_, &r)) THROWN(); \
+        t_ = mcs_truthy(r); \
+        F##_done: \
+        sp -= (POPN); \
+        if (BACK) { if (t_) { ip -= o_; SAFEPOINT(); } } \
+        else if (!t_) ip += o_; \
+        DISPATCH(); \
+    }
+    JFORM(JF_LK, 6, 4, &slots[ip[1]], &consts[K16(ip + 2)], 0, 0)
+    JFORM(JF_SL, 4, 2, sp - 1, &slots[ip[1]], 1, 0)
+    JFORM(JF_SK, 5, 3, sp - 1, &consts[K16(ip + 1)], 1, 0)
+    JFORM(JB_LK, 6, 4, &slots[ip[1]], &consts[K16(ip + 2)], 0, 1)
+#undef BINFORM
+#undef JFORM
+#undef BX_SELECT
+#undef JX_SELECT
+#undef PUT_PUSH
+#undef PUTV_PUSH
+#undef PUT_TOP
+#undef PUTV_TOP
+#undef PUT_SLOT
+#undef PUTV_SLOT
+    CASE(GET_FIELD_L) {
+        uint8_t s = READ8();
+        fk = READ16();
+        PUSH(slots[s]);
+        goto get_field_k;
+    }
+    CASE(RETURN_LOCAL) { r = slots[READ8()]; goto do_return; }
+    CASE(GET_INDEX_LL) {
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
+        if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
+            *sp++ = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; DISPATCH();
+        }
+        sp[0] = *pa_; sp[1] = *pi_; sp += 2; ip += 2;
+        SAVE();
+        CHECKCALL(get_index_op(vm));
+        DISPATCH();
+    }
+    CASE(SET_INDEX_LL) {
+        const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
+        if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
+            AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; sp--; ip += 2; DISPATCH();
+        }
+        b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; ip += 2;
+        SAVE();
+        if (!index_set_stmt(vm)) THROWN();
+        sp = vm->sp;
+        DISPATCH();
+    }
+    CASE(SETF_L) {
+        uint8_t s_ = ip[0]; uint16_t k = K16(ip + 1);
+        ip += 3;
+        const mcs_value_t* ov = &slots[s_];
+        if (IS_KIND(*ov, MCS_O_INSTANCE)) {
+            mcs_instance_t* in = AS_INSTANCE(*ov);
+#if MCS_FIELD_CACHE
+            mcs_function_t* cf = frame->closure->fn;
+            if (k < cf->fcache_n && cf->fcache[k].cls == in->cls) { in->fields[cf->fcache[k].u.slot] = sp[-1]; sp--; DISPATCH(); }
+#endif
+            mcs_value_t slot;
+            if (mcs_table_get_s(&in->cls->fields, KSTR(k), &slot)) {
+#if MCS_FIELD_CACHE
+                fcache_put(vm, cf, k, in->cls, (uint32_t)slot.as.i);
+#endif
+                in->fields[slot.as.i] = sp[-1]; sp--; DISPATCH();
+            }
+        }
+        a = *ov;
+        SAVE();
+        if (!setf_slow(vm, a, KSTR(k))) THROWN();
+        sp = vm->sp;
+        DISPATCH();
+    }
+#else
+#define X(name, len) CASE(name)
+    MCS_SUPEROPS(X)
+#undef X
+        SAVE(); mcs_throw(vm, EXC_SYSTEM, "invalid opcode (built with MCS_ENABLE_SUPEROPS=0)"); THROWN();
+#endif
     CASE(INC_LOCAL) {
         uint8_t s = READ8(); int8_t d = (int8_t)READ8();
+        if (slots[s].type == MCS_T_INT) { slots[s].as.i = (mcs_int_t)((mcs_uint_t)slots[s].as.i + (mcs_uint_t)(mcs_int_t)d); DISPATCH(); }
         a = slots[s];
-        if (a.type == MCS_T_INT) { slots[s].as.i = (mcs_int_t)((mcs_uint_t)a.as.i + (mcs_uint_t)(mcs_int_t)d); DISPATCH(); }
 #if MCS_ENABLE_FLOAT
         if (a.type == MCS_T_FLOAT) { slots[s].as.f += (mcs_float_t)d; DISPATCH(); }
 #endif
@@ -1082,45 +1532,87 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(ARGC_JUMP) { uint8_t n = READ8(); uint16_t o = READ16(); if (frame->argc >= n) ip += o; DISPATCH(); }
     CASE(CALL) {
         int argc = READ8();
-        SAVE();
+        frame->ip = ip;
         SAFEPOINT();
-        a = PEEK(argc);
-        if (IS_KIND(a, MCS_O_CLOSURE)) {   /* fast path: exact arity, no params array */
-            mcs_closure_t* cl = AS_CLOSURE(a);
-            mcs_function_t* fn = cl->fn;
-            if (argc == fn->arity && !(fn->flags & FN_HAS_PARAMS) && vm->frame_count < vm->cfg.max_frames &&
-                vm->sp + fn->max_slots + MCS_STACK_MARGIN < vm->stack_end) {
-                frame = &vm->frames[vm->frame_count++];
-                frame->closure = cl; frame->ip = ip = fn->code; frame->slots = slots = vm->sp - argc - 1; frame->argc = (uint8_t)argc;
-                consts = fn->consts; LOAD_GMAP(fn);
-                DISPATCH();
-            }
+        const mcs_value_t* cv = sp - 1 - argc;
+        if (IS_KIND(*cv, MCS_O_CLOSURE)) { mcs_closure_t* cl = AS_CLOSURE(*cv); ENTER_FAST(cl, argc); }
+#if MCS_FIELD_CACHE
+        else if (IS_KIND(*cv, MCS_O_CLASS) && AS_CLASS(*cv)->ctor_cl && AS_CLASS(*cv)->ctor_epoch == vm->cls_epoch) {
+            /* `new C(...)` of a script class whose constructor was resolved before */
+            mcs_class_t* cls = AS_CLASS(*cv);
+            SYNC();
+            mcs_instance_t* in = mcs_new_instance(vm, cls);
+            sp[-argc - 1] = OBJ_VAL(in);
+            mcs_closure_t* cl = cls->ctor_cl;
+            ENTER_FAST(cl, argc);
+            CHECKCALL(call_closure(vm, cl, argc));
+            DISPATCH();
         }
+#endif
+        SYNC();
+        a = *cv;
         CHECKCALL(call_value(vm, a, argc));
         DISPATCH();
     }
     CASE(INVOKE) {
-        mcs_string_t* nm = KSTR(READ16());
+        uint16_t k = READ16();
         int argc = READ8();
-        SAVE();
+        frame->ip = ip;
         SAFEPOINT();
-        a = PEEK(argc);
-        if (IS_KIND(a, MCS_O_INSTANCE)) {
+        const mcs_value_t* rv = sp - 1 - argc;
+        mcs_string_t* nm = KSTR(k);
+#if MCS_FIELD_CACHE
+        {
+            /* method inline cache: receiver class -> closure / native, per name constant */
+            bool is_inst = IS_KIND(*rv, MCS_O_INSTANCE);
+            mcs_class_t* ck = is_inst ? AS_INSTANCE(*rv)->cls : IS_KIND(*rv, MCS_O_CLASS) ? NULL : mcs_class_of(vm, *rv);
+            if (ck) {
+                mcs_function_t* cf = frame->closure->fn;
+                mcs_obj_t* mo = NULL;
+                if (k < cf->fcache_n && cf->fcache[k].cls == MCS_FC_METHOD(ck) && cf->fc_epoch == vm->cls_epoch) mo = cf->fcache[k].u.m;
+                else {
+                    mcs_value_t m;
+                    SYNC();
+                    if (!(is_inst && mcs_table_get_s(&ck->fields, nm, NULL)) && mcs_cls_get(vm, ck, MCS_TAB_METHODS, nm, &m) &&
+                        (IS_KIND(m, MCS_O_CLOSURE) || IS_KIND(m, MCS_O_NATIVE))) {
+                        mo = AS_OBJ(m);
+                        mcache_put(vm, cf, k, ck, mo);
+                    }
+                }
+                if (mo) {
+                    if (mo->kind == MCS_O_CLOSURE) {
+                        mcs_closure_t* cl = (mcs_closure_t*)mo;
+                        ENTER_FAST(cl, argc);
+                        SYNC();
+                        CHECKCALL(call_closure(vm, cl, argc));
+                    } else {
+                        SYNC();
+                        CHECKCALL(call_native(vm, (mcs_native_t*)mo, *rv, argc));
+                    }
+                    DISPATCH();
+                }
+            }
+        }
+#else
+        if (IS_KIND(*rv, MCS_O_INSTANCE)) {
             mcs_value_t m;
-            mcs_instance_t* in = AS_INSTANCE(a);
+            mcs_instance_t* in = AS_INSTANCE(*rv);
+            SYNC();
             if (!mcs_table_get_s(&in->cls->fields, nm, NULL) && mcs_cls_get(vm, in->cls, MCS_TAB_METHODS, nm, &m) && IS_KIND(m, MCS_O_CLOSURE)) {
                 CHECKCALL(call_closure(vm, AS_CLOSURE(m), argc));
                 DISPATCH();
             }
         }
+#endif
+        SYNC();
         CHECKCALL(invoke_op(vm, nm, argc));
         DISPATCH();
     }
     CASE(SUPER_INVOKE) {
         mcs_string_t* nm = KSTR(READ16());
         int argc = READ8();
-        SAVE();
         a = POP();
+        SAVE();
         mcs_value_t m;
         if (!IS_KIND(a, MCS_O_CLASS)) { mcs_throw(vm, EXC_INVOP, "base class is not defined"); THROWN(); }
         /* mcs_cls_get also materializes lazily registered native members
@@ -1143,16 +1635,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         DISPATCH();
     }
-    CASE(CLOSE_UPVAL) close_upvalues(vm, vm->sp - 1); vm->sp--; DISPATCH();
+    CASE(CLOSE_UPVAL) close_upvalues(vm, sp - 1); sp--; DISPATCH();
     CASE(RETURN) {
         r = POP();
     do_return:
         while (vm->handler_count > 0 && vm->handlers[vm->handler_count - 1].frame >= vm->frame_count - 1) vm->handler_count--;
-        close_upvalues(vm, slots);
+        if (vm->open_upvalues && vm->open_upvalues->location >= slots) close_upvalues(vm, slots);
         vm->frame_count--;
-        vm->sp = slots;
-        PUSH(r);
-        if (vm->frame_count <= base_frame) { vm->run_depth--; return MCS_OK; }
+        *slots = r;
+        sp = slots + 1;
+        if (vm->frame_count <= base_frame) { SYNC(); vm->run_depth--; return MCS_OK; }
         LOAD();
         DISPATCH();
     }
@@ -1171,7 +1663,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             SAVE(); mcs_throw(vm, EXC_INVOP, "'%s' cannot be used as a base class", b.type == MCS_T_UNDEF ? "undefined" : mcs_type_name(vm, b)); THROWN();
         }
         mcs_class_inherit(vm, AS_CLASS(a), AS_CLASS(b));
-        vm->sp--;
+        sp--;
         DISPATCH();
     }
     CASE(IMPLEMENTS) { mcs_string_t* nm = KSTR(READ16()); mcs_table_set(vm, &AS_CLASS(PEEK(0))->ifaces, OBJ_VAL(nm), mcs_bool(true)); DISPATCH(); }
@@ -1185,7 +1677,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_string_t* nm = KSTR(READ16());
         uint8_t flags = READ8();
         mcs_class_add_method(vm, &AS_CLASS(PEEK(1))->methods, nm, PEEK(0), flags & 1);
-        vm->sp--;
+        sp--;
         DISPATCH();
     }
     CASE(STATIC) {
@@ -1194,16 +1686,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         a = PEEK(0);
         if (IS_KIND(a, MCS_O_CLOSURE)) mcs_class_add_method(vm, &AS_CLASS(PEEK(1))->statics, nm, a, flags & 1);
         else mcs_table_set(vm, &AS_CLASS(PEEK(1))->statics, OBJ_VAL(nm), a);
-        vm->sp--;
+        sp--;
         DISPATCH();
     }
-    CASE(GETTER) { mcs_string_t* nm = KSTR(READ16()); ip++; mcs_table_set(vm, &AS_CLASS(PEEK(1))->getters, OBJ_VAL(nm), PEEK(0)); vm->sp--; DISPATCH(); }
-    CASE(SETTER) { mcs_string_t* nm = KSTR(READ16()); ip++; mcs_table_set(vm, &AS_CLASS(PEEK(1))->setters, OBJ_VAL(nm), PEEK(0)); vm->sp--; DISPATCH(); }
+    CASE(GETTER) { mcs_string_t* nm = KSTR(READ16()); ip++; mcs_table_set(vm, &AS_CLASS(PEEK(1))->getters, OBJ_VAL(nm), PEEK(0)); sp--; DISPATCH(); }
+    CASE(SETTER) { mcs_string_t* nm = KSTR(READ16()); ip++; mcs_table_set(vm, &AS_CLASS(PEEK(1))->setters, OBJ_VAL(nm), PEEK(0)); sp--; DISPATCH(); }
     CASE(ARRAY) { GCPOINT();
         uint16_t n = READ16();
         mcs_list_t* l = mcs_new_listobj(vm, MCS_O_ARRAY, n);
-        for (uint16_t i = 0; i < n; i++) l->items[i] = vm->sp[-(int)n + i];
-        vm->sp -= n;
+        for (uint16_t i = 0; i < n; i++) l->items[i] = sp[-(int)n + i];
+        sp -= n;
         PUSH(OBJ_VAL(l));
         DISPATCH();
     }
@@ -1223,7 +1715,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         default: break;
         }
         for (uint32_t i = 0; i < l->count; i++) l->items[i] = d;
-        vm->sp[-1] = OBJ_VAL(l);
+        sp[-1] = OBJ_VAL(l);
         DISPATCH();
     }
     CASE(CONV) {
@@ -1232,12 +1724,12 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (k == CV_INT && a.type == MCS_T_INT) DISPATCH();
         SAVE();
         if (!convert(vm, k, a, &r)) THROWN();
-        vm->sp[-1] = r;
+        sp[-1] = r;
         DISPATCH();
     }
     CASE(TOSTR) { GCPOINT();
         a = PEEK(0);
-        if (!IS_STRING(a)) { SAVE(); mcs_string_t* s = mcs_value_to_string(vm, a); if (!s) THROWN(); vm->sp[-1] = OBJ_VAL(s); }
+        if (!IS_STRING(a)) { SAVE(); mcs_string_t* s = mcs_value_to_string(vm, a); if (!s) THROWN(); sp[-1] = OBJ_VAL(s); }
         DISPATCH();
     }
     CASE(TOSTR_FMT) {
@@ -1245,8 +1737,8 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         SAVE();
         mcs_buf_t buf; mcs_buf_init(&buf, vm);
         if (!mcs_format_spec(vm, &buf, a, AS_CSTR(b), AS_STRING(b)->len)) { mcs_buf_free(&buf); THROWN(); }
-        vm->sp--;
-        vm->sp[-1] = OBJ_VAL(mcs_buf_to_string(&buf));
+        sp--;
+        sp[-1] = OBJ_VAL(mcs_buf_to_string(&buf));
         DISPATCH();
     }
     CASE(CONCAT) { GCPOINT();
@@ -1254,7 +1746,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         SAVE();
         size_t total = 0;
         for (int i = n; i >= 1; i--) {
-            mcs_value_t* p = vm->sp - i;
+            mcs_value_t* p = sp - i;
             if (!IS_STRING(*p)) {
                 if (p->type == MCS_T_NULL) { *p = OBJ_VAL(mcs_intern(vm, "", 0)); }
                 else { mcs_string_t* s = mcs_value_to_string(vm, *p); if (!s) THROWN(); *p = OBJ_VAL(s); }
@@ -1263,16 +1755,17 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         char* buf = (char*)mcs_realloc(vm, NULL, 0, total + 1);
         size_t off = 0;
-        for (int i = n; i >= 1; i--) { mcs_string_t* s = AS_STRING(vm->sp[-i]); memcpy(buf + off, s->chars, s->len); off += s->len; }
+        for (int i = n; i >= 1; i--) { mcs_string_t* s = AS_STRING(sp[-i]); memcpy(buf + off, s->chars, s->len); off += s->len; }
         mcs_string_t* res = mcs_take_buffer(vm, buf, total, total + 1);
-        vm->sp -= n;
+        sp -= n;
         PUSH(OBJ_VAL(res));
         DISPATCH();
     }
-    CASE(IS) { mcs_string_t* tn = KSTR(READ16()); vm->sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
-    CASE(AS) { mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) vm->sp[-1] = mcs_null(); DISPATCH(); }
+    CASE(IS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
+    CASE(AS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) sp[-1] = mcs_null(); DISPATCH(); }
     CASE(CAST) {
         mcs_string_t* tn = KSTR(READ16());
+        SAVE();
         a = PEEK(0);
         if (a.type != MCS_T_NULL && !mcs_is_instance_of(vm, a, tn)) {
             SAVE(); mcs_throw(vm, EXC_INVCAST, "Unable to cast object of type '%s' to type '%s'.", mcs_type_name(vm, a), tn->chars); THROWN();
@@ -1334,7 +1827,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         uint16_t o = READ16();
         if (vm->handler_count >= MCS_MAX_HANDLERS) { SAVE(); mcs_throw(vm, EXC_STACKOVF, "too many nested try blocks"); THROWN(); }
         mcs_handler_t* h = &vm->handlers[vm->handler_count++];
-        h->frame = vm->frame_count - 1; h->ip = ip + o; h->sp = (uint32_t)(vm->sp - vm->stack);
+        h->frame = vm->frame_count - 1; h->ip = ip + o; h->sp = (uint32_t)(sp - vm->stack);
         DISPATCH();
     }
     CASE(END_TRY) vm->handler_count--; DISPATCH();
@@ -1348,16 +1841,27 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     DISPATCH_END()
 
 on_exception:
-    if (unwind(vm, base_frame)) { LOAD(); DISPATCH(); }
+    if (unwind(vm, base_frame)) { LOAD(); sp = vm->sp; DISPATCH(); }
     vm->run_depth--;
     return MCS_ERR_RUNTIME;
 on_abort:
+    SYNC();
     vm->abort_req = false;
     vm->run_depth--;
     mcs_throw(vm, EXC_SYSTEM, "Script aborted");
     vm->exc_value = mcs_null(); vm->has_exc = true;
     return MCS_ERR_ABORTED;
 }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
+#undef PUSH
+#undef POP
+#undef PEEK
+#undef SYNC
+#define PUSH(v) (*vm->sp++ = (v))
+#define POP() (*--vm->sp)
+#define PEEK(n) (vm->sp[-1 - (n)])
 
 /* ================================================================ calling from C */
 mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
@@ -1501,6 +2005,9 @@ mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
     mcs_function_t* fn = mcs_compile(vm, name, src);
     if (!fn) { GUARD_END(vm); return MCS_ERR_COMPILE; }
     vm->gc_pause++;
+#if MCS_ENABLE_OPTIMIZER && MCS_OPTIMIZE_SOURCE
+    mcs_optimize(vm, fn, 0);
+#endif
     mcs_push_root(vm, OBJ_VAL(fn));
     vm->gc_pause--;
     mcs_result_t r = exec_function(vm, fn);
@@ -1731,6 +2238,8 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->s_main = mcs_intern_c(vm, "Main");
     vm->s_key = mcs_intern_c(vm, "Key");
     vm->s_value = mcs_intern_c(vm, "Value");
+    vm->s_length = mcs_intern_c(vm, "Length");
+    vm->s_count = mcs_intern_c(vm, "Count");
     vm->s_equals = mcs_intern_c(vm, "Equals");
     mcs_open_libs(vm, cfg.stdlib);
     vm->gc_pause--;

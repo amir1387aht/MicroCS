@@ -131,6 +131,19 @@
 #define MCS_ENABLE_LINES 1
 #endif
 /* Use GCC computed-goto dispatch when available (~15-25% faster) */
+/* Optimized bytecode. MCS_ENABLE_SUPEROPS: the VM runs the superinstructions
+ * that the optimizer emits (~1.5 KB of flash on Thumb-2). MCS_ENABLE_OPTIMIZER:
+ * the optimizer itself (compiler side); mcs_compile_image / `mcs -c` always use
+ * it, mcs_exec_source only with MCS_OPTIMIZE_SOURCE=1 (costs compile time/RAM). */
+#ifndef MCS_ENABLE_SUPEROPS
+#define MCS_ENABLE_SUPEROPS 1
+#endif
+#ifndef MCS_ENABLE_OPTIMIZER
+#define MCS_ENABLE_OPTIMIZER (MCS_ENABLE_COMPILER && MCS_ENABLE_SUPEROPS)
+#endif
+#ifndef MCS_OPTIMIZE_SOURCE
+#define MCS_OPTIMIZE_SOURCE 0
+#endif
 #ifndef MCS_FIELD_CACHE
 #define MCS_FIELD_CACHE 1   /* per-function inline cache for obj.field (class -> slot); ~8 B per constant on 32-bit */
 #endif

@@ -53,11 +53,13 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_ENABLE_CONVERT=0 -DMCS_ENABLE_DIAGNOSTICS=0" "-DMCS_ENABLE_STDIO=0 -DMCS_ENABLE_MALLOC=0 -DMCS_TINY_PRINTF=1" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=16 -DMCS_TARGET_FLASH_KB=64" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=64 -DMCS_PORT_HAL=1" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DSTM32F072xB -DMCS_PORT_HAL=1"
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DSTM32F072xB -DMCS_PORT_HAL=1" \
+	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_ENABLE_SUPEROPS=0"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
 	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
-	"-DMCS_LAZY_CLASSES=0" "-DMCS_LAZY_REGS=0" "-DMCS_TINY_PRINTF=1"
+	"-DMCS_LAZY_CLASSES=0" "-DMCS_LAZY_REGS=0" "-DMCS_TINY_PRINTF=1" \
+	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_OPTIMIZE_SOURCE=1"
 check: test
 	@echo "== GC stress"; $(CC) -std=gnu99 -O1 -Iinclude -DMCS_GC_STRESS=1 $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_gc && \
 	cd tests && for t in t*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
@@ -108,7 +110,7 @@ quickstart: $(OBJ) examples/quickstart_embed.c
 # small-MCU firmware skeleton: whole library built with the lowram profile, image run in place
 LOWRAM_FLAGS = -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
 examples/lowram/node_image.h: examples/lowram/node.cs mcs
-	./mcs -C examples/lowram/node.cs -n node_image -o $@
+	./mcs -O0 -C examples/lowram/node.cs -n node_image -o $@
 example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c | build
 	$(CC) -std=gnu99 -O2 -Wall -Wextra -Werror -Iinclude -Iexamples/lowram $(LOWRAM_FLAGS) $(SRC) examples/lowram/lowram_firmware.c -o build/lowram_firmware $(LDLIBS)
 	./build/lowram_firmware
@@ -116,7 +118,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench lfs-test yaffs-test
+.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
@@ -155,6 +157,10 @@ yaffs-test: $(YAFFS_DIR)/direct/yaffs_guts.c
 bench: $(OBJ)
 	$(CC) -O2 -std=gnu99 -Iinclude $(OBJ) bench/bench_host.c -o build/bench_host $(LDLIBS)
 	@for f in bench/fib.cs bench/loop.cs bench/objects.cs ports/cortex-m/demo.cs; do ./build/bench_host $$f 5; done
+
+# bench/mcu/*.cs as optimized image, -O0 image and source on emulated Cortex-M4/M0
+mcu-bench: mcs
+	sh tools/mcu_bench.sh
 
 # Cortex-M reference firmware (needs arm-none-eabi-gcc) and emulator check (needs python unicorn)
 cm: mcs
