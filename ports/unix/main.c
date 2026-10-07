@@ -201,6 +201,7 @@ static void usage(void) {
         "  --shell      standalone runtime: boot scripts, jobs, script upload protocol\n"
         "  --repl       like --shell but starts at the interactive C# prompt (the device REPL)\n"
         "  --no-boot    with --shell/--repl: do not run /boot.cs, /jobs.cfg, /main.cs\n"
+        "  --echo       with --shell/--repl: echo typed input like a device on a raw UART\n"
         "  --features   print compile-time features and exit\n"
         "  -v           version\n");
 }
@@ -262,7 +263,7 @@ int main(int argc, char** argv) {
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
     size_t ramfs = 0;
-    bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true;
+    bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true, echo = false;
     mcs_limits_t limits = { 0, 0 };
     uint32_t run_for = 0;
     for (int i = 1; i < argc; i++) {
@@ -292,12 +293,14 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "--shell")) shell = true;
         else if (!strcmp(a, "--repl")) shell = repl_mode = true;
         else if (!strcmp(a, "--no-boot")) boot = false;
+        else if (!strcmp(a, "--echo")) echo = true;
         else if (!strcmp(a, "--features")) { print_features(); return 0; }
         else if (!strcmp(a, "-v") || !strcmp(a, "--version")) { printf("MicroCS %s\n", MCS_VERSION_STRING); return 0; }
         else if (!strcmp(a, "-h") || !strcmp(a, "--help")) { usage(); return 0; }
         else if (a[0] == '-' && a[1]) { usage(); return 64; }
         else { file = a; break; }
     }
+    (void)echo;                              /* only used by the shell */
 
     mcs_config_t cfg;
     mcs_config_default(&cfg);
@@ -407,6 +410,7 @@ int main(int argc, char** argv) {
 #else
         (void)repl_mode;
 #endif
+        sh.echo = echo;
         mcs_shell_boot(&sh, boot);
         mcs_shell_run(&sh);
 #else

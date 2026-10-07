@@ -4,6 +4,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **MicroCS Studio** (`tools/mcs_studio.html`): a one-file browser IDE over Web Serial — device
+  file manager (upload/download/rename/delete, drag & drop, free space), C# editor with
+  highlighting, API completion and templates that saves and runs on the device, and a REPL /
+  shell console. Tested in CI against the host shell (`mcs --repl --echo`, new `--echo` flag).
 * **ESP32: scripts on flash** — the example mounts LittleFS on the `storage` partition
   (`mcs_esp32_littlefs()`), so uploaded files survive resets and power cycles.
 * **Free space**: C# `DriveInfo` (`new DriveInfo("/").AvailableFreeSpace`, `TotalSize`,

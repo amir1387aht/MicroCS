@@ -44,6 +44,16 @@ jobs:
       - run: make lfs-test
       - run: make yaffs-test
 
+  studio:
+    name: Studio (browser, fake Web Serial)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: make -j
+      - run: npm install --no-save --no-package-lock playwright-core@1
+      - name: tools/mcs_studio.html against the host device shell
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs
+
   cortex-m:
     name: Cortex-M0/M4/M33 (emulated)
     runs-on: ubuntu-24.04
