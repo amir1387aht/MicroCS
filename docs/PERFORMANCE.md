@@ -202,16 +202,16 @@ arm-none-eabi-gcc 13.2.1, `-Os`, newlib-nano, executed in the Unicorn emulator. 
 | | m0-runtime | m0-lowram | m0-node | m4-full | m33-full |
 |---|---:|---:|---:|---:|---:|
 | Config | default, no compiler | lowram profile | lowram, no modules, 2 lib groups | default | default |
-| Flash `.text` (whole firmware) | 171 608 B | 162 272 B | 147 536 B | 218 608 B | 218 504 B |
-| VM creation (`mcs_new` + modules) | 161 859 instr | 156 983 instr | — | 131 122 instr | 131 100 instr |
-| Heap after `mcs_new` | 25 688 B | 20 332 B | 13 296 B | 25 904 B | 25 904 B |
+| Flash `.text` (whole firmware) | 213 088 B | 200 736 B | 160 488 B | 258 664 B | 258 600 B |
+| VM creation (`mcs_new` + modules) | 42 703 instr | 42 538 instr | — | 37 412 instr | 37 416 instr |
+| Heap after `mcs_new` | 8 168 B | 5 256 B | 1 824 B | 8 240 B | 8 240 B |
 | Workload | demo image | demo image | `examples/lowram` | demo image + source | demo image + source |
-| Image run: instructions | 4.56 M | 4.59 M | 1.28 M (whole firmware) | 3.47 M | 3.47 M |
-| Source (compile + run): instructions | n/a | n/a | n/a | 4.32 M | 4.32 M |
-| Pool peak (whole run) | 64 984 of 102 400 B | 34 076 of 40 960 B | 28 044 of 32 768 B | 90 480 of 163 840 B | 90 480 of 262 144 B |
-| C stack peak (painted) | 2.2 KB | 2.1 KB | — | 4.1 KB | 4.1 KB |
+| Image run: instructions | 2.96 M | 2.90 M | 0.95 M (whole firmware) | 2.18 M | 2.18 M |
+| Source (compile + run): instructions | n/a | n/a | n/a | 3.73 M | 3.73 M |
+| Pool peak (whole run) | 39 160 of 102 400 B | 30 732 of 40 960 B | 14 132 of 32 768 B | 73 648 of 163 840 B | 73 648 of 262 144 B |
+| C stack peak (painted) | 2.2 KB | 2.1 KB | 1.4 KB | 4.1 KB | 4.1 KB |
 
-`m33-shell` (the UART script-manager firmware) is 221 688 B. The M0 needs ~1.3× the
+`m33-shell` (the UART script-manager firmware) is 264 936 B. The M0 needs ~1.4× the
 instructions of the M4 for the demo — it has no hardware divider, no `IT` blocks and mostly
 16-bit Thumb-1 encodings. Per-function profiles: `python3 tools/cm_emu.py
 build/cm/m0-runtime.elf --cpu m0 --profile 20`.
