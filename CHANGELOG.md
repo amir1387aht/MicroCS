@@ -6,7 +6,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 Focus: a precompiled image is now clearly the fast path. Up to 1.5 an image held the same
 bytecode the on-device compiler emits, so it only saved the compile step (a few ms) and was
-larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#16--fast-bytecode-images).
+larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#bytecode-images).
 
 ### Speed (emulated Cortex-M4F instructions, image run, 1.5 → 1.6)
 - `fib` 2.43 → 1.43 M (1.7×), `loop` 15.0 → 6.70 M (2.2×), `objects` 5.64 → 3.19 M (1.8×),

@@ -4,3 +4,5 @@ url: "https://github.com/amir1387aht/MicroCS"
 license: "MIT"
 dependencies:
   idf: ">=5.0"
+  # LittleFS on a flash partition: persistent scripts (ports/esp32, mcs_esp32_littlefs)
+  joltwallet/littlefs: ">=1.14.0"

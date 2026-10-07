@@ -1,0 +1,8 @@
+# MicroCS on a 4 MB flash: 1.5 MB app, the rest is LittleFS for your scripts.
+# Bigger flash? Set the flash size in menuconfig (Serial flasher config) and grow
+# `storage` to the end, e.g. 8 MB: 0x670000, 16 MB: 0xE70000.
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x6000
+phy_init, data, phy,     0xf000,   0x1000
+factory,  app,  factory, 0x10000,  0x180000
+storage,  data, spiffs,  0x190000, 0x270000

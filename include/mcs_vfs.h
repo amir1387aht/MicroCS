@@ -154,7 +154,7 @@ extern const mcs_vfs_ops_t mcs_ramfs_ops;
 void mcs_ramfs_init(mcs_ramfs_t* fs, size_t limit, mcs_realloc_fn realloc_fn, void* alloc_ud);
 void mcs_ramfs_free(mcs_ramfs_t* fs);
 
-/* POSIX directory (Linux, macOS, MinGW). ctx = mcs_posixfs_t with the host root. */
+/* POSIX directory (Linux, macOS, MinGW, ESP-IDF VFS). ctx = mcs_posixfs_t with the host root. */
 typedef struct { char root[256]; } mcs_posixfs_t;
 extern const mcs_vfs_ops_t mcs_posixfs_ops;
 int mcs_posixfs_init(mcs_posixfs_t* fs, const char* host_dir);

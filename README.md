@@ -67,11 +67,10 @@ Scheduler.Every(1000, () => {
 </div>
 
 > [!TIP]
-> **New in 1.6 — fast bytecode images.** `mcs -c` now optimizes: superinstructions, loop
-> rotation, method and constructor caches and a compact image format. Precompiled images run
-> **1.3–2.2× faster than in 1.5** on Cortex-M, beat on-device compilation by up to 2× with up to
-> half the RAM, and are usually smaller than the source. [Changelog](CHANGELOG.md) ·
-> [numbers](docs/PERFORMANCE.md#16--fast-bytecode-images)
+> **Precompile for speed.** `mcs -c` turns a script into an optimized bytecode image
+> (superinstructions, loop rotation, method and constructor caches, compact format). Images run
+> **up to 2× faster** than compiling on the device, need up to half the RAM, run straight from
+> flash and are usually smaller than the source. [Numbers](docs/PERFORMANCE.md#bytecode-images)
 
 <details>
 <summary><b>📑 Contents</b></summary>
@@ -501,7 +500,7 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 
 ## 📊 Performance & footprint
 
-<p align="center"><img src="assets/bench.svg" alt="Benchmark: MicroCS 1.6 vs 1.5 vs CPython 3.13" width="720"></p>
+<p align="center"><img src="assets/bench.svg" alt="Benchmark on a PC: MicroCS vs MicroPython vs CPython" width="720"></p>
 <p align="center"><img src="assets/footprint.svg" alt="Flash by component on Cortex-M33" width="720"></p>
 
 | Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
@@ -517,13 +516,13 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 **Images vs source** (`make mcu-bench`, Cortex-M4F, emulated instructions; images are
 optimized with superinstructions, `-O0` = plain bytecode):
 
-| `bench/mcu/` | Source size | Image size | From source | Image `-O0` | **Image** | vs 1.5 image | RAM peak src → image |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| `fib` (recursion) | 102 B | 146 B | 2.07 M | 2.00 M | **1.43 M** | 1.7× faster | 31.4 → 15.1 KB |
-| `loop` (int arithmetic) | 232 B | 166 B | 13.16 M | 13.07 M | **6.70 M** | 2.2× faster | 31.4 → 15.1 KB |
-| `objects` (classes, fields, calls) | 406 B | 356 B | 3.64 M | 3.50 M | **3.19 M** | 1.8× faster | 72.2 → 72.2 KB |
-| `sensor` (double math, arrays) | 581 B | 501 B | 0.95 M | 0.71 M | **0.68 M** | 1.3× faster | 40.7 → 17.0 KB |
-| `strings` (string building) | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 1.3× faster | 31.7 → 30.6 KB |
+| `bench/mcu/` | Source size | Image size | From source | Image `-O0` | **Image** | RAM peak src → image |
+|---|---:|---:|---:|---:|---:|---:|
+| `fib` (recursion) | 102 B | 146 B | 2.07 M | 2.00 M | **1.43 M** | 31.4 → 15.1 KB |
+| `loop` (int arithmetic) | 232 B | 166 B | 13.16 M | 13.07 M | **6.70 M** | 31.4 → 15.1 KB |
+| `objects` (classes, fields, calls) | 406 B | 356 B | 3.64 M | 3.50 M | **3.19 M** | 72.2 → 72.2 KB |
+| `sensor` (double math, arrays) | 581 B | 501 B | 0.95 M | 0.71 M | **0.68 M** | 40.7 → 17.0 KB |
+| `strings` (string building) | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 31.7 → 30.6 KB |
 
 > [!NOTE]
 > Instruction counts and memory peaks are measured by `make cm-check` and `make mcu-bench`. 1 KB = 1024 B. Flash
@@ -561,10 +560,10 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [x] **1.5** — 16 KB RAM / 64 KB flash (`min` profile, lazy class tables, optional stdlib parts),
       `auto` profile per MCU, ESP32-C2, LittleFS + YAFFS2 on SPI NOR / NAND
 - [x] **1.6** — fast images: bytecode optimizer + superinstructions, method/constructor caches,
-      compact image format v3 (images 1.3–2.2× faster than 1.5 and smaller than the source)
+      compact image format v3
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
-- [ ] Flash filesystems on internal flash in every port example, USB mass-storage
+- [ ] Flash filesystems on internal flash in every port example (ESP32: done, LittleFS), USB mass-storage
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell

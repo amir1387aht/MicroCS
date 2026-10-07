@@ -26,7 +26,7 @@ if(ESP_PLATFORM)
     idf_component_register(
         SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c
         INCLUDE_DIRS include ports/esp32
-        REQUIRES driver esp_adc esp_timer
+        REQUIRES driver esp_adc esp_timer joltwallet__littlefs
         PRIV_REQUIRES esp_system)
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
     # menuconfig > Component config > MicroCS (Kconfig); the ESP32-C2 defaults to "embedded"
