@@ -1,9 +1,10 @@
 # Performance and footprint
 
 > [!IMPORTANT]
-> Every number on this page was produced in this repository's sandbox with the command next
-> to it. Nothing here was measured on physical hardware; Cortex-M figures are *instruction
-> counts* in an emulator, not cycles.
+> Unless marked **real hardware**, every number on this page was produced in this
+> repository's sandbox with the command next to it; Cortex-M figures there are *instruction
+> counts* in an emulator, not cycles. Real-hardware results:
+> [ESP32-S3](#real-hardware--esp32-s3).
 
 ## 1.6 — fast bytecode images
 
@@ -91,10 +92,23 @@ same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 
 ## MicroCS vs MicroPython vs .NET nanoFramework
 
-The `bench/mcu/` scripts (and the three host scripts) ported idiomatically to Python and to
-nanoFramework C#, same output everywhere. Sources, build scripts and exact configurations:
-[`bench/compare/`](../bench/compare). MicroPython **1.26.0**, nanoFramework **nanoCLR 1.1.311**
-with `mscorlib` 1.17.12, MicroCS **1.6.0**; all measured in one session on the same machine.
+The `bench/mcu/` scripts (and the three host scripts) ported idiomatically to Python, to
+nanoFramework C# and to plain C, same output everywhere. Sources, build scripts and exact
+configurations: [`bench/compare/`](../bench/compare). MicroPython **1.26.0**, nanoFramework
+**nanoCLR 1.1.311** with `mscorlib` 1.17.12, MicroCS **1.6.0**, GCC 13.2.1 (C, `-Os` on
+Cortex-M); emulator and PC numbers measured in one session on the same machine.
+
+### Real hardware — ESP32-S3
+
+`fib(18)` on an ESP32-S3 board (Xtensa LX7, 160 MHz, ESP-IDF 5.5 for MicroCS), timed inside
+the script, same board for both:
+
+| | MicroCS 1.6 | MicroPython | |
+|---|---:|---:|---:|
+| `fib(18)` | **30 ms** | 98 ms | 3.3× |
+
+The ratio matches the emulated Cortex-M4F one for `fib` (3.7×). Measured by the project
+author; more workloads on silicon are welcome — see [`bench/compare/`](../bench/compare).
 
 ### Cortex-M (emulated) — MicroCS vs MicroPython
 
@@ -136,24 +150,52 @@ in static RAM and on the C stack (not counted). The rest is real: MicroCS's per-
 collection overhead and the headroom its GC needs. Flash is in the same class: the M4F bench firmwares (VM, compiler,
 stdlib, newlib) are 170 KB (MicroCS, incl. the fs/hal modules) and 166 KB (MicroPython).
 
-### PC — all three
+### Bare-metal C — the ceiling
 
-x86-64, same machine. MicroCS `make bench` (optimized image, `gcc -O2`), MicroPython unix
-port (standard build), nanoFramework on the nanoCLR virtual device (the native x64 nanoCLR
-the `nanoclr` tool ships). Best of 3–50 runs.
+What an interpreter costs: [`c/cbench.c`](../bench/compare/c/cbench.c) does the same work in
+C (heap objects in a growable array for `objects`, `snprintf` for the output) on the same
+emulated boards, flags (`-Os`) and newlib. C has no load step; MicroCS and MicroPython counts
+also include interpreter init + image/`.mpy` load.
 
-| | MicroCS | MicroPython | nanoFramework |
-|---|---:|---:|---:|
-| `fib(30)` | **41 ms** | 254 ms | 717 ms |
-| loop 10 M | **95 ms** | 780 ms | 1485 ms |
-| objects 1 M | **132 ms** | 548 ms | 4272 ms |
-| `bench/mcu` fib | **128 µs** | 760 µs | 2251 µs |
-| `bench/mcu` loop | **493 µs** | 3042 µs | 9523 µs |
-| `bench/mcu` objects | **253 µs** | 974 µs | 8566 µs |
-| `bench/mcu` sensor | **35 µs** | 194 µs | 407 µs |
-| `bench/mcu` strings | **43 µs** | 265 µs | 2080 µs |
+| Cortex-M4F | C | MicroCS image | × C | MicroPython `.mpy` | × C |
+|---|---:|---:|---:|---:|---:|
+| `fib` | 0.059 M | 1.43 M | 24× | 5.23 M | 88× |
+| `loop` | 0.51 M | 6.70 M | 13× | 23.71 M | 46× |
+| `objects` | 0.30 M | 3.19 M | 11× | 7.45 M | 25× |
+| `sensor` | 0.25 M | 0.68 M | 2.7× | 2.15 M | 8.5× |
+| `strings` | 0.13 M | 0.49 M | 3.8× | 1.79 M | 14× |
 
-Caveats: none of this ran on silicon; instruction counts ignore flash wait states and memory
+| Cortex-M0 | C | MicroCS image | × C | MicroPython `.mpy` | × C |
+|---|---:|---:|---:|---:|---:|
+| `fib` | 0.059 M | 1.95 M | 33× | 6.99 M | 118× |
+| `loop` | 5.07 M | 13.23 M | 2.6× | 38.56 M | 7.6× |
+| `objects` | 0.46 M | 4.37 M | 9.5× | 11.94 M | 26× |
+| `sensor` | 0.57 M | 1.21 M | 2.1× | 3.16 M | 5.5× |
+| `strings` | 0.20 M | 0.77 M | 3.8× | 2.46 M | 12× |
+
+Pure call/arithmetic code is where C is far ahead (GCC turns part of `fib`'s recursion into a
+loop; ~7 instructions per call vs ~170 in the VM). Work that ends in library code —
+soft-float `double`, `snprintf`, division on the M0 (no hardware divider, `loop` is
+dominated by `__aeabi_idivmod` in C too) — narrows the gap to 2–4×.
+
+### PC — all four
+
+x86-64, same machine. C `gcc -O2`, MicroCS `make bench` (optimized image, `gcc -O2`),
+MicroPython unix port (standard build), nanoFramework on the nanoCLR virtual device (the
+native x64 nanoCLR the `nanoclr` tool ships). Best of 3–50 runs.
+
+| | C | MicroCS | MicroPython | nanoFramework |
+|---|---:|---:|---:|---:|
+| `fib(30)` | 1.3 ms | **41 ms** | 254 ms | 717 ms |
+| loop 10 M | 12 ms | **95 ms** | 780 ms | 1485 ms |
+| objects 1 M | 32 ms | **132 ms** | 548 ms | 4272 ms |
+| `bench/mcu` fib | 4 µs | **128 µs** | 760 µs | 2251 µs |
+| `bench/mcu` loop | 71 µs | **493 µs** | 3042 µs | 9523 µs |
+| `bench/mcu` objects | 33 µs | **253 µs** | 974 µs | 8566 µs |
+| `bench/mcu` sensor | 1 µs | **35 µs** | 194 µs | 407 µs |
+| `bench/mcu` strings | 11 µs | **43 µs** | 265 µs | 2080 µs |
+
+Caveats: apart from the ESP32-S3 `fib(18)` above, none of this ran on silicon; instruction counts ignore flash wait states and memory
 speed (identical for both firmwares). nanoFramework was not measured on a Cortex-M — it has
 no bare-metal build for this emulator — so its MCU speed and footprint are not compared; its
 PC numbers come from a different native build than its firmware, and `objects` uses

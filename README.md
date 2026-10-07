@@ -438,6 +438,7 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
 | Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
 | Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
+| Speed on real hardware — ESP32-S3, `fib(18)` | **30 ms** | 98 ms | not measured |
 | Speed on Cortex-M (same 5 scripts, emulated M4F + M0, same toolchain) | **2.3–3.7× fewer instructions** than MicroPython precompiled, 1.8–3.6× compiling on the device | 1× | not measured (no bare-metal build for the emulator) |
 | Speed on a PC — fib(30) / 10 M loop / 1 M objects | **41 / 95 / 132 ms** | 254 / 780 / 548 ms | 717 / 1485 / 4272 ms (nanoCLR virtual device) |
 | Smallest heap for those 5 scripts | 7.6–42 KB (incl. ~5.7 KB VM state + stack) | **0.7–21 KB** | not measured |
@@ -450,7 +451,22 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
-<p align="center"><img src="assets/compare.svg" alt="MicroCS vs MicroPython vs nanoFramework: emulated Cortex-M4F instructions and PC run times" width="100%"></p>
+<p align="center"><img src="assets/compare.svg" alt="bare-metal C vs MicroCS vs MicroPython vs nanoFramework: emulated Cortex-M4F instructions and PC run times" width="100%"></p>
+
+**And against bare-metal C** — the same 5 workloads written in C, same board, toolchain and
+`-Os` (emulated Cortex-M4F, million instructions; × = times the C count):
+
+| | C | MicroCS | MicroPython |
+|---|---:|---:|---:|
+| `fib` — calls | 0.059 | 1.43 (24×) | 5.23 (88×) |
+| `loop` — integer math | 0.51 | 6.70 (13×) | 23.71 (46×) |
+| `objects` — allocation + methods | 0.30 | 3.19 (11×) | 7.45 (25×) |
+| `sensor` — `double` math + formatting | 0.25 | 0.68 (2.7×) | 2.15 (8.5×) |
+| `strings` — build, split, parse | 0.13 | 0.49 (3.8×) | 1.79 (14×) |
+
+Hot inner loops still belong in C — MicroCS calls into your C functions directly (see
+[Option 1](#-option-1--drop-the-library-into-an-existing-project)) — but glue, logic and I/O-bound code runs
+within 3–4× of C.
 
 Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
 nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve

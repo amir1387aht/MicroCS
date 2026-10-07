@@ -1,7 +1,7 @@
-# MicroCS vs MicroPython vs .NET nanoFramework
+# MicroCS vs MicroPython vs .NET nanoFramework vs bare-metal C
 
 The same five firmware-style scripts as [`bench/mcu/`](../mcu) (and the three host scripts
-of [`bench/`](..)) written idiomatically for each runtime, with identical output.
+of [`bench/`](..)) written idiomatically for each runtime and in plain C, with identical output.
 Results and caveats: [docs/PERFORMANCE.md](../../docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework).
 
 | Workload | What it does |
@@ -41,3 +41,17 @@ Host: `micropython host_time.py fib.py` (unix port, best of 50, compile excluded
 with MetadataProcessor 3.0.104 and runs it on the **nanoCLR virtual device** (`nanoclr`
 1.1.311, the native x64 nanoCLR) on the PC — nanoFramework has no bare-metal Cortex-M build
 that runs in this emulator, so it is compared on the host only.
+
+## Bare-metal C — `c/`
+
+`sh bench/compare/c/build.sh`: [`cbench.c`](c/cbench.c) on the same emulated boards with the
+same toolchain, `-Os`, linker script and newlib as the MicroCS firmware (instructions per
+workload, output included), plus a host build at `-O2`. Inputs are read from `volatile`s so
+GCC cannot compute the results at build time.
+
+## Real hardware
+
+Timed inside the script on the board (MicroCS: `Stopwatch.StartNew()` /
+`ElapsedMilliseconds`; MicroPython: `time.ticks_ms()` / `time.ticks_diff()`). Results so far
+are in [PERFORMANCE.md](../../docs/PERFORMANCE.md#real-hardware--esp32-s3); PRs with other
+boards are welcome.
