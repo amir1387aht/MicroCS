@@ -48,6 +48,17 @@ static void exercise_flash(const char* tag, mcs_flash_part_t* part, unsigned fil
     int r = run(&v, "Directory.CreateDirectory(\"/f/app\"); File.WriteAllText(\"/f/app/main.cs\", \"Console.WriteLine(6*7);\");\n"
                     "File.AppendAllText(\"/f/log\", \"a\"); File.AppendAllText(\"/f/log\", \"b\"); Console.WriteLine(File.ReadAllText(\"/f/log\"));");
     CHECK(r == MCS_OK && !strcmp(g_out, "ab\n"), T("C# File API"));
+    {
+        mcs_vfs_statfs_t sf;
+        CHECK(mcs_vfs_statfs(&v, "/f/app", &sf) == 0 && sf.total == (uint64_t)fc.block_size * fc.block_count &&
+              sf.free < sf.total && !strcmp(sf.mount, "/f"), T("statfs"));
+        r = run(&v, "var d = new DriveInfo(\"/f\"); long f0 = d.AvailableFreeSpace;\n"
+              "File.WriteAllText(\"/f/space.bin\", new string('s', 20000));\n"
+              "Console.WriteLine(d.DriveFormat + \" \" + (f0 - d.AvailableFreeSpace >= 16000) + \" \" + (d.TotalSize > d.AvailableFreeSpace) + \" \" + d.IsReady);\n"
+              "File.Delete(\"/f/space.bin\");");
+        CHECK(r == MCS_OK && !strcmp(g_out, "littlefs True True True\n"), T("DriveInfo free space"));
+        if (strcmp(g_out, "littlefs True True True\n")) printf("got: [%s]\n", g_out);
+    }
     lfs_unmount(&fl);
     CHECK(lfs_mount(&fl, &fc) == 0, T("remount"));
     {

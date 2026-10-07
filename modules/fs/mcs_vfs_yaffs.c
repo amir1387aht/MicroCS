@@ -133,7 +133,15 @@ static int y_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
     return MCS_VFS_OK;
 }
 
-const mcs_vfs_ops_t mcs_yaffs_ops = { y_open, y_read, y_write, y_close, y_stat, y_remove, y_mkdir, y_rename, y_list };
+static int y_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    struct yaffs_dev* dev = (struct yaffs_dev*)ctx;
+    Y_LOFF_T t = yaffs_totalspace_reldev(dev), f = yaffs_freespace_reldev(dev);
+    if (t < 0 || f < 0) return MCS_VFS_EIO;
+    st->total = (uint64_t)t; st->free = (uint64_t)f;
+    st->format = "yaffs2";
+    return MCS_VFS_OK;
+}
+const mcs_vfs_ops_t mcs_yaffs_ops = { y_open, y_read, y_write, y_close, y_stat, y_remove, y_mkdir, y_rename, y_list, y_statfs };
 
 /* ---- YAFFS2 driver over mcs_flash_t ---- */
 #if MCS_ENABLE_FLASH

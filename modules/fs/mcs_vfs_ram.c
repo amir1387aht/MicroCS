@@ -210,5 +210,13 @@ static int r_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
     return MCS_VFS_OK;
 }
 
-const mcs_vfs_ops_t mcs_ramfs_ops = { r_open, r_read, r_write, r_close, r_stat, r_remove, r_mkdir, r_rename, r_list };
+static int r_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    mcs_ramfs_t* fs = (mcs_ramfs_t*)ctx;
+    uint64_t lim = fs->limit ? fs->limit : 0x80000000u;
+    st->total = lim;
+    st->free = fs->used < lim ? lim - fs->used : 0;
+    st->format = "ramfs";
+    return MCS_VFS_OK;
+}
+const mcs_vfs_ops_t mcs_ramfs_ops = { r_open, r_read, r_write, r_close, r_stat, r_remove, r_mkdir, r_rename, r_list, r_statfs };
 #endif

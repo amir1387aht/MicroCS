@@ -2,6 +2,15 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* **ESP32: scripts on flash** — the example mounts LittleFS on the `storage` partition
+  (`mcs_esp32_littlefs()`), so uploaded files survive resets and power cycles.
+* **Free space**: C# `DriveInfo` (`new DriveInfo("/").AvailableFreeSpace`, `TotalSize`,
+  `DriveFormat`, `DriveInfo.GetDrives()`), shell/`mcs_remote.py` command `df`, and
+  `mcs_vfs_statfs()` with an optional `statfs` backend op (RAM, POSIX, LittleFS, YAFFS2,
+  ESP32 LittleFS).
+
 ## 1.6.0 — fast bytecode images
 
 Focus: a precompiled image is now clearly the fast path. Up to 1.5 an image held the same

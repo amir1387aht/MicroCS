@@ -90,6 +90,17 @@ int mcs_vfs_flags(mcs_vfs_t* vfs, const char* path) {
     return m ? m->flags : 0;
 }
 
+int mcs_vfs_statfs(mcs_vfs_t* vfs, const char* path, mcs_vfs_statfs_t* st) {
+    RESOLVE(path);
+    memset(st, 0, sizeof *st);
+    st->mount = m->prefix;
+    if (!m->ops->statfs) return MCS_VFS_EINVAL;
+    int e = m->ops->statfs(m->ctx, st);
+    st->mount = m->prefix;
+    if (st->free > st->total) st->free = st->total;
+    return e;
+}
+
 int mcs_vfs_open(mcs_vfs_t* vfs, const char* path, int flags, mcs_vfs_file_t* f) {
     RESOLVE(path);
     if ((flags & (MCS_VFS_WRITE | MCS_VFS_APPEND)) && (m->flags & MCS_VFS_RDONLY)) return MCS_VFS_EACCES;
