@@ -259,7 +259,7 @@ Upload a program from your PC (`/main.cs` also runs at every boot):
 
 ```sh
 python3 tools/mcs_remote.py --port /dev/ttyACM0 put app.cs /main.cs + run /main.cs
-python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-] quits)
+python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-] quits); Windows: --port COM5
 ```
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),

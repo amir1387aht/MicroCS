@@ -120,6 +120,7 @@ Python standard library only. `--port /dev/ttyUSB0 [--baud 115200]` for a serial
 python3 tools/mcs_remote.py --port /dev/ttyACM0 put app.cs /main.cs + run /main.cs + ls
 python3 tools/mcs_remote.py --port /dev/ttyACM0 get /log.csv log.csv
 python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # interactive terminal, Ctrl-] quits
+python tools\mcs_remote.py --port COM5 repl                   # Windows (no extra packages; uses pyserial if installed)
 python3 tools/mcs_remote.py --exec "./mcs --shell --sim --ramfs 65536" put app.cs /app.cs + run /app.cs
 ```
 

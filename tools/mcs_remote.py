@@ -2,6 +2,7 @@
 """mcs_remote - manage scripts on a MicroCS device running the shell.
 
   mcs_remote.py --port /dev/ttyUSB0 [--baud 115200] <command> [args]
+  mcs_remote.py --port COM5 <command> [args]                      (Windows)
   mcs_remote.py --exec "./mcs --shell --fs dev_root" <command> [args]
 
 Commands: ls [dir], cat <f>, put <local> [remote], get <remote> [local], rm <f>,
@@ -13,9 +14,14 @@ Exit status is 0 when every command succeeded.
 Before the first command the tool sends Ctrl-A, which switches a device that
 sits in the interactive REPL back to the machine protocol (replies EOT OK).
 
-Only the Python standard library is used (termios for serial ports).
+Only the Python standard library is used: termios on Linux/macOS, the Win32
+API (ctypes) on Windows; pyserial is used instead on Windows when installed.
 """
-import os, sys, subprocess, time, argparse, select, shlex
+import os, sys, subprocess, time, argparse, shlex, threading, queue
+
+WINDOWS = os.name == "nt"
+if not WINDOWS:
+    import select
 
 EOT = b"\x04"
 
@@ -33,11 +39,27 @@ class Link:
 
 class ProcLink(Link):
     def __init__(self, cmd):
-        self.p = subprocess.Popen(shlex.split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=0)
+        self.p = subprocess.Popen(shlex.split(cmd, posix=not WINDOWS), stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, bufsize=0)
+        # a reader thread instead of select(): pipes cannot be polled on Windows
+        self.q, self.rest = queue.Queue(), b""
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self):
+        while True:
+            b = os.read(self.p.stdout.fileno(), 4096)
+            self.q.put(b)
+            if not b:
+                return
 
     def read(self, n, timeout):
-        r, _, _ = select.select([self.p.stdout], [], [], timeout)
-        return os.read(self.p.stdout.fileno(), n) if r else b""
+        if not self.rest:
+            try:
+                self.rest = self.q.get(timeout=timeout) if timeout > 0 else self.q.get_nowait()
+            except queue.Empty:
+                return b""
+        out, self.rest = self.rest[:n], self.rest[n:]
+        return out
 
     def write(self, data):
         self.p.stdin.write(data)
@@ -51,7 +73,111 @@ class ProcLink(Link):
             self.p.kill()
 
 
+class PySerialLink(Link):
+    """pyserial (optional)."""
+    def __init__(self, port, baud):
+        import serial
+        self.s = serial.Serial()
+        self.s.port, self.s.baudrate = port, baud
+        self.s.dtr = self.s.rts = False   # don't reset ESP32-style boards on open
+        self.s.open()
+
+    def read(self, n, timeout):
+        self.s.timeout = timeout
+        first = self.s.read(1)
+        if not first:
+            return b""
+        return first + self.s.read(min(n - 1, self.s.in_waiting))
+
+    def write(self, data):
+        self.s.write(data)
+
+    def close(self):
+        self.s.close()
+
+
+class WinSerialLink(Link):
+    """Windows COM port through the Win32 API (no extra packages)."""
+    def __init__(self, port, baud):
+        import ctypes
+        from ctypes import wintypes as w
+        self.ct, k = ctypes, ctypes.WinDLL("kernel32", use_last_error=True)
+        self.k = k
+        k.CreateFileW.restype = ctypes.c_void_p
+        k.CreateFileW.argtypes = [w.LPCWSTR, w.DWORD, w.DWORD, ctypes.c_void_p, w.DWORD, w.DWORD, ctypes.c_void_p]
+        for f in (k.ReadFile, k.WriteFile):
+            f.argtypes = [ctypes.c_void_p, ctypes.c_void_p, w.DWORD, ctypes.POINTER(w.DWORD), ctypes.c_void_p]
+            f.restype = w.BOOL
+        k.SetCommTimeouts.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        k.GetCommState.argtypes = k.SetCommState.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+        k.SetupComm.argtypes = [ctypes.c_void_p, w.DWORD, w.DWORD]
+        k.PurgeComm.argtypes = [ctypes.c_void_p, w.DWORD]
+        k.CloseHandle.argtypes = [ctypes.c_void_p]
+        name = port if port.startswith("\\\\.\\") else "\\\\.\\" + port      # \\.\COM18
+        h = k.CreateFileW(name, 0xC0000000, 0, None, 3, 0, None)   # GENERIC_READ|WRITE, OPEN_EXISTING
+        if h is None or h == ctypes.c_void_p(-1).value:
+            raise OSError("cannot open %s (Win32 error %d) - is another monitor using it?" % (port, ctypes.get_last_error()))
+        self.h = h
+
+        class DCB(ctypes.Structure):
+            _fields_ = [("DCBlength", w.DWORD), ("BaudRate", w.DWORD), ("flags", w.DWORD), ("wReserved", w.WORD),
+                        ("XonLim", w.WORD), ("XoffLim", w.WORD), ("ByteSize", w.BYTE), ("Parity", w.BYTE),
+                        ("StopBits", w.BYTE), ("XonChar", ctypes.c_char), ("XoffChar", ctypes.c_char),
+                        ("ErrorChar", ctypes.c_char), ("EofChar", ctypes.c_char), ("EvtChar", ctypes.c_char),
+                        ("wReserved1", w.WORD)]
+
+        class TIMEOUTS(ctypes.Structure):
+            _fields_ = [(f, w.DWORD) for f in ("ri", "rm", "rc", "wm", "wc")]
+        self.TIMEOUTS = TIMEOUTS
+        k.SetupComm(h, 65536, 65536)
+        dcb = DCB(); dcb.DCBlength = ctypes.sizeof(DCB)
+        k.GetCommState(h, ctypes.byref(dcb))
+        dcb.BaudRate, dcb.ByteSize, dcb.Parity, dcb.StopBits = baud, 8, 0, 0   # 8N1
+        dcb.flags = 1          # fBinary; no flow control; DTR and RTS off (no ESP32 auto-reset)
+        if not k.SetCommState(h, ctypes.byref(dcb)):
+            raise OSError("cannot configure %s (Win32 error %d)" % (port, ctypes.get_last_error()))
+        k.PurgeComm(h, 0x0F)
+        self.cur = None
+
+    def _timeouts(self, ms):
+        if ms != self.cur:
+            M = 0xFFFFFFFF
+            # ms == 0: return at once; else return as soon as a byte arrives, at most ms
+            t = self.TIMEOUTS(M, 0, 0, 0, 2000) if ms == 0 else self.TIMEOUTS(M, M, ms, 0, 2000)
+            self.k.SetCommTimeouts(self.h, self.ct.byref(t))
+            self.cur = ms
+
+    def read(self, n, timeout):
+        self._timeouts(int(timeout * 1000) if timeout > 0 else 0)
+        buf = self.ct.create_string_buffer(n)
+        got = self.ct.c_ulong(0)
+        if not self.k.ReadFile(self.h, buf, n, self.ct.byref(got), None):
+            raise OSError("read failed (Win32 error %d)" % self.ct.get_last_error())
+        return buf.raw[:got.value]
+
+    def write(self, data):
+        while data:
+            done = self.ct.c_ulong(0)
+            if not self.k.WriteFile(self.h, data, len(data), self.ct.byref(done), None) or not done.value:
+                raise OSError("write failed (Win32 error %d)" % self.ct.get_last_error())
+            data = data[done.value:]
+
+    def close(self):
+        self.k.CloseHandle(self.h)
+
+
+def open_serial(port, baud):
+    if not WINDOWS:
+        return SerialLink(port, baud)
+    try:
+        import serial  # noqa: F401
+        return PySerialLink(port, baud)
+    except ImportError:
+        return WinSerialLink(port, baud)
+
+
 class SerialLink(Link):
+    """Linux / macOS serial port (termios)."""
     def __init__(self, port, baud):
         import termios, tty
         self.fd = os.open(port, os.O_RDWR | os.O_NOCTTY)
@@ -140,8 +266,47 @@ class Device:
         return st, data
 
 
+# Windows console keys (msvcrt prefix + code) -> the VT sequences the REPL understands
+WIN_KEYS = {"H": b"\x1b[A", "P": b"\x1b[B", "M": b"\x1b[C", "K": b"\x1b[D", "G": b"\x1b[H", "O": b"\x1b[F", "S": b"\x1b[3~"}
+
+
+def terminal_windows(dev):
+    import msvcrt
+    os.system("")          # turn on VT (ANSI) output in the Windows console
+    dev.link.write(b"repl\n")
+    sys.stdout.write("[MicroCS REPL - Ctrl-] to quit]\n")
+    sys.stdout.flush()
+    if dev.buf:
+        sys.stdout.buffer.write(dev.buf); dev.buf = b""
+    while True:
+        keys = b""
+        while msvcrt.kbhit():
+            c = msvcrt.getwch()
+            if c in ("\x00", "\xe0"):
+                keys += WIN_KEYS.get(msvcrt.getwch(), b"")
+            elif c == "\x1d":
+                keys = None
+                break
+            else:
+                keys += c.encode("utf-8")
+        if keys is None:
+            break
+        if keys:
+            dev.link.write(keys.replace(b"\n", b"\r"))
+        out = dev.link.read(4096, 0.02)
+        if out:
+            sys.stdout.buffer.write(out)
+            sys.stdout.flush()
+    print()
+    dev.buf = b""
+    dev.machine_mode()
+    return "OK"
+
+
 def terminal(dev):
     """Interactive REPL session: raw keyboard -> device, device -> screen."""
+    if WINDOWS:
+        return terminal_windows(dev)
     import termios, tty
     dev.link.write(b"repl\n")
     sys.stdout.write("[MicroCS REPL - Ctrl-] to quit]\n")
@@ -182,7 +347,7 @@ def main():
     a = ap.parse_args()
     if not a.args:
         ap.error("no command")
-    link = ProcLink(a.exec_cmd) if a.exec_cmd else SerialLink(a.port, a.baud) if a.port else None
+    link = ProcLink(a.exec_cmd) if a.exec_cmd else open_serial(a.port, a.baud) if a.port else None
     if not link:
         ap.error("need --port or --exec")
     dev = Device(link, a.timeout)
