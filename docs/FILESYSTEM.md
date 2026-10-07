@@ -18,6 +18,10 @@ mcs_fs_open_lib(vm, &vfs);                                             /* C# Fil
   scripts read files but `mcs_exec_file`/shell `run` refuse to execute them.
 * Rename across mounts returns EINVAL (C# `IOException`).
 * Whole-file helpers `mcs_vfs_read_file/write_file` and `mcs_exec_file` (source or image).
+* `mcs_vfs_statfs(&vfs, path, &st)` gives the size (`st.total`), free bytes (`st.free`),
+  format and mount prefix of the filesystem holding `path` — C# `DriveInfo`, shell `df`.
+  A backend reports it through the optional `statfs` op (all built-in backends have one;
+  custom backends may leave it NULL → `MCS_VFS_EINVAL`).
 
 ## Backends
 | Backend | Use | Notes |
@@ -113,6 +117,17 @@ Move, GetLength (MicroCS extension; .NET uses `FileInfo.Length`).
 GetFileSystemEntries, Delete(path[, recursive]), GetCurrentDirectory (always `/`).
 `Path`: Combine, GetFileName, GetExtension, GetFileNameWithoutExtension,
 GetDirectoryName, GetFullPath.
+`DriveInfo`: `new DriveInfo("/")` (any path; describes the mount that holds it),
+`DriveInfo.GetDrives()` (one per mount); properties TotalSize, AvailableFreeSpace,
+TotalFreeSpace, DriveFormat (`littlefs`, `yaffs2`, `ramfs`, `posix`), Name, IsReady.
+Values are read live from the backend, in bytes:
+```csharp
+var d = new DriveInfo("/");
+Console.WriteLine($"{d.AvailableFreeSpace / 1024} of {d.TotalSize / 1024} KB free ({d.DriveFormat})");
+```
+LittleFS counts whole blocks (4 KB on ESP32), so free space moves in block steps and
+includes a little metadata overhead. A RAM filesystem without a quota reports 2 GB.
 Errors map to .NET types and messages: FileNotFoundException,
-DirectoryNotFoundException, UnauthorizedAccessException, IOException.
+DirectoryNotFoundException, UnauthorizedAccessException, IOException,
+DriveNotFoundException.
 There are no streams (`FileStream`) yet — whole-file operations only (planned).

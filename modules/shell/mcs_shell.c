@@ -273,8 +273,24 @@ static void repl_exec(mcs_shell_t* sh, const char* src, size_t len, bool raw) {
 }
 #endif
 
+/* df [path]: size of every mount (or of the one holding `path`) */
+static int cmd_df(mcs_shell_t* sh, const char* path) {
+    int e = 0;
+    for (int i = 0; i < sh->vfs->count; i++) {
+        mcs_vfs_statfs_t st;
+        const char* p = path && *path ? path : sh->vfs->mounts[i].prefix;
+        e = mcs_vfs_statfs(sh->vfs, p, &st);
+        if (e == MCS_VFS_EINVAL) outf(sh, "%s ? size unknown\n", st.mount ? st.mount : p);
+        else if (e) return e;
+        else outf(sh, "%s %s %lu KB total, %lu KB used, %lu KB free\n", st.mount, st.format ? st.format : "?",
+                  (unsigned long)((st.total + 512) / 1024), (unsigned long)((st.total - st.free + 512) / 1024), (unsigned long)((st.free + 512) / 1024));
+        if (path && *path) break;
+    }
+    return 0;
+}
+
 static void cmd_help(mcs_shell_t* sh) {
-    out(sh, "ls [dir] | cat <f> | put <f> <len> | get <f> | rm <f> | mkdir <d> | mv <a> <b>\n"
+    out(sh, "ls [dir] | cat <f> | put <f> <len> | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
             "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>\n"
             "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
@@ -322,6 +338,8 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     else if (!strcmp(c, "rm")) {
         if (argc < 2) { err(sh, "usage: rm <path>"); return; }
         if ((e = mcs_vfs_remove(sh->vfs, argv[1]))) err(sh, mcs_vfs_strerror(e)); else ok(sh);
+    } else if (!strcmp(c, "df")) {
+        if ((e = cmd_df(sh, argv[1]))) err(sh, mcs_vfs_strerror(e)); else ok(sh);
     } else if (!strcmp(c, "mkdir")) {
         if (argc < 2) { err(sh, "usage: mkdir <path>"); return; }
         if ((e = mcs_vfs_mkdir(sh->vfs, argv[1]))) err(sh, mcs_vfs_strerror(e)); else ok(sh);
@@ -382,11 +400,12 @@ static void repl_command(mcs_shell_t* sh, char* line) {
     int e;
     if (!strcmp(c, "help")) {
         out(sh, "C# statements and expressions run as you type them; expressions are printed.\n"
-                ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .mem  .info  .jobs  .clear  .exit (machine mode)\n"
+                ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .df  .mem  .info  .jobs  .clear  .exit (machine mode)\n"
                 "Ctrl-C clears / stops a script, Ctrl-E paste mode (Ctrl-D runs), Ctrl-A machine mode\n");
     } else if (!strcmp(c, "clear")) sh->code_len = 0;
     else if (!strcmp(c, "exit") || !strcmp(c, "shell")) { mcs_shell_set_repl(sh, false); ok(sh); return; }
-    else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) && !sh->vfs) out(sh, "error: no filesystem\n");
+    else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm") || !strcmp(c, "df")) && !sh->vfs) out(sh, "error: no filesystem\n");
+    else if (!strcmp(c, "df")) { if ((e = cmd_df(sh, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
     else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
         if (!strcmp(c, "run")) { if (*a) mcs_exec_file(sh->vm, sh->vfs, a); else out(sh, "usage: .run <file>\n"); }
         else if (!strcmp(c, "ls")) { if ((e = mcs_vfs_list(sh->vfs, *a ? a : "/", ls_cb, sh))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }

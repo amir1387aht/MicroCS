@@ -836,6 +836,17 @@ mcs_transport_t mcs_esp32_console(void) {
 #endif
 #endif
 static mcs_posixfs_t g_flash_fs;
+#if MCS_ESP32_LITTLEFS
+static const char* g_flash_label = "storage";
+static int esp_lfs_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    size_t total = 0, used = 0;
+    (void)ctx;
+    if (esp_littlefs_info(g_flash_label, &total, &used) != ESP_OK) return MCS_VFS_EIO;
+    st->total = total; st->free = used < total ? total - used : 0; st->format = "littlefs";
+    return MCS_VFS_OK;
+}
+static mcs_vfs_ops_t g_flash_ops;     /* mcs_posixfs_ops + statfs */
+#endif
 bool mcs_esp32_littlefs(const char* label, const mcs_vfs_ops_t** ops, void** ctx) {
 #if MCS_ESP32_LITTLEFS
     esp_vfs_littlefs_conf_t c;
@@ -846,7 +857,10 @@ bool mcs_esp32_littlefs(const char* label, const mcs_vfs_ops_t** ops, void** ctx
     esp_err_t e = esp_vfs_littlefs_register(&c);
     if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) return false;   /* no such partition, ... */
     strcpy(g_flash_fs.root, MCS_ESP32_FS_PATH);
-    *ops = &mcs_posixfs_ops;
+    g_flash_label = c.partition_label;
+    g_flash_ops = mcs_posixfs_ops;
+    g_flash_ops.statfs = esp_lfs_statfs;
+    *ops = &g_flash_ops;
     *ctx = &g_flash_fs;
     return true;
 #else

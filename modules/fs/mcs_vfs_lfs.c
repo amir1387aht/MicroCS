@@ -97,7 +97,21 @@ static int l_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
     return e < 0 ? map_err(e) : MCS_VFS_OK;
 }
 
-const mcs_vfs_ops_t mcs_lfs_ops = { l_open, l_read, l_write, l_close, l_stat, l_remove, l_mkdir, l_rename, l_list };
+static int l_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    lfs_t* lfs = (lfs_t*)ctx;
+    lfs_ssize_t used = lfs_fs_size(lfs);              /* blocks in use (incl. metadata) */
+    if (used < 0) return map_err((int)used);
+    uint64_t bs = lfs->cfg->block_size, count = lfs->cfg->block_count;
+#if defined(LFS_VERSION) && LFS_VERSION >= 0x00020007
+    struct lfs_fsinfo fi;
+    if (lfs_fs_stat(lfs, &fi) == 0) { bs = fi.block_size; count = fi.block_count; }
+#endif
+    st->total = bs * count;
+    st->free = (uint64_t)used < count ? bs * (count - (uint64_t)used) : 0;
+    st->format = "littlefs";
+    return MCS_VFS_OK;
+}
+const mcs_vfs_ops_t mcs_lfs_ops = { l_open, l_read, l_write, l_close, l_stat, l_remove, l_mkdir, l_rename, l_list, l_statfs };
 #endif
 
 /* ---- LittleFS block device over mcs_flash_t ---- */

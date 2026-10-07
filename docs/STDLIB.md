@@ -74,6 +74,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **File** | static | — | `ReadAllText(·)` `WriteAllText(·, ·)` `AppendAllText(·, ·)` `ReadAllLines(·)` `WriteAllLines(·, ·)` `AppendAllLines(·, ·)` `ReadAllBytes(·)` `WriteAllBytes(·, ·)` `Exists(·)` `Delete(·)` `Copy(…)` `Move(·, ·)` `GetLength(·)` | `mcs_fs_open_lib` |
 | **Directory** | static | — | `Exists(·)` `CreateDirectory(·)` `GetFiles(·)` `GetDirectories(·)` `GetFileSystemEntries(·)` `Delete(…)` `GetCurrentDirectory()` |  |
 | **Path** | static | — | `Combine(…)` `GetFileName(·)` `GetExtension(·)` `GetFileNameWithoutExtension(·)` `GetDirectoryName(·)` `GetFullPath(·)` |  |
+| **DriveInfo** | instance | `Name` `TotalSize` `AvailableFreeSpace` `TotalFreeSpace` `DriveFormat` `IsReady` | `ToString()` | `new DriveInfo(path)`; size of the mount holding `path` |
+| **DriveInfo** | static | — | `GetDrives()` |  |
 
 ## Hardware (modules/hal)
 

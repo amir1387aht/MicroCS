@@ -105,6 +105,7 @@ One command per line; every reply ends with a status line starting with EOT (0x0
 | `run <f>` | run a source or image file (NOEXEC mounts refused) |
 | `exec <code>` | compile + run one line |
 | `jobs`, `every <ms> <f>`, `after <ms> <f>`, `cancel <id>` | scheduler |
+| `df [dir]` | `<mount> <format> N KB total, N KB used, N KB free` per mount (or for the one holding `dir`) |
 | `mem`, `info`, `help` | diagnostics |
 | `repl` | back to the interactive prompt |
 | `quit` | close the session |

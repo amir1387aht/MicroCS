@@ -77,6 +77,8 @@ try:
     check(st == "OK" and out == b"v1\n", "previous version intact after failed upload")
     st, out = dev.command("ls")
     check(st == "OK" and out.strip() == b"f       24 app.cs", "no partial files (%r)" % out)
+    st, out = dev.command("df")
+    check(st == "OK" and out.startswith(b"/ ramfs 2 KB total, ") and b"KB free" in out, "df reports size (%r)" % out)
     dev.command("quit")
     dev.link.close()
 finally:

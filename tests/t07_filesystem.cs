@@ -43,3 +43,11 @@ Directory.Delete("/logs", true);
 Console.WriteLine(Directory.Exists("/logs") + " " + string.Join(",", Directory.GetFileSystemEntries("/")));
 Console.WriteLine(Path.Combine("/scripts", "app.cs") + " " + Path.GetFileName("/a/b/c.mcsb") + " " +
                   Path.GetExtension("x.tar.gz") + " " + Path.GetDirectoryName("/a/b/c.cs") + " " + Path.GetFullPath("a/./b/../c"));
+
+// DriveInfo: size and free space of the filesystem (8 KB RAM quota here)
+var drive = new DriveInfo("/");
+long before = drive.AvailableFreeSpace;
+File.WriteAllText("/space.txt", big.ToString().Substring(0, 2000));
+Console.WriteLine(drive.Name + " " + drive.DriveFormat + " " + drive.TotalSize + " " + drive.IsReady + " " +
+                  (before - drive.AvailableFreeSpace >= 2000) + " " + (drive.TotalFreeSpace == drive.AvailableFreeSpace));
+foreach (var d in DriveInfo.GetDrives()) Console.WriteLine("drive " + d + " " + (d.TotalSize - d.AvailableFreeSpace));

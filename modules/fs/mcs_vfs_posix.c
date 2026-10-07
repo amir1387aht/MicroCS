@@ -128,5 +128,28 @@ static int p_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
     return MCS_VFS_OK;
 }
 
-const mcs_vfs_ops_t mcs_posixfs_ops = { p_open, p_read, p_write, p_close, p_stat, p_remove, p_mkdir, p_rename, p_list };
+/* ESP-IDF has no statvfs: the ESP32 port wraps these ops with esp_littlefs_info */
+#if defined(_WIN32)
+#include <windows.h>
+static int p_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    ULARGE_INTEGER avail, total, all_free;
+    if (!GetDiskFreeSpaceExA(((mcs_posixfs_t*)ctx)->root, &avail, &total, &all_free)) return MCS_VFS_EIO;
+    st->total = total.QuadPart; st->free = avail.QuadPart; st->format = "posix";
+    return MCS_VFS_OK;
+}
+#define P_STATFS p_statfs
+#elif !defined(ESP_PLATFORM)
+#include <sys/statvfs.h>
+static int p_statfs(void* ctx, mcs_vfs_statfs_t* st) {
+    struct statvfs v;
+    if (statvfs(((mcs_posixfs_t*)ctx)->root, &v)) return map_errno(errno);
+    st->total = (uint64_t)v.f_blocks * v.f_frsize; st->free = (uint64_t)v.f_bavail * v.f_frsize; st->format = "posix";
+    return MCS_VFS_OK;
+}
+#define P_STATFS p_statfs
+#else
+#define P_STATFS NULL
+#endif
+
+const mcs_vfs_ops_t mcs_posixfs_ops = { p_open, p_read, p_write, p_close, p_stat, p_remove, p_mkdir, p_rename, p_list, P_STATFS };
 #endif

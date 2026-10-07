@@ -36,6 +36,13 @@ enum {
 #define MCS_VFS_NOEXEC 0x02    /* files may be read but not run as scripts */
 
 typedef struct { uint32_t size; bool is_dir; } mcs_vfs_stat_t;
+/* capacity of the filesystem behind a mount (DriveInfo, shell `df`) */
+typedef struct {
+    uint64_t total;          /* bytes the filesystem can hold */
+    uint64_t free;           /* bytes still available to files */
+    const char* format;      /* "littlefs", "yaffs2", "ramfs", ... */
+    const char* mount;       /* filled by mcs_vfs_statfs: the mount prefix */
+} mcs_vfs_statfs_t;
 typedef int (*mcs_vfs_list_cb)(void* ud, const char* name, const mcs_vfs_stat_t* st); /* non-zero stops */
 
 typedef struct mcs_vfs_ops {
@@ -48,6 +55,7 @@ typedef struct mcs_vfs_ops {
     int (*mkdir)(void* ctx, const char* path);
     int (*rename)(void* ctx, const char* from, const char* to);    /* may be NULL */
     int (*list)(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud);
+    int (*statfs)(void* ctx, mcs_vfs_statfs_t* st);                /* may be NULL */
 } mcs_vfs_ops_t;
 
 typedef struct {
@@ -83,6 +91,9 @@ int mcs_vfs_remove(mcs_vfs_t* vfs, const char* path);
 int mcs_vfs_mkdir(mcs_vfs_t* vfs, const char* path);
 int mcs_vfs_rename(mcs_vfs_t* vfs, const char* from, const char* to);
 int mcs_vfs_list(mcs_vfs_t* vfs, const char* path, mcs_vfs_list_cb cb, void* ud);
+/* Size and free space of the filesystem that holds `path`. MCS_VFS_EINVAL if
+ * the backend cannot tell (no statfs op). */
+int mcs_vfs_statfs(mcs_vfs_t* vfs, const char* path, mcs_vfs_statfs_t* st);
 /* mount flags that apply to `path` (0 if unmounted) */
 int mcs_vfs_flags(mcs_vfs_t* vfs, const char* path);
 
@@ -96,7 +107,7 @@ const char* mcs_vfs_strerror(int err);
 /* Run a script (source or .mcsb image) from the VFS. Honours MCS_VFS_NOEXEC. */
 mcs_result_t mcs_exec_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path);
 
-/* C# System.IO subset: File, Directory, Path. Stores `vfs` in MCS_EXT_VFS. */
+/* C# System.IO subset: File, Directory, Path, DriveInfo. Stores `vfs` in MCS_EXT_VFS. */
 void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs);
 
 /* ---- LittleFS backend (optional, needs littlefs; see modules/fs/mcs_vfs_lfs.c) ----
@@ -142,8 +153,8 @@ int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const cha
 #endif
 
 /* ---- built-in backends ---- */
-/* RAM filesystem. `limit` caps total file bytes (0 = unlimited). The allocator
- * may be mcs_pool_realloc over a static buffer. */
+/* RAM filesystem. `limit` caps total file bytes (0 = unlimited: statfs then
+ * reports 2 GB). The allocator may be mcs_pool_realloc over a static buffer. */
 typedef struct mcs_ramfs {
     struct mcs_ramfs_node* nodes;
     size_t used, limit;

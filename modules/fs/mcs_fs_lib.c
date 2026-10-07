@@ -1,4 +1,4 @@
-/* MicroCS - C# System.IO subset (File, Directory, Path) on top of the VFS.
+/* MicroCS - C# System.IO subset (File, Directory, Path, DriveInfo) on top of the VFS.
  * There is no current directory: relative paths are taken from "/". */
 #include "mcs_vfs.h"
 #if MCS_ENABLE_FS
@@ -341,10 +341,74 @@ static const mcs_reg_t path_fns[] = {
     MCS_REG_END
 };
 
+/* -------------------------------------------------------------- DriveInfo */
+/* new DriveInfo("/") describes the filesystem mounted at (or holding) a path;
+ * DriveInfo.GetDrives() lists every mount. Sizes are re-read on each access. */
+typedef struct { char path[MCS_VFS_PATH_MAX]; } drive_t;
+static const mcs_class_def_t drive_def;
+
+static void drive_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
+    drive_t* d = (drive_t*)mcs_check_userdata(vm, self, &drive_def);
+    if (mcs_has_exception(vm)) return;
+    if (argc != 1 || !mcs_cstr(argv[0])) { mcs_raise(vm, "ArgumentNullException", "Value cannot be null. (Parameter 'driveName')"); return; }
+    const char* p = mcs_cstr(argv[0]);
+    if (!*p || mcs_vfs_normalize(p, d->path, sizeof d->path))
+        mcs_raise(vm, "ArgumentException", "Drive name must be a root directory (i.e. 'C:\\'), a drive letter ('C'), or a valid path. (Parameter 'driveName')");
+}
+
+static bool drive_stat(mcs_vm_t* vm, mcs_value_t self, mcs_vfs_statfs_t* st, bool raise) {
+    drive_t* d = (drive_t*)mcs_check_userdata(vm, self, &drive_def);
+    if (mcs_has_exception(vm)) return false;
+    int e = VFS() ? mcs_vfs_statfs(VFS(), d->path, st) : MCS_VFS_ENOENT;
+    if (!e) return true;
+    if (!raise) return false;
+    if (e == MCS_VFS_ENOENT) mcs_raise(vm, "DriveNotFoundException", "Could not find the drive '%s'. The drive might not be ready or might not be mapped.", d->path);
+    else if (e == MCS_VFS_EINVAL) mcs_raise(vm, "IOException", "The filesystem at '%s' cannot report its size.", d->path);
+    else mcs_raise(vm, "IOException", "%s: '%s'", mcs_vfs_strerror(e), d->path);
+    return false;
+}
+static mcs_value_t bytes_val(uint64_t n) {
+    mcs_int_t max = (mcs_int_t)(((uint64_t)1 << (sizeof(mcs_int_t) * 8 - 1)) - 1);
+    return mcs_int(n > (uint64_t)max ? max : (mcs_int_t)n);
+}
+NATIVE(dr_total) { mcs_vfs_statfs_t st; return drive_stat(vm, self, &st, true) ? bytes_val(st.total) : mcs_null(); }
+NATIVE(dr_free) { mcs_vfs_statfs_t st; return drive_stat(vm, self, &st, true) ? bytes_val(st.free) : mcs_null(); }
+NATIVE(dr_format) { mcs_vfs_statfs_t st; return drive_stat(vm, self, &st, true) ? mcs_string(vm, st.format ? st.format : "") : mcs_null(); }
+NATIVE(dr_ready) { mcs_vfs_statfs_t st; return mcs_bool(drive_stat(vm, self, &st, false)); }
+NATIVE(dr_name) {
+    drive_t* d = (drive_t*)mcs_check_userdata(vm, self, &drive_def);
+    return mcs_has_exception(vm) ? mcs_null() : mcs_string(vm, d->path);
+}
+NATIVE(dr_drives) {
+    mcs_vfs_t* vfs = VFS();
+    int n = vfs ? vfs->count : 0;
+    mcs_value_t arr = mcs_new_array(vm, (uint32_t)n);
+    mcs_push_root(vm, arr);
+    for (int i = 0; i < n; i++) {
+        mcs_value_t name = mcs_string(vm, vfs->mounts[i].prefix), d;
+        mcs_push_root(vm, name);
+        mcs_result_t r = mcs_new_object(vm, "DriveInfo", 1, &name, &d);
+        mcs_pop_root(vm, 1);
+        if (r != MCS_OK || mcs_has_exception(vm)) break;
+        mcs_set_index(arr, (uint32_t)i, d);
+    }
+    mcs_pop_root(vm, 1);
+    return arr;
+}
+static const mcs_reg_t drive_members[] = {
+    MCS_GET("Name", dr_name), MCS_GET("TotalSize", dr_total),
+    MCS_GET("TotalFreeSpace", dr_free), MCS_GET("AvailableFreeSpace", dr_free),
+    MCS_GET("DriveFormat", dr_format), MCS_GET("IsReady", dr_ready),
+    MCS_FN("ToString", dr_name, 0), MCS_REG_END
+};
+static const mcs_reg_t drive_statics[] = { MCS_FN("GetDrives", dr_drives, 0), MCS_REG_END };
+static const mcs_class_def_t drive_def = { "DriveInfo", sizeof(drive_t), drive_ctor, NULL, drive_members, drive_statics };
+
 void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs) {
     mcs_set_ext(vm, MCS_EXT_VFS, vfs);
     mcs_register_module(vm, "File", file_fns);
     mcs_register_module(vm, "Directory", dir_fns);
     mcs_register_module(vm, "Path", path_fns);
+    mcs_register_class(vm, &drive_def);
 }
 #endif

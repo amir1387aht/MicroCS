@@ -46,6 +46,16 @@ static void exercise(const char* tag, struct yaffs_dev* dev, const char* name, u
     const char* want = "ab 2\n/data/app/cfg.txt,/data/app/main.cs\nFalse True\nFNF\nnot empty\nTrue 1\n";
     CHECK(r == MCS_OK && !strcmp(g_out, want), T("C# File/Directory API"));
     if (strcmp(g_out, want)) printf("got: [%s]\n", g_out);
+    {
+        mcs_vfs_statfs_t sf;
+        CHECK(mcs_vfs_statfs(&vfs, "/data/app", &sf) == 0 && sf.total > 0 && sf.free < sf.total && !strcmp(sf.mount, "/data"), T("statfs"));
+        r = run(&vfs, "var d = new DriveInfo(\"/data\"); long f0 = d.AvailableFreeSpace;\n"
+              "File.WriteAllText(\"/data/space.bin\", new string('s', 20000));\n"
+              "Console.WriteLine(d.DriveFormat + \" \" + (f0 - d.AvailableFreeSpace >= 16000) + \" \" + (d.TotalSize > d.AvailableFreeSpace) + \" \" + d.IsReady);\n"
+              "File.Delete(\"/data/space.bin\");");
+        CHECK(r == MCS_OK && !strcmp(g_out, "yaffs2 True True True\n"), T("DriveInfo free space"));
+        if (strcmp(g_out, "yaffs2 True True True\n")) printf("got: [%s]\n", g_out);
+    }
 
     CHECK(yaffs_unmount(name) == 0 && yaffs_mount(name) == 0, T("unmount + remount ('reboot')"));
     {
