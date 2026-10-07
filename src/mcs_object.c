@@ -270,6 +270,9 @@ mcs_class_t* mcs_new_class(mcs_vm_t* vm, mcs_string_t* name, uint8_t ckind) {
     mcs_table_init(&c->methods); mcs_table_init(&c->getters); mcs_table_init(&c->setters);
     mcs_table_init(&c->statics); mcs_table_init(&c->fields); mcs_table_init(&c->ifaces);
     c->field_defaults = NULL; c->native_ctor = NULL; c->def = NULL; c->rom = NULL;
+#if MCS_FIELD_CACHE
+    c->ctor_cl = NULL; c->ctor_epoch = 0;
+#endif
     return c;
 }
 
@@ -289,6 +292,7 @@ static void own_layout(mcs_vm_t* vm, mcs_class_t* cls) {
 }
 
 void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs_value_t def) {
+    vm->cls_epoch++;
     mcs_value_t slot;
     own_layout(vm, cls);
     if (mcs_table_get_s(&cls->fields, name, &slot)) { cls->field_defaults[slot.as.i] = def; return; }
@@ -303,6 +307,7 @@ void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs
  * Only valid when super's field layout never changes afterwards (built-in
  * classes set up by C code); the borrower copies on its first own field. */
 void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
+    vm->cls_epoch++;
     if (!super->field_count || cls->field_count || cls->fields.count) { mcs_class_inherit(vm, cls, super); return; }
     cls->super = super;
     mcs_table_copy(vm, &super->methods, &cls->methods);
@@ -322,6 +327,7 @@ void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super
  * it. Used for built-in classes, which may be created after scripts already
  * looked up (and so materialized) members of their base class. */
 void mcs_class_inherit_lazy(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
+    vm->cls_epoch++;
     cls->super = super;
     mcs_table_copy(vm, &super->fields, &cls->fields);
     mcs_table_copy(vm, &super->ifaces, &cls->ifaces);
@@ -335,6 +341,7 @@ void mcs_class_inherit_lazy(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) 
 }
 
 void mcs_class_inherit(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super) {
+    vm->cls_epoch++;
     cls->super = super;
     mcs_table_copy(vm, &super->methods, &cls->methods);
     mcs_table_copy(vm, &super->getters, &cls->getters);
@@ -376,6 +383,7 @@ static void ovl_push(mcs_vm_t* vm, mcs_overloads_t* o, mcs_value_t fn) {
  * inherited overloads are kept. Later same-name declarations form an
  * overload set resolved by argument count/types at call time. */
 void mcs_class_add_method(mcs_vm_t* vm, mcs_table_t* t, mcs_string_t* name, mcs_value_t fn, bool first) {
+    vm->cls_epoch++;
     mcs_value_t old;
     if (!mcs_table_get_s(t, name, &old) || !IS_OBJ(old)) { mcs_table_set(vm, t, OBJ_VAL(name), fn); return; }
     if (!first && OBJ_KIND(old) == MCS_O_OVERLOADS) { ovl_push(vm, AS_OVL(old), fn); return; }
@@ -448,7 +456,7 @@ mcs_instance_t* mcs_new_instance(mcs_vm_t* vm, mcs_class_t* cls) {
     size_t n = cls->field_count;
     mcs_instance_t* in = (mcs_instance_t*)mcs_alloc_obj(vm, sizeof(mcs_instance_t) + sizeof(mcs_value_t) * (n ? n - 1 : 0), MCS_O_INSTANCE);
     in->cls = cls;
-    if (n) memcpy(in->fields, cls->field_defaults, sizeof(mcs_value_t) * n);
+    for (size_t i = 0; i < n; i++) in->fields[i] = cls->field_defaults[i];   /* (newlib-nano memcpy is a byte loop) */
     return in;
 }
 
@@ -767,7 +775,11 @@ static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {
         for (uint32_t i = 0; i < f->const_count; i++) mark_val(vm, f->consts[i]);
 #if MCS_FIELD_CACHE
         /* keep cached classes alive so a freed class's address can never alias a new one */
-        for (uint32_t i = 0; i < f->fcache_n; i++) mark_obj(vm, (mcs_obj_t*)f->fcache[i].cls);
+        for (uint32_t i = 0; i < f->fcache_n; i++) {
+            uintptr_t c = (uintptr_t)f->fcache[i].cls;
+            mark_obj(vm, (mcs_obj_t*)(c & ~(uintptr_t)1));
+            if (c & 1) mark_obj(vm, f->fcache[i].u.m);
+        }
 #endif
         break;
     }
@@ -784,6 +796,9 @@ static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {
         mark_table(vm, &c->methods); mark_table(vm, &c->getters); mark_table(vm, &c->setters);
         mark_table(vm, &c->statics); mark_table(vm, &c->fields); mark_table(vm, &c->ifaces);
         for (uint32_t i = 0; i < c->field_count; i++) mark_val(vm, c->field_defaults[i]);
+#if MCS_FIELD_CACHE
+        mark_obj(vm, (mcs_obj_t*)c->ctor_cl);
+#endif
         break;
     }
     case MCS_O_INSTANCE: {
@@ -830,6 +845,7 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
     case MCS_O_NATIVE: mcs_realloc(vm, o, sizeof(mcs_native_t), 0); break;
     case MCS_O_CLASS: {
         mcs_class_t* c = (mcs_class_t*)o;
+        vm->cls_epoch++;   /* its address may be reused by a new class */
         mcs_table_free(vm, &c->methods); mcs_table_free(vm, &c->getters); mcs_table_free(vm, &c->setters);
         for (mcs_rom_t* r = c->rom; r;) { mcs_rom_t* nx = r->next; mcs_realloc(vm, r, sizeof(mcs_rom_t), 0); r = nx; }
         mcs_table_free(vm, &c->statics); mcs_table_free(vm, &c->ifaces);

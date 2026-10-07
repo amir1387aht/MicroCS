@@ -7,7 +7,7 @@ Status: beta.
 ## Install
 
 ```sh
-python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.5.0.zip
+python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.6.0.zip
 ```
 
 Arduino IDE: *Sketch → Include Library → Add .ZIP Library…*. PlatformIO:

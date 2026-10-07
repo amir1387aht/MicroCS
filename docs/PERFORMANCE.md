@@ -5,6 +5,86 @@
 > to it. Nothing here was measured on physical hardware; Cortex-M figures are *instruction
 > counts* in an emulator, not cycles.
 
+## 1.6 — fast bytecode images
+
+Up to 1.5 an image held exactly the bytecode the on-device compiler produces, so running an
+image only saved the compile step. 1.6 makes images a separate, faster path:
+
+* **Optimizer** (`src/mcs_opt.c`, run by `mcs -c` / `mcs_compile_image`): fuses common
+  sequences into **superinstructions** — local ± immediate (`LI_ADD L1 - 1`), local ⊕ local /
+  constant with optional store (`BIN_LLS`, `BIN_LKS`), compare-and-branch on locals and
+  immediates (`JFLI_LT`, `JFLL_LT`, `JF_LK`), accumulate (`ACC_ADD x += …`), `a[i]` / `a[i] = v`
+  on locals, `obj.f` on a local, `return local`, constant folding of `(double)1`. Then jump
+  threading, loop rotation (the loop test moves to the bottom: one branch per iteration),
+  dead-code removal and relayout. Full list: [BYTECODE.md](BYTECODE.md#superinstructions-v2).
+* **VM**: stack pointer kept in a register, int fast paths that work on the stack in place,
+  `array.Length` / `list.Count` / `string.Length` without a method lookup, a **method inline
+  cache** for `INVOKE` (per call site, invalidated by a class epoch), a constructor cache for
+  `new C()`, a direct closure-call path, cheaper returns.
+* **Compact image format v3**: varints, delta-coded line tables, every string stored once
+  (names, file names and constants are shared). Images shrink by 25–45 % and are now smaller
+  than the source for all but tiny scripts.
+* Compiler fixes found on the way: hoisted functions keep their declared return type (no
+  extra `CONV`), typed top-level variables are typed inside functions declared before them
+  (`double ema = 0; void F() { ema = ema * 0.5; }` used integer arithmetic before 1.6).
+
+`mcs -O0 -c` writes an unoptimized image (for VMs built with `MCS_ENABLE_SUPEROPS=0`); source
+run on the device is not optimized unless `MCS_OPTIMIZE_SOURCE=1` (costs compile RAM/time).
+
+### Images vs source on Cortex-M — `make mcu-bench`
+
+`tools/mcu_bench.sh` runs `bench/mcu/*.cs` in one firmware as optimized image, `-O0` image and
+from source (M4F: full build; M0: runtime only, no compiler) and checks every output against
+the host. Emulated instructions for the whole run (load + execute; source = compile + run).
+RAM peak = pool high-water mark.
+
+| Cortex-M4F | Source | Image | From source | Image `-O0` | **Image** | 1.5 image | Peak src / image |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `fib` | 102 B | 146 B | 2.07 M | 2.00 M | **1.43 M** | 2.43 M | 31.4 / 15.1 KB |
+| `loop` | 232 B | 166 B | 13.16 M | 13.07 M | **6.70 M** | 15.0 M | 31.4 / 15.1 KB |
+| `objects` | 406 B | 356 B | 3.64 M | 3.50 M | **3.19 M** | 5.64 M | 72.2 / 72.2 KB |
+| `sensor` | 581 B | 501 B | 0.95 M | 0.71 M | **0.68 M** | 0.87 M | 40.7 / 17.0 KB |
+| `strings` | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 0.63 M | 31.7 / 30.6 KB |
+
+| Cortex-M0 (runtime only) | Image `-O0` | **Image** |
+|---|---:|---:|
+| `fib` | 2.60 M | **1.95 M** |
+| `loop` | 20.74 M | **13.23 M** |
+| `objects` | 4.71 M | **4.37 M** |
+| `sensor` | 1.23 M | **1.21 M** |
+| `strings` | 0.78 M | **0.77 M** |
+
+Where the time goes now: `sensor` is dominated by soft-float `double` arithmetic
+(`MCS_FLOAT_DOUBLE=1`; the M4F FPU is single precision — `MCS_FLOAT_DOUBLE=0` uses it),
+`strings` by string allocation and the GC, `objects` by allocation; script-level dispatch is
+no longer the bottleneck for those. `fib` is call/return-bound (~170 instructions per call).
+
+### Demo and host
+
+| | 1.5 | 1.6 | Change |
+|---|---:|---:|---:|
+| `demo.cs` image, Cortex-M0 (`m0-runtime`) | 4.54 M instr | 2.96 M instr | −35 % |
+| `demo.cs` image, Cortex-M4F (`m4-full`) | 3.44 M instr | 2.18 M instr | −37 % |
+| `demo.cs` from source, Cortex-M4F | 4.41 M instr | 3.73 M instr | −15 % |
+| `examples/lowram` on `m0-64k` | 0.93 M instr | 0.84 M instr | −10 % (plain `-O0` image) |
+| host `bench/fib.cs` image (fib 30) | 73.0 ms | 41.1 ms | −44 % |
+| host `bench/loop.cs` image (10 M iterations) | 322 ms | 95 ms | −70 % |
+| host `bench/objects.cs` image (1 M objects) | 241 ms | 132 ms | −45 % |
+| host `demo.cs` image run | 348 µs | 224 µs | −36 % |
+| host image sizes fib / loop / objects / demo | 318 / 277 / 673 / 2763 B | 226 / 220 / 440 / 1942 B | −29 to −35 % |
+| host `demo.cs` compile to image | 83 µs | 120 µs | +45 % (optimizer; on the PC) |
+
+Host rows: `make bench` of the 1.5 and 1.6 trees back to back in one session (x86-64, gcc
+11.5 `-O2`). Cortex-M rows: `make cm-check`.
+
+### Flash cost
+
+The superinstruction handlers and caches add about **8–11 KB** of Thumb code
+(`m0-runtime` 197.6 → 208.5 KB, `m4-full` 242.0 → 253.1 KB). `profiles/mcs_profile_min.h`
+sets `MCS_ENABLE_SUPEROPS=0` so the 64 KB-flash build still fits (62.6 KB); such VMs run
+`-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
+same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
+
 ## Host interpreter — `make bench`
 
 x86-64 Xeon @ 2.9 GHz, gcc 11.5 `-O2`, best of 5. "Compile" = source → image without running.

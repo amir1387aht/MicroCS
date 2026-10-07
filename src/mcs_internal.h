@@ -75,10 +75,15 @@ typedef struct mcs_function {
 #if MCS_FIELD_CACHE
     struct mcs_fcache* fcache;  /* lazily allocated, indexed by name constant (const_count entries) */
     uint32_t fcache_n;
+    uint32_t fc_epoch;          /* vm->cls_epoch the method entries were filled at */
 #endif
 } mcs_function_t;
 #if MCS_FIELD_CACHE
-typedef struct mcs_fcache { struct mcs_class* cls; uint32_t slot; } mcs_fcache_t;
+/* obj.name inline cache entry. Field entry: cls = the instance's class, u.slot.
+ * Method entry (INVOKE): cls = class pointer | 1, u.m = the closure / native it
+ * resolves to; only valid while fn->fc_epoch == vm->cls_epoch. */
+typedef struct mcs_fcache { struct mcs_class* cls; union { uint32_t slot; struct mcs_obj* m; } u; } mcs_fcache_t;
+#define MCS_FC_METHOD(cls) ((struct mcs_class*)((uintptr_t)(cls) | 1u))
 #endif
 
 typedef struct mcs_upvalue {
@@ -143,6 +148,10 @@ typedef struct mcs_class {
     mcs_native_fn native_ctor;       /* builtin `new` (List, ...) */
     const mcs_class_def_t* def;      /* userdata classes */
     mcs_rom_t* rom;                  /* native members not yet materialized */
+#if MCS_FIELD_CACHE
+    mcs_closure_t* ctor_cl;          /* `new` cache: script constructor, valid while ctor_epoch == vm->cls_epoch */
+    uint32_t ctor_epoch;
+#endif
 } mcs_class_t;
 
 typedef struct {
@@ -242,6 +251,7 @@ struct mcs_vm {
     uint32_t gray_count, gray_cap;
     int gc_pause;
     bool gc_wanted;
+    uint32_t cls_epoch;   /* bumped when a class's members change (invalidates INVOKE caches) */
     mcs_value_t roots[MCS_MAX_ROOTS];
     int root_count;
     mcs_value_t pins[MCS_MAX_PINS];
@@ -272,7 +282,9 @@ struct mcs_vm {
     mcs_string_t* s_main;
     mcs_string_t* s_key;
     mcs_string_t* s_value;
-    mcs_string_t* s_equals;
+    mcs_string_t* s_length;
+    mcs_string_t* s_count;
+    mcs_string_t* s_equals;   /* last: the GC marks s_ctor..s_equals */
 
     /* exceptions */
     bool has_exc;
@@ -317,7 +329,21 @@ struct mcs_vm {
     X(TRY, 2) X(END_TRY, 0) X(THROW, 0) \
     /* image v2: superinstructions (statement stores, fused compare-and-branch) */ \
     X(SET_LOCAL_POP, 1) X(SET_GLOBAL_POP, 2) \
-    X(JF_EQ, 2) X(JF_NE, 2) X(JF_LT, 2) X(JF_LE, 2) X(JF_GT, 2) X(JF_GE, 2)
+    X(JF_EQ, 2) X(JF_NE, 2) X(JF_LT, 2) X(JF_LE, 2) X(JF_GT, 2) X(JF_GE, 2) \
+    MCS_SUPEROPS(X)
+/* image v3: optimizer superinstructions (MCS_ENABLE_SUPEROPS, see src/mcs_opt.c) */
+#define MCS_SUPEROPS(X) \
+    X(BIN_LL, 3) X(BIN_LK, 4) X(BIN_SL, 2) X(BIN_SK, 3) X(BIN_LLS, 4) X(BIN_LKS, 5) X(BIN_LIS, 4) \
+    X(JF_LK, 6) X(JF_SL, 4) X(JF_SK, 5) X(JB_LK, 6) \
+    X(GET_FIELD_L, 3) X(RETURN_LOCAL, 1) X(ACC, 2) X(ACC_ADD, 1) X(ACC_SUB, 1) X(SETF_L, 3) X(GET_INDEX_LL, 2) X(SET_INDEX_LL, 2) \
+    /* one opcode per operation (no operation byte), in BX_* / JX_* order */ \
+    X(LI_ADD, 2) X(LI_SUB, 2) X(LI_MUL, 2) X(LI_DIV, 2) X(LI_MOD, 2) X(LI_BAND, 2) X(LI_BOR, 2) X(LI_BXOR, 2) X(LI_SHL, 2) X(LI_SHR, 2) X(LI_USHR, 2) \
+    X(SI_ADD, 1) X(SI_SUB, 1) X(SI_MUL, 1) X(SI_DIV, 1) X(SI_MOD, 1) X(SI_BAND, 1) X(SI_BOR, 1) X(SI_BXOR, 1) X(SI_SHL, 1) X(SI_SHR, 1) X(SI_USHR, 1) \
+    X(JFLI_EQ, 4) X(JFLI_NE, 4) X(JFLI_LT, 4) X(JFLI_LE, 4) X(JFLI_GT, 4) X(JFLI_GE, 4) \
+    X(JFSI_EQ, 3) X(JFSI_NE, 3) X(JFSI_LT, 3) X(JFSI_LE, 3) X(JFSI_GT, 3) X(JFSI_GE, 3) \
+    X(JBLI_EQ, 4) X(JBLI_NE, 4) X(JBLI_LT, 4) X(JBLI_LE, 4) X(JBLI_GT, 4) X(JBLI_GE, 4) \
+    X(JFLL_EQ, 4) X(JFLL_NE, 4) X(JFLL_LT, 4) X(JFLL_LE, 4) X(JFLL_GT, 4) X(JFLL_GE, 4) \
+    X(JBLL_EQ, 4) X(JBLL_NE, 4) X(JBLL_LT, 4) X(JBLL_LE, 4) X(JBLL_GT, 4) X(JBLL_GE, 4)
 
 typedef enum {
 #define X(name, len) OP_##name,
@@ -327,6 +353,42 @@ typedef enum {
 } mcs_opcode_t;
 
 extern const uint8_t mcs_op_len[OP__COUNT];
+#define OP_FIRST_SUPEROP OP_BIN_LL
+/* Optimizer superinstructions (src/mcs_opt.c). Operand letters: L = local
+ * slot (u8), K = constant index (u16), I = signed 8-bit immediate, S = the
+ * value on top of the stack, o16 = branch offset. The generic forms carry the
+ * operation in their first operand byte (BX_* / JX_*); the hot int-immediate
+ * and local/local forms have one opcode per operation (OP_LI_ADD + BX_SUB is
+ * OP_LI_SUB, OP_JFLL_EQ + JX_LT is OP_JFLL_LT) so the handler needs no second
+ * dispatch.
+ *   BIN_LL op a b      push slots[a] <op> slots[b]       BIN_LK op a k   push slots[a] <op> consts[k]
+ *   BIN_SL op b        top = top <op> slots[b]           BIN_SK op k     top = top <op> consts[k]
+ *   BIN_LLS op a b d   slots[d] = slots[a] <op> slots[b] BIN_LKS op a k d   BIN_LIS op a i d
+ *   LI_<op> a i        push slots[a] <op> i              SI_<op> i       top = top <op> i
+ *   ACC op d           slots[d] = slots[d] <op> pop      ACC_ADD d, ACC_SUB d
+ *   JF_LK c a k o16    jump forward o16 unless slots[a] <c> consts[k]
+ *   JF_SL c b o16      pop x; jump forward unless x <c> slots[b]        (JF_SK: consts[k])
+ *   JFLL_<c> a b o16   jump forward unless slots[a] <c> slots[b]        (JFLI_<c> a i o16)
+ *   JFSI_<c> i o16     pop x; jump forward unless x <c> i
+ *   JBLL_<c> a b o16   jump back o16 (safepoint) if slots[a] <c> slots[b] (JBLI_<c> a i, JB_LK c a k)
+ *   GET_FIELD_L s k    push slots[s].name     RETURN_LOCAL s   return slots[s]
+ *   SETF_L s k         slots[s].name = pop (statement: nothing pushed)
+ *   GET_INDEX_LL a i   push slots[a][slots[i]]   SET_INDEX_LL a i   slots[a][slots[i]] = pop (statement) */
+enum { BX_ADD, BX_SUB, BX_MUL, BX_DIV, BX_MOD, BX_BAND, BX_BOR, BX_BXOR, BX_SHL, BX_SHR, BX_USHR, BX__COUNT };
+enum { JX_EQ, JX_NE, JX_LT, JX_LE, JX_GT, JX_GE, JX__COUNT };
+/* opcode families with one opcode per operation */
+#define OP_IN(op, first, n) ((unsigned)((op) - (first)) < (unsigned)(n))
+#define OP_IS_LI(op) OP_IN(op, OP_LI_ADD, BX__COUNT)
+#define OP_IS_SI(op) OP_IN(op, OP_SI_ADD, BX__COUNT)
+#define OP_IS_JFLI(op) OP_IN(op, OP_JFLI_EQ, JX__COUNT)
+#define OP_IS_JFSI(op) OP_IN(op, OP_JFSI_EQ, JX__COUNT)
+#define OP_IS_JBLI(op) OP_IN(op, OP_JBLI_EQ, JX__COUNT)
+#define OP_IS_JFLL(op) OP_IN(op, OP_JFLL_EQ, JX__COUNT)
+#define OP_IS_JBLL(op) OP_IN(op, OP_JBLL_EQ, JX__COUNT)
+uint32_t mcs_insn_len(const mcs_function_t* fn, uint32_t pc);
+#if MCS_ENABLE_OPTIMIZER
+void mcs_optimize(mcs_vm_t* vm, mcs_function_t* fn, int depth);
+#endif
 extern const char* const mcs_op_name[OP__COUNT];
 void* mcs_sys_realloc(void* ud, void* p, size_t old, size_t nsz);
 

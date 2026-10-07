@@ -64,7 +64,7 @@ NODE_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_E
 NODE_SRC := $(wildcard $(ROOT)/src/*.c) startup.c board.c $(ROOT)/examples/lowram/lowram_firmware.c
 all: $(OUT)/m0-node.elf
 $(ROOT)/examples/lowram/node_image.h: $(ROOT)/examples/lowram/node.cs $(MCS)
-	$(MCS) -C $< -n node_image -o $@
+	$(MCS) -O0 -C $< -n node_image -o $@
 $(OUT)/m0-node.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
 	@mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(NODE_F) -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ $(LDFLAGS) \
@@ -96,3 +96,20 @@ run: all
 clean:
 	rm -rf $(OUT)
 .PHONY: all run clean
+
+# benchmark firmware (tools/mcu_bench.sh): bench/mcu/*.cs as optimized image,
+# -O0 image and source; M4 full profile and M0 runtime-only (images only)
+BENCH_SRC := $(filter-out %main.c,$(SRC)) bench.c
+$(OUT)/bench_scripts.h: $(wildcard $(ROOT)/bench/mcu/*.cs) $(ROOT)/tools/gen_bench_h.py $(MCS)
+	@mkdir -p $(OUT)
+	python3 $(ROOT)/tools/gen_bench_h.py $@
+bench: $(OUT)/m4-bench.elf $(OUT)/m0-bench.elf
+$(OUT)/m4-bench.elf: $(BENCH_SRC) $(OUT)/bench_scripts.h cm.ld Makefile
+	$(CC) $(CFLAGS) $(M4) $(BENCH_CFLAGS) -DCM_TARGET='"m4-bench"' -DCM_HEAP_SIZE=98304 $(BENCH_SRC) -o $@ $(LDFLAGS) \
+	  -Wl,--defsym=FLASH_SIZE=512K -Wl,--defsym=RAM_SIZE=192K -Wl,--defsym=STACK_SIZE=8K -Wl,--defsym=SBRK_SIZE=2K
+	@$(SIZE) $@
+$(OUT)/m0-bench.elf: $(BENCH_SRC) $(OUT)/bench_scripts.h cm.ld Makefile
+	$(CC) $(CFLAGS) $(M0) $(RUNTIME) $(BENCH_CFLAGS) -DCM_TARGET='"m0-bench"' -DCM_HEAP_SIZE=65536 $(BENCH_SRC) -o $@ $(LDFLAGS) \
+	  -Wl,--defsym=FLASH_SIZE=256K -Wl,--defsym=RAM_SIZE=128K -Wl,--defsym=STACK_SIZE=8K -Wl,--defsym=SBRK_SIZE=2K
+	@$(SIZE) $@
+.PHONY: bench
