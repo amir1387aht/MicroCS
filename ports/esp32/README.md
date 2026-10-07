@@ -18,21 +18,65 @@ idf.py build flash monitor         # press Enter, type C# at the "> " prompt
 ```
 my_board/
 ├── CMakeLists.txt          # plain IDF project file, nothing MicroCS-specific
-├── sdkconfig.defaults      # 16 KB main-task stack (delete an old sdkconfig after adding it)
+├── sdkconfig.defaults      # 16 KB main-task stack, partitions.csv, 4 MB flash
+│                           #   (delete an old sdkconfig after adding it)
+├── partitions.csv          # 1.5 MB app + LittleFS "storage" partition for your scripts
 ├── main/
 │   ├── CMakeLists.txt      # idf_component_register(SRCS "main.c")
-│   └── main.c              # ~35 lines: heap, console, mcs_runtime_run()
+│   └── main.c              # ~45 lines: flash filesystem, heap, console, mcs_runtime_run()
 └── components/
     └── MicroCS/            # this repository (git clone or git submodule)
 ```
 
 In VS Code (ESP-IDF extension): *Set Espressif Device Target* → *Build, Flash and Monitor*.
 There is no `idf_component.yml` to add to your project; the one in the repository root
-belongs to MicroCS itself.
+belongs to MicroCS itself (it pulls in the `joltwallet/littlefs` component automatically
+on the first build).
 
 The console (`mcs_esp32_console()`) is UART0 **and** USB-Serial-JTAG at the same time, so
 the prompt shows up on either USB connector of an S3/C3/C6 DevKit. The banner is printed
 once at boot — if the monitor attached later, press Enter for a fresh `> `.
+
+## Files on flash (LittleFS)
+
+Scripts you upload, `/boot.cs`, `/main.cs` and every file a script writes live in a
+**LittleFS** filesystem on the chip's SPI NOR flash, so they survive resets and power cycles.
+LittleFS is made for NOR flash: power-loss safe (an interrupted write leaves the old file),
+wear levelling, small RAM use. Uploads by `tools/mcs_remote.py` are written to a temporary
+file and renamed, so a reset during `put` never leaves a half-written `/main.cs`.
+
+```c
+mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+bool on_flash = mcs_esp32_littlefs("storage", &cfg.fs_ops, &cfg.fs_ctx);   // before allocating the VM heap
+if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no partition: RAM disk
+```
+
+* **Partition**: `storage` in [`example/partitions.csv`](example/partitions.csv) (type `data`,
+  subtype `spiffs`). It is formatted automatically on first boot. The example is laid out
+  for **4 MB** of flash (1.5 MB app, 2.4 MB files). On bigger flash set *Serial flasher
+  config → Flash size* in menuconfig (or `CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` in
+  `sdkconfig.defaults`) and grow `storage` to the end of the chip:
+
+  | Flash | `storage` size | Space for files |
+  |---|---|---|
+  | 4 MB | `0x270000` | 2.4 MB |
+  | 8 MB | `0x670000` | 6.4 MB |
+  | 16 MB | `0xE70000` | 14.4 MB |
+
+  The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
+* **C code sees the same files**: the partition is mounted in the ESP-IDF VFS at `/mcs`
+  (`MCS_ESP32_FS_PATH`), so `fopen("/mcs/config.json", "r")` reads what a script wrote to
+  `/config.json`.
+* **From C#**: `File.WriteAllText("/log.txt", ...)`, `File.ReadAllText`, `File.AppendAllText`,
+  `Directory.CreateDirectory`, ... — see [FILESYSTEM.md](../../docs/FILESYSTEM.md#c-api).
+* **From the PC**:
+  `python tools/mcs_remote.py --port COM18 put app.cs /main.cs + ls` — `/main.cs` then runs
+  at every boot. `get`, `rm`, `mkdir`, `mv` work the same way.
+* **Wipe everything**: `idf.py erase-flash` (or `rm` the files); the next boot formats the
+  partition again.
+
+Flashing a new firmware with `idf.py flash` writes only the app and partition table, so your
+files stay — unless you change `partitions.csv` so that `storage` moves.
 
 ## Pins
 
@@ -72,8 +116,8 @@ either), `mcs_esp32_console_usb()` (USB-Serial-JTAG only) or `mcs_esp32_console_
 ## Memory
 
 The example allocates up to 192 KB for the VM with `heap_caps_malloc`, clamped to the largest
-free block minus a 32 KB reserve for drivers and FreeRTOS (~120 KB on the C2), and gives a
-sixth of it to the RAM disk; 96 KB is plenty
+free block minus a 32 KB reserve for drivers and FreeRTOS (~120 KB on the C2); a RAM disk (a
+sixth of the heap) is only used when there is no `storage` partition; 96 KB is plenty
 for the REPL on the C3. On boards with PSRAM you can pass `MALLOC_CAP_SPIRAM`.
 
 ## Build profile per chip

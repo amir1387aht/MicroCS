@@ -827,6 +827,43 @@ mcs_transport_t mcs_esp32_console(void) {
     return t;
 }
 
+/* ------------------------------------------------------------------ flash filesystem */
+#if MCS_ENABLE_FS
+#if defined(__has_include)
+#if __has_include("esp_littlefs.h")
+#include "esp_littlefs.h"
+#define MCS_ESP32_LITTLEFS 1
+#endif
+#endif
+static mcs_posixfs_t g_flash_fs;
+bool mcs_esp32_littlefs(const char* label, const mcs_vfs_ops_t** ops, void** ctx) {
+#if MCS_ESP32_LITTLEFS
+    esp_vfs_littlefs_conf_t c;
+    memset(&c, 0, sizeof c);
+    c.base_path = MCS_ESP32_FS_PATH;
+    c.partition_label = label ? label : "storage";
+    c.format_if_mount_failed = true;          /* first boot: format the empty partition */
+    esp_err_t e = esp_vfs_littlefs_register(&c);
+    if (e != ESP_OK && e != ESP_ERR_INVALID_STATE) return false;   /* no such partition, ... */
+    strcpy(g_flash_fs.root, MCS_ESP32_FS_PATH);
+    *ops = &mcs_posixfs_ops;
+    *ctx = &g_flash_fs;
+    return true;
+#else
+    (void)label; (void)ops; (void)ctx;
+    return false;
+#endif
+}
+bool mcs_esp32_littlefs_info(const char* label, size_t* total, size_t* used) {
+#if MCS_ESP32_LITTLEFS
+    return esp_littlefs_info(label ? label : "storage", total, used) == ESP_OK;
+#else
+    (void)label; (void)total; (void)used;
+    return false;
+#endif
+}
+#endif
+
 static int e_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
     if ((!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) && g_cfg.led >= 0) return g_cfg.led;

@@ -88,7 +88,21 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg);
 /* Console for the REPL / shell / mcs_runtime. */
 mcs_transport_t mcs_esp32_console_uart(int port, uint32_t baud);  /* UART0 = the USB-UART bridge on most boards */
 mcs_transport_t mcs_esp32_console_usb(void);   /* USB-Serial-JTAG (C3, C6, S3, H2, P4); falls back to UART0 */
-mcs_transport_t mcs_esp32_console(void);       /* both: UART0 + USB-Serial-JTAG (use this if unsure) */
+mcs_transport_t mcs_esp32_console(void);
+/* LittleFS on a flash data partition (default label "storage", see the example's
+ * partitions.csv), formatted on first use and mounted in the ESP-IDF VFS at
+ * MCS_ESP32_FS_PATH (C code can fopen() the same files). Fills ops/ctx for
+ * mcs_runtime_cfg_t.fs_ops/fs_ctx or mcs_vfs_mount(). false = no such partition
+ * or no LittleFS component - fall back to the RAM disk. */
+#ifndef MCS_ESP32_FS_PATH
+#define MCS_ESP32_FS_PATH "/mcs"
+#endif
+#if MCS_ENABLE_FS
+#include <stdbool.h>
+#include "mcs_vfs.h"
+bool mcs_esp32_littlefs(const char* partition_label, const mcs_vfs_ops_t** ops, void** ctx);
+bool mcs_esp32_littlefs_info(const char* partition_label, size_t* total, size_t* used);
+#endif       /* both: UART0 + USB-Serial-JTAG (use this if unsure) */
 uint32_t mcs_esp32_ticks(void* ud);            /* milliseconds since boot */
 void mcs_esp32_delay(void* ud, uint32_t ms);   /* vTaskDelay, at least one tick */
 

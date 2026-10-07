@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the README charts (assets/bench.svg, assets/footprint.svg, assets/compare.svg).
 
-Numbers are copied from `make bench` and `tools/map_sizes.py` output (see
+Numbers are copied from `make bench`, `tools/map_sizes.py` and bench/compare/ output (see
 docs/PERFORMANCE.md); update them here and re-run after re-measuring.
 Transparent background + mid-grey text so the SVGs work in light and dark mode.
 """
@@ -22,12 +22,12 @@ def style(ax):
     ax.title.set_color(FG)
 
 # --- host benchmarks (ms, best of 5; lower is better) -------------------------
-# (name, MicroCS 1.6 image, MicroCS 1.5 image, CPython 3.13) - same machine, same session
-bench = [("fib(30) recursion", 41, 73, 97), ("10 M-iteration loop", 95, 322, 895), ("1 M objects + calls", 132, 241, 356)]
+# (name, MicroCS image, MicroPython 1.26 unix port, CPython 3.13) - same machine, same session
+bench = [("fib(30) recursion", 41, 254, 97), ("10 M-iteration loop", 95, 780, 895), ("1 M objects + calls", 132, 548, 356)]
 fig, ax = plt.subplots(figsize=(8, 3.3))
 y = range(len(bench))
 h = 0.26
-series = [(1, VIOLET, "MicroCS 1.6 (optimized image)"), (2, "#c4b5fd", "MicroCS 1.5 (image)"), (3, GREY, "CPython 3.13")]
+series = [(1, VIOLET, "MicroCS (optimized image)"), (2, "#f59e0b", "MicroPython 1.26"), (3, GREY, "CPython 3.13")]
 for k, (col, color, label) in enumerate(series):
     bars = ax.barh([i + (k - 1) * h for i in y], [b[col] for b in bench], h, color=color, label=label)
     for r in bars:
@@ -36,7 +36,7 @@ ax.set_yticks(list(y)); ax.set_yticklabels([b[0] for b in bench], color=FG)
 ax.invert_yaxis(); ax.set_xlim(0, 1060); ax.set_xticks([])
 leg = ax.legend(loc="lower right", frameon=False, fontsize=9.5)
 for t in leg.get_texts(): t.set_color(FG)
-ax.set_title("Host x86-64, gcc -O2, best of 5 — lower is better", fontsize=11, loc="left", color=FG)
+ax.set_title("PC x86-64, best of 5 — lower is better", fontsize=11, loc="left", color=FG)
 style(ax); ax.spines["bottom"].set_visible(False)
 fig.tight_layout()
 fig.savefig("assets/bench.svg", transparent=True)

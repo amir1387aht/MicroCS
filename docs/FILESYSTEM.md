@@ -23,7 +23,7 @@ mcs_fs_open_lib(vm, &vfs);                                             /* C# Fil
 | Backend | Use | Notes |
 |---|---|---|
 | `mcs_ramfs_ops` | tests, scratch, MCUs without flash FS | byte quota, custom allocator (e.g. the VM pool), ≤64 entries listed per dir |
-| `mcs_posixfs_ops` | host CLI (`--fs DIR`) | confined to the directory; sorted listings |
+| `mcs_posixfs_ops` | host CLI (`--fs DIR`); ESP-IDF VFS mounts | confined to the directory; sorted listings. On ESP32 `mcs_esp32_littlefs()` uses it on top of the `joltwallet/littlefs` component (LittleFS on a flash partition, [ports/esp32](../ports/esp32/README.md#files-on-flash-littlefs)) |
 | `mcs_lfs_ops` | MCU flash (NOR, NAND) | LittleFS v2; `lfs_t` owned by the port; atomic rename; file handles from a fixed table (`MCS_LFS_MAX_FILES`=4, process-wide); LittleFS allocates its per-file cache with `lfs_malloc` unless built with `LFS_NO_MALLOC` |
 | `mcs_yaffs_ops` | MCU flash, NAND first (also NOR) | YAFFS2 "direct"; ctx = a mounted `struct yaffs_dev*`; uses the `*_reldev` API so the VFS prefix and YAFFS device name are independent; bad-block management, wear levelling; **GPLv2** (or commercial licence from Aleph One) |
 

@@ -52,7 +52,7 @@ f32 bits (used when the value is exactly representable).
 
 Version 1/2 used `u32` counts, `u16`-length strings (`0xFFFF` = null) without sharing, `u64`
 ints and `u32` `(pc, line)` pairs. Version 3 images are 25–45 % smaller
-([PERFORMANCE.md](PERFORMANCE.md#16--fast-bytecode-images)).
+([PERFORMANCE.md](PERFORMANCE.md#bytecode-images)).
 
 An image with floating-point constants is rejected by a VM built with `MCS_ENABLE_FLOAT=0`;
 a 64-bit-int image loads on a 32-bit-int VM (constants are truncated). An optimized image is
