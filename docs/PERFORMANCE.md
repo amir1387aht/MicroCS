@@ -66,7 +66,7 @@ no longer the bottleneck for those. `fib` is call/return-bound (~170 instruction
 | `demo.cs` image, Cortex-M0 (`m0-runtime`) | 4.54 M instr | 2.96 M instr | −35 % |
 | `demo.cs` image, Cortex-M4F (`m4-full`) | 3.44 M instr | 2.18 M instr | −37 % |
 | `demo.cs` from source, Cortex-M4F | 4.41 M instr | 3.73 M instr | −15 % |
-| `examples/lowram` on `m0-64k` | 0.93 M instr | 0.84 M instr | −10 % (plain `-O0` image) |
+| `examples/lowram` on `m0-64k` | 0.93 M instr | 0.93 M instr | ±0 (`min`: plain `-O0` image, no caches) |
 | host `bench/fib.cs` image (fib 30) | 73.0 ms | 41.1 ms | −44 % |
 | host `bench/loop.cs` image (10 M iterations) | 322 ms | 95 ms | −70 % |
 | host `bench/objects.cs` image (1 M objects) | 241 ms | 132 ms | −45 % |
@@ -81,7 +81,8 @@ Host rows: `make bench` of the 1.5 and 1.6 trees back to back in one session (x8
 
 The superinstruction handlers and caches add about **8–11 KB** of Thumb code
 (`m0-runtime` 197.6 → 208.5 KB, `m4-full` 242.0 → 253.1 KB). `profiles/mcs_profile_min.h`
-sets `MCS_ENABLE_SUPEROPS=0` so the 64 KB-flash build still fits (62.6 KB); such VMs run
+sets `MCS_ENABLE_SUPEROPS=0` and `MCS_FIELD_CACHE=0` so the 64 KB-flash build keeps its margin
+(60.6 KB with this toolchain; Ubuntu's newlib adds ~0.9 KB); such VMs run
 `-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
 same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 

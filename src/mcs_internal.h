@@ -307,7 +307,7 @@ struct mcs_vm {
 };
 
 /* -------------------------------------------------------- opcodes */
-#define MCS_OPCODES(X) \
+#define MCS_OPCODES_BASE(X) \
     X(CONST, 2) X(NULL, 0) X(TRUE, 0) X(FALSE, 0) X(INT8, 1) \
     X(POP, 0) X(DUP, 0) X(DUP2, 0) X(SWAP, 0) X(ROT, 1) \
     X(GET_LOCAL, 1) X(SET_LOCAL, 1) X(GET_UPVAL, 1) X(SET_UPVAL, 1) \
@@ -329,8 +329,8 @@ struct mcs_vm {
     X(TRY, 2) X(END_TRY, 0) X(THROW, 0) \
     /* image v2: superinstructions (statement stores, fused compare-and-branch) */ \
     X(SET_LOCAL_POP, 1) X(SET_GLOBAL_POP, 2) \
-    X(JF_EQ, 2) X(JF_NE, 2) X(JF_LT, 2) X(JF_LE, 2) X(JF_GT, 2) X(JF_GE, 2) \
-    MCS_SUPEROPS(X)
+    X(JF_EQ, 2) X(JF_NE, 2) X(JF_LT, 2) X(JF_LE, 2) X(JF_GT, 2) X(JF_GE, 2)
+#define MCS_OPCODES(X) MCS_OPCODES_BASE(X) MCS_SUPEROPS(X)
 /* image v3: optimizer superinstructions (MCS_ENABLE_SUPEROPS, see src/mcs_opt.c) */
 #define MCS_SUPEROPS(X) \
     X(BIN_LL, 3) X(BIN_LK, 4) X(BIN_SL, 2) X(BIN_SK, 3) X(BIN_LLS, 4) X(BIN_LKS, 5) X(BIN_LIS, 4) \
@@ -352,8 +352,17 @@ typedef enum {
     OP__COUNT
 } mcs_opcode_t;
 
-extern const uint8_t mcs_op_len[OP__COUNT];
 #define OP_FIRST_SUPEROP OP_BIN_LL
+/* opcodes the VM has handlers and table entries for (a VM built without
+ * superinstructions carries no table space for them; the loader rejects them) */
+#if MCS_ENABLE_SUPEROPS
+#define MCS_OPCODES_RT(X) MCS_OPCODES(X)
+#define OP_RT_COUNT OP__COUNT
+#else
+#define MCS_OPCODES_RT(X) MCS_OPCODES_BASE(X)
+#define OP_RT_COUNT OP_FIRST_SUPEROP
+#endif
+extern const uint8_t mcs_op_len[OP_RT_COUNT];
 /* Optimizer superinstructions (src/mcs_opt.c). Operand letters: L = local
  * slot (u8), K = constant index (u16), I = signed 8-bit immediate, S = the
  * value on top of the stack, o16 = branch offset. The generic forms carry the
@@ -389,7 +398,7 @@ uint32_t mcs_insn_len(const mcs_function_t* fn, uint32_t pc);
 #if MCS_ENABLE_OPTIMIZER
 void mcs_optimize(mcs_vm_t* vm, mcs_function_t* fn, int depth);
 #endif
-extern const char* const mcs_op_name[OP__COUNT];
+extern const char* const mcs_op_name[OP_RT_COUNT];
 void* mcs_sys_realloc(void* ud, void* p, size_t old, size_t nsz);
 
 /* conversion kinds for OP_CONV and array defaults */

@@ -73,7 +73,7 @@ uint32_t mcs_fn_add_const(mcs_vm_t* vm, mcs_function_t* fn, mcs_value_t v) {
 /* length of the instruction at code[pc] including operands */
 uint32_t mcs_insn_len(const mcs_function_t* fn, uint32_t pc) {
     uint8_t op = fn->code[pc];
-    if (op >= OP__COUNT) return 0;
+    if (op >= OP_RT_COUNT) return 0;
     uint32_t n = 1u + mcs_op_len[op];
     if (op == OP_CLOSURE && pc + 2 < fn->code_len) {
         uint16_t k = (uint16_t)((fn->code[pc + 1] << 8) | fn->code[pc + 2]);
@@ -244,7 +244,9 @@ typedef struct {
 
 static void w8(saver_t* s, uint8_t v) { mcs_buf_putc(&s->b, (char)v); }
 static void w16(saver_t* s, uint16_t v) { w8(s, (uint8_t)v); w8(s, (uint8_t)(v >> 8)); }
-static inline void w32(saver_t* s, uint32_t v) { w16(s, (uint16_t)v); w16(s, (uint16_t)(v >> 16)); }
+#if MCS_ENABLE_FLOAT
+static void w32(saver_t* s, uint32_t v) { w16(s, (uint16_t)v); w16(s, (uint16_t)(v >> 16)); }
+#endif
 static void wv(saver_t* s, uint64_t v) {
     while (v >= 0x80) { w8(s, (uint8_t)(v | 0x80)); v >>= 7; }
     w8(s, (uint8_t)v);
@@ -618,6 +620,12 @@ static mcs_function_t* read_fn(loader_t* l) {
     /* validate & relink */
     for (uint32_t pc = 0; pc < clen;) {
         uint8_t op = fn->code[pc];
+#if !MCS_ENABLE_SUPEROPS
+        if (op >= OP_FIRST_SUPEROP && op < OP__COUNT) {
+            snprintf(vm->error, sizeof vm->error, "image uses superinstructions; rebuild with MCS_ENABLE_SUPEROPS=1 or compile with -O0");
+            l->bad = true; return NULL;
+        }
+#endif
         uint32_t len = mcs_insn_len(fn, pc);
         if (!len || pc + len > clen) { l->bad = true; return NULL; }
         if (op == OP_GET_GLOBAL || op == OP_SET_GLOBAL || op == OP_SET_GLOBAL_POP) {
@@ -639,10 +647,7 @@ static mcs_function_t* read_fn(loader_t* l) {
                 if (d != 0xFFFF && d >= fn->const_count) { l->bad = true; return NULL; }
             }
         } else if (op >= OP_FIRST_SUPEROP) {
-#if !MCS_ENABLE_SUPEROPS
-            snprintf(vm->error, sizeof vm->error, "image uses superinstructions; rebuild with MCS_ENABLE_SUPEROPS=1 or compile with -O0");
-            l->bad = true; return NULL;
-#else
+#if MCS_ENABLE_SUPEROPS
             /* constant operand position (0 = none) of the fused forms */
             uint32_t ko = 0;
             switch (op) {
@@ -674,6 +679,9 @@ static mcs_function_t* read_fn(loader_t* l) {
             fn->lines[i].pc = pc; fn->lines[i].line = line;
 #endif
         }
+#if !MCS_ENABLE_LINES
+        MCS_UNUSED(pc); MCS_UNUSED(line);
+#endif
     }
     l->depth--;
     return l->bad ? NULL : fn;

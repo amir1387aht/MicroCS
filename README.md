@@ -421,7 +421,7 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 | **M0**, `lowram` profile, 40 KB pool | 196.5 KB | 64 KB part | 5.1 KB | 2.90 M instr · 30.0 KB peak | — |
 | **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 157.2 KB | 48 KB part | 1.8 KB | 0.95 M instr · 13.8 KB peak | — |
 | **M0**, same node in **16 KB RAM** (`m0-16k`), 12 KB pool | 157.2 KB | 16 KB | 1.8 KB | 0.84 M instr · 11.0 KB peak | — |
-| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **62.6 KB** | 16 KB | 1.8 KB | 0.84 M instr · 10.9 KB peak | — |
+| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **60.6 KB** | 16 KB | 1.8 KB | 0.93 M instr · 10.4 KB peak | — |
 | **M4F**, full | 253.1 KB | 192 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr · 71.9 KB peak |
 | **M33**, full (+ shell 259.2 KB) | 253.0 KB | 288 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr |
 

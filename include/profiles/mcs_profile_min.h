@@ -28,6 +28,10 @@
 #ifndef MCS_ENABLE_SUPEROPS
 #define MCS_ENABLE_SUPEROPS 0
 #endif
+/* inline field/method caches: ~1 KB of code and 8 B per name constant */
+#ifndef MCS_FIELD_CACHE
+#define MCS_FIELD_CACHE 0
+#endif
 #ifndef MCS_ENABLE_DISASM
 #define MCS_ENABLE_DISASM 0
 #endif

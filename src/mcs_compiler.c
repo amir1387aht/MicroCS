@@ -838,6 +838,8 @@ static uint8_t compile_interp(comp_t* c, node_t* n) {
                 int k = 0;
                 if (p->ival) k = snprintf(spec, sizeof spec, ",%d", (int)p->ival);
                 if (p->name) k += snprintf(spec + k, sizeof spec - (size_t)k, ":%.*s", (int)p->len, p->name);
+                if (k < 0) k = 0;
+                if (k >= (int)sizeof spec) k = (int)sizeof spec - 1;   /* over-long format spec: truncated */
                 emit_op16(c, OP_CONST, kstr(c, spec, (uint32_t)k));
                 emit_op(c, OP_TOSTR_FMT);
             } else if (pt != PT_STRING) emit_op(c, OP_TOSTR);

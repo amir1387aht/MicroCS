@@ -7,14 +7,14 @@
 #include <math.h>
 #endif
 
-const uint8_t mcs_op_len[OP__COUNT] = {
+const uint8_t mcs_op_len[OP_RT_COUNT] = {
 #define X(name, len) len,
-    MCS_OPCODES(X)
+    MCS_OPCODES_RT(X)
 #undef X
 };
-const char* const mcs_op_name[OP__COUNT] = {
+const char* const mcs_op_name[OP_RT_COUNT] = {
 #define X(name, len) #name,
-    MCS_OPCODES(X)
+    MCS_OPCODES_RT(X)
 #undef X
 };
 
@@ -954,9 +954,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     } while (0)
 
 #if MCS_COMPUTED_GOTO
-    static void* labels[OP__COUNT] = {
+    static void* labels[OP_RT_COUNT] = {
 #define X(name, len) &&L_##name,
-        MCS_OPCODES(X)
+        MCS_OPCODES_RT(X)
 #undef X
     };
 #define CASE(name) L_##name:
@@ -1502,11 +1502,6 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         sp = vm->sp;
         DISPATCH();
     }
-#else
-#define X(name, len) CASE(name)
-    MCS_SUPEROPS(X)
-#undef X
-        SAVE(); mcs_throw(vm, EXC_SYSTEM, "invalid opcode (built with MCS_ENABLE_SUPEROPS=0)"); THROWN();
 #endif
     CASE(INC_LOCAL) {
         uint8_t s = READ8(); int8_t d = (int8_t)READ8();

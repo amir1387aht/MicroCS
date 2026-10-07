@@ -23,7 +23,8 @@ larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#16--fast-b
 - `mcs -c` / `mcs -C` / `mcs_compile_image*` optimize by default; `mcs -O0` and
   `MCS_IMAGE_NO_OPT` produce plain bytecode. Source run on the device is unchanged unless
   `MCS_OPTIMIZE_SOURCE=1`.
-- New switches `MCS_ENABLE_SUPEROPS` (default 1; **0 in `mcs_profile_min.h`**, saves ~8 KB) and
+- New switches `MCS_ENABLE_SUPEROPS` (default 1; **0 in `mcs_profile_min.h`**, which also turns
+  `MCS_FIELD_CACHE` off) and
   `MCS_ENABLE_OPTIMIZER`. A VM without superinstructions rejects optimized images with a clear
   error; `examples/lowram/node_image.h` is now built with `-O0` so it runs on every profile.
 
@@ -43,6 +44,8 @@ larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#16--fast-b
   (`double ema = 0; void F() { ema = ema * 0.5; }` did integer arithmetic).
 - Calls of hoisted top-level functions keep the declared return type (no extra conversion).
 - `foreach (var p in list) acc = …` no longer emitted a stray tuple-names call.
+- An interpolation format spec longer than 95 characters overflowed a compiler buffer (found by
+  `tools/fuzz.py`; present since 1.0).
 - Image loader: `FIELD`'s default-value operand is range-checked (found by `tools/fuzz.py --image`).
 - CLI builds with `MCS_ENABLE_COMPILER=0` / `MCS_ENABLE_BYTECODE_SAVE=0` compile warning-free.
 
@@ -54,7 +57,7 @@ larger than the source. Numbers: [PERFORMANCE.md](docs/PERFORMANCE.md#16--fast-b
 
 ### Costs
 - Flash: +8–11 KB on Cortex-M with superinstructions (`m0-runtime` 208.5 KB, `m4-full`
-  253.1 KB); the `min` build (superinstructions off) is 62.6 KB of 64 KB.
+  253.1 KB); the `min` build (superinstructions and inline caches off) stays at 60.6 KB of 64 KB.
 - Compiling an image on the PC takes longer (optimizer): host `demo.cs` 83 → 120 µs.
 
 ## 1.5.0 — 16 KB RAM / 64 KB flash, per-MCU configuration, flash filesystems

@@ -27,7 +27,7 @@ Measured on the emulated Cortex-M0 (arm-none-eabi-gcc 13.2.1 `-Os`, not real sil
 |---|---:|---:|---:|---:|---:|---:|---:|
 | `m0-node` (lowram) | 157.2 KB | 48 KB | 32 KB | 1.8 KB | 13.8 KB | 2 | 1.4 KB |
 | `m0-16k` (lowram) | 157.2 KB | 16 KB | 12 KB | 1.8 KB | 11.0 KB | 5 | 1.4 KB |
-| `m0-64k` (min) | 62.6 KB | 16 KB | 12 KB | 1.8 KB | 10.9 KB | 5 | 1.3 KB |
+| `m0-64k` (min) | 60.6 KB | 16 KB | 12 KB | 1.8 KB | 10.4 KB | 4 | 1.3 KB |
 
 Flash includes newlib-nano (and, except for `m0-64k`, float `printf` and libm). The tuning steps behind these numbers are
 explained in [docs/LOW_RESOURCE.md](../../docs/LOW_RESOURCE.md).

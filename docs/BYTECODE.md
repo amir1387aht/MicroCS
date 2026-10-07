@@ -269,7 +269,7 @@ slow paths).
 | `MCS_ENABLE_SUPEROPS` | 1 (0 in `min`) | VM handlers for the table above (~8 KB Thumb code) |
 | `MCS_ENABLE_OPTIMIZER` | compiler && superops | `mcs_optimize` in the compiler build |
 | `MCS_OPTIMIZE_SOURCE` | 0 | also optimize `mcs_exec_source` (more compile time and RAM) |
-| `MCS_FIELD_CACHE` | 1 | field / method / constructor caches |
+| `MCS_FIELD_CACHE` | 1 (0 in `min`) | field / method / constructor caches |
 
 ## Execution model
 
