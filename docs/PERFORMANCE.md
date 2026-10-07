@@ -74,6 +74,9 @@ no longer the bottleneck for those. `fib` is call/return-bound (~170 instruction
 | host image sizes fib / loop / objects / demo | 318 / 277 / 673 / 2763 B | 226 / 220 / 440 / 1942 B | −29 to −35 % |
 | host `demo.cs` compile to image | 83 µs | 120 µs | +45 % (optimizer; on the PC) |
 
+CPython 3.13 in the same session (`bench/*.py`, in-process, best of 5): fib **97 ms**, loop
+**895 ms**, objects **356 ms** — MicroCS 1.6 images are 2.4×, 9.4× and 2.7× faster.
+
 Host rows: `make bench` of the 1.5 and 1.6 trees back to back in one session (x86-64, gcc
 11.5 `-O2`). Cortex-M rows: `make cm-check`.
 

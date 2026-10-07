@@ -22,19 +22,19 @@ def style(ax):
     ax.title.set_color(FG)
 
 # --- host benchmarks (ms, best of 5; lower is better) -------------------------
-bench = [("fib(30) recursion", 74, 109), ("10 M-iteration loop", 330, 931), ("1 M objects + calls", 232, 386)]
-fig, ax = plt.subplots(figsize=(8, 2.9))
+# (name, MicroCS 1.6 image, MicroCS 1.5 image, CPython 3.13) - same machine, same session
+bench = [("fib(30) recursion", 41, 73, 97), ("10 M-iteration loop", 95, 322, 895), ("1 M objects + calls", 132, 241, 356)]
+fig, ax = plt.subplots(figsize=(8, 3.3))
 y = range(len(bench))
-h = 0.36
-b1 = ax.barh([i - h / 2 for i in y], [b[1] for b in bench], h, color=VIOLET, label="MicroCS (bytecode image)")
-b2 = ax.barh([i + h / 2 for i in y], [b[2] for b in bench], h, color=GREY, label="CPython 3.13")
-for bars in (b1, b2):
+h = 0.26
+series = [(1, VIOLET, "MicroCS 1.6 (optimized image)"), (2, "#c4b5fd", "MicroCS 1.5 (image)"), (3, GREY, "CPython 3.13")]
+for k, (col, color, label) in enumerate(series):
+    bars = ax.barh([i + (k - 1) * h for i in y], [b[col] for b in bench], h, color=color, label=label)
     for r in bars:
-        ax.text(r.get_width() + 12, r.get_y() + r.get_height() / 2, "%d ms" % r.get_width(), va="center", color=FG, fontsize=10)
+        ax.text(r.get_width() + 10, r.get_y() + r.get_height() / 2, "%d ms" % r.get_width(), va="center", color=FG, fontsize=9.5)
 ax.set_yticks(list(y)); ax.set_yticklabels([b[0] for b in bench], color=FG)
-ax.invert_yaxis(); ax.set_xlim(0, 1080); ax.set_xticks([])
-ax.spines["bottom"].set_visible(False)
-leg = ax.legend(loc="lower right", frameon=False, fontsize=10)
+ax.invert_yaxis(); ax.set_xlim(0, 1060); ax.set_xticks([])
+leg = ax.legend(loc="lower right", frameon=False, fontsize=9.5)
 for t in leg.get_texts(): t.set_color(FG)
 ax.set_title("Host x86-64, gcc -O2, best of 5 — lower is better", fontsize=11, loc="left", color=FG)
 style(ax); ax.spines["bottom"].set_visible(False)
@@ -42,9 +42,9 @@ fig.tight_layout()
 fig.savefig("assets/bench.svg", transparent=True)
 
 # --- flash by component (m33-full firmware, bytes) ----------------------------
-parts = [("stdlib", 65500, VIOLET), ("VM core", 53822, "#a78bfa"), ("compiler", 44656, CYAN),
-         ("newlib libm+libc", 50210, GREY), ("fs", 9071, "#22d3ee"), ("hal", 5925, "#67e8f9"),
-         ("other", 7974 + 6760 + 1428 + 76, "#cbd5e1")]
+parts = [("VM core + loader", 69070, VIOLET), ("stdlib", 67192, "#a78bfa"), ("compiler", 45002, CYAN),
+         ("newlib libm+libc", 50090, GREY), ("hal", 32286, "#67e8f9"), ("fs", 9071, "#22d3ee"),
+         ("other", 8172 + 6063 + 1428 + 76, "#cbd5e1")]
 total = sum(p[1] for p in parts)
 fig, ax = plt.subplots(figsize=(8, 1.9))
 left = 0

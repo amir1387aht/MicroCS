@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center" id="readme-top">
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
 [![Version](https://img.shields.io/badge/version-1.6.0-8b5cf6?style=flat-square)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-52%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
+[![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
 
@@ -27,19 +27,129 @@
 
 ---
 
-MicroCS is a compact C# compiler + bytecode VM written in **portable C99** (no dependencies,
-no `malloc` required, no OS required). It gives a microcontroller a real, modern C# —
-classes, generics, lambdas, LINQ, tuples, pattern matching — plus a complete peripheral API:
-GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog and RTC.
+<table>
+<tr>
+<td width="56%" valign="top">
 
-There are two ways to use it. Pick the one that matches your project:
+MicroCS is a compact **C# compiler + bytecode VM** written in portable C99 — no dependencies,
+no `malloc` or OS required. It gives a microcontroller a real, modern C#: classes, generics, lambdas,
+LINQ, tuples, pattern matching, exceptions, plus a complete peripheral API.
+
+Embed it as a **library** in the firmware you already have, or flash it as a **MicroPython-style
+REPL device**. Scripts run from source on the device, or as precompiled, optimized bytecode
+straight from flash.
+
+</td>
+<td width="44%" valign="top">
+
+```csharp
+var led = new Pin("LED", GPIO.Output);
+I2C.Open(0, 400_000);
+var sensor = new I2cDevice(0, 0x48);
+
+Scheduler.Every(1000, () => {
+    double t = sensor.ReadRegister(0) * 0.5;
+    led.Write(t > 30);
+    Console.WriteLine($"{t,5:F1} °C");
+});
+```
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **up to 2.2× faster in 1.6** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 🧱 **8 build systems** |
+|:---:|:---:|:---:|:---:|:---:|
+| smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
+
+</div>
+
+> [!TIP]
+> **New in 1.6 — fast bytecode images.** `mcs -c` now optimizes: superinstructions, loop
+> rotation, method and constructor caches and a compact image format. Precompiled images run
+> **1.3–2.2× faster than in 1.5** on Cortex-M, beat on-device compilation by up to 2× with up to
+> half the RAM, and are usually smaller than the source. [Changelog](CHANGELOG.md) ·
+> [numbers](docs/PERFORMANCE.md#16--fast-bytecode-images)
+
+<details>
+<summary><b>📑 Contents</b></summary>
+
+- [Why MicroCS](#-why-microcs)
+- [Two ways to use it](#-two-ways-to-use-it) — [① library](#-option-1--drop-the-library-into-an-existing-project) · [② REPL firmware](#-option-2--build-a-complete-c-firmware-with-a-repl)
+- [Try it on your PC](#-try-it-on-your-pc-one-minute)
+- [Hardware in C#](#-hardware-in-c) · [Build systems](#-works-with-every-build-system) · [Targets](#-supported-targets)
+- [Language at a glance](#-language-at-a-glance) · [vs MicroPython / nanoFramework](#%EF%B8%8F-microcs-vs-micropython-vs-net-nanoframework)
+- [Architecture](#%EF%B8%8F-architecture) · [Performance & footprint](#-performance--footprint)
+- [Status](#-status) · [Roadmap](#%EF%B8%8F-roadmap) · [Repository layout](#-repository-layout) · [Contributing](#-contributing)
+
+</details>
+
+## ✨ Why MicroCS
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🧩 Real C#
+Output is **byte-identical to .NET 8** for every program in the test suite
+(`tools/verify_dotnet.sh`). Prototype on your PC, run the same file on the board.
+
+</td>
+<td width="33%" valign="top">
+
+### 🪶 Small & portable
+One C99 library, no dependencies. Pool allocator included, feature flags and 7 build
+profiles (`auto` sizes itself to the chip). Runs in **16 KB of RAM and 64 KB of flash**; a VM
+starts in 1.7–8 KB of heap; bytecode can run straight from flash.
+
+</td>
+<td width="33%" valign="top">
+
+### 🔌 Built for devices
+14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
+YAFFS2 on SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+### 🛡️ Safe by default
+Bounds-checked everything, hard heap cap, time/step budgets that scripts cannot catch,
+catchable stack overflow, sandboxed paths, validated bytecode images. Fuzzed under
+ASan + UBSan.
+
+</td>
+<td valign="top">
+
+### ⚡ Fast
+An optimizing image compiler (71 superinstructions, loop rotation), computed-goto dispatch,
+method/field/constructor caches, precise mark & sweep GC. **2–9× faster than CPython 3.13**
+on every benchmark in this repo.
+
+</td>
+<td valign="top">
+
+### 🔁 Update without reflashing
+Upload `.cs` or precompiled `.mcsb` files over the UART; a failed upload never replaces the
+working version.
+
+</td>
+</tr>
+</table>
+
+## 🧭 Two ways to use it
+
+Pick the one that matches your project:
 
 | | **① Library inside your firmware** | **② Whole firmware = MicroCS REPL** |
 |---|---|---|
 | You have… | an existing project (CubeMX, ESP-IDF, pico-sdk, Zephyr, Arduino, bare metal…) | a board and want a MicroPython-style device |
 | MicroCS does… | runs the C# you give it, calls your C functions, uses your drivers | owns the main loop: REPL on the UART/USB, files, `boot.cs`/`main.cs`, jobs, interrupts |
 | Your C code | stays in charge (main loop, RTOS tasks, ISRs) | ~20 lines of board glue |
-| Start here | [Option ①](#-option--drop-the-library-into-an-existing-project) | [Option ②](#-option--build-a-complete-c-firmware-with-a-repl) |
+| Start here | [Option ①](#-option-1--drop-the-library-into-an-existing-project) | [Option ②](#-option-2--build-a-complete-c-firmware-with-a-repl) |
 
 ## ① Option 1 — drop the library into an existing project
 
@@ -159,6 +269,37 @@ Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / P
 No board yet? `make && ./mcs --repl --sim` gives you the same REPL on your PC with a
 simulated board. Details: [STANDALONE.md](docs/STANDALONE.md).
 
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
+## 🚀 Try it on your PC (one minute)
+
+```sh
+git clone https://github.com/amir1387aht/MicroCS && cd MicroCS
+make                                            # builds ./mcs (CLI, REPL, simulator)
+./mcs -e 'Console.WriteLine($"Hello from C# {1 + 1}!")'
+./mcs --repl --sim                              # the device REPL with a simulated board
+./mcs --sim examples/hardware/05_i2c_temperature.cs
+make test                                       # the whole test suite
+```
+
+<details>
+<summary><b>More CLI recipes</b></summary>
+
+```sh
+./mcs app.cs                                   # compile + run source
+./mcs -c app.cs && ./mcs app.mcsb              # precompile to a bytecode image, run it
+./mcs -C app.cs -n app_image -o app_image.h    # image as a const C array for flash
+./mcs --xip app.mcsb                           # run an image in place (no bytecode copy in RAM)
+./mcs -d app.cs                                # disassemble (also works on .mcsb images)
+./mcs --sim --sim-log app.cs                   # trace every peripheral access
+./mcs --heap 65536 --stats app.cs              # small-MCU heap limit, print GC stats
+./mcs --step-limit 100000 --time-limit 500 untrusted.cs
+./mcs --shell --fs device_root                 # machine protocol on stdin/stdout
+python3 tools/mcs_remote.py --exec "./mcs --shell --fs device_root" put app.cs /main.cs + run /main.cs
+```
+
+</details>
+
 ## 🔌 Hardware in C#
 
 Every peripheral has a static API (`GPIO.Write(pin, 1)`) and, where it helps, an object API
@@ -205,6 +346,8 @@ Full reference: [HAL.md](docs/HAL.md) · generated API list: [STDLIB.md](docs/ST
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
 wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger).
 
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
 ## 🧱 Works with every build system
 
 MicroCS is plain C99 files plus one include directory, so it builds anywhere. Ready-made
@@ -243,28 +386,6 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
 | Linux / macOS host (CLI, REPL, simulator board) | [`ports/unix`](ports/unix) | full test suite |
 | Your chip | [`ports/template`](ports/template) | fill in one table of function pointers |
-
-## ⚖️ MicroCS vs MicroPython vs .NET nanoFramework
-
-| | **MicroCS** | **MicroPython** | **.NET nanoFramework** |
-|---|---|---|---|
-| Language | modern C# subset (generics, LINQ, tuples, pattern matching) | Python 3 subset | C# (.NET subset, IL from Roslyn) |
-| Compile on the device + REPL | ✅ both | ✅ both | ❌ compiled on the PC, no REPL |
-| Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
-| Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
-| Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
-| Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
-| Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
-| Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
-| Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
-| Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
-| Wi-Fi / BLE / networking | ❌ not yet ([roadmap](#-roadmap)) | ✅ | ✅ |
-| Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
-| Ecosystem | young | large | medium (NuGet) |
-
-Where MicroCS wins: you keep your firmware and your toolchain, scripts cannot hang or
-starve the device, and C# developers get a REPL on a $4 board. Where it does not (yet):
-networking stacks, a step debugger and the size of the ecosystem.
 
 ## 🧩 Language at a glance
 
@@ -306,87 +427,29 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 </tr>
 </table>
 
-## 🚀 Try it on your PC (one minute)
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
 
-```sh
-git clone https://github.com/amir1387aht/MicroCS && cd MicroCS
-make                                            # builds ./mcs (CLI, REPL, simulator)
-./mcs -e 'Console.WriteLine($"Hello from C# {1 + 1}!")'
-./mcs --repl --sim                              # the device REPL with a simulated board
-./mcs --sim examples/hardware/05_i2c_temperature.cs
-make test                                       # the whole test suite
-```
+## ⚖️ MicroCS vs MicroPython vs .NET nanoFramework
 
-<details>
-<summary><b>More CLI recipes</b></summary>
+| | **MicroCS** | **MicroPython** | **.NET nanoFramework** |
+|---|---|---|---|
+| Language | modern C# subset (generics, LINQ, tuples, pattern matching) | Python 3 subset | C# (.NET subset, IL from Roslyn) |
+| Compile on the device + REPL | ✅ both | ✅ both | ❌ compiled on the PC, no REPL |
+| Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
+| Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
+| Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
+| Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
+| Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
+| Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
+| Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
+| Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
+| Wi-Fi / BLE / networking | ❌ not yet ([roadmap](#-roadmap)) | ✅ | ✅ |
+| Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
+| Ecosystem | young | large | medium (NuGet) |
 
-```sh
-./mcs app.cs                                   # compile + run source
-./mcs -c app.cs && ./mcs app.mcsb              # precompile to a bytecode image, run it
-./mcs -C app.cs -n app_image -o app_image.h    # image as a const C array for flash
-./mcs --xip app.mcsb                           # run an image in place (no bytecode copy in RAM)
-./mcs -d app.cs                                # disassemble (also works on .mcsb images)
-./mcs --sim --sim-log app.cs                   # trace every peripheral access
-./mcs --heap 65536 --stats app.cs              # small-MCU heap limit, print GC stats
-./mcs --step-limit 100000 --time-limit 500 untrusted.cs
-./mcs --shell --fs device_root                 # machine protocol on stdin/stdout
-python3 tools/mcs_remote.py --exec "./mcs --shell --fs device_root" put app.cs /main.cs + run /main.cs
-```
-
-</details>
-
-## ✨ Why MicroCS
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### 🧩 Real C#
-Output is **byte-identical to .NET 8** for every program in the test suite
-(`tools/verify_dotnet.sh`). Prototype on your PC, run the same file on the board.
-
-</td>
-<td width="33%" valign="top">
-
-### 🪶 Small & portable
-One C99 library, no dependencies. Pool allocator included, feature flags and 7 build
-profiles (`auto` sizes itself to the chip). Runs in **16 KB of RAM and 64 KB of flash**; a VM
-starts in 1.7–8 KB of heap; bytecode can run straight from flash.
-
-</td>
-<td width="33%" valign="top">
-
-### 🔌 Built for devices
-14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
-YAFFS2 on SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-### 🛡️ Safe by default
-Bounds-checked everything, hard heap cap, time/step budgets that scripts cannot catch,
-catchable stack overflow, sandboxed paths, validated bytecode images. Fuzzed under
-ASan + UBSan.
-
-</td>
-<td valign="top">
-
-### ⚡ Fast enough
-Computed-goto dispatch, superinstructions, inline field caches, precise mark & sweep GC.
-Faster than CPython 3.13 on every benchmark in this repo.
-
-</td>
-<td valign="top">
-
-### 🔁 Update without reflashing
-Upload `.cs` or precompiled `.mcsb` files over the UART; a failed upload never replaces the
-working version.
-
-</td>
-</tr>
-</table>
+Where MicroCS wins: you keep your firmware and your toolchain, scripts cannot hang or
+starve the device, and C# developers get a REPL on a $4 board. Where it does not (yet):
+networking stacks, a step debugger and the size of the ecosystem.
 
 ## 🏗️ Architecture
 
@@ -410,9 +473,11 @@ The compiler (dashed) is optional: ship only the VM and load precompiled images 
 ~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
 ## 📊 Performance & footprint
 
-<p align="center"><img src="assets/bench.svg" alt="Benchmark: MicroCS vs CPython 3.13" width="720"></p>
+<p align="center"><img src="assets/bench.svg" alt="Benchmark: MicroCS 1.6 vs 1.5 vs CPython 3.13" width="720"></p>
 <p align="center"><img src="assets/footprint.svg" alt="Flash by component on Cortex-M33" width="720"></p>
 
 | Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
@@ -461,6 +526,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Flash filesystems: LittleFS, YAFFS2, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated chips with bad blocks — not yet on real chips |
 | Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
 
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
 ## 🗺️ Roadmap
 
 - [x] **1.0–1.2** — compiler, VM, GC, stdlib, bytecode images, filesystem, scheduler, shell, tuples/ranges, fuzzing
@@ -478,6 +545,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
 - [ ] ROM-resident class metadata, LVGL bindings
+
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
 
 ## 📁 Repository layout
 
