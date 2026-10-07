@@ -132,8 +132,8 @@ on every benchmark in this repo.
 <td valign="top">
 
 ### 🔁 Update without reflashing
-Upload `.cs` or precompiled `.mcsb` files over the UART; a failed upload never replaces the
-working version.
+Upload `.cs` or precompiled `.mcsb` files over the UART — from the command line or the
+browser-based MicroCS Studio; a failed upload never replaces the working version.
 
 </td>
 </tr>
@@ -260,6 +260,13 @@ Upload a program from your PC (`/main.cs` also runs at every boot):
 python3 tools/mcs_remote.py --port /dev/ttyACM0 put app.cs /main.cs + run /main.cs
 python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-] quits); Windows: --port COM5
 ```
+
+Or do it all in the browser: open [`tools/mcs_studio.html`](tools/mcs_studio.html) in Chrome or
+Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
+editor with highlighting and completion that saves to and runs on the device, and the REPL —
+one HTML file, no install ([details](docs/STANDALONE.md#6-in-the-browser-mcs_studiohtml)).
+
+<p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),
 [`ports/esp32/example`](ports/esp32/example) (ESP-IDF), [`ports/stm32/example_main.c`](ports/stm32/example_main.c)
@@ -580,7 +587,7 @@ modules/        optional: fs/ (VFS, RAM, POSIX, LittleFS, YAFFS2, SPI NOR/NAND) 
 ports/          stm32 · esp32 · rp2 · zephyr · arduino · cortex-m · unix · template
 examples/       hardware/ scripts, quickstart_embed.c, firmware_example.c, lowram/
 tests/          *.cs with expected .out, C unit tests, protocol tests
-tools/          remote shell, port checks, Arduino packager, fuzzer, doc generators
+tools/          MicroCS Studio (browser IDE), remote shell, port checks, Arduino packager, fuzzer, doc generators
 docs/           everything else → docs/README.md
 CMakeLists.txt  microcs.mk  library.json  idf_component.yml  zephyr/   build integrations
 ```

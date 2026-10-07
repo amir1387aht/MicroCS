@@ -127,7 +127,35 @@ python3 tools/mcs_remote.py --exec "./mcs --shell --sim --ramfs 65536" put app.c
 
 The tool sends Ctrl-A first, so it works whether the device sits in the REPL or in machine mode.
 
-## 6. Without the runtime
+## 6. In the browser: `mcs_studio.html`
+
+[`tools/mcs_studio.html`](../tools/mcs_studio.html) is a single, self-contained HTML file (no
+server, no install, works offline). Open it in **Chrome or Edge** on a desktop — they have
+[Web Serial](https://developer.mozilla.org/docs/Web/API/Web_Serial_API) — click **Connect**
+and pick the board's port. It speaks the protocol above, like `mcs_remote.py`.
+
+* **Device files** — browse folders, upload (button or drag & drop, several files at once),
+  download, rename/move, duplicate, delete (folders recursively), create files and folders,
+  *Run at boot* (copies a script to `/main.cs`). The bar at the bottom shows free space
+  (`df`) and the VM heap (`mem`).
+* **Editor** — tabs, C# highlighting, completion for the MicroCS API (`Ctrl+Space`, `Class.`
+  members, snippets such as `cw`, `for`, `try`), auto-indent and bracket pairs, `Ctrl+/`
+  comments, templates (blink, button interrupt, scheduler, ADC, I2C scan, files). `Ctrl+S`
+  saves to the device; `F5` / `Ctrl+Enter` saves and runs, streaming the output; compile
+  errors and exceptions mark the line and are clickable in the console. `Ctrl+Shift+Enter`
+  runs only the selection. Binary files (`.mcsb`) open in a hex view.
+* **Console** — the C# REPL (variables survive between lines and file operations; `↑`/`↓`
+  history, `Shift+Enter` for multi-line input) or raw shell commands (`jobs`, `cat`, `help` …).
+  Output of background jobs and the boot log appear here too; `Ctrl+C` stops a script.
+* **Reset board** pulses RTS like esptool. Boards on native USB (ESP32-S3/C3/C6 USB-Serial-JTAG,
+  RP2040 CDC) disappear while resetting; the page reconnects automatically when they return.
+
+Uploads are written to `<name>.part` and renamed, so an interrupted upload keeps the old file.
+If an upload stalls (a UART bridge losing bytes while the flash erases), it is retried in small
+paced chunks. File names cannot contain spaces (the protocol splits arguments on spaces).
+`tests/studio/test_studio.js` drives the page in a headless browser against `mcs --repl --echo`.
+
+## 7. Without the runtime
 
 The shell can also be wired by hand when you already own a VM:
 
