@@ -48,6 +48,7 @@ Only peripherals whose `HAL_xxx_MODULE_ENABLED` is set in `stm32xxxx_hal_conf.h`
 | `I2C.Scan` | `HAL_I2C_IsDeviceReady` |
 | `SPI.Open(bus, hz, mode)` | re-programs prescaler / CPOL / CPHA when `spi_clock_hz` is given |
 | `PWM.Set` | timer ARR/CCR computed from `clock_hz` (0 = from the APB clock) |
+| `LedStrip` | WS2812 on any pin, SysTick-timed bit-bang with interrupts masked during `Show()` (~30 µs per LED); HCLK ≥ 24 MHz |
 | `Timer.Start` | timer update interrupt |
 | `QSPI` | `HAL_QSPI_Command` / `HAL_OSPI_Command` |
 | `CAN` | bxCAN or FDCAN (classic frames), accept-all filter |

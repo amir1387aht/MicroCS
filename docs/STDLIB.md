@@ -101,6 +101,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` | address `-1` = no address phase |
 | **CAN** | static | — | `Open(…)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` |  |
 | **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
+| **LedStrip** | instance | `Count` `Pin` `Brightness` | `get_Item(·)` `set_Item(·, ·)` `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
+| **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Watchdog** | static | — | `Start(·)` `Feed()` |  |
 | **RTC** | static | `Now` | `Set(·)` | Unix seconds |
 
@@ -120,4 +122,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_592 members in 63 tables._
+_605 members in 65 tables._

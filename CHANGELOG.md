@@ -4,6 +4,16 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **`LedStrip` — WS2812 / NeoPixel / SK6812 on any pin** (hardware API v3, new `mcs_hal_t.ledstrip_write`
+  hook): `new LedStrip(pin, count[, order])`, indexer, `SetPixel`, `Fill`, `Clear`, `Show`,
+  `Brightness`, `LedStrip.Rgb` / `LedStrip.Hsv`, GRB / RGB / GRBW orders. Drivers: RP2040/RP2350 PIO,
+  ESP32 RMT (all chips with RMT), STM32 cycle-timed bit-bang, Zephyr `led_strip` (alias `led-strip`),
+  Arduino (ESP32 RMT, Arduino-Pico PIO, Adafruit_NeoPixel), simulator log. Pin name `"NEOPIXEL"`
+  maps to the on-board RGB LED (RP2040-Zero GP16, ESP32-S3 GPIO48, C3/C6 GPIO8).
+  Studio template *WS2812 / NeoPixel LED strip* now uses it; the SPI version stays as
+  *WS2812 LED strip via SPI*.
+* **Fix:** indexers (`this[int]`) on native classes whose members are registered lazily from ROM.
+
 * **Studio template: WS2812 / NeoPixel LED strip** (Displays) — addressable RGB LEDs driven through
   SPI MOSI at 2.4 MHz (3 SPI bits per LED bit, timing done by the SPI hardware): colour wipe,
   rainbow, theater chase, brightness limit; up to 28 LEDs per `SPI.Write` (more with a larger

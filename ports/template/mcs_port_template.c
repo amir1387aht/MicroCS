@@ -89,7 +89,7 @@ static const mcs_hal_t board = {
     /* Optional members (see include/mcs_hal.h): pin_lookup, uart_close, i2c_write_read,
      * i2c_probe, adc_read_mv, adc_vref_mv, dac_write, dac_bits, pwm_stop, i2s_open/write/
      * read/close, qspi_open/command, can_open/send/recv, wdt_start/feed, rtc_get/set,
-     * delay_us, reset, unique_id, cpu_hz, poll_event. */
+     * delay_us, reset, unique_id, cpu_hz, poll_event, ledstrip_write (WS2812 frames). */
 };
 
 /* ============================================================ your own C# API */

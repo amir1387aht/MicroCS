@@ -60,7 +60,7 @@ Scheduler.Every(1000, () => {
 
 <div align="center">
 
-| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 🧱 **8 build systems** |
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **15 peripheral classes** | 🧱 **8 build systems** |
 |:---:|:---:|:---:|:---:|:---:|
 | smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
 
@@ -107,7 +107,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
+15 peripheral classes (incl. WS2812 `LedStrip` on any pin), interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
 
 </td>
@@ -264,12 +264,12 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 126 templates (boot scripts,
+hover, find/replace, format) that saves to and runs on the device, 127 templates (boot scripts,
 scheduler, sensors, displays, motors, every peripheral), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
 <p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
-<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 126 templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
+<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 127 templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),
@@ -552,7 +552,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
-| Hardware API v2 (14 classes, callbacks, events) | ✅ | `t08_hal`, `t15_hal_v2`, `examples/hardware/*` on the simulator board |
+| Hardware API v3 (15 classes incl. `LedStrip`, callbacks, events) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
