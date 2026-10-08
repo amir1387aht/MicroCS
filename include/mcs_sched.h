@@ -60,6 +60,10 @@ void mcs_sched_free(mcs_sched_t* s);
 int mcs_sched_add_file(mcs_sched_t* s, const char* path, uint32_t delay_ms, uint32_t period_ms, uint16_t max_failures);
 int mcs_sched_add_fn(mcs_sched_t* s, mcs_value_t fn, uint32_t delay_ms, uint32_t period_ms, uint16_t max_failures);
 bool mcs_sched_cancel(mcs_sched_t* s, int id);
+/* Cancel every active job, only delegate jobs (Scheduler.Every/After from
+ * scripts) or only file jobs (jobs.cfg, shell every/after). Returns the count. */
+enum { MCS_SCHED_ALL = 0, MCS_SCHED_DELEGATES = 1, MCS_SCHED_FILES = 2 };
+int mcs_sched_cancel_all(mcs_sched_t* s, int which);
 int mcs_sched_active(const mcs_sched_t* s);
 
 /* Run every due job once. Returns ms until the next job is due (0 = something

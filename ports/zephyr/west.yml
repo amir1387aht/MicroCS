@@ -1,0 +1,24 @@
+# West workspace with MicroCS as the manifest repository:
+#   west init -m https://github.com/amir1387aht/MicroCS --mf ports/zephyr/west.yml microcs-ws
+#   cd microcs-ws && west update
+#   west build -b nrf52840dk/nrf52840 microcs/ports/zephyr/example
+# Only the HALs MicroCS is tested with are fetched; add more to name-allowlist
+# (hal_stm32, hal_nxp, hal_espressif, hal_atmel ...) for other boards.
+manifest:
+  self:
+    path: microcs
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.1.0
+      import:
+        name-allowlist:
+          - cmsis
+          - cmsis_6
+          - hal_nordic
+          - hal_rpi_pico
+          - hal_stm32
+          - littlefs

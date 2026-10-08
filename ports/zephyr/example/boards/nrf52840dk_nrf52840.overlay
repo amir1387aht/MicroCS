@@ -1,0 +1,59 @@
+/* MicroCS on the nRF52840 DK: what C# ADC / PWM / I2S / RTC use.
+ *   ADC.Read(0) = AIN1 (P0.03), ADC.Read(1) = VDD
+ *   PWM.Set(0, ...) = LED1 (P0.13)
+ *   I2S.Open(0) = SCK P1.15, LRCK P1.12, SDOUT P1.13, SDIN P1.14
+ * Copy this file to boards/<your board>.overlay and adapt the phandles. */
+#include <zephyr/dt-bindings/pwm/pwm.h>
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-saadc.h>
+
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>, <&adc 1>;
+		pwms = <&pwm0 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+	};
+	aliases {
+		mcs-i2s0 = &i2s0;
+	};
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN1>;
+		zephyr,resolution = <12>;
+	};
+
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_VDD>;
+		zephyr,resolution = <12>;
+	};
+};
+
+&pinctrl {
+	i2s0_default_mcs: i2s0_default_mcs {
+		group1 {
+			psels = <NRF_PSEL(I2S_SCK_M, 1, 15)>,
+				<NRF_PSEL(I2S_LRCK_M, 1, 12)>,
+				<NRF_PSEL(I2S_SDOUT, 1, 13)>,
+				<NRF_PSEL(I2S_SDIN, 1, 14)>;
+		};
+	};
+};
+
+&i2s0 {
+	status = "okay";
+	pinctrl-0 = <&i2s0_default_mcs>;
+	pinctrl-names = "default";
+};

@@ -44,4 +44,31 @@ config MICROCS_PROFILE_MIN
 
 endchoice
 
+config MICROCS_HEAP_SIZE
+	int "C# heap in bytes (example application)"
+	default 98304 if ARCH_POSIX || SRAM_SIZE >= 192
+	default 65536 if SRAM_SIZE >= 112
+	default 40960
+	help
+	  Size of the static buffer the example application gives the VM.
+	  Your own application may ignore it and pass any buffer.
+
+config MICROCS_FS
+	bool "Persistent files (LittleFS on the storage partition)"
+	default y if FILE_SYSTEM_LITTLEFS
+	depends on FILE_SYSTEM
+	help
+	  The example application mounts LittleFS on the board's
+	  `storage_partition` at /lfs and runs /boot.cs, /jobs.cfg and /main.cs
+	  from it; MicroCS Studio and tools/mcs_remote.py upload files there.
+	  Without it a RAM filesystem of MICROCS_RAMFS_SIZE bytes is used.
+
+config MICROCS_RAMFS_SIZE
+	int "RAM filesystem size when there is no persistent filesystem"
+	default 16384
+
+config MICROCS_CONSOLE_ECHO
+	bool "Echo console input (raw UART terminals)"
+	default y
+
 endif

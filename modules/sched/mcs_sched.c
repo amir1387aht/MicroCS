@@ -82,6 +82,18 @@ bool mcs_sched_cancel(mcs_sched_t* s, int id) {
     return false;
 }
 
+int mcs_sched_cancel_all(mcs_sched_t* s, int which) {
+    int n = 0;
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+        mcs_job_t* j = &s->jobs[i];
+        if (j->state != MCS_JOB_ACTIVE) continue;
+        if (which == MCS_SCHED_DELEGATES && j->is_file) continue;
+        if (which == MCS_SCHED_FILES && !j->is_file) continue;
+        n += mcs_sched_cancel(s, j->id);
+    }
+    return n;
+}
+
 int mcs_sched_active(const mcs_sched_t* s) {
     int n = 0;
     for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) n += s->jobs[i].state == MCS_JOB_ACTIVE;
@@ -235,8 +247,7 @@ NATIVE(sc_cancel) {
 }
 NATIVE(sc_count) { return mcs_int(mcs_sched_active(SCHED())); }
 NATIVE(sc_cancel_all) {
-    mcs_sched_t* s = SCHED();
-    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) if (s->jobs[i].state == MCS_JOB_ACTIVE) mcs_sched_cancel(s, s->jobs[i].id);
+    mcs_sched_cancel_all(SCHED(), MCS_SCHED_ALL);
     return mcs_null();
 }
 static const mcs_reg_t sched_fns[] = {

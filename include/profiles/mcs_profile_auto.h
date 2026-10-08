@@ -24,7 +24,7 @@
 #endif
 
 /* ---- memory sizes from the build environment ---- */
-#if !defined(MCS_TARGET_RAM_KB) && defined(CONFIG_SRAM_SIZE)          /* Zephyr (KB) */
+#if !defined(MCS_TARGET_RAM_KB) && defined(CONFIG_SRAM_SIZE) && CONFIG_SRAM_SIZE > 0   /* Zephyr (KB; 0 on native_sim) */
 #define MCS_TARGET_RAM_KB CONFIG_SRAM_SIZE
 #if !defined(MCS_TARGET_FLASH_KB) && defined(CONFIG_FLASH_SIZE) && CONFIG_FLASH_SIZE > 0
 #define MCS_TARGET_FLASH_KB CONFIG_FLASH_SIZE

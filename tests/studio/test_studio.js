@@ -147,6 +147,18 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(/bad\.cs\(4,9\): error/.test(tt) && /✗ failed/.test(tt), 'compile error reported: ' + (tt.match(/✗.*/) || [''])[0]);
   check(await page.isVisible('#errline'), 'error line highlighted');
 
+  // Scheduler.Every jobs outlive their script: Run first cancels the ones earlier runs left
+  fs.writeFileSync(ROOT + '/tick.cs', 'Scheduler.Every(60000, () => Console.WriteLine("tick"));\nConsole.WriteLine("job set");\n');
+  await page.evaluate(() => App.runPath('/tick.cs'));
+  await page.evaluate(() => App.runPath('/tick.cs'));
+  tt = await page.innerText('#term');
+  check(/stopped 1 job left running by an earlier script/.test(tt) && (tt.match(/job set/g) || []).length === 2, 'Run stops jobs left by the previous run');
+  await page.evaluate(() => App.runPath('/tick.cs'));
+  const jobsOut = await page.evaluate(async () => { const r = await dev.op(() => dev.cmd('jobs')); return new TextDecoder().decode(r.out); });
+  check((jobsOut.match(/active/g) || []).length === 1, 'only one active job after three runs: ' + JSON.stringify(jobsOut));
+  await page.evaluate(async () => { await dev.op(() => dev.cmd('cancel all')); });
+  fs.unlinkSync(ROOT + '/tick.cs');
+
   // stop a running loop
   await tpl('Button interrupt');
   await page.keyboard.press('F5');

@@ -57,6 +57,14 @@ ESP32 boards with the usual auto-reset circuit or the native USB-Serial-JTAG. *R
 pulses EN like esptool. A board that sits in the ROM download mode is reset once
 automatically. If a board needs the lines low, enable ⋯ → *Release DTR/RTS on connect*.
 
+## Jobs
+
+`Scheduler.Every` / `Scheduler.After` jobs keep running after their script returns (and after
+its file is deleted). So that re-running a script does not stack copies, *Run* first sends
+`cancel scripts` (⋯ → *Stop script jobs before each Run*, on by default); `jobs.cfg` jobs are
+left alone. ⋯ → *Show running jobs* lists them, ⋯ → *Stop all jobs* cancels every job until
+the next reset.
+
 ## Add a template
 
 Append to `templates.js`:
