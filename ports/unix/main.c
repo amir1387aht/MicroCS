@@ -42,6 +42,20 @@ static int hook(mcs_vm_t* vm, void* ud) {
 #endif
     return g_interrupted ? 1 : 0;
 }
+#if MCS_ENABLE_SHELL
+/* Console.ReadLine: from the shell's input queue in --shell / --repl mode, else stdin */
+static mcs_shell_t* g_sh;
+static int readline_cb(void* ud, char* buf, size_t cap) {
+    (void)ud;
+    if (g_sh) return mcs_shell_readline(g_sh, buf, cap);
+#if MCS_ENABLE_STDIO
+    if (!fgets(buf, (int)cap, stdin)) return -1;
+    return (int)strlen(buf);
+#else
+    return -1;
+#endif
+}
+#endif
 
 static uint32_t ticks(void* ud) {
     (void)ud;
@@ -305,6 +319,9 @@ int main(int argc, char** argv) {
     mcs_config_t cfg;
     mcs_config_default(&cfg);
     cfg.hook_fn = hook;
+#if MCS_ENABLE_SHELL
+    cfg.readline_fn = readline_cb;
+#endif
     cfg.ticks_fn = ticks;
     cfg.delay_fn = delay;
     cfg.heap_limit = heap;
@@ -400,6 +417,7 @@ int main(int argc, char** argv) {
 #if MCS_ENABLE_SHELL
         static mcs_shell_t sh;
         g_shell = true;
+        g_sh = &sh;
 #if MCS_ENABLE_SCHED
         mcs_shell_init(&sh, vm, vfs, &g_sched, stdio_transport());
 #else

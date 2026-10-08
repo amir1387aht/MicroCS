@@ -46,6 +46,32 @@ int mcs_shell_poll_break(mcs_vm_t* vm) {
     return brk;
 }
 
+int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
+    if (!cap) return -1;
+    size_t n = 0;
+    for (;;) {
+        if (sh->in_pos >= sh->in_len) {
+            sh->in_pos = sh->in_len = 0;
+            int r = sh->t.read(sh->t.ud, sh->in, sizeof sh->in, 20);
+            if (r < 0) { if (n) break; return -1; }
+            sh->in_len = (uint16_t)r;
+            /* while waiting: time limit, idle work and Ctrl-C via the VM hook */
+            if (!r && mcs_safepoint(sh->vm)) return -1;
+            continue;
+        }
+        uint8_t b = sh->in[sh->in_pos++];
+        if (b == 0x03) { mcs_request_abort(sh->vm); return -1; }
+        if (b == '\n' && sh->rl_cr) { sh->rl_cr = false; continue; }   /* CR LF */
+        sh->rl_cr = b == '\r';
+        if (b == '\r' || b == '\n') { if (sh->echo) out(sh, "\r\n"); break; }
+        if (b == 0x08 || b == 0x7F) { if (n) { n--; if (sh->echo) out(sh, "\b \b"); } continue; }
+        if (b < 0x20 && b != '\t') continue;
+        if (n + 1 < cap) { buf[n++] = (char)b; if (sh->echo) sh->t.write(sh->t.ud, (const char*)&b, 1); }
+    }
+    buf[n] = 0;
+    return (int)n;
+}
+
 static bool exists(mcs_shell_t* sh, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(sh->vfs, p, &st) && !st.is_dir; }
 
 static mcs_result_t run_first(mcs_shell_t* sh, const char* a, const char* b) {

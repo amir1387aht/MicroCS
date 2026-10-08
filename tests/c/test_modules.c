@@ -470,6 +470,34 @@ static void test_runtime(void) {
     mcs_runtime_stop(&rt);
     CHECK(rt.vm == NULL);
 }
+
+/* Console.ReadLine reads what the user types on the runtime console; Ctrl-C while it
+ * waits stops the script */
+static void test_runtime_readline(void) {
+    static uint8_t heap[160 * 1024];
+    static mcs_runtime_t rt;
+    mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+    cfg.heap = heap; cfg.heap_size = sizeof heap; cfg.ramfs_size = 16384;
+    cfg.console.read = rt_con_read; cfg.console.write = rt_con_write;
+    cfg.ticks = rt_ms; cfg.delay = rt_sleep;
+    cfg.echo = false;
+    outlen = 0; outbuf[0] = 0;
+    rt_script =
+        "\x01" "exec var a = Console.ReadLine(); var b = Console.ReadLine(); Console.WriteLine($\"got [{a}] [{b}]\");\n"
+        "hello\r\n"
+        "wor\x7Fld\n"
+        "exec Console.ReadLine(); Console.WriteLine(\"not reached\");\n"
+        "\x03\n"
+        "exec Console.WriteLine(\"still alive\");\n";
+    rt_pos = 0;
+    CHECK(mcs_runtime_start(&rt, &cfg) == 0);
+    while (mcs_runtime_step(&rt, 5)) {}
+    CHECK(strstr(outbuf, "got [hello] [wold]\n") != NULL);
+    CHECK(strstr(outbuf, "not reached") == NULL);
+    CHECK(strstr(outbuf, "\x04" "ERR") != NULL);
+    CHECK(strstr(outbuf, "still alive\n") != NULL);
+    mcs_runtime_stop(&rt);
+}
 #endif
 
 int main(void) {
@@ -495,6 +523,7 @@ int main(void) {
 #endif
 #if MCS_ENABLE_RUNTIME && MCS_ENABLE_COMPILER && MCS_ENABLE_HAL
     test_runtime();
+    test_runtime_readline();
 #endif
     printf("%d/%d checks passed\n", checks - failures, checks);
     return failures != 0;

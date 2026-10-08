@@ -63,12 +63,17 @@ typedef struct mcs_shell {
     bool echo;                  /* echo typed characters + line editing (raw UART terminals) */
     bool paste;                 /* Ctrl-E paste mode */
     bool last_cr;
+    bool rl_cr;                 /* Console.ReadLine: last line ended with CR */
 #if MCS_SHELL_REPL_MAX > 0
     char code[MCS_SHELL_REPL_MAX];
     size_t code_len;
 #endif
 } mcs_shell_t;
 
+/* Console.ReadLine for scripts started by the shell (set mcs_config_t.readline_fn to a
+ * wrapper): reads a line from the input queue / transport, honours backspace and CR LF,
+ * echoes when sh->echo; Ctrl-C aborts the script. Returns the length or -1. */
+int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap);
 void mcs_shell_init(mcs_shell_t* sh, mcs_vm_t* vm, struct mcs_vfs* vfs, struct mcs_sched* sched, mcs_transport_t t);
 /* Run the boot scripts (if run_scripts), then print the banner and status line. */
 void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts);
