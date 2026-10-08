@@ -972,13 +972,13 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
 
 /* ------------------------------------------------------------------ raw flash partition */
 #if MCS_ENABLE_FLASH && defined(CONFIG_FLASH_MAP)
-static int zf_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+static int zfl_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
     return flash_area_read((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, addr, buf, n) ? MCS_FLASH_EIO : 0;
 }
-static int zf_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+static int zfl_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
     return flash_area_write((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, addr, buf, n) ? MCS_FLASH_EPROG : 0;
 }
-static int zf_erase(mcs_flash_t* f, uint32_t block) {
+static int zfl_erase(mcs_flash_t* f, uint32_t block) {
     return flash_area_erase((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, block * f->block_size, f->block_size)
         ? MCS_FLASH_EPROG : 0;
 }
@@ -1000,9 +1000,9 @@ int mcs_zephyr_flash_area_init(mcs_zephyr_flash_t* d, int area_id) {
     d->flash.block_count = fa->fa_size / bs;
     d->flash.write_size = flash_area_align(fa) > 1 ? flash_area_align(fa) : 0;
     if (d->flash.write_size > d->flash.page_size) d->flash.page_size = d->flash.write_size;
-    d->flash.read = zf_read;
-    d->flash.prog = zf_prog;
-    d->flash.erase = zf_erase;
+    d->flash.read = zfl_read;
+    d->flash.prog = zfl_prog;
+    d->flash.erase = zfl_erase;
     d->flash.ctx = d;
     return 0;
 }
