@@ -182,6 +182,13 @@ static int p_set16(void* ctx, int ch, uint32_t f, uint16_t d) {
     logf_(SIM, "[sim] pwm%d %d Hz duty %d/65535\n", ch, (int)f, d);
     return 0;
 }
+static int l_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
+    if (pin < 0 || pin >= 64) return MCS_HAL_EINVAL;
+    int bpp = order == MCS_LED_GRBW ? 4 : 3;
+    int first = n >= 3 ? (order == MCS_LED_RGB ? (d[0] << 16 | d[1] << 8 | d[2]) : (d[1] << 16 | d[0] << 8 | d[2])) : 0;
+    logf_(SIM, "[sim] ledstrip gpio %d: %d LEDs, first #%06X\n", pin, (int)n / bpp, first);
+    return 0;
+}
 static int p_stop(void* ctx, int ch) {
     if (ch < 0 || ch >= 8) return MCS_HAL_ENOTSUP;
     SIM->pwm_duty[ch] = SIM->pwm_duty16[ch] = 0;
@@ -333,6 +340,7 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->can_open = c_open; h->can_send = c_send; h->can_recv = c_recv;
     h->wdt_start = w_start; h->wdt_feed = w_feed;
     h->rtc_get = r_get; h->rtc_set = r_set;
+    h->ledstrip_write = l_write;
     h->micros = sim_micros; h->delay_us = sim_delay_us; h->reset = sys_reset; h->unique_id = sys_uid;
     h->cpu_hz = 160000000u;
     h->poll_event = sim_poll;

@@ -130,7 +130,7 @@ endif()
 if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
                           hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
-                          hardware_flash hardware_sync)
+                          hardware_flash hardware_sync hardware_pio)
     if(TARGET pico_flash)
         target_link_libraries(microcs PUBLIC pico_flash)   # flash_safe_execute (pico-sdk >= 1.5.1)
     endif()

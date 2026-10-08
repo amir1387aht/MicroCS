@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 2
+#define MCS_HAL_API_VERSION 3
 
 #ifndef MCS_HAL_MAX_XFER
 #define MCS_HAL_MAX_XFER 256     /* largest single transfer per call; buffers live on the C stack */
@@ -206,7 +206,19 @@ typedef struct mcs_hal {
     /* Drain one driver event (alternative to mcs_hal_post, e.g. from an RTOS
      * queue). Return 1 when *ev was filled, 0 when empty. */
     int (*poll_event)(void* ctx, mcs_hal_event_t* ev);
+
+    /* ---------------- v3 ---------------- */
+    /* Addressable LEDs (WS2812 / WS2812B / SK6812 / WS2811, 800 kHz one-wire):
+     * send n bytes MSB first on `pin` (T0H 0.4 us, T1H 0.8 us, 1.25 us per bit),
+     * then keep the line low >= 280 us so the strip latches. The bytes are
+     * already in the strip's wire order and scaled by brightness; `order`
+     * (MCS_LED_GRB / _RGB / _GRBW) tells the layout to drivers that need it
+     * (Zephyr's led_strip API). Any pin: done with PIO (RP2), RMT (ESP32),
+     * a cycle-timed loop with interrupts off (STM32) or the platform driver. */
+    int (*ledstrip_write)(void* ctx, int pin, const uint8_t* data, size_t n, int order);
 } mcs_hal_t;
+
+enum { MCS_LED_GRB = 0, MCS_LED_RGB = 1, MCS_LED_GRBW = 2 };
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
  * object classes Pin / I2cDevice / SpiDevice / CanFrame. The HAL struct must

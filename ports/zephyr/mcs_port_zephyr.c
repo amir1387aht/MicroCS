@@ -738,6 +738,29 @@ static int z_reset(void* ctx) {
 #endif
     return MCS_HAL_ENOTSUP;
 }
+/* ------------------------------------------------------------------ WS2812 / NeoPixel
+ * Through Zephyr's led_strip API on the devicetree node aliased `led-strip`
+ * (worldsemi,ws2812-spi / -gpio / -i2s / -rpi_pico-pio, ...; CONFIG_LED_STRIP=y).
+ * The strip's pin comes from the devicetree, so LedStrip's pin argument is not used. */
+#if defined(CONFIG_LED_STRIP) && DT_NODE_EXISTS(DT_ALIAS(led_strip))
+#include <zephyr/drivers/led_strip.h>
+#define Z_STRIP_LEN DT_PROP_OR(DT_ALIAS(led_strip), chain_length, 64)
+static int z_ledstrip_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
+    (void)ctx; (void)pin;
+    static struct led_rgb px[Z_STRIP_LEN];
+    const struct device* dev = DEVICE_DT_GET(DT_ALIAS(led_strip));
+    if (!device_is_ready(dev)) return MCS_HAL_ENODEV;
+    size_t bpp = order == MCS_LED_GRBW ? 4 : 3, count = n / bpp;
+    if (count > Z_STRIP_LEN) count = Z_STRIP_LEN;
+    memset(px, 0, sizeof px);
+    for (size_t i = 0; i < count; i++, d += bpp) {       /* back from wire order: the driver applies its color-mapping */
+        if (order == MCS_LED_RGB) { px[i].r = d[0]; px[i].g = d[1]; px[i].b = d[2]; }
+        else { px[i].g = d[0]; px[i].r = d[1]; px[i].b = d[2]; }
+    }
+    return led_strip_update_rgb(dev, px, count) ? MCS_HAL_ERR : 0;
+}
+#define Z_HAS_LEDSTRIP 1
+#endif
 static int z_unique_id(void* ctx, uint8_t* buf, size_t cap) {
     (void)ctx;
 #if defined(CONFIG_HWINFO)
@@ -967,6 +990,9 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     hal->delay_us = z_delay_us;
     hal->reset = z_reset;
     hal->unique_id = z_unique_id;
+#ifdef Z_HAS_LEDSTRIP
+    hal->ledstrip_write = z_ledstrip_write;
+#endif
     hal->cpu_hz = (uint32_t)sys_clock_hw_cycles_per_sec();
 }
 

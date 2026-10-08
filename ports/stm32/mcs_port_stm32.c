@@ -108,6 +108,58 @@ static int st_gpio_write(void* ctx, int pin, int v) {
     HAL_GPIO_WritePin(g, (uint16_t)(1u << (pin & 15)), v ? GPIO_PIN_SET : GPIO_PIN_RESET);
     return 0;
 }
+/* ------------------------------------------------------------------ WS2812 / NeoPixel
+ * Bit-banged on any GPIO with interrupts off, timed by the SysTick counter
+ * (every Cortex-M has it; HAL_Init starts it): 0.4 / 0.8 us high, 1.25 us per
+ * bit. Needs HCLK >= 24 MHz (48 MHz+ recommended on Cortex-M0). Interrupts are
+ * held off for ~30 us per LED: long strips delay UART reception accordingly. */
+static inline uint32_t st_elapsed(uint32_t t0, uint32_t load) {
+    uint32_t e = t0 - SysTick->VAL;
+    if ((int32_t)e < 0) e += load;
+    return e;
+}
+static int st_ledstrip_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
+    (void)ctx; (void)order;
+    GPIO_TypeDef* g = port_of(pin);
+    if (!g) return MCS_HAL_EINVAL;
+    if (!(SysTick->CTRL & SysTick_CTRL_ENABLE_Msk)) return MCS_HAL_ENOTSUP;
+    uint32_t hz = HAL_RCC_GetHCLKFreq();
+    if (!(SysTick->CTRL & SysTick_CTRL_CLKSOURCE_Msk)) hz /= 8;
+    if (hz < 24000000u) return MCS_HAL_ENOTSUP;
+    GPIO_InitTypeDef init;
+    memset(&init, 0, sizeof init);
+    init.Pin = 1u << (pin & 15);
+    init.Mode = GPIO_MODE_OUTPUT_PP;
+    init.Pull = GPIO_NOPULL;
+    init.Speed = GPIO_SPEED_FREQ_HIGH;
+    HAL_GPIO_Init(g, &init);
+    const uint32_t set = 1u << (pin & 15), clr = set << 16;
+    const uint32_t t0h = hz / 2500000u, t1h = hz / 1250000u, tbit = hz / 800000u, load = SysTick->LOAD + 1u;
+    volatile uint32_t* bsrr = &g->BSRR;
+    *bsrr = clr;
+    uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    for (size_t i = 0; i < n; i++) {
+        uint32_t b = d[i];
+        for (uint32_t m = 0x80; m; m >>= 1) {
+            uint32_t th = (b & m) ? t1h : t0h;
+            uint32_t t0 = SysTick->VAL;
+            *bsrr = set;
+            while (st_elapsed(t0, load) < th) { }
+            *bsrr = clr;
+            while (st_elapsed(t0, load) < tbit) { }
+        }
+    }
+    __set_PRIMASK(primask);
+    uint32_t t0 = SysTick->VAL, latch = hz / 1000000u * 300u;   /* >= 280 us low = latch */
+    uint32_t waited = 0, last = t0;
+    while (waited < latch) {                                     /* may span SysTick reloads */
+        uint32_t now = SysTick->VAL, e = last - now;
+        if ((int32_t)e < 0) e += load;
+        waited += e; last = now;
+    }
+    return 0;
+}
 static int st_gpio_read(void* ctx, int pin) {
     (void)ctx;
     GPIO_TypeDef* g = port_fast(pin);
@@ -984,6 +1036,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->delay_us = st_delay_us;
     hal->reset = st_reset;
     hal->unique_id = st_unique_id;
+    hal->ledstrip_write = st_ledstrip_write;
     hal->pin_lookup = s_pin_lookup;
     hal->cpu_hz = SystemCoreClock;
 }
