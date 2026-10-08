@@ -22,6 +22,7 @@
 #if MCS_ENABLE_FS && MCS_ENABLE_YAFFS
 #include <string.h>
 #include <stdint.h>
+#include <sys/types.h>     /* mode_t, off_t (newlib) before the yaffs headers */
 #include "yaffsfs.h"
 #include "yaffs_guts.h"
 #include "yaffs_packedtags2.h"
@@ -201,7 +202,7 @@ int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const cha
         p->disable_bad_block_marking = 1;
     }
     p->chunks_per_block = f->block_size / p->total_bytes_per_chunk;
-    if (p->chunks_per_block < 2) return MCS_VFS_EINVAL;
+    if (p->chunks_per_block < 2 || count < 6) return MCS_VFS_EINVAL;   /* YAFFS2: reserved blocks + 4 minimum */
     p->start_block = part->first_block;
     p->end_block = part->first_block + count - 1;
     p->n_reserved_blocks = count > 4 * MCS_YAFFS_RESERVED_BLOCKS ? MCS_YAFFS_RESERVED_BLOCKS : 2;

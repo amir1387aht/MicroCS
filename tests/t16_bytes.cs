@@ -1,5 +1,5 @@
 // args: --sim --sim-virtual
-// Encoding + BitConverter helpers (registered with the HAL)
+// Encoding + BitConverter helpers (core library; also used with the HAL)
 byte[] b = Encoding.UTF8.GetBytes("héllo");
 Console.WriteLine($"{b.Length} {BitConverter.ToString(b)} {Encoding.UTF8.GetString(b)} {Encoding.UTF8.GetString(b, 3, 3)}");
 Console.WriteLine(BitConverter.ToString(Encoding.ASCII.GetBytes("héllo")) + " " + Encoding.ASCII.GetString(b));

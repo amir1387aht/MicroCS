@@ -7,11 +7,17 @@
 #include <string.h>
 #include "mcs_runtime.h"
 #include "mcs_port_zephyr.h"
+#if defined(CONFIG_MICROCS_YAFFS2)
+#include <zephyr/storage/flash_map.h>
+#endif
 
 static uint8_t heap[CONFIG_MICROCS_HEAP_SIZE] __aligned(8);
 static mcs_runtime_t rt;
 static mcs_hal_t hal;
-#if defined(CONFIG_MICROCS_FS)
+#if defined(CONFIG_MICROCS_YAFFS2)
+static mcs_zephyr_flash_t flash;
+static mcs_flashfs_t flashfs;
+#elif defined(CONFIG_MICROCS_FS)
 static mcs_zephyr_fs_t files;
 #endif
 
@@ -36,7 +42,20 @@ int main(void) {
     cfg.delay = mcs_zephyr_delay;
     cfg.echo = IS_ENABLED(CONFIG_MICROCS_CONSOLE_ECHO);
     cfg.hal = &hal;
-#if defined(CONFIG_MICROCS_FS)
+#if defined(CONFIG_MICROCS_YAFFS2)
+#if FIXED_PARTITION_EXISTS(storage_partition)
+    if (mcs_zephyr_flash_area_init(&flash, FIXED_PARTITION_ID(storage_partition)) == 0 &&
+        mcs_flashfs_mount(&flashfs, &flash.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+        cfg.fs_ops = flashfs.ops;
+        cfg.fs_ctx = flashfs.ctx;
+    } else {
+        say(&cfg.console, "MicroCS: YAFFS2 mount failed - using a RAM filesystem\r\n");
+        cfg.ramfs_size = CONFIG_MICROCS_RAMFS_SIZE;
+    }
+#else
+    cfg.ramfs_size = CONFIG_MICROCS_RAMFS_SIZE;           /* no storage_partition on this board */
+#endif
+#elif defined(CONFIG_MICROCS_FS)
     int e = mcs_zephyr_fs_mount(&files);
     if (e == 0) {
         cfg.fs_ops = &mcs_zephyr_fs_ops;

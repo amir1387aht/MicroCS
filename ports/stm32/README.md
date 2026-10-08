@@ -64,6 +64,32 @@ already (HAL tick on a TIM) — call `mcs_stm32_tim_elapsed(htim)` from it, or s
 `MCS_STM32_DEFINE_TIM_CALLBACK=1`. `MCS_STM32_EXTI_HANDLERS=1` defines the `EXTIx_IRQHandler`s
 when CubeMX does not.
 
+## Files on flash
+
+The free top of the chip's own flash holds `/boot.cs`, `/main.cs`, uploads and script files
+(LittleFS by default, YAFFS2 optional) — see [`example_main.c`](example_main.c):
+
+```c
+static mcs_stm32_flash_t flash;
+static mcs_flashfs_t fs;
+if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&                      // top quarter of the flash
+    mcs_flashfs_mount(&fs, &flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+    cfg.fs_ops = fs.ops; cfg.fs_ctx = fs.ctx;
+}
+```
+
+* Every family: page flash (F0/F1/F3/G0/G4/L0/L1/L4/L5/U0/U5/C0/WB/WL, 2–8 KB pages), sector
+  flash (F2/F4/F7: the region must lie in the uniform 128/256 KB top sectors; H5 8 KB, H7 128 KB).
+  The program unit (8/16/32-byte flash words with ECC) is honoured; L0/L1 erase to 0x00 and the
+  driver stores inverted bytes. On STM32WB the region stays below the wireless stack.
+* Pass an address and size to pick the region yourself (e.g. reserve it in the linker script);
+  regions overlapping the firmware are refused.
+* The CPU stalls while its own flash bank erases (up to 1–2 s for a 128 KB F4 sector); uploads
+  use the retrying Studio/shell protocol, so this is harmless.
+* CMake (`MICROCS_PORT=stm32`): `-DMICROCS_FS=littlefs` or `-DMICROCS_FS=yaffs2` downloads and
+  adds the sources (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `-DMCS_ENABLE_LFS=1 -DMCS_ENABLE_FLASH=1`
+  (see [FILESYSTEM.md](../../docs/FILESYSTEM.md#files-on-the-chips-own-flash-every-port)).
+
 ## Memory
 
 Heap guidance: 48–64 KB for the REPL with a small RAM disk on F4/G4/L4 (128 KB SRAM),
@@ -102,5 +128,6 @@ stop the build with an `#error` (define `MCS_ALLOW_SMALL_TARGET=1` to try anyway
 
 `tools/check_ports.sh stm32 <family> <device> <cpu>` compiles the port with `-Werror`
 against the official STM32Cube HAL headers of the family, once with the default
-configuration and once with the auto profile (`PORT_CFLAGS`). CI covers F0, F1, F4, F7, G0,
+configuration and once with the auto profile (`PORT_CFLAGS`), then with the flash driver +
+LittleFS and + YAFFS2. CI covers F0, F1, F4, F7, G0,
 G4, H5, H7, L0, L4, U5 and WB.

@@ -482,7 +482,7 @@ static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn) {
         uint8_t op = fn->code[pc];
         uint32_t len = mcs_insn_len(fn, pc);
         const uint8_t* a = fn->code + pc + 1;
-        uint32_t u16 = (mcs_op_len[op] >= 2) ? (uint32_t)((a[0] << 8) | a[1]) : 0;
+        uint32_t u16 = (op < OP_RT_COUNT && mcs_op_len[op] >= 2) ? (uint32_t)((a[0] << 8) | a[1]) : 0;
         switch (op) {
         case OP_GET_LOCAL: case OP_SET_LOCAL: case OP_SET_LOCAL_POP: case OP_INC_LOCAL:
             ok = a[0] < fn->max_slots; break;

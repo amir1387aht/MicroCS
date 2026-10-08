@@ -160,8 +160,9 @@ int mcs_lfs_flash_config(struct lfs_config* cfg, mcs_flash_part_t* part) {
         cfg->prog_size = f->page_size;   /* one program per NAND page (on-die ECC) */
         cfg->cache_size = f->page_size;
     } else {
-        cfg->prog_size = 16;
+        cfg->prog_size = f->write_size > 16 ? f->write_size : 16;
         cfg->cache_size = f->page_size < f->block_size ? f->page_size : f->block_size;
+        if (cfg->cache_size < cfg->prog_size) cfg->cache_size = cfg->prog_size;
     }
     cfg->lookahead_size = 16;
     cfg->block_cycles = 500;

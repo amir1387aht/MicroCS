@@ -118,13 +118,16 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test
+.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
 LFS_DIR = build/third_party/littlefs-2.9.3
 $(LFS_DIR)/lfs.c:
 	mkdir -p build/third_party && curl -sSL https://github.com/littlefs-project/littlefs/archive/refs/tags/v2.9.3.tar.gz | tar xz -C build/third_party
+fetch-lfs: $(LFS_DIR)/lfs.c
+print-lfs-dir:
+	@echo $(LFS_DIR)
 lfs-test: $(LFS_DIR)/lfs.c
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Iinclude -I$(LFS_DIR) -DMCS_ENABLE_LFS=1 -DLFS_NO_DEBUG -DLFS_NO_WARN -DLFS_NO_ERROR \
 	  $(SRC) $(MOD_SRC) $(LFS_DIR)/lfs.c $(LFS_DIR)/lfs_util.c tests/c/test_lfs.c -lm -o build/test_lfs
@@ -146,6 +149,9 @@ $(YAFFS_DIR)/direct/yaffs_guts.c:
 	      -e 's/strcmp/yaffs_strcmp/g' -e 's/strncmp/yaffs_strncmp/g' -e 's/loff_t/Y_LOFF_T/g' ../core/$$f.$$e > $$f.$$e; \
 	  done; done; for h in yaffs_getblockinfo yaffs_trace yaffs_attribs; do \
 	  sed -e 's/loff_t/Y_LOFF_T/g' ../core/$$h.h > $$h.h; done
+fetch-yaffs: $(YAFFS_DIR)/direct/yaffs_guts.c
+print-yaffs-dir:
+	@echo $(YAFFS_DIR)/direct
 yaffs-test: $(YAFFS_DIR)/direct/yaffs_guts.c
 	$(CC) -std=gnu99 -O1 -w -Iinclude -I$(YAFFS_DIR)/direct $(YAFFS_DEFS) -DMCS_ENABLE_YAFFS=1 -DMCS_YAFFS_OSGLUE=1 \
 	  $(SRC) $(MOD_SRC) $(addprefix $(YAFFS_DIR)/direct/,$(addsuffix .c,$(YAFFS_CORE))) \

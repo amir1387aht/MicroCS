@@ -36,6 +36,29 @@ mcs_rp2_hal_init(&hal, &pins);
 
 Not available on this chip: DAC, CAN, QSPI for user devices; I²S needs PIO (planned).
 
+## Files on flash
+
+The example keeps `/boot.cs`, `/main.cs`, uploaded scripts and every file a script writes in
+**LittleFS** on the top of the board's QSPI flash, so they survive resets:
+
+```c
+static mcs_rp2_flash_t flash;
+static mcs_flashfs_t fs;
+if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_RP2_FS_SIZE bytes
+    mcs_flashfs_mount(&fs, &flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+    cfg.fs_ops = fs.ops; cfg.fs_ctx = fs.ctx;
+}
+```
+
+* Region: `MCS_RP2_FS_SIZE` bytes at the end of flash — 1 MB on 2 MB boards (Pico), all but
+  the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Override with `-DMCS_RP2_FS_SIZE=...` or pass
+  an offset/size; the driver refuses a region that overlaps the firmware.
+* Erase/program go through `flash_safe_execute`, which pauses interrupts and the other core.
+* **YAFFS2 instead**: `cmake ... -DMICROCS_FS=yaffs2` (downloads yaffs2; GPLv2 or commercial
+  licence — linking it puts your firmware under those terms). `-DMICROCS_FS=` (empty) builds
+  without flash files (RAM disk only).
+
 ## Checked in CI
 
-The example firmware is built for `pico` (RP2040) and `pico2` (RP2350).
+The example firmware is built for `pico` (RP2040, LittleFS) and `pico2` (RP2350, LittleFS and
+YAFFS2).

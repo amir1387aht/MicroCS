@@ -64,7 +64,14 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
   | 16 MB | `0xE70000` | 14.4 MB |
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
-* **C code sees the same files**: the partition is mounted in the ESP-IDF VFS at `/mcs`
+* **YAFFS2 instead**: menuconfig → MicroCS → *Filesystem on the "storage" partition* →
+  YAFFS2 (or `CONFIG_MICROCS_FS_YAFFS2=y` in `sdkconfig.defaults`). The build downloads
+  yaffs2 and `mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx)` mounts it through
+  `mcs_esp32_partition_flash()` (any data partition as an `mcs_flash_t`). YAFFS2 is
+  GPLv2 (or commercial licence): linking it puts your firmware under those terms. C code
+  then uses the files through MicroCS, not `fopen()`. The example calls
+  `mcs_esp32_flash_fs()`, which picks whichever filesystem is configured.
+* **C code sees the same files** (LittleFS): the partition is mounted in the ESP-IDF VFS at `/mcs`
   (`MCS_ESP32_FS_PATH`), so `fopen("/mcs/config.json", "r")` reads what a script wrote to
   `/config.json`.
 * **From C#**: `File.WriteAllText("/log.txt", ...)`, `File.ReadAllText`, `File.AppendAllText`,

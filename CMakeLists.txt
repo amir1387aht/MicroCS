@@ -15,6 +15,8 @@
 #   MICROCS_CONFIG    path of your own config header (overrides MICROCS_PROFILE)
 #   MICROCS_PORT      "" | stm32 | rp2 | esp32 | template          (adds ports/<port>/mcs_port_<port>.c)
 #   MICROCS_MODULES   ON: filesystem, HAL, scheduler, shell/REPL, runtime (default ON)
+#   MICROCS_FS        "" | littlefs | yaffs2: compile a flash filesystem in (downloaded once,
+#                     see cmake/MicroCSFS.cmake) -> mcs_flashfs_mount() on the port's flash driver
 cmake_minimum_required(VERSION 3.13)
 
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -23,12 +25,24 @@ file(GLOB MICROCS_MODULE_SRCS ${MICROCS_DIR}/modules/*/*.c)
 
 # ------------------------------------------------------------------ ESP-IDF component
 if(ESP_PLATFORM)
+    set(_mcs_fs_srcs "")
+    set(_mcs_fs_incs "")
+    if(CONFIG_MICROCS_FS_YAFFS2)        # menuconfig > MicroCS > Filesystem
+        include(${MICROCS_DIR}/cmake/MicroCSFS.cmake)
+        microcs_yaffs2_sources()
+        set(_mcs_fs_srcs ${MICROCS_YAFFS_SRCS})
+        set(_mcs_fs_incs ${MICROCS_YAFFS_INC})
+    endif()
     idf_component_register(
-        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c
-        INCLUDE_DIRS include ports/esp32
-        REQUIRES driver esp_adc esp_timer joltwallet__littlefs
+        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_fs_srcs}
+        INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs}
+        REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs
         PRIV_REQUIRES esp_system)
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
+    if(CONFIG_MICROCS_FS_YAFFS2)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
+        set_source_files_properties(${_mcs_fs_srcs} PROPERTIES COMPILE_OPTIONS "-w;-include;sys/types.h")
+    endif()
     # menuconfig > Component config > MicroCS (Kconfig); the ESP32-C2 defaults to "embedded"
     foreach(p EMBEDDED MCU LOWRAM MIN)
         if(CONFIG_MICROCS_PROFILE_${p})
@@ -54,6 +68,9 @@ if(NOT DEFINED MICROCS_CONFIG)
 endif()
 if(NOT DEFINED MICROCS_PORT)
     set(MICROCS_PORT "" CACHE STRING "Board port to compile in (stm32, rp2, esp32, template)")
+endif()
+if(NOT DEFINED MICROCS_FS)
+    set(MICROCS_FS "" CACHE STRING "Flash filesystem to compile in: littlefs, yaffs2 (GPLv2) or empty")
 endif()
 if(NOT DEFINED MICROCS_MODULES)
     option(MICROCS_MODULES "Build the optional modules (fs, hal, sched, shell, runtime)" ON)
@@ -95,6 +112,9 @@ if(MICROCS_FLASH_KB)
 endif()
 if(NOT MICROCS_MODULES)
     target_compile_definitions(microcs PUBLIC MCS_ENABLE_FS=0 MCS_ENABLE_HAL=0 MCS_ENABLE_SCHED=0 MCS_ENABLE_SHELL=0)
+elseif(MICROCS_FS)
+    include(${MICROCS_DIR}/cmake/MicroCSFS.cmake)
+    microcs_add_fs(microcs "${MICROCS_FS}")
 endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(microcs PRIVATE -Wall -Wextra)
@@ -109,7 +129,11 @@ endif()
 # ------------------------------------------------------------------ vendor SDKs
 if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
-                          hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks)
+                          hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
+                          hardware_flash hardware_sync)
+    if(TARGET pico_flash)
+        target_link_libraries(microcs PUBLIC pico_flash)   # flash_safe_execute (pico-sdk >= 1.5.1)
+    endif()
 elseif(MICROCS_PORT STREQUAL "stm32")
     # STM32CubeMX >= 6.11 generates an INTERFACE target with the HAL includes + defines
     if(TARGET stm32cubemx)

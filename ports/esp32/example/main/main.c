@@ -1,7 +1,8 @@
 /* MicroCS as the whole firmware on any ESP32-family chip: a C# REPL / shell on
  * the serial console (UART0 and, where the chip has it, USB-Serial-JTAG - so it
  * works on either USB connector), the GPIO/ADC/PWM/... classes and a LittleFS
- * filesystem on the flash partition "storage" (partitions.csv): uploaded
+ * (or YAFFS2: menuconfig > MicroCS > Filesystem) filesystem on the flash
+ * partition "storage" (partitions.csv): uploaded
  * scripts, /boot.cs and /main.cs survive resets and power cycles. To give
  * scripts UART1, I2C, SPI, PWM, I2S or CAN pins, set them in `pins` before
  * mcs_esp32_hal_init (see ports/esp32/README.md). */
@@ -23,7 +24,7 @@ void app_main(void) {
 
     mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
     /* files on flash; without a "storage" partition: a RAM disk (lost on reset) */
-    bool on_flash = mcs_esp32_littlefs("storage", &cfg.fs_ops, &cfg.fs_ctx);
+    bool on_flash = mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx);
 
     /* VM heap: up to 192 KB, leaving 32 KB for the drivers and FreeRTOS */
     size_t heap_size = 192 * 1024;
@@ -34,9 +35,9 @@ void app_main(void) {
     cfg.heap = heap;
     cfg.heap_size = heap ? heap_size : 0;
     if (!on_flash) cfg.ramfs_size = heap_size / 6;     /* RAM disk, taken from the heap */
-    size_t total = 0, used = 0;
-    if (on_flash && mcs_esp32_littlefs_info("storage", &total, &used))
-        printf("MicroCS: LittleFS on flash, %u of %u KB used\n", (unsigned)(used / 1024), (unsigned)(total / 1024));
+    mcs_vfs_statfs_t sf;
+    if (on_flash && cfg.fs_ops->statfs && cfg.fs_ops->statfs(cfg.fs_ctx, &sf) == 0)
+        printf("MicroCS: %s on flash, %u of %u KB free\n", sf.format, (unsigned)(sf.free / 1024), (unsigned)(sf.total / 1024));
     else if (!on_flash)
         printf("MicroCS: no \"storage\" partition - files are kept in RAM only\n");
     cfg.console = mcs_esp32_console();

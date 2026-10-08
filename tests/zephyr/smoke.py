@@ -14,6 +14,7 @@ import threading
 import time
 
 EXE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "build/zephyr/zephyr.exe")
+FS = sys.argv[2] if len(sys.argv) > 2 else "littlefs"   # expected filesystem: littlefs | yaffs2
 WORK = tempfile.mkdtemp(prefix="mcs_zephyr_")
 fails = 0
 
@@ -85,7 +86,7 @@ try:
     st, out = b.cmd("info")
     check("info", st == "OK" and "MicroCS" in out, out)
     st, out = b.cmd("df")
-    check("df reports LittleFS", st == "OK" and "littlefs" in out, out)
+    check("df reports " + FS, st == "OK" and FS in out, out)
     code = b'Console.WriteLine("sum " + (1 + 2 + 3));\n'
     b.send(f"put /main2.cs {len(code)}\n")
     b.wait_for(b"\x04READY\n")

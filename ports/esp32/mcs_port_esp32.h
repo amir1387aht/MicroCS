@@ -102,6 +102,18 @@ mcs_transport_t mcs_esp32_console(void);
 #include "mcs_vfs.h"
 bool mcs_esp32_littlefs(const char* partition_label, const mcs_vfs_ops_t** ops, void** ctx);
 bool mcs_esp32_littlefs_info(const char* partition_label, size_t* total, size_t* used);
+#if MCS_ENABLE_FLASH
+/* A flash data partition as a raw mcs_flash_t (4 KB blocks, esp_partition API)
+ * for mcs_flashfs_mount(): YAFFS2 (menuconfig > MicroCS > Filesystem) or any
+ * other filesystem layout. false = no partition with that label. */
+#include "mcs_flash.h"
+typedef struct { mcs_flash_t flash; const void* part; } mcs_esp32_flash_t;
+bool mcs_esp32_partition_flash(mcs_esp32_flash_t* f, const char* partition_label);
+#endif
+/* The filesystem chosen in menuconfig (LittleFS via esp_littlefs, or YAFFS2)
+ * on the partition, formatted on first use. false = no partition / no
+ * filesystem compiled in: use a RAM disk. */
+bool mcs_esp32_flash_fs(const char* partition_label, const mcs_vfs_ops_t** ops, void** ctx);
 #endif       /* both: UART0 + USB-Serial-JTAG (use this if unsure) */
 uint32_t mcs_esp32_ticks(void* ud);            /* milliseconds since boot */
 void mcs_esp32_delay(void* ud, uint32_t ms);   /* vTaskDelay, at least one tick */

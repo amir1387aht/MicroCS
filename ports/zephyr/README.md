@@ -53,7 +53,11 @@ west build -b native_sim/native/64 microcs/ports/zephyr/example
 `mcs_zephyr_fs_mount()` mounts LittleFS on the board's `storage_partition` at `/lfs` (formats
 it the first time, or reuses an `fstab` automount) and C# sees it as `/`. Boards without a
 storage partition fall back to a RAM filesystem — add one in `boards/<board>.overlay` (see
-[`boards/rpi_pico.overlay`](example/boards/rpi_pico.overlay)). Any other mounted Zephyr
+[`boards/rpi_pico.overlay`](example/boards/rpi_pico.overlay)). **YAFFS2** on the same partition: build with
+`-DEXTRA_CONF_FILE=overlay-yaffs2.conf` (`CONFIG_MICROCS_YAFFS2=y`, downloads yaffs2 —
+GPLv2 or commercial licence); `mcs_zephyr_flash_area_init()` wraps any flash area as an
+`mcs_flash_t` and `mcs_flashfs_mount()` formats/mounts it (YAFFS2 needs ≥6 erase blocks:
+`boards/native_sim_yaffs2.overlay` gives `native_sim` a 136 KB storage partition). Any other mounted Zephyr
 filesystem works too, e.g. FAT on an SD card:
 
 ```c
@@ -93,5 +97,6 @@ QSPI API; use the flash API from C).
 | `CONFIG_MICROCS_PROFILE_*` | AUTO | configuration from `CONFIG_SRAM_SIZE` / `CONFIG_FLASH_SIZE` |
 | `CONFIG_MICROCS_HEAP_SIZE` | 96 / 64 / 40 KB | C# heap of the example (by RAM size) |
 | `CONFIG_MICROCS_FS` | y with LittleFS | LittleFS on `storage_partition` |
+| `CONFIG_MICROCS_YAFFS2` | n | YAFFS2 on `storage_partition` instead (`overlay-yaffs2.conf`) |
 | `CONFIG_MICROCS_RAMFS_SIZE` | 16 KB | RAM filesystem when there is no partition |
 | `CONFIG_MICROCS_CONSOLE_ECHO` | y | echo typed characters (raw terminals) |

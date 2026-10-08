@@ -987,3 +987,213 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->pin_lookup = s_pin_lookup;
     hal->cpu_hz = SystemCoreClock;
 }
+
+/* ------------------------------------------------------------------ internal flash */
+#if MCS_ENABLE_FLASH && defined(HAL_FLASH_MODULE_ENABLED)
+#if defined(FLASH_TYPEPROGRAM_FLASHWORD)                   /* H7: 256-bit (H7A3/B0: 128-bit) */
+#define IF_UNIT (FLASH_NB_32BITWORD_IN_FLASHWORD * 4U)
+#define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_FLASHWORD, (a), (uint32_t)(uintptr_t)(U_).w)
+#elif defined(FLASH_TYPEPROGRAM_QUADWORD)                  /* U5 H5: 128-bit */
+#define IF_UNIT 16U
+#define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, (a), (uint32_t)(uintptr_t)(U_).w)
+#elif defined(STM32F0) || defined(STM32F1) || defined(STM32F3)
+#define IF_UNIT 2U
+#define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_HALFWORD, (a), (uint64_t)(U_).h)
+#elif defined(STM32F2) || defined(STM32F4) || defined(STM32F7) || defined(STM32L0) || defined(STM32L1)
+#define IF_UNIT 4U
+#define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (a), (U_).w[0])
+#else                                                      /* G0 G4 L4 L5 WB WL C0 U0: 64-bit */
+#define IF_UNIT 8U
+#define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (a), (U_).d)
+#endif
+
+#if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
+#define IF_MIXED_SECTORS 1          /* 16/64/128 KB (F7: 32/128/256 KB) sectors */
+#elif defined(FLASH_TYPEERASE_SECTORS) && defined(FLASH_SECTOR_SIZE)
+#define IF_UNIFORM_SECTORS 1        /* H5 H7 */
+#define IF_ERASE_UNIT FLASH_SECTOR_SIZE
+#elif defined(STM32F0) || defined(STM32F1) || defined(STM32F3) || defined(STM32L0) || defined(STM32L1)
+#define IF_PAGE_ADDR 1              /* erase by page address */
+#define IF_ERASE_UNIT (FLASH_PAGE_SIZE > 4096U ? FLASH_PAGE_SIZE : 4096U)
+#else
+#define IF_PAGE_INDEX 1             /* erase by bank + page number */
+#define IF_ERASE_UNIT (FLASH_PAGE_SIZE > 4096U ? FLASH_PAGE_SIZE : 4096U)
+#endif
+#if defined(STM32L0) || defined(STM32L1)
+#define IF_ERASED 0x00
+#else
+#define IF_ERASED 0xFF
+#endif
+#ifndef MCS_STM32_FS_SIZE
+#define MCS_STM32_FS_SIZE 0         /* 0 = a quarter of the flash */
+#endif
+
+static uint32_t if_flash_size(void) {
+    uint32_t kb = *(volatile const uint16_t*)FLASHSIZE_BASE;
+    if (kb == 0 || kb == 0xFFFF) kb = 128;
+    return kb * 1024U;
+}
+#if IF_MIXED_SECTORS
+#if defined(STM32F7) && !(defined(STM32F722xx) || defined(STM32F723xx) || defined(STM32F730xx) || defined(STM32F732xx) || defined(STM32F733xx))
+#define IF_SECTOR_U (32U * 1024U)
+#else
+#define IF_SECTOR_U (16U * 1024U)
+#endif
+/* sector number, start offset and size of the sector holding `off` (from FLASH_BASE) */
+static uint32_t if_sector(uint32_t off, uint32_t* start, uint32_t* size) {
+    const uint32_t u = IF_SECTOR_U;
+    uint32_t base = 0, first = 0, s;
+#if defined(FLASH_SECTOR_12)
+    if (off >= 0x100000U) { base = 0x100000U; first = 12; off -= base; }   /* F42x/F43x bank 2 */
+#endif
+    if (off < 4 * u) { s = off / u; *start = s * u; *size = u; }
+    else if (off < 8 * u) { s = 4; *start = 4 * u; *size = 4 * u; }
+    else { s = 5 + (off - 8 * u) / (8 * u); *start = 8 * u + (s - 5) * 8 * u; *size = 8 * u; }
+    *start += base;
+    return first + s;
+}
+#endif
+
+static int if_unlock(void) { return HAL_FLASH_Unlock() == HAL_OK ? 0 : MCS_FLASH_EIO; }
+static void if_lock(void) { HAL_FLASH_Lock(); }
+static void if_cache_inval(uint32_t addr, uint32_t n) {
+#if defined(__DCACHE_PRESENT) && (__DCACHE_PRESENT == 1U)
+    if (SCB->CCR & SCB_CCR_DC_Msk) {
+        uint32_t a = addr & ~31U;
+        SCB_InvalidateDCache_by_Addr((void*)a, (int32_t)(n + (addr - a)));
+    }
+#else
+    (void)addr; (void)n;
+#endif
+}
+
+static int if_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+    mcs_stm32_flash_t* d = (mcs_stm32_flash_t*)f->ctx;
+    if ((uint64_t)addr + n > d->size) return MCS_FLASH_EINVAL;
+    memcpy(buf, (const void*)(uintptr_t)(d->base + addr), n);
+    if (d->invert) for (uint32_t i = 0; i < n; i++) ((uint8_t*)buf)[i] = (uint8_t)~((uint8_t*)buf)[i];
+    return 0;
+}
+static int if_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+    mcs_stm32_flash_t* d = (mcs_stm32_flash_t*)f->ctx;
+    if ((uint64_t)addr + n > d->size || addr % IF_UNIT || n % IF_UNIT) return MCS_FLASH_EINVAL;
+    if (if_unlock()) return MCS_FLASH_EIO;
+    int e = 0;
+    const uint8_t* src = (const uint8_t*)buf;
+    for (uint32_t o = 0; o < n && !e; o += IF_UNIT) {
+        union { uint32_t w[8]; uint64_t d; uint16_t h; uint8_t b[32]; } u;
+        memcpy(u.b, src + o, IF_UNIT);
+        uint8_t* b = u.b;
+        int blank = 1;
+        for (uint32_t i = 0; i < IF_UNIT; i++) {
+            if (d->invert) b[i] = (uint8_t)~b[i];
+            if (b[i] != IF_ERASED) blank = 0;
+        }
+        if (blank) continue;                           /* nothing to program: stays erased */
+        uint32_t a = d->base + addr + o;
+        if (IF_PROG(a, u) != HAL_OK) e = MCS_FLASH_EPROG;
+        else { if_cache_inval(a, IF_UNIT); if (memcmp((const void*)(uintptr_t)a, u.b, IF_UNIT) != 0) e = MCS_FLASH_EPROG; }
+    }
+    if_lock();
+    if_cache_inval(d->base + addr, n);
+    return e;
+}
+static int if_erase(mcs_flash_t* f, uint32_t block) {
+    mcs_stm32_flash_t* d = (mcs_stm32_flash_t*)f->ctx;
+    if (block >= f->block_count) return MCS_FLASH_EINVAL;
+    uint32_t addr = d->base + block * f->block_size, off = addr - FLASH_BASE, err = 0;
+    FLASH_EraseInitTypeDef er;
+    memset(&er, 0, sizeof er);
+#if IF_MIXED_SECTORS
+    uint32_t st, sz;
+    er.TypeErase = FLASH_TYPEERASE_SECTORS;
+    er.Banks = FLASH_BANK_1;
+    er.Sector = if_sector(off, &st, &sz);
+    er.NbSectors = 1;
+    er.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+#elif IF_UNIFORM_SECTORS
+    er.TypeErase = FLASH_TYPEERASE_SECTORS;
+    er.Banks = FLASH_BANK_1;
+#if defined(FLASH_BANK_2)
+    if (FLASH_BANK_SIZE < if_flash_size() && off >= FLASH_BANK_SIZE) { er.Banks = FLASH_BANK_2; off -= FLASH_BANK_SIZE; }
+#endif
+    er.Sector = off / FLASH_SECTOR_SIZE;
+    er.NbSectors = f->block_size / FLASH_SECTOR_SIZE;
+#if defined(FLASH_VOLTAGE_RANGE_3)
+    er.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+#endif
+#elif IF_PAGE_ADDR
+    (void)off;
+    er.TypeErase = FLASH_TYPEERASE_PAGES;
+    er.PageAddress = addr;
+    er.NbPages = f->block_size / FLASH_PAGE_SIZE;
+#else
+    er.TypeErase = FLASH_TYPEERASE_PAGES;
+#if defined(FLASH_BANK_1)
+    er.Banks = FLASH_BANK_1;
+#endif
+#if defined(FLASH_BANK_2) && defined(FLASH_BANK_SIZE)
+    if (FLASH_BANK_SIZE < if_flash_size() && off >= FLASH_BANK_SIZE) { er.Banks = FLASH_BANK_2; off -= FLASH_BANK_SIZE; }
+#endif
+    er.Page = off / FLASH_PAGE_SIZE;
+    er.NbPages = f->block_size / FLASH_PAGE_SIZE;
+#endif
+    if (if_unlock()) return MCS_FLASH_EIO;
+    HAL_StatusTypeDef r = HAL_FLASHEx_Erase(&er, &err);
+    if_lock();
+    if_cache_inval(addr, f->block_size);
+    return r == HAL_OK ? 0 : MCS_FLASH_EPROG;
+}
+
+extern const uint8_t _sidata[] __attribute__((weak));
+extern uint8_t _sdata[] __attribute__((weak)), _edata[] __attribute__((weak));
+
+int mcs_stm32_flash_init(mcs_stm32_flash_t* d, uint32_t addr, uint32_t size) {
+    uint32_t total = if_flash_size(), top = FLASH_BASE + total, unit;
+#if defined(FLASH_SFR_SFSA)
+    {   /* STM32WB: the wireless stack sits above the secure flash start address */
+        uint32_t sfsa = (FLASH->SFR & FLASH_SFR_SFSA) >> FLASH_SFR_SFSA_Pos;
+        if (sfsa && FLASH_BASE + sfsa * FLASH_PAGE_SIZE < top) top = FLASH_BASE + sfsa * FLASH_PAGE_SIZE;
+    }
+#endif
+#if IF_MIXED_SECTORS
+    unit = 8 * IF_SECTOR_U;                            /* the uniform top sectors */
+#else
+    unit = IF_ERASE_UNIT;
+#endif
+    if (!addr && !size) {
+        size = MCS_STM32_FS_SIZE ? (uint32_t)MCS_STM32_FS_SIZE : (top - FLASH_BASE) / 4;
+        size -= size % unit;
+        if (size < 2 * unit) size = 2 * unit;
+        addr = top - size;
+    }
+    if (addr < FLASH_BASE || !size || (uint64_t)addr + size > top) return MCS_FLASH_EINVAL;
+#if IF_MIXED_SECTORS
+    {   /* every sector in the region must be `unit` bytes and start at its boundary */
+        uint32_t st, sz;
+        for (uint32_t o = 0; o < size; o += unit) {
+            if_sector(addr - FLASH_BASE + o, &st, &sz);
+            if (sz != unit || st != addr - FLASH_BASE + o) return MCS_FLASH_EINVAL;
+        }
+    }
+#endif
+    if ((addr - FLASH_BASE) % unit || size % unit) return MCS_FLASH_EINVAL;
+    if (_sidata) {                                     /* firmware = .text ... + .data load image */
+        uint32_t fw_end = (uint32_t)(uintptr_t)_sidata + (uint32_t)(_edata - _sdata);
+        if (fw_end > addr) return MCS_FLASH_EINVAL;
+    }
+    memset(d, 0, sizeof *d);
+    d->base = addr; d->size = size;
+    d->invert = IF_ERASED == 0x00;
+    d->flash.type = MCS_FLASH_NOR;
+    d->flash.page_size = 256;
+    d->flash.block_size = unit;
+    d->flash.block_count = size / unit;
+    d->flash.write_size = IF_UNIT;
+    d->flash.read = if_read;
+    d->flash.prog = if_prog;
+    d->flash.erase = if_erase;
+    d->flash.ctx = d;
+    return 0;
+}
+#endif

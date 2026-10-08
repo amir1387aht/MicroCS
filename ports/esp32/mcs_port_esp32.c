@@ -876,6 +876,52 @@ bool mcs_esp32_littlefs_info(const char* label, size_t* total, size_t* used) {
     return false;
 #endif
 }
+
+#if MCS_ENABLE_FLASH
+#include "esp_partition.h"
+static int ep_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+    const esp_partition_t* p = (const esp_partition_t*)((mcs_esp32_flash_t*)f->ctx)->part;
+    return esp_partition_read(p, addr, buf, n) == ESP_OK ? 0 : MCS_FLASH_EIO;
+}
+static int ep_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+    const esp_partition_t* p = (const esp_partition_t*)((mcs_esp32_flash_t*)f->ctx)->part;
+    return esp_partition_write(p, addr, buf, n) == ESP_OK ? 0 : MCS_FLASH_EPROG;
+}
+static int ep_erase(mcs_flash_t* f, uint32_t block) {
+    const esp_partition_t* p = (const esp_partition_t*)((mcs_esp32_flash_t*)f->ctx)->part;
+    return esp_partition_erase_range(p, block * f->block_size, f->block_size) == ESP_OK ? 0 : MCS_FLASH_EPROG;
+}
+bool mcs_esp32_partition_flash(mcs_esp32_flash_t* d, const char* label) {
+    const esp_partition_t* p = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY,
+                                                        label ? label : "storage");
+    if (!p || p->size < 2 * 4096) return false;
+    memset(d, 0, sizeof *d);
+    d->part = p;
+    d->flash.type = MCS_FLASH_NOR;
+    d->flash.page_size = 256;
+    d->flash.block_size = 4096;
+    d->flash.block_count = p->size / 4096;
+    d->flash.read = ep_read;
+    d->flash.prog = ep_prog;
+    d->flash.erase = ep_erase;
+    d->flash.ctx = d;
+    return true;
+}
+#endif
+
+bool mcs_esp32_flash_fs(const char* label, const mcs_vfs_ops_t** ops, void** ctx) {
+#if MCS_ENABLE_FLASH && MCS_ENABLE_YAFFS
+    static mcs_esp32_flash_t fl;
+    static mcs_flashfs_t fs;
+    if (!mcs_esp32_partition_flash(&fl, label) ||
+        mcs_flashfs_mount(&fs, &fl.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT_IF_NEEDED) != 0)
+        return false;
+    *ops = fs.ops; *ctx = fs.ctx;
+    return true;
+#else
+    return mcs_esp32_littlefs(label, ops, ctx);
+#endif
+}
 #endif
 
 static int e_pin_lookup(void* ctx, const char* name) {

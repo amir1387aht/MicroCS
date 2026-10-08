@@ -64,6 +64,17 @@ int mcs_zephyr_fs_mount(mcs_zephyr_fs_t* fs);
 int mcs_zephyr_fs_init(mcs_zephyr_fs_t* fs, const char* mount_point, const char* format);
 #endif
 
+#if MCS_ENABLE_FLASH && defined(CONFIG_FLASH_MAP)
+/* A flash-map partition as a raw mcs_flash_t (erase blocks from the page
+ * layout, write_size = the driver's write block) for mcs_flashfs_mount():
+ * YAFFS2 (CONFIG_MICROCS_YAFFS2) or MicroCS's own LittleFS on a partition
+ * Zephyr's file system layer does not manage.
+ *   mcs_zephyr_flash_area_init(&f, FIXED_PARTITION_ID(storage_partition)); */
+#include "mcs_flash.h"
+typedef struct { mcs_flash_t flash; const void* fa; } mcs_zephyr_flash_t;
+int mcs_zephyr_flash_area_init(mcs_zephyr_flash_t* f, int area_id);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

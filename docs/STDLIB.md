@@ -17,7 +17,7 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
 | **Console** | static | — | `WriteLine(…)` `Write(…)` `ReadLine()` `Clear()` |  |
-| **Convert** | static | — | `ToInt32(…)` `ToInt64(…)` `ToUInt32(…)` `ToByte(…)` `ToSByte(…)` `ToInt16(…)` `ToUInt16(…)` `ToDouble(·)` `ToSingle(·)` `ToBoolean(·)` `ToChar(·)` `ToString(…)` |  |
+| **Convert** | static | — | `ToInt32(…)` `ToInt64(…)` `ToUInt32(…)` `ToByte(…)` `ToSByte(…)` `ToInt16(…)` `ToUInt16(…)` `ToDouble(·)` `ToSingle(·)` `ToBoolean(·)` `ToChar(·)` `ToString(…)` `ToBase64String(…)` `FromBase64String(·)` `ToHexString(…)` `ToHexStringLower(…)` `FromHexString(·)` |  |
 | **Math** | static | — | `Abs(·)` `Max(·, ·)` `Min(·, ·)` `Sign(·)` `Clamp(·, ·, ·)` `DivRem(·, ·)` `Sqrt(·)` `Sin(·)` `Cos(·)` `Tan(·)` `Asin(·)` `Acos(·)` `Atan(·)` `Atan2(·, ·)` `Sinh(·)` `Cosh(·)` `Tanh(·)` `Exp(·)` `Log(…)` `Log10(·)` `Log2(·)` `Pow(·, ·)` `Cbrt(·)` `Hypot(·, ·)` `Floor(·)` `Ceiling(·)` `Truncate(·)` `Round(…)` `FusedMultiplyAdd(·, ·, ·)` `IEEERemainder(·, ·)` | `MCS_STDLIB_MATH` |
 | **Environment** | static | `TickCount` `TickCount64` | — | `Environment.NewLine` is a constant |
 | **Thread** | static | — | `Sleep(·)` |  |
@@ -32,6 +32,10 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 | **int (and long, byte, short, uint ...)** | static | — | `Parse(…)` `TryParse(·, ·)` |  |
 | **double / float** | static | — | `Parse(…)` `TryParse(·, ·)` `IsNaN(·)` `IsInfinity(·)` `IsPositiveInfinity(·)` `IsNegativeInfinity(·)` `IsFinite(·)` | `MCS_ENABLE_FLOAT` |
 | **bool** | static | — | `Parse(·)` `TryParse(·, ·)` |  |
+| **Encoding** | static | `UTF8` `ASCII` | — | `using System.Text;` |
+| **Encoding.UTF8 / Encoding.ASCII** | instance | — | `GetBytes(·)` `GetString(…)` `GetByteCount(·)` |  |
+| **BitConverter** | static | `IsLittleEndian` | `ToInt16(…)` `ToUInt16(…)` `ToInt32(…)` `ToUInt32(…)` `ToInt64(…)` `ToBoolean(…)` `ToSingle(…)` `ToDouble(…)` `GetBytes(·)` `ToString(…)` | little-endian; `ToString` gives `01-AB-FF` |
+| **BinaryPrimitives** | static | — | `ReadInt16BigEndian(…)` `ReadInt16LittleEndian(…)` `ReadUInt16BigEndian(…)` `ReadUInt16LittleEndian(…)` `ReadInt32BigEndian(…)` `ReadInt32LittleEndian(…)` `ReadUInt32BigEndian(…)` `ReadUInt32LittleEndian(…)` `ReadInt64BigEndian(…)` `ReadInt64LittleEndian(…)` `WriteInt16BigEndian(…)` `WriteInt16LittleEndian(…)` `WriteUInt16BigEndian(…)` `WriteUInt16LittleEndian(…)` `WriteInt32BigEndian(…)` `WriteInt32LittleEndian(…)` `WriteUInt32BigEndian(…)` `WriteUInt32LittleEndian(…)` `WriteInt64BigEndian(…)` `WriteInt64LittleEndian(…)` | `using System.Buffers.Binary;` optional last `offset` argument (MicroCS extension) |
 | **char** | static | — | `IsDigit(…)` `IsLetter(…)` `IsLetterOrDigit(…)` `IsWhiteSpace(…)` `IsUpper(…)` `IsLower(…)` `IsPunctuation(…)` `IsControl(…)` `IsNumber(…)` `IsSymbol(…)` `ToUpper(…)` `ToLower(…)` `ToUpperInvariant(…)` `ToLowerInvariant(…)` `GetNumericValue(…)` `Parse(·)` |  |
 | **Random** | instance | — | `Next(…)` `NextDouble()` `NextSingle()` `NextBytes(·)` | xorshift PRNG, seedable |
 | **Stopwatch** | instance | `ElapsedMilliseconds` `ElapsedTicks` `IsRunning` | `Start()` `Stop()` `Reset()` `Restart()` | uses `cfg.ticks_fn` |
@@ -74,7 +78,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **File** | static | — | `ReadAllText(·)` `WriteAllText(·, ·)` `AppendAllText(·, ·)` `ReadAllLines(·)` `WriteAllLines(·, ·)` `AppendAllLines(·, ·)` `ReadAllBytes(·)` `WriteAllBytes(·, ·)` `Exists(·)` `Delete(·)` `Copy(…)` `Move(·, ·)` `GetLength(·)` | `mcs_fs_open_lib` |
 | **Directory** | static | — | `Exists(·)` `CreateDirectory(·)` `GetFiles(·)` `GetDirectories(·)` `GetFileSystemEntries(·)` `Delete(…)` `GetCurrentDirectory()` |  |
 | **Path** | static | — | `Combine(…)` `GetFileName(·)` `GetExtension(·)` `GetFileNameWithoutExtension(·)` `GetDirectoryName(·)` `GetFullPath(·)` |  |
-| **DriveInfo** | instance | `Name` `TotalSize` `AvailableFreeSpace` `TotalFreeSpace` `DriveFormat` `IsReady` | `ToString()` | `new DriveInfo(path)`; size of the mount holding `path` |
+| **DriveInfo** | instance | `Name` `TotalSize` `TotalFreeSpace` `AvailableFreeSpace` `DriveFormat` `IsReady` | `ToString()` | `new DriveInfo(path)`; size of the mount holding `path` |
 | **DriveInfo** | static | — | `GetDrives()` |  |
 
 ## Hardware (modules/hal)
@@ -99,8 +103,6 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
 | **Watchdog** | static | — | `Start(·)` `Feed()` |  |
 | **RTC** | static | `Now` | `Set(·)` | Unix seconds |
-| **BitConverter** | static | — | `ToInt16(…)` `ToUInt16(…)` `ToInt32(…)` `ToUInt32(…)` `ToInt64(…)` `ToBoolean(…)` `ToSingle(…)` `ToDouble(…)` `GetBytes(·)` `ToString(·)` | little-endian; const `IsLittleEndian` |
-| **Encoding.UTF8 / Encoding.ASCII** | instance | — | `GetBytes(·)` `GetString(…)` `GetByteCount(·)` |  |
 
 ## Scheduler (modules/sched)
 
@@ -118,4 +120,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_556 members in 59 tables._
+_592 members in 63 tables._

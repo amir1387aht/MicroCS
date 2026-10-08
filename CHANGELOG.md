@@ -4,6 +4,25 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Files on internal flash in every port:** `mcs_flashfs_mount()` puts LittleFS or YAFFS2 on
+  any `mcs_flash_t` in one call (formats a blank partition). New internal-flash drivers:
+  `mcs_rp2_flash_init()` (RP2040/RP2350 QSPI flash via `flash_safe_execute`),
+  `mcs_stm32_flash_init()` (every STM32 family: page and sector flash, ECC flash words,
+  L0/L1 inverted erase), `mcs_esp32_partition_flash()` + `mcs_esp32_flash_fs()` and
+  `mcs_zephyr_flash_area_init()`. The RP2 and STM32 examples now keep `/boot.cs`, `/main.cs` and
+  uploads on flash. Build choice: CMake `-DMICROCS_FS=littlefs|yaffs2` (`cmake/MicroCSFS.cmake`
+  downloads the sources), ESP-IDF menuconfig *Filesystem on the "storage" partition*, Zephyr
+  `overlay-yaffs2.conf`. `mcs_flash_t.write_size` (program unit) sets LittleFS's `prog_size`.
+  Tested on simulated L4-, H7- and RP2-like internal flash; CI builds Pico 2, ESP32-S3 and Zephyr
+  with YAFFS2 and runs `native_sim` with both filesystems.
+* **Byte utilities in the core library** (no HAL needed, `MCS_ENABLE_BYTES`): `Convert.ToBase64String`
+  / `FromBase64String` / `ToHexString` / `ToHexStringLower` / `FromHexString`, `BinaryPrimitives`
+  (`Read/Write{Int16,UInt16,Int32,UInt32,Int64}{Big,Little}Endian`), `BitConverter.ToString(bytes,
+  start, length)`. `Encoding.UTF8/ASCII` and `BitConverter` moved from the HAL module into the core,
+  so they work on every build (off in the `min` profile). Test `t18_utils` is checked against .NET 8.
+* README: performance chart legend says "MicroCS 1.6"; footprint chart label fixed; status and
+  roadmap updated (internal-flash filesystems done; USB mass-storage is a separate roadmap item).
+
 * **Zephyr port completed:** files on LittleFS (`mcs_zephyr_fs_mount()` on `storage_partition`,
   or any mounted Zephyr filesystem through `mcs_zephyr_fs_ops`, e.g. FAT on SD), so `/boot.cs`,
   `/jobs.cfg`, `/main.cs` and Studio uploads persist; I2S (`mcs-i2sN` aliases, memory-slab

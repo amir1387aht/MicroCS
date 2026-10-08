@@ -13,6 +13,14 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
+#if MCS_ENABLE_FLASH
+#include "hardware/flash.h"
+#include "hardware/sync.h"
+#if __has_include("pico/flash.h")
+#include "pico/flash.h"
+#define MCS_RP2_SAFE_EXEC 1
+#endif
+#endif
 
 #ifndef ADC_BASE_PIN
 #define ADC_BASE_PIN 26
@@ -418,3 +426,74 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->pin_lookup = r_pin_lookup;
     hal->cpu_hz = clock_get_hz(clk_sys);
 }
+
+/* ------------------------------------------------------------------ internal flash */
+#if MCS_ENABLE_FLASH
+#ifndef PICO_FLASH_SIZE_BYTES
+#define PICO_FLASH_SIZE_BYTES (2u << 20)
+#endif
+extern char __flash_binary_end;
+typedef struct { uint32_t off; const uint8_t* data; uint32_t n; int erase; } rp2_flash_op_t;
+static void rp2_flash_do(void* p) {
+    rp2_flash_op_t* op = (rp2_flash_op_t*)p;
+    if (op->erase) flash_range_erase(op->off, op->n);
+    else flash_range_program(op->off, op->data, op->n);
+}
+static int rp2_flash_run(rp2_flash_op_t* op) {
+#if MCS_RP2_SAFE_EXEC
+    if (flash_safe_execute(rp2_flash_do, op, 500) == PICO_OK) return 0;
+#endif
+    uint32_t irq = save_and_disable_interrupts();
+    rp2_flash_do(op);
+    restore_interrupts(irq);
+    return 0;
+}
+static int rp2_fl_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+    mcs_rp2_flash_t* d = (mcs_rp2_flash_t*)f->ctx;
+    if ((uint64_t)addr + n > d->size) return MCS_FLASH_EINVAL;
+    memcpy(buf, (const void*)(XIP_BASE + d->offset + addr), n);
+    return 0;
+}
+/* any size and alignment: whole 256-byte pages, untouched bytes stay 0xFF */
+static int rp2_fl_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+    mcs_rp2_flash_t* d = (mcs_rp2_flash_t*)f->ctx;
+    if ((uint64_t)addr + n > d->size) return MCS_FLASH_EINVAL;
+    static uint8_t page[FLASH_PAGE_SIZE] __attribute__((aligned(4)));
+    const uint8_t* src = (const uint8_t*)buf;
+    while (n) {
+        uint32_t pg = addr & ~(uint32_t)(FLASH_PAGE_SIZE - 1), o = addr - pg;
+        uint32_t k = FLASH_PAGE_SIZE - o < n ? FLASH_PAGE_SIZE - o : n;
+        memset(page, 0xFF, sizeof page);
+        memcpy(page + o, src, k);
+        rp2_flash_op_t op = { d->offset + pg, page, FLASH_PAGE_SIZE, 0 };
+        rp2_flash_run(&op);
+        if (memcmp((const void*)(XIP_BASE + d->offset + addr), src, k) != 0) return MCS_FLASH_EPROG;
+        addr += k; src += k; n -= k;
+    }
+    return 0;
+}
+static int rp2_fl_erase(mcs_flash_t* f, uint32_t block) {
+    mcs_rp2_flash_t* d = (mcs_rp2_flash_t*)f->ctx;
+    if (block >= f->block_count) return MCS_FLASH_EINVAL;
+    rp2_flash_op_t op = { d->offset + block * FLASH_SECTOR_SIZE, NULL, FLASH_SECTOR_SIZE, 1 };
+    return rp2_flash_run(&op);
+}
+int mcs_rp2_flash_init(mcs_rp2_flash_t* d, uint32_t offset, uint32_t size) {
+    if (!offset && !size) { size = MCS_RP2_FS_SIZE; offset = PICO_FLASH_SIZE_BYTES - size; }
+    if (!size || offset % FLASH_SECTOR_SIZE || size % FLASH_SECTOR_SIZE || (uint64_t)offset + size > PICO_FLASH_SIZE_BYTES)
+        return MCS_FLASH_EINVAL;
+    uint32_t fw_end = (uint32_t)((uintptr_t)&__flash_binary_end - XIP_BASE);
+    if (fw_end > offset) return MCS_FLASH_EINVAL;          /* would erase the firmware */
+    memset(d, 0, sizeof *d);
+    d->offset = offset; d->size = size;
+    d->flash.type = MCS_FLASH_NOR;
+    d->flash.page_size = FLASH_PAGE_SIZE;
+    d->flash.block_size = FLASH_SECTOR_SIZE;
+    d->flash.block_count = size / FLASH_SECTOR_SIZE;
+    d->flash.read = rp2_fl_read;
+    d->flash.prog = rp2_fl_prog;
+    d->flash.erase = rp2_fl_erase;
+    d->flash.ctx = d;
+    return 0;
+}
+#endif

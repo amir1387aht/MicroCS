@@ -2,6 +2,8 @@
 #   export PICO_SDK_PATH=/path/to/pico-sdk
 #   cmake -B build -DPICO_BOARD=pico      (pico2 for RP2350)
 #   cmake --build build                   -> build/microcs_pico.uf2
+# Files: LittleFS on the on-board flash (downloaded at configure time);
+#   -DMICROCS_FS=yaffs2 for YAFFS2 (GPLv2), -DMICROCS_FS= for a RAM disk only.
 cmake_minimum_required(VERSION 3.13)
 # PICO_SDK_PATH may come from the environment or from -DPICO_SDK_PATH=...
 if(NOT PICO_SDK_PATH AND DEFINED ENV{PICO_SDK_PATH})
@@ -16,6 +18,9 @@ project(microcs_pico C CXX ASM)
 pico_sdk_init()
 
 set(MICROCS_PORT rp2)
+if(NOT DEFINED MICROCS_FS)
+  set(MICROCS_FS littlefs)
+endif()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../../.. microcs)
 
 add_executable(microcs_pico main.c)

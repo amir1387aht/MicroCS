@@ -6,6 +6,12 @@
  * of I2C1, SPI1, ADC1, TIM3 (PWM CH1), TIM6 (update IRQ), DAC, IWDG, RTC.
  * Then call microcs_main() from main() after the MX_xxx_Init() calls
  * (USER CODE BEGIN 2). That is all.
+ *
+ * Files: with LittleFS or YAFFS2 compiled in (CubeMX CMake project:
+ * set(MICROCS_FS littlefs) before add_subdirectory(MicroCS); other IDEs: add
+ * lfs.c + lfs_util.c and -DMCS_ENABLE_LFS=1) scripts live in the top part of
+ * the chip's own flash (mcs_stm32_flash_init) and survive resets; without
+ * one, a RAM disk.
  */
 #include "mcs_runtime.h"
 #include "mcs_port_stm32.h"
@@ -31,6 +37,10 @@ static uint8_t heap[MICROCS_HEAP] __attribute__((aligned(8)));
 static mcs_stm32_board_t board;
 static mcs_hal_t hal;
 static mcs_runtime_t rt;
+#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+static mcs_stm32_flash_t flash;
+static mcs_flashfs_t flashfs;
+#endif
 
 void microcs_main(void) {
     board.name = "NUCLEO-F446RE";
@@ -60,7 +70,16 @@ void microcs_main(void) {
     mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
     cfg.heap = heap;
     cfg.heap_size = sizeof heap;
-    cfg.ramfs_size = 8 * 1024;
+#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+    if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&
+        mcs_flashfs_mount(&flashfs, &flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+        cfg.fs_ops = flashfs.ops;                                /* files in the chip's flash */
+        cfg.fs_ctx = flashfs.ctx;
+    } else
+#endif
+    {
+        cfg.ramfs_size = 8 * 1024;                               /* RAM disk, lost on reset */
+    }
     cfg.console = mcs_stm32_console(&board, 2);
     cfg.ticks = mcs_stm32_ticks;
     cfg.delay = mcs_stm32_delay;

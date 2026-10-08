@@ -77,6 +77,9 @@
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT 0
 #endif
+#ifndef MCS_ENABLE_BYTES
+#define MCS_ENABLE_BYTES 0         /* Encoding, BitConverter, BinaryPrimitives, Base64/hex (~3 KB) */
+#endif
 #ifndef MCS_ENABLE_DIAGNOSTICS
 #define MCS_ENABLE_DIAGNOSTICS 0
 #endif

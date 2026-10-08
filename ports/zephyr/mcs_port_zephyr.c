@@ -40,6 +40,10 @@
 #if defined(CONFIG_RTC)
 #include <zephyr/drivers/rtc.h>
 #endif
+#if MCS_ENABLE_FLASH && defined(CONFIG_FLASH_MAP)
+#include <zephyr/storage/flash_map.h>
+#include <zephyr/drivers/flash.h>
+#endif
 #if defined(CONFIG_FILE_SYSTEM) && MCS_ENABLE_FS
 #include <zephyr/fs/fs.h>
 #include <stdio.h>
@@ -965,3 +969,41 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     hal->unique_id = z_unique_id;
     hal->cpu_hz = (uint32_t)sys_clock_hw_cycles_per_sec();
 }
+
+/* ------------------------------------------------------------------ raw flash partition */
+#if MCS_ENABLE_FLASH && defined(CONFIG_FLASH_MAP)
+static int zfl_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+    return flash_area_read((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, addr, buf, n) ? MCS_FLASH_EIO : 0;
+}
+static int zfl_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+    return flash_area_write((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, addr, buf, n) ? MCS_FLASH_EPROG : 0;
+}
+static int zfl_erase(mcs_flash_t* f, uint32_t block) {
+    return flash_area_erase((const struct flash_area*)((mcs_zephyr_flash_t*)f->ctx)->fa, block * f->block_size, f->block_size)
+        ? MCS_FLASH_EPROG : 0;
+}
+int mcs_zephyr_flash_area_init(mcs_zephyr_flash_t* d, int area_id) {
+    const struct flash_area* fa;
+    if (flash_area_open((uint8_t)area_id, &fa) != 0) return MCS_FLASH_ENODEV;
+    uint32_t bs = 4096;
+#if defined(CONFIG_FLASH_PAGE_LAYOUT)
+    struct flash_pages_info info;
+    if (flash_get_page_info_by_offs(flash_area_get_device(fa), fa->fa_off, &info) == 0 && info.size) bs = info.size;
+#endif
+    while (bs < 4096 && fa->fa_size % (bs * 2) == 0) bs *= 2;     /* small pages: group to 4 KB blocks */
+    if (fa->fa_size / bs < 2) { flash_area_close(fa); return MCS_FLASH_EINVAL; }
+    memset(d, 0, sizeof *d);
+    d->fa = fa;
+    d->flash.type = MCS_FLASH_NOR;
+    d->flash.page_size = 256;
+    d->flash.block_size = bs;
+    d->flash.block_count = fa->fa_size / bs;
+    d->flash.write_size = flash_area_align(fa) > 1 ? flash_area_align(fa) : 0;
+    if (d->flash.write_size > d->flash.page_size) d->flash.page_size = d->flash.write_size;
+    d->flash.read = zfl_read;
+    d->flash.prog = zfl_prog;
+    d->flash.erase = zfl_erase;
+    d->flash.ctx = d;
+    return 0;
+}
+#endif

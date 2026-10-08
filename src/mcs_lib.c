@@ -1105,6 +1105,7 @@ static void alias_global(mcs_vm_t* vm, const char* alias, mcs_class_t* c) {
     vm->gc_pause--;
 }
 void lib_set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value_t v) { set_static(vm, c, name, v); }
+void lib_define_native_class(mcs_vm_t* vm, const mcs_class_def_t* def) { define_native_class(vm, def); }
 
 /* Every built-in global, created on first use (or all in mcs_new() when
  * MCS_LAZY_CLASSES=0). The table stays in flash. */
@@ -1242,7 +1243,13 @@ static void core_make(mcs_vm_t* vm, int id) {
     case LZ_CONSOLE: mcs_add_regs(vm, module_for(vm, "Console"), console_fns, true); return;
     case LZ_RT: mcs_add_regs(vm, module_for(vm, "__rt"), rt_fns, true); return;
 #if MCS_ENABLE_CONVERT
-    case LZ_CONVERT: mcs_add_regs(vm, module_for(vm, "Convert"), convert_fns, true); return;
+    case LZ_CONVERT:
+        c = module_for(vm, "Convert");
+        mcs_add_regs(vm, c, convert_fns, true);
+#if MCS_ENABLE_BYTES
+        mcs_add_regs(vm, c, mcs_lib_convert_bytes_fns, true);
+#endif
+        return;
 #endif
     case LZ_MATH:
         c = module_for(vm, "Math");
@@ -1272,11 +1279,12 @@ static void core_make(mcs_vm_t* vm, int id) {
     }
 }
 
-/* the three areas of the standard library, each a flash table + maker */
+/* the areas of the standard library, each a flash table + maker */
 static const struct { const mcs_lib_entry_t* tab; void (*make)(mcs_vm_t*, int); } lib_areas[] = {
     { core_entries, core_make },
     { mcs_lib_str_entries, mcs_lib_str_make },
     { mcs_lib_coll_entries, mcs_lib_coll_make },
+    { mcs_lib_bytes_entries, mcs_lib_bytes_make },
 };
 #define LIB_AREAS ((int)(sizeof lib_areas / sizeof lib_areas[0]))
 

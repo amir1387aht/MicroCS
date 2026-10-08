@@ -187,4 +187,49 @@ static int sim_nand_xfer(void* ud, const uint8_t* cmd, size_t ncmd, const uint8_
     }
     return -1;
 }
+
+/* ---------------- internal MCU flash (memory-mapped, like STM32 / RP2 / nRF) ----------------
+ * write_size-byte program units (STM32L4/G4: 8, U5/H5: 16, H7: 32) that may be
+ * programmed once per erase (ECC parts fault on a second program), erase in
+ * block_size units; mirrors what the port drivers (mcs_stm32_flash_init ...) expose. */
+typedef struct {
+    mcs_flash_t flash;
+    uint8_t* mem; uint8_t* programmed;   /* one flag per write unit */
+    long progs, erases, align_violations, reprogram_violations;
+} sim_iflash_t;
+static int sif_read(mcs_flash_t* f, uint32_t a, void* b, uint32_t n) {
+    sim_iflash_t* s = (sim_iflash_t*)f->ctx;
+    if ((uint64_t)a + n > (uint64_t)f->block_size * f->block_count) return MCS_FLASH_EINVAL;
+    memcpy(b, s->mem + a, n); return 0;
+}
+static int sif_prog(mcs_flash_t* f, uint32_t a, const void* b, uint32_t n) {
+    sim_iflash_t* s = (sim_iflash_t*)f->ctx;
+    uint32_t w = f->write_size ? f->write_size : 1;
+    if (a % w || n % w) { s->align_violations++; return MCS_FLASH_EINVAL; }
+    for (uint32_t u = a / w; u < (a + n) / w; u++) {
+        if (s->programmed[u]) s->reprogram_violations++;
+        s->programmed[u] = 1;
+    }
+    const uint8_t* p = (const uint8_t*)b;
+    for (uint32_t i = 0; i < n; i++) s->mem[a + i] &= p[i];
+    s->progs++; return 0;
+}
+static int sif_erase(mcs_flash_t* f, uint32_t blk) {
+    sim_iflash_t* s = (sim_iflash_t*)f->ctx;
+    if (blk >= f->block_count) return MCS_FLASH_EINVAL;
+    uint32_t w = f->write_size ? f->write_size : 1;
+    memset(s->mem + (size_t)blk * f->block_size, 0xFF, f->block_size);
+    memset(s->programmed + (size_t)blk * f->block_size / w, 0, f->block_size / w);
+    s->erases++; return 0;
+}
+static void sim_iflash_init(sim_iflash_t* s, uint32_t block_size, uint32_t blocks, uint32_t write_size) {
+    memset(s, 0, sizeof *s);
+    size_t size = (size_t)block_size * blocks;
+    s->mem = (uint8_t*)malloc(size); memset(s->mem, 0xFF, size);
+    s->programmed = (uint8_t*)calloc(size / (write_size ? write_size : 1), 1);
+    s->flash.type = MCS_FLASH_NOR; s->flash.page_size = 256; s->flash.block_size = block_size;
+    s->flash.block_count = blocks; s->flash.write_size = write_size;
+    s->flash.read = sif_read; s->flash.prog = sif_prog; s->flash.erase = sif_erase; s->flash.ctx = s;
+}
+static void sim_iflash_free(sim_iflash_t* s) { free(s->mem); free(s->programmed); }
 #endif

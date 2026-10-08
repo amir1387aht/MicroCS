@@ -152,6 +152,44 @@ int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const cha
 #endif
 #endif
 
+/* ---- one call: LittleFS or YAFFS2 on any mcs_flash_t (modules/fs/mcs_flashfs.c) ----
+ * Every port has an internal-flash driver (mcs_rp2_flash_init, mcs_stm32_flash_init,
+ * mcs_esp32_partition_flash, mcs_zephyr_flash_area_init) and the SPI NOR/NAND
+ * drivers work on any board, so a firmware gets persistent files with:
+ *
+ *   static mcs_flashfs_t fs;
+ *   if (mcs_flashfs_mount(&fs, &my_flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+ *       cfg.fs_ops = fs.ops; cfg.fs_ctx = fs.ctx;          // mcs_runtime, or mcs_vfs_mount(...)
+ *   }
+ *
+ * The lfs_t / yaffs_dev live in a small static table (MCS_FLASHFS_MAX). */
+#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#include "mcs_flash.h"
+#define MCS_FLASHFS_LITTLEFS 1
+#define MCS_FLASHFS_YAFFS2   2
+#if MCS_ENABLE_LFS
+#define MCS_FLASHFS_DEFAULT MCS_FLASHFS_LITTLEFS
+#else
+#define MCS_FLASHFS_DEFAULT MCS_FLASHFS_YAFFS2
+#endif
+#define MCS_FLASHFS_FORMAT_IF_NEEDED 1   /* blank or foreign partition: format it          */
+#define MCS_FLASHFS_FORMAT           2   /* erase + format unconditionally (factory reset) */
+typedef struct {
+    const mcs_vfs_ops_t* ops;            /* hand these to mcs_vfs_mount / mcs_runtime_cfg_t */
+    void* ctx;
+    int kind;                            /* MCS_FLASHFS_LITTLEFS / _YAFFS2 */
+    int slot;
+    mcs_flash_part_t part;
+    char name[12];                       /* YAFFS2 device name */
+} mcs_flashfs_t;
+/* first_block/block_count select erase blocks of `flash` (0, 0 = all of it).
+ * Returns MCS_VFS_OK or a negative MCS_VFS_E* code. */
+int mcs_flashfs_mount(mcs_flashfs_t* fs, mcs_flash_t* flash, uint32_t first_block, uint32_t block_count,
+                      int kind, int flags);
+int mcs_flashfs_unmount(mcs_flashfs_t* fs);
+const char* mcs_flashfs_kind_name(int kind);    /* "littlefs" / "yaffs2" */
+#endif
+
 /* ---- built-in backends ---- */
 /* RAM filesystem. `limit` caps total file bytes (0 = unlimited: statfs then
  * reports 2 GB). The allocator may be mcs_pool_realloc over a static buffer. */

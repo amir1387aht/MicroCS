@@ -27,7 +27,7 @@ bench = [("fib(30) recursion", 41, 254, 97), ("10 M-iteration loop", 95, 780, 89
 fig, ax = plt.subplots(figsize=(8, 3.3))
 y = range(len(bench))
 h = 0.26
-series = [(1, VIOLET, "MicroCS (optimized image)"), (2, "#f59e0b", "MicroPython 1.26"), (3, GREY, "CPython 3.13")]
+series = [(1, VIOLET, "MicroCS 1.6"), (2, "#f59e0b", "MicroPython 1.26"), (3, GREY, "CPython 3.13")]
 for k, (col, color, label) in enumerate(series):
     bars = ax.barh([i + (k - 1) * h for i in y], [b[col] for b in bench], h, color=color, label=label)
     for r in bars:
@@ -55,7 +55,8 @@ for name, v, c in parts:
     left += v
 ax.set_xlim(0, total); ax.set_ylim(-0.5, 0.5); ax.set_yticks([]); ax.set_xticks([])
 small = [p for p in parts if p[1] / total <= 0.06 or p[0] == "other"]
-ax.set_xlabel("  ·  ".join("%s %.1f KB" % (p[0], p[1] / 1024) for p in small) + "  ·  other = libgcc, port, scheduler", fontsize=9)
+ax.set_xlabel("  ·  ".join("%s %.1f KB" % (p[0], p[1] / 1024) + (" (libgcc, port, scheduler)" if p[0] == "other" else "") for p in small)
+              + "  ·  total %.0f KB" % (total / 1024), fontsize=9)
 ax.set_title("Cortex-M33 firmware (-Os), flash by component — the compiler is optional", fontsize=11, loc="left", color=FG)
 style(ax); ax.spines["bottom"].set_visible(False)
 fig.tight_layout()
