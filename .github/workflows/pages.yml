@@ -1,11 +1,11 @@
 name: Pages
 
-# Publishes tools/mcs_studio.html as https://<owner>.github.io/<repo>/ (branch gh-pages).
+# Publishes MicroCS Studio (tools/studio/) as https://<owner>.github.io/<repo>/ (branch gh-pages).
 # One-time setting: Settings -> Pages -> Source "Deploy from a branch", branch gh-pages, / (root).
 on:
   push:
     branches: [main]
-    paths: [tools/mcs_studio.html, .github/workflows/pages.yml]
+    paths: [tools/studio/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
@@ -21,12 +21,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Push tools/mcs_studio.html to gh-pages as index.html
+      - name: Push tools/studio/ to gh-pages
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir site
-          cp tools/mcs_studio.html site/index.html
+          cp tools/studio/index.html tools/studio/*.css tools/studio/*.js site/
           touch site/.nojekyll
           cd site
           git init -q -b gh-pages

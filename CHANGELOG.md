@@ -4,10 +4,15 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
-* **MicroCS Studio** (`tools/mcs_studio.html`): a one-file browser IDE over Web Serial — device
-  file manager (upload/download/rename/delete, drag & drop, free space), C# editor with
-  highlighting, API completion and templates that saves and runs on the device, and a REPL /
-  shell console. Tested in CI against the host shell (`mcs --repl --echo`, new `--echo` flag).
+* **MicroCS Studio** (`tools/studio/`, online at https://amir1387aht.github.io/MicroCS/): a
+  browser IDE over Web Serial — device file manager (upload/download/rename/delete, drag & drop,
+  free space), C# editor with Visual Studio 2022 Dark colours, API completion and 40+ snippets
+  that saves and runs on the device, 85 templates and examples (boot scripts, `jobs.cfg`,
+  scheduler patterns, every HAL peripheral, files, C# features) and a REPL / shell console.
+  Connecting recovers an ESP32 left in its ROM bootloader by the port's DTR/RTS lines. Tested
+  in CI against the host shell (`mcs --repl --echo`, new `--echo` flag); every template is
+  compiled and run on the simulated board.
+* Docs: the I2S direction constants are `I2S.Transmit` / `Receive` / `Duplex` (HAL.md said `Tx`/`Rx`).
 * **ESP32: scripts on flash** — the example mounts LittleFS on the `storage` partition
   (`mcs_esp32_littlefs()`), so uploaded files survive resets and power cycles.
 * **Free space**: C# `DriveInfo` (`new DriveInfo("/").AvailableFreeSpace`, `TotalSize`,

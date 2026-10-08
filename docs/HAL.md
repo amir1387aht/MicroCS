@@ -125,7 +125,7 @@ Optional arguments are shown in `[brackets]`.
 ### I²S, QSPI, CAN
 | Member | Description |
 |---|---|
-| `I2S.Open(bus, rate, bits, channels[, direction = I2S.Tx, format])` | `I2S.Tx`, `Rx`, `Duplex` |
+| `I2S.Open(bus, rate, bits, channels[, direction = I2S.Transmit, format])` | `I2S.Transmit`, `Receive`, `Duplex` |
 | `I2S.WriteSamples(bus, int[])` · `I2S.ReadSamples(bus, n)` → `int[]` | signed samples, packed to `bits` |
 | `I2S.Write(bus, bytes[, timeoutMs])` · `I2S.Read(bus, n[, timeoutMs])` · `I2S.Close(bus)` | raw bytes |
 | `QSPI.Open(bus[, hz])` · `QSPI.Command(bus, instr[, address])` | NOR-flash style commands |
