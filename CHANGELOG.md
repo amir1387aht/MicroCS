@@ -4,6 +4,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Studio template: WS2812 / NeoPixel LED strip** (Displays) — addressable RGB LEDs driven through
+  SPI MOSI at 2.4 MHz (3 SPI bits per LED bit, timing done by the SPI hardware): colour wipe,
+  rainbow, theater chase, brightness limit; up to 28 LEDs per `SPI.Write` (more with a larger
+  `MCS_HAL_MAX_XFER`).
+
 * **Files on internal flash in every port:** `mcs_flashfs_mount()` puts LittleFS or YAFFS2 on
   any `mcs_flash_t` in one call (formats a blank partition). New internal-flash drivers:
   `mcs_rp2_flash_init()` (RP2040/RP2350 QSPI flash via `flash_safe_execute`),

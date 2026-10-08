@@ -169,7 +169,7 @@ Dark (Light via the theme button).
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
   methods and local functions of the open file are completed too. 50 snippets such as `cw`,
   `for`, `try`, `pin`, `every`, `i2cdev`.
-* **Templates** (`Alt+T`) — 125 ready-to-run templates and examples in an *Add New Item* dialog
+* **Templates** (`Alt+T`) — 126 ready-to-run templates and examples in an *Add New Item* dialog
   with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
   `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
   (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), every
