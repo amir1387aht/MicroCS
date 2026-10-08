@@ -1153,6 +1153,993 @@ Console.WriteLine($"{BitConverter.ToString(b)} -> {Encoding.UTF8.GetString(b)}")
 `);
 
 /* completion snippets: type the shortcut, pick it from the list (Tab / Enter). $0 = caret */
+/* ================================================================ more examples (v1.7) */
+/* ---------------------------------------------------------------- Sensors */
+T("Sensors", "MPU6050 accelerometer / gyro", "mpu6050.cs",
+  "Wake the IMU, read acceleration, rotation and temperature.", String.raw`
+// MPU-6050 / MPU-9250 (I2C address 0x68): acceleration in g, rotation in deg/s
+I2C.Open(0, 400000);
+var imu = new I2cDevice(0, 0x68);
+imu.WriteRegister(0x6B, 0x00);                  // PWR_MGMT_1: wake up
+Console.WriteLine($"WHO_AM_I = 0x{imu.ReadRegister(0x75):X2}");
+
+short S16(byte[] b, int i) => (short)((b[i] << 8) | b[i + 1]);
+
+for (int n = 0; n < 20; n++)
+{
+    byte[] r = imu.ReadRegisters(0x3B, 14);     // accel x,y,z, temp, gyro x,y,z
+    double ax = S16(r, 0) / 16384.0, ay = S16(r, 2) / 16384.0, az = S16(r, 4) / 16384.0;
+    double t = S16(r, 6) / 340.0 + 36.53;
+    double gx = S16(r, 8) / 131.0, gy = S16(r, 10) / 131.0, gz = S16(r, 12) / 131.0;
+    Console.WriteLine($"ax:{ax:F2} ay:{ay:F2} az:{az:F2} gx:{gx:F1} gy:{gy:F1} gz:{gz:F1} t:{t:F1}");
+    Thread.Sleep(100);
+}
+`);
+T("Sensors", "DS3231 real-time clock", "ds3231.cs",
+  "Read and set the time of a DS3231 / DS1307 RTC module (BCD registers).", String.raw`
+// DS3231 / DS1307 at 0x68: time in BCD registers 0x00..0x06
+I2C.Open(0);
+var rtc = new I2cDevice(0, 0x68);
+int FromBcd(int b) => (b >> 4) * 10 + (b & 0x0F);
+int ToBcd(int v) => ((v / 10) << 4) | (v % 10);
+
+void SetTime(int year, int month, int day, int h, int m, int s)
+{
+    rtc.Write(new byte[] { 0x00, (byte)ToBcd(s), (byte)ToBcd(m), (byte)ToBcd(h), 1,
+                           (byte)ToBcd(day), (byte)ToBcd(month), (byte)ToBcd(year % 100) });
+}
+
+// SetTime(2025, 1, 31, 12, 0, 0);              // run once to set the clock
+byte[] r = rtc.ReadRegisters(0x00, 7);
+Console.WriteLine($"20{FromBcd(r[6]):D2}-{FromBcd(r[5] & 0x1F):D2}-{FromBcd(r[4]):D2} " +
+                  $"{FromBcd(r[2] & 0x3F):D2}:{FromBcd(r[1]):D2}:{FromBcd(r[0] & 0x7F):D2}");
+byte[] t = rtc.ReadRegisters(0x11, 2);          // DS3231 temperature sensor
+Console.WriteLine($"chip temperature {(sbyte)t[0] + (t[1] >> 6) * 0.25} C");
+`);
+T("Sensors", "ADS1115 16-bit ADC", "ads1115.cs",
+  "Single-shot conversions on the four inputs of an ADS1115.", String.raw`
+// ADS1115 at 0x48: 16-bit ADC, +-4.096 V range, single-shot per channel
+I2C.Open(0, 400000);
+var adc = new I2cDevice(0, 0x48);
+
+double ReadVolts(int channel)
+{
+    int mux = 4 + channel;                                   // AINx vs GND
+    int config = 0x8000 | (mux << 12) | (1 << 9) | (1 << 8) | (4 << 5) | 3;   // start, PGA 4.096 V, single, 128 SPS
+    adc.Write(new byte[] { 0x01, (byte)(config >> 8), (byte)config });
+    Thread.Sleep(9);                                          // conversion time at 128 SPS
+    byte[] r = adc.ReadRegisters(0x00, 2);
+    short raw = (short)((r[0] << 8) | r[1]);
+    return raw * 4.096 / 32768.0;
+}
+
+for (int i = 0; i < 10; i++)
+{
+    Console.WriteLine($"a0:{ReadVolts(0):F4} a1:{ReadVolts(1):F4} a2:{ReadVolts(2):F4} a3:{ReadVolts(3):F4}");
+    Thread.Sleep(500);
+}
+`);
+T("Sensors", "INA219 current / power monitor", "ina219.cs",
+  "Bus voltage, shunt current and power from an INA219.", String.raw`
+// INA219 at 0x40 with a 0.1 ohm shunt
+I2C.Open(0);
+var ina = new I2cDevice(0, 0x40);
+void Write16(int reg, int v) => ina.Write(new byte[] { (byte)reg, (byte)(v >> 8), (byte)v });
+int Read16(int reg) { byte[] b = ina.ReadRegisters(reg, 2); return (short)((b[0] << 8) | b[1]); }
+
+Write16(0x00, 0x399F);                 // 32 V range, +-320 mV shunt, 12-bit, continuous
+for (int i = 0; i < 10; i++)
+{
+    double shuntMv = Read16(0x01) * 0.01;
+    double busV = (Read16(0x02) >> 3) * 0.004;
+    double mA = shuntMv / 0.1;
+    Console.WriteLine($"V:{busV:F3} mA:{mA:F1} mW:{busV * mA:F0}");
+    Thread.Sleep(500);
+}
+`);
+T("Sensors", "AHT20 / SHT31 humidity", "humidity.cs",
+  "Temperature and relative humidity from an AHT20 (0x38) or SHT31 (0x44).", String.raw`
+// Temperature and humidity: AHT20 / AHT21 (0x38) or SHT31 (0x44)
+I2C.Open(0);
+var found = I2C.Scan(0);
+
+if (found.Contains(0x38))
+{
+    var aht = new I2cDevice(0, 0x38);
+    aht.Write(new byte[] { 0xBE, 0x08, 0x00 });          // calibrate
+    Thread.Sleep(10);
+    aht.Write(new byte[] { 0xAC, 0x33, 0x00 });          // trigger a measurement
+    Thread.Sleep(80);
+    byte[] d = aht.Read(6);
+    long hum = ((long)d[1] << 12) | ((long)d[2] << 4) | ((long)d[3] >> 4);
+    long tmp = (((long)d[3] & 0x0F) << 16) | ((long)d[4] << 8) | d[5];
+    Console.WriteLine($"AHT20: {tmp * 200.0 / 1048576 - 50:F1} C, {hum * 100.0 / 1048576:F1} %RH");
+}
+else if (found.Contains(0x44))
+{
+    var sht = new I2cDevice(0, 0x44);
+    sht.Write(new byte[] { 0x24, 0x00 });                // single shot, high repeatability
+    Thread.Sleep(20);
+    byte[] d = sht.Read(6);
+    int t = (d[0] << 8) | d[1], h = (d[3] << 8) | d[4];
+    Console.WriteLine($"SHT31: {-45 + 175.0 * t / 65535:F1} C, {100.0 * h / 65535:F1} %RH");
+}
+else Console.WriteLine("no AHT20 (0x38) or SHT31 (0x44) found - addresses: " + string.Join(", ", found.Select(a => "0x" + a.ToString("X2"))));
+`);
+T("Sensors", "DHT22 (single-wire, timing)", "dht22.cs",
+  "Read a DHT11/DHT22 with GPIO.PulseIn - shows bit-banged protocols.", String.raw`
+// DHT22 / AM2302 on one GPIO (with a 10k pull-up). Bit-banged with PulseIn:
+// the sensor answers with 40 bits; a long high pulse (~70 us) is a 1, a short one (~27 us) a 0.
+const int DATA = 4;
+
+double[] ReadDht()
+{
+    GPIO.Mode(DATA, GPIO.Output);
+    GPIO.Write(DATA, 0); Thread.Sleep(2);       // start signal
+    GPIO.Mode(DATA, GPIO.InputPullUp);
+    GPIO.PulseIn(DATA, false, 200);             // sensor response low
+    GPIO.PulseIn(DATA, true, 200);              // and high
+    var bytes = new byte[5];
+    for (int i = 0; i < 40; i++)
+    {
+        int us = GPIO.PulseIn(DATA, true, 200);
+        if (us == 0) throw new TimeoutException("no answer from the DHT");
+        if (us > 45) bytes[i / 8] |= (byte)(0x80 >> (i % 8));
+    }
+    if (((bytes[0] + bytes[1] + bytes[2] + bytes[3]) & 0xFF) != bytes[4]) throw new IOException("checksum");
+    double hum = ((bytes[0] << 8) | bytes[1]) / 10.0;
+    double t = (((bytes[2] & 0x7F) << 8) | bytes[3]) / 10.0 * ((bytes[2] & 0x80) != 0 ? -1 : 1);
+    return new double[] { t, hum };
+}
+
+try { var r = ReadDht(); Console.WriteLine($"{r[0]:F1} C  {r[1]:F1} %RH"); }
+catch (Exception e) { Console.WriteLine("DHT read failed: " + e.Message); }
+`);
+T("Sensors", "Light sensor (BH1750)", "bh1750.cs",
+  "Illuminance in lux from a BH1750 - a two-byte I2C sensor.", String.raw`
+// BH1750 ambient light sensor at 0x23
+I2C.Open(0);
+var bh = new I2cDevice(0, 0x23);
+bh.Write(new byte[] { 0x01 });           // power on
+bh.Write(new byte[] { 0x10 });           // continuous high-resolution mode (1 lx)
+Thread.Sleep(180);
+for (int i = 0; i < 10; i++)
+{
+    byte[] r = bh.Read(2);
+    double lux = ((r[0] << 8) | r[1]) / 1.2;
+    Console.WriteLine($"lux:{lux:F0}");
+    Thread.Sleep(500);
+}
+`);
+T("Sensors", "Analog joystick", "joystick.cs",
+  "Two ADC axes plus a push button, with dead zone and scaling.", String.raw`
+// Analog joystick: X/Y on two ADC channels, button to GND
+const int AX = 0, AY = 1, BTN = 5;
+var button = new Pin(BTN, GPIO.InputPullUp);
+int center = 1 << (ADC.Resolution - 1);
+
+int Axis(int ch)
+{
+    int v = ADC.ReadAverage(ch, 8) - center;
+    if (Math.Abs(v) < center / 10) return 0;               // dead zone
+    return (int)Math.Clamp(v * 100L / center, -100, 100);   // -100..100
+}
+
+for (int i = 0; i < 40; i++)
+{
+    Console.WriteLine($"x:{Axis(AX)} y:{Axis(AY)} btn:{(button.Read() ? 0 : 1)}");
+    Thread.Sleep(100);
+}
+`);
+
+/* ---------------------------------------------------------------- Displays */
+T("Displays", "MAX7219 8x8 LED matrix", "max7219.cs",
+  "Drive an 8x8 LED matrix (or 8-digit display) over SPI.", String.raw`
+// MAX7219 on SPI bus 0, CS = GPIO 5. One 8x8 matrix.
+var max = new SpiDevice(0, 5, 1_000_000, 0);
+void Reg(int reg, int value) => max.Write(new byte[] { (byte)reg, (byte)value });
+
+Reg(0x0F, 0);      // display test off
+Reg(0x0C, 1);      // normal operation
+Reg(0x0B, 7);      // scan all 8 rows
+Reg(0x09, 0);      // no BCD decoding (matrix)
+Reg(0x0A, 4);      // brightness 0..15
+
+byte[] heart = { 0x00, 0x66, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C, 0x18 };
+for (int frame = 0; frame < 6; frame++)
+{
+    for (int row = 0; row < 8; row++) Reg(row + 1, frame % 2 == 0 ? heart[row] : heart[row] & 0x3C);
+    Thread.Sleep(300);
+}
+for (int row = 1; row <= 8; row++) Reg(row, 0);   // clear
+`);
+T("Displays", "Character LCD 16x2 (I2C backpack)", "lcd1602.cs",
+  "HD44780 LCD through a PCF8574 I2C backpack (address 0x27).", String.raw`
+// 16x2 / 20x4 character LCD with a PCF8574 backpack at 0x27 (some are 0x3F)
+I2C.Open(0, 100000);
+var lcd = new I2cDevice(0, 0x27);
+const int BL = 0x08, EN = 0x04, RS = 0x01;
+
+void Pulse(int b) { lcd.Write(new byte[] { (byte)(b | EN | BL) }); lcd.Write(new byte[] { (byte)((b & ~EN) | BL) }); }
+void Send(int value, int mode) { Pulse((value & 0xF0) | mode); Pulse(((value << 4) & 0xF0) | mode); }
+void Cmd(int c) => Send(c, 0);
+void Text(string s) { foreach (char ch in s) Send(ch, RS); }
+void Goto(int col, int row) => Cmd(0x80 | (col + (row == 0 ? 0x00 : 0x40)));
+
+Thread.Sleep(50);
+Pulse(0x30); Thread.Sleep(5); Pulse(0x30); Pulse(0x30); Pulse(0x20);   // 4-bit mode
+Cmd(0x28); Cmd(0x0C); Cmd(0x06); Cmd(0x01); Thread.Sleep(2);
+Goto(0, 0); Text("Hello MicroCS!");
+for (int i = 0; i < 5; i++) { Goto(0, 1); Text($"uptime {Environment.TickCount / 1000} s   "); Thread.Sleep(1000); }
+`);
+T("Displays", "7-segment display (TM1637)", "tm1637.cs",
+  "Show numbers on a 4-digit TM1637 module (two-wire, bit-banged).", String.raw`
+// TM1637 4-digit display: CLK and DIO on two GPIOs (bit-banged protocol)
+const int CLK = 18, DIO = 19;
+byte[] digits = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F };
+GPIO.Mode(CLK, GPIO.Output); GPIO.Mode(DIO, GPIO.Output);
+
+void Bit(int clk, int dio) { GPIO.Write(DIO, dio); GPIO.Write(CLK, clk); Hal.DelayMicroseconds(5); }
+void Start() { Bit(1, 1); Bit(1, 0); Bit(0, 0); }
+void Stop() { Bit(0, 0); Bit(1, 0); Bit(1, 1); }
+void Byte(int b)
+{
+    for (int i = 0; i < 8; i++) { Bit(0, (b >> i) & 1); Bit(1, (b >> i) & 1); }
+    Bit(0, 1); Bit(1, 1); Bit(0, 1);                 // ack clock
+}
+void Show(int value, bool colon)
+{
+    Start(); Byte(0x40); Stop();                     // auto-increment
+    Start(); Byte(0xC0);
+    for (int i = 3; i >= 0; i--)
+    {
+        int d = digits[(value / (int)Math.Pow(10, i)) % 10];
+        Byte(i == 2 && colon ? d | 0x80 : d);
+    }
+    Stop();
+    Start(); Byte(0x88 | 4); Stop();                 // display on, brightness 4
+}
+
+for (int s = 0; s < 10; s++) { Show(1200 + s, s % 2 == 0); Thread.Sleep(500); }
+`);
+T("Displays", "Text console on an SSD1306 OLED", "oled_text.cs",
+  "A tiny 5x7 font renderer for a 128x64 SSD1306 - prints lines of text.", String.raw`
+// SSD1306 128x64 OLED at 0x3C: a minimal text renderer (digits, A-Z, a few signs)
+I2C.Open(0, 400000);
+var oled = new I2cDevice(0, 0x3C);
+void Cmds(params int[] c) { foreach (int x in c) oled.Write(new byte[] { 0x00, (byte)x }); }
+Cmds(0xAE, 0xD5, 0x80, 0xA8, 0x3F, 0xD3, 0x00, 0x40, 0x8D, 0x14, 0x20, 0x00, 0xA1, 0xC8,
+     0xDA, 0x12, 0x81, 0xCF, 0xD9, 0xF1, 0xDB, 0x40, 0xA4, 0xA6, 0xAF);
+
+var font = new Dictionary<char, int[]> {
+    ['0'] = new[] { 0x3E, 0x51, 0x49, 0x45, 0x3E }, ['1'] = new[] { 0x00, 0x42, 0x7F, 0x40, 0x00 },
+    ['2'] = new[] { 0x42, 0x61, 0x51, 0x49, 0x46 }, ['3'] = new[] { 0x21, 0x41, 0x45, 0x4B, 0x31 },
+    ['C'] = new[] { 0x3E, 0x41, 0x41, 0x41, 0x22 }, ['M'] = new[] { 0x7F, 0x02, 0x0C, 0x02, 0x7F },
+    ['I'] = new[] { 0x00, 0x41, 0x7F, 0x41, 0x00 }, ['R'] = new[] { 0x7F, 0x09, 0x19, 0x29, 0x46 },
+    ['O'] = new[] { 0x3E, 0x41, 0x41, 0x41, 0x3E }, ['S'] = new[] { 0x46, 0x49, 0x49, 0x49, 0x31 },
+    [':'] = new[] { 0x00, 0x36, 0x36, 0x00, 0x00 }, [' '] = new[] { 0, 0, 0, 0, 0 },
+};
+
+void Print(int page, string text)
+{
+    Cmds(0x21, 0, 127, 0x22, page, page);              // column and page window
+    var row = new List<byte> { 0x40 };
+    foreach (char ch in text.ToUpper())
+    {
+        int[] g = font.ContainsKey(ch) ? font[ch] : new[] { 0x7F, 0x41, 0x41, 0x41, 0x7F };
+        foreach (int col in g) row.Add((byte)col);
+        row.Add(0);
+    }
+    oled.Write(row.ToArray());
+}
+
+Print(0, "MICROCS");
+Print(2, "OS: 123");
+Console.WriteLine("text written to the OLED");
+`);
+
+/* ---------------------------------------------------------------- Motors and actuators */
+T("Motors and actuators", "DC motor with an H-bridge", "motor.cs",
+  "Speed and direction for an L298N / TB6612 / DRV8833 driver.", String.raw`
+// DC motor on an H-bridge: IN1/IN2 set the direction, PWM sets the speed
+const int IN1 = 25, IN2 = 26, PWM_CH = 0;     // PWM channel 0 drives the ENA pin
+GPIO.Mode(IN1, GPIO.Output); GPIO.Mode(IN2, GPIO.Output);
+
+void Drive(double speed)                       // -1.0 (full reverse) .. 1.0 (full forward)
+{
+    speed = Math.Clamp(speed, -1.0, 1.0);
+    GPIO.Write(IN1, speed > 0); GPIO.Write(IN2, speed < 0);
+    PWM.Set(PWM_CH, 20000, Math.Abs(speed));   // 20 kHz: silent
+}
+void Brake() { GPIO.Write(IN1, 1); GPIO.Write(IN2, 1); PWM.Set(PWM_CH, 20000, 1.0); }
+
+for (double s = 0; s <= 1.0; s += 0.25) { Drive(s); Console.WriteLine($"forward {s:P0}"); Thread.Sleep(400); }
+Brake(); Thread.Sleep(300);
+for (double s = 0; s >= -1.0; s -= 0.5) { Drive(s); Console.WriteLine($"reverse {-s:P0}"); Thread.Sleep(400); }
+Drive(0); PWM.Stop(PWM_CH);
+`);
+T("Motors and actuators", "Stepper motor (A4988 / DRV8825)", "stepper.cs",
+  "STEP/DIR stepper driver with acceleration.", String.raw`
+// Stepper driver with STEP / DIR / EN pins (A4988, DRV8825, TMC2208 in step mode)
+const int STEP = 32, DIR = 33, EN = 27;
+const int STEPS_PER_REV = 200 * 16;            // 1.8 deg motor, 1/16 microstepping
+GPIO.Mode(STEP, GPIO.Output); GPIO.Mode(DIR, GPIO.Output); GPIO.Mode(EN, GPIO.Output);
+GPIO.Write(EN, 0);                              // enable (active low)
+
+void Move(int steps, int maxSpeed /* steps/s */)
+{
+    GPIO.Write(DIR, steps > 0);
+    int n = Math.Abs(steps), ramp = Math.Min(n / 2, 400);
+    for (int i = 0; i < n; i++)
+    {
+        int edge = Math.Min(i, n - 1 - i);                     // distance to start / end
+        double speed = edge < ramp ? maxSpeed * (0.2 + 0.8 * edge / ramp) : maxSpeed;
+        GPIO.Write(STEP, 1); Hal.DelayMicroseconds(3); GPIO.Write(STEP, 0);
+        Hal.DelayMicroseconds((int)(1_000_000 / speed));
+    }
+}
+
+Move(STEPS_PER_REV / 4, 4000);   Console.WriteLine("quarter turn forward");
+Move(-STEPS_PER_REV / 4, 4000);  Console.WriteLine("and back");
+GPIO.Write(EN, 1);
+`);
+T("Motors and actuators", "28BYJ-48 stepper (ULN2003)", "uln2003.cs",
+  "Half-step sequence for the cheap 28BYJ-48 geared stepper.", String.raw`
+// 28BYJ-48 with a ULN2003 board: four coil pins, half-step sequence (4096 steps / turn)
+int[] pins = { 13, 12, 14, 27 };
+foreach (int p in pins) GPIO.Mode(p, GPIO.Output);
+int[][] seq = { new[] {1,0,0,0}, new[] {1,1,0,0}, new[] {0,1,0,0}, new[] {0,1,1,0},
+                new[] {0,0,1,0}, new[] {0,0,1,1}, new[] {0,0,0,1}, new[] {1,0,0,1} };
+int phase = 0;
+
+void Step(int count, int delayMs)
+{
+    int dir = count > 0 ? 1 : -1;
+    for (int s = 0; s < Math.Abs(count); s++)
+    {
+        phase = (phase + dir + 8) % 8;
+        for (int c = 0; c < 4; c++) GPIO.Write(pins[c], seq[phase][c]);
+        Thread.Sleep(delayMs);
+    }
+    foreach (int p in pins) GPIO.Write(p, 0);   // coils off: no heat
+}
+
+Step(512, 2); Console.WriteLine("45 degrees clockwise");
+Step(-512, 2); Console.WriteLine("and back");
+`);
+T("Motors and actuators", "Relay with safety timeout", "relay.cs",
+  "Switch a relay and make sure it turns off again, even on errors.", String.raw`
+// Relay module: active-low input on most boards. The finally block guarantees "off".
+const int RELAY = 23;
+var relay = new Pin(RELAY, GPIO.Output);
+void Set(bool on) { relay.Write(!on); Console.WriteLine(on ? "relay ON" : "relay off"); }
+
+Set(false);
+try
+{
+    Set(true);
+    var sw = Stopwatch.StartNew();
+    while (sw.ElapsedMilliseconds < 2000)      // maximum on-time
+    {
+        // ... watch a sensor here, break when done
+        Thread.Sleep(100);
+    }
+}
+finally { Set(false); }
+`);
+T("Motors and actuators", "Servo with smooth motion", "servo_smooth.cs",
+  "Ease a servo between positions instead of jumping.", String.raw`
+// Smooth servo motion: ease-in-out between angles
+const int CH = 0;
+double pos = 90;
+PWM.Servo(CH, pos);
+
+void MoveTo(double target, int ms)
+{
+    double start = pos; int steps = ms / 20;
+    for (int i = 1; i <= steps; i++)
+    {
+        double t = (double)i / steps;
+        double e = t < 0.5 ? 2 * t * t : 1 - Math.Pow(-2 * t + 2, 2) / 2;   // ease in-out
+        pos = start + (target - start) * e;
+        PWM.Servo(CH, pos);
+        Thread.Sleep(20);                       // one servo frame
+    }
+}
+
+foreach (double a in new double[] { 0, 180, 45, 135, 90 }) { MoveTo(a, 600); Console.WriteLine($"at {a} deg"); }
+PWM.Stop(CH);
+`);
+
+/* ---------------------------------------------------------------- Input devices */
+T("Input devices", "Rotary encoder", "encoder.cs",
+  "Quadrature decoding with pin interrupts, plus the push button.", String.raw`
+// KY-040 rotary encoder: CLK (A), DT (B), SW. Counts detents with an interrupt on A.
+const int A = 32, B = 33, SW = 25;
+var pinA = new Pin(A, GPIO.InputPullUp);
+var pinB = new Pin(B, GPIO.InputPullUp);
+var sw = new Pin(SW, GPIO.InputPullUp);
+int position = 0, last = 0;
+
+pinA.OnChange(GPIO.Falling, (bool level) => { position += pinB.Read() ? 1 : -1; });
+sw.OnChange(GPIO.Falling, (bool level) => { position = 0; Console.WriteLine("reset"); });
+
+for (int i = 0; i < 100; i++)                  // 10 s
+{
+    if (position != last) { Console.WriteLine($"position:{position}"); last = position; }
+    Thread.Sleep(100);                          // callbacks run during Sleep
+}
+`);
+T("Input devices", "4x4 matrix keypad", "keypad.cs",
+  "Scan a membrane keypad: rows as outputs, columns with pull-ups.", String.raw`
+// 4x4 keypad: drive one row low at a time and read the columns
+int[] rows = { 13, 12, 14, 27 }, cols = { 26, 25, 33, 32 };
+string[] keys = { "123A", "456B", "789C", "*0#D" };
+foreach (int r in rows) { GPIO.Mode(r, GPIO.Output); GPIO.Write(r, 1); }
+foreach (int c in cols) GPIO.Mode(c, GPIO.InputPullUp);
+
+char? Scan()
+{
+    for (int r = 0; r < 4; r++)
+    {
+        GPIO.Write(rows[r], 0);
+        for (int c = 0; c < 4; c++)
+            if (!GPIO.Read(cols[c])) { GPIO.Write(rows[r], 1); return keys[r][c]; }
+        GPIO.Write(rows[r], 1);
+    }
+    return null;
+}
+
+var code = new StringBuilder();
+char? prev = null;
+for (int i = 0; i < 300; i++)                    // ~6 s
+{
+    char? k = Scan();
+    if (k != null && k != prev)
+    {
+        if (k == '#') { Console.WriteLine(code.ToString() == "1234" ? "unlocked" : "wrong code"); code.Clear(); }
+        else code.Append(k);
+    }
+    prev = k;
+    Thread.Sleep(20);
+}
+`);
+T("Input devices", "Button: click, double-click, long press", "button_events.cs",
+  "Turn a raw button into click / double / long-press events.", String.raw`
+// Button gestures from one input: click, double-click and long press
+var btn = new Pin(0, GPIO.InputPullUp);         // BOOT button on most ESP32 boards
+long downAt = 0, lastClick = -1000;
+bool wasDown = false, pendingClick = false;
+
+for (int i = 0; i < 500; i++)                   // 10 s
+{
+    bool down = !btn.Read();
+    long now = Environment.TickCount;
+    if (down && !wasDown) downAt = now;
+    if (!down && wasDown)
+    {
+        long held = now - downAt;
+        if (held > 800) Console.WriteLine("long press");
+        else if (now - lastClick < 350) { Console.WriteLine("double click"); pendingClick = false; lastClick = -1000; }
+        else { pendingClick = true; lastClick = now; }
+    }
+    if (pendingClick && now - lastClick >= 350) { Console.WriteLine("click"); pendingClick = false; }
+    wasDown = down;
+    Thread.Sleep(20);
+}
+`);
+T("Input devices", "Touch / capacitive pad (charge time)", "touch.cs",
+  "Measure how long a pin takes to charge - a DIY touch sensor.", String.raw`
+// Charge-time touch sensor: a wire / foil on a pin, 1M resistor to a "send" pin.
+// Touching adds capacitance, so the pin takes longer to read high.
+const int SEND = 26, SENSE = 27;
+GPIO.Mode(SEND, GPIO.Output);
+
+int Measure()
+{
+    GPIO.Mode(SENSE, GPIO.Output); GPIO.Write(SENSE, 0); GPIO.Write(SEND, 0);
+    Hal.DelayMicroseconds(10);
+    GPIO.Mode(SENSE, GPIO.Input);
+    long t0 = Hal.Micros;
+    GPIO.Write(SEND, 1);
+    while (!GPIO.Read(SENSE) && Hal.Micros - t0 < 2000) { }
+    return (int)(Hal.Micros - t0);
+}
+
+int baseline = 0;
+for (int i = 0; i < 8; i++) baseline += Measure();
+baseline /= 8;
+for (int i = 0; i < 30; i++)
+{
+    int us = Measure();
+    Console.WriteLine($"us:{us} touched:{(us > baseline * 2 ? 1 : 0)}");
+    Thread.Sleep(100);
+}
+`);
+
+/* ---------------------------------------------------------------- Control and filters */
+T("Control and filters", "PID controller", "pid.cs",
+  "A reusable PID class driving a simulated heater to a set point.", String.raw`
+// PID controller (with anti-windup) - here it drives a simulated heater model
+class Pid
+{
+    public double Kp, Ki, Kd, Min = 0, Max = 1;
+    double integral, last; bool first = true;
+    public Pid(double kp, double ki, double kd) { Kp = kp; Ki = ki; Kd = kd; }
+    public double Update(double setPoint, double measured, double dt)
+    {
+        double err = setPoint - measured;
+        double deriv = first ? 0 : (measured - last) / dt;     // derivative on measurement: no kick
+        first = false; last = measured;
+        double outRaw = Kp * err + Ki * (integral + err * dt) - Kd * deriv;
+        if (outRaw > Min && outRaw < Max) integral += err * dt; // anti-windup
+        return Math.Clamp(outRaw, Min, Max);
+    }
+}
+
+var pid = new Pid(0.08, 0.02, 0.05);
+double temp = 20, setPoint = 60, dt = 0.5;
+for (int i = 0; i < 80; i++)
+{
+    double power = pid.Update(setPoint, temp, dt);           // 0..1 -> PWM.Set(0, 1000, power)
+    temp += (power * 8 - (temp - 20) * 0.05) * dt;           // heater model
+    if (i % 4 == 0) Console.WriteLine($"setpoint:{setPoint} temp:{temp:F2} power:{power * 100:F0}");
+}
+`);
+T("Control and filters", "Moving average and median filters", "filters.cs",
+  "Smooth noisy readings: moving average, median of 5, exponential.", String.raw`
+// Three classic filters for noisy sensor values
+class MovingAverage
+{
+    readonly double[] buf; int n, i; double sum;
+    public MovingAverage(int size) { buf = new double[size]; }
+    public double Add(double v) { sum += v - buf[i]; buf[i] = v; i = (i + 1) % buf.Length; if (n < buf.Length) n++; return sum / n; }
+}
+class Median
+{
+    readonly List<double> win = new List<double>(); readonly int size;
+    public Median(int size) { this.size = size; }
+    public double Add(double v) { win.Add(v); if (win.Count > size) win.RemoveAt(0); var s = win.Order().ToList(); return s[s.Count / 2]; }
+}
+class Ema
+{
+    readonly double alpha; double y; bool init;
+    public Ema(double alpha) { this.alpha = alpha; }
+    public double Add(double v) { y = init ? y + alpha * (v - y) : v; init = true; return y; }
+}
+
+var rnd = new Random(1);
+var avg = new MovingAverage(8); var med = new Median(5); var ema = new Ema(0.2);
+for (int t = 0; t < 60; t++)
+{
+    double raw = 50 + 10 * Math.Sin(t / 8.0) + (rnd.NextDouble() - 0.5) * 8 + (t % 17 == 0 ? 40 : 0);  // noise + spikes
+    Console.WriteLine($"raw:{raw:F1} avg:{avg.Add(raw):F1} median:{med.Add(raw):F1} ema:{ema.Add(raw):F1}");
+}
+`);
+T("Control and filters", "Thermostat with hysteresis", "thermostat.cs",
+  "On/off control with a dead band so the relay doesn't chatter.", String.raw`
+// Bang-bang control with hysteresis (a simulated room)
+const double SET = 21.0, BAND = 0.5;
+bool heating = false;
+double room = 18.0;
+var relay = new Pin(23, GPIO.Output);
+
+for (int minute = 0; minute < 120; minute++)
+{
+    if (room < SET - BAND) heating = true;
+    else if (room > SET + BAND) heating = false;   // between the limits: keep the state
+    relay.Write(heating);
+    room += heating ? 0.12 : -0.05;               // room model
+    if (minute % 5 == 0) Console.WriteLine($"room:{room:F2} heating:{(heating ? 1 : 0)}");
+}
+`);
+T("Control and filters", "Kalman filter (1-D)", "kalman.cs",
+  "A one-dimensional Kalman filter for a slowly changing value.", String.raw`
+// 1-D Kalman filter: estimate a value from noisy measurements
+class Kalman
+{
+    double x, p = 1;                  // estimate and its variance
+    readonly double q, r;             // process noise, measurement noise
+    public Kalman(double q, double r, double initial) { this.q = q; this.r = r; x = initial; }
+    public double Update(double z)
+    {
+        p += q;                       // predict
+        double k = p / (p + r);       // gain
+        x += k * (z - x);             // correct
+        p *= 1 - k;
+        return x;
+    }
+}
+
+var kf = new Kalman(0.01, 4, 25);
+var rnd = new Random(7);
+for (int i = 0; i < 50; i++)
+{
+    double truth = 25 + i * 0.05;
+    double z = truth + (rnd.NextDouble() - 0.5) * 6;
+    Console.WriteLine($"truth:{truth:F2} measured:{z:F2} kalman:{kf.Update(z):F2}");
+}
+`);
+
+/* ---------------------------------------------------------------- Protocols and data */
+T("Protocols and data", "CRC-8 / CRC-16 / CRC-32", "crc.cs",
+  "Checksums used by sensors (CRC-8), Modbus (CRC-16) and files (CRC-32).", String.raw`
+// CRC algorithms used in embedded protocols
+int Crc8(byte[] data, int poly = 0x31, int init = 0xFF)          // Sensirion / Dallas style
+{
+    int crc = init;
+    foreach (byte b in data) { crc ^= b; for (int i = 0; i < 8; i++) crc = (crc & 0x80) != 0 ? ((crc << 1) ^ poly) & 0xFF : (crc << 1) & 0xFF; }
+    return crc;
+}
+int Crc16Modbus(byte[] data)
+{
+    int crc = 0xFFFF;
+    foreach (byte b in data) { crc ^= b; for (int i = 0; i < 8; i++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xA001 : crc >> 1; }
+    return crc;
+}
+int Crc32(byte[] data)                      // MicroCS integers are 32-bit signed: >>> is the logical shift
+{
+    int crc = -1;
+    foreach (byte b in data) { crc ^= b; for (int i = 0; i < 8; i++) crc = (crc & 1) != 0 ? (crc >>> 1) ^ unchecked((int)0xEDB88320) : crc >>> 1; }
+    return ~crc;
+}
+
+var text = Encoding.ASCII.GetBytes("123456789");                 // the standard check string
+Console.WriteLine($"CRC-8   0x{Crc8(new byte[] { 0xBE, 0xEF }):X2}  (Sensirion example: 0x92)");
+Console.WriteLine($"CRC-16  0x{Crc16Modbus(text):X4}  (Modbus check: 0x4B37)");
+Console.WriteLine($"CRC-32  0x{Crc32(text):X8}  (check: 0xCBF43926)");
+`);
+T("Protocols and data", "Modbus RTU master (read registers)", "modbus.cs",
+  "Build a Modbus RTU request, send it on a UART (RS-485) and parse the reply.", String.raw`
+// Modbus RTU: read holding registers (function 3) from slave 1 over RS-485 (UART 1)
+const int PORT = 1;
+UART.Open(PORT, 9600);
+
+int Crc16(List<byte> d)
+{
+    int crc = 0xFFFF;
+    foreach (byte b in d) { crc ^= b; for (int i = 0; i < 8; i++) crc = (crc & 1) != 0 ? (crc >> 1) ^ 0xA001 : crc >> 1; }
+    return crc;
+}
+
+int[] ReadHolding(int slave, int start, int count)
+{
+    var req = new List<byte> { (byte)slave, 3, (byte)(start >> 8), (byte)start, (byte)(count >> 8), (byte)count };
+    int crc = Crc16(req);
+    req.Add((byte)crc); req.Add((byte)(crc >> 8));
+    UART.Write(PORT, req.ToArray());
+    byte[] resp = UART.Read(PORT, 5 + 2 * count, 300);
+    if (resp.Length < 5 + 2 * count) throw new TimeoutException($"Modbus: {resp.Length} bytes received");
+    var body = new List<byte>(resp.Take(resp.Length - 2));
+    if ((Crc16(body) & 0xFFFF) != (resp[resp.Length - 2] | (resp[resp.Length - 1] << 8))) throw new IOException("Modbus: bad CRC");
+    var regs = new int[count];
+    for (int i = 0; i < count; i++) regs[i] = (resp[3 + 2 * i] << 8) | resp[4 + 2 * i];
+    return regs;
+}
+
+try { Console.WriteLine("registers: " + string.Join(", ", ReadHolding(1, 0, 4))); }
+catch (Exception e) { Console.WriteLine(e.Message); }
+`);
+T("Protocols and data", "NMEA checksum and fields", "nmea.cs",
+  "Validate an NMEA sentence and pick out the fields.", String.raw`
+// NMEA 0183: "$...*hh" - XOR of the characters between $ and *
+bool Valid(string s)
+{
+    int star = s.IndexOf('*');
+    if (!s.StartsWith("$") || star < 0) return false;
+    int x = 0;
+    for (int i = 1; i < star; i++) x ^= s[i];
+    return x == Convert.ToInt32(s.Substring(star + 1, 2), 16);
+}
+double Degrees(string v, string hemi)                 // ddmm.mmmm -> decimal degrees
+{
+    double raw = double.Parse(v);
+    double deg = Math.Floor(raw / 100) + (raw % 100) / 60;
+    return hemi == "S" || hemi == "W" ? -deg : deg;
+}
+
+string line = "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A";
+Console.WriteLine("checksum ok: " + Valid(line));
+string[] f = line.Split('*')[0].Split(',');
+Console.WriteLine($"time {f[1]}  fix {(f[2] == "A" ? "valid" : "none")}  lat {Degrees(f[3], f[4]):F5}  lon {Degrees(f[5], f[6]):F5}  speed {double.Parse(f[7]) * 1.852:F1} km/h");
+`);
+T("Protocols and data", "Base64 and hex encoding", "base64.cs",
+  "Encode / decode Base64 and hex strings by hand.", String.raw`
+// Base64 and hex helpers (no Convert.ToBase64String in MicroCS - here is one)
+const string B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+string ToBase64(byte[] d)
+{
+    var sb = new StringBuilder();
+    for (int i = 0; i < d.Length; i += 3)
+    {
+        int n = d[i] << 16 | (i + 1 < d.Length ? d[i + 1] << 8 : 0) | (i + 2 < d.Length ? d[i + 2] : 0);
+        sb.Append(B64[(n >> 18) & 63]).Append(B64[(n >> 12) & 63]);
+        sb.Append(i + 1 < d.Length ? B64[(n >> 6) & 63] : '=');
+        sb.Append(i + 2 < d.Length ? B64[n & 63] : '=');
+    }
+    return sb.ToString();
+}
+byte[] FromBase64(string s)
+{
+    var outp = new List<byte>(); int buf = 0, bits = 0;
+    foreach (char c in s)
+    {
+        if (c == '=') break;
+        buf = (buf << 6) | B64.IndexOf(c); bits += 6;
+        if (bits >= 8) { bits -= 8; outp.Add((byte)((buf >> bits) & 0xFF)); }
+    }
+    return outp.ToArray();
+}
+string ToHex(byte[] d) => string.Concat(d.Select(b => b.ToString("x2")));
+
+byte[] data = Encoding.UTF8.GetBytes("MicroCS!");
+string b64 = ToBase64(data);
+Console.WriteLine($"{b64}  ->  {Encoding.UTF8.GetString(FromBase64(b64))}");
+Console.WriteLine("hex: " + ToHex(data) + "   BitConverter: " + BitConverter.ToString(data));
+`);
+T("Protocols and data", "Command interpreter on the console", "commands.cs",
+  "Parse typed commands (led on, pwm 50, help) - a device CLI.", String.raw`
+// A small command shell: type commands in the console (C# tab) after Run.
+var led = new Pin(2, GPIO.Output);
+var commands = new Dictionary<string, Action<string[]>>
+{
+    ["help"] = a => Console.WriteLine("commands: led on|off, blink <n>, pwm <0-100>, uptime, quit"),
+    ["led"] = a => { led.Write(a.Length > 1 && a[1] == "on"); Console.WriteLine("led " + (led.Read() ? "on" : "off")); },
+    ["blink"] = a => { int n = a.Length > 1 ? int.Parse(a[1]) : 3; for (int i = 0; i < n * 2; i++) { led.Toggle(); Thread.Sleep(150); } },
+    ["pwm"] = a => { PWM.Set(0, 1000, int.Parse(a[1]) / 100.0); Console.WriteLine("duty " + a[1] + "%"); },
+    ["uptime"] = a => Console.WriteLine($"{Environment.TickCount / 1000} s"),
+};
+
+Console.WriteLine("type 'help'");
+for (;;)
+{
+    string line = Console.ReadLine();
+    if (line == null || line.Trim() == "quit") break;
+    string[] args = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    if (args.Length == 0) continue;
+    try
+    {
+        if (commands.TryGetValue(args[0].ToLower(), out var cmd)) cmd(args);
+        else Console.WriteLine("unknown command - try 'help'");
+    }
+    catch (Exception e) { Console.WriteLine("error: " + e.Message); }
+}
+`);
+T("Protocols and data", "JSON-style output (manual)", "json_out.cs",
+  "Build JSON text for a host program or MQTT bridge.", String.raw`
+// Build JSON by hand (MicroCS has no JSON library) - escape strings properly
+string Esc(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n");
+string Json(Dictionary<string, object> d)
+{
+    var parts = d.Select(kv => $"\"{Esc(kv.Key)}\":" + kv.Value switch
+    {
+        null => "null",
+        string s => $"\"{Esc(s)}\"",
+        bool b => b ? "true" : "false",
+        double x => x.ToString("F3"),
+        _ => kv.Value.ToString(),
+    });
+    return "{" + string.Join(",", parts) + "}";
+}
+
+for (int i = 0; i < 3; i++)
+{
+    var msg = new Dictionary<string, object>
+    {
+        ["board"] = Hal.Board, ["uptime"] = Environment.TickCount, ["adc"] = ADC.Read(0),
+        ["volts"] = ADC.ReadVoltage(0), ["ok"] = true, ["note"] = "line \"" + i + "\"",
+    };
+    Console.WriteLine(Json(msg));
+    Thread.Sleep(500);
+}
+`);
+T("Protocols and data", "Ring buffer (circular queue)", "ringbuffer.cs",
+  "A fixed-size buffer for samples - no allocation per sample.", String.raw`
+// Fixed-size ring buffer: the newest N samples, constant memory
+class Ring
+{
+    readonly int[] data; int head, count;
+    public Ring(int size) { data = new int[size]; }
+    public int Count => count;
+    public void Push(int v) { data[head] = v; head = (head + 1) % data.Length; if (count < data.Length) count++; }
+    public int this[int i] => data[(head - count + i + data.Length * 2) % data.Length];   // 0 = oldest
+    public double Average() { long s = 0; for (int i = 0; i < count; i++) s += this[i]; return count > 0 ? (double)s / count : 0; }
+}
+
+var ring = new Ring(16);
+for (int i = 0; i < 40; i++)
+{
+    ring.Push(ADC.Read(0));
+    Thread.Sleep(25);
+}
+Console.WriteLine($"{ring.Count} samples, oldest {ring[0]}, newest {ring[ring.Count - 1]}, average {ring.Average():F1}");
+`);
+
+/* ---------------------------------------------------------------- Serial plotter */
+T("Serial plotter", "Plot a sine and cosine", "plot_sine.cs",
+  "Named values on each line - open Console → Plotter to see them live.", String.raw`
+// Open the console's "Plotter" view, then Run: each line is one sample, "name:value" pairs are series.
+for (int i = 0; i < 400; i++)
+{
+    double t = i / 20.0;
+    Console.WriteLine($"sin:{Math.Sin(t):F3} cos:{Math.Cos(t):F3} mix:{0.5 * Math.Sin(3 * t) + 0.3 * Math.Cos(t):F3}");
+    Thread.Sleep(20);
+}
+`);
+T("Serial plotter", "Plot analog inputs", "plot_adc.cs",
+  "Stream two ADC channels to the plotter.", String.raw`
+// Two analog inputs, 20 samples per second - watch them in Console -> Plotter
+for (int i = 0; i < 300; i++)
+{
+    Console.WriteLine($"a0:{ADC.ReadMillivolts(0)} a1:{ADC.ReadMillivolts(1)}");
+    Thread.Sleep(50);
+}
+`);
+T("Serial plotter", "Plot a step response", "plot_step.cs",
+  "A second-order system reacting to a set-point step - classic control demo.", String.raw`
+// Step response of a damped spring (second-order system) - for the Plotter view
+double x = 0, v = 0, target = 0;
+const double k = 4.0, c = 0.8, dt = 0.05;
+for (int i = 0; i < 300; i++)
+{
+    if (i == 20) target = 1.0;
+    if (i == 160) target = -0.5;
+    double a = k * (target - x) - c * v;
+    v += a * dt; x += v * dt;
+    Console.WriteLine($"target:{target:F2} position:{x:F3}");
+    Thread.Sleep(15);
+}
+`);
+
+/* ---------------------------------------------------------------- Fun and games */
+T("Fun and games", "Morse code blinker", "morse.cs",
+  "Blink any text in Morse code on the LED (and print it).", String.raw`
+// Morse code on an LED: dot = 1 unit, dash = 3, gaps 1 / 3 / 7 units
+var led = new Pin(2, GPIO.Output);
+const int UNIT = 120;
+var code = new Dictionary<char, string> {
+    ['A'] = ".-", ['B'] = "-...", ['C'] = "-.-.", ['D'] = "-..", ['E'] = ".", ['F'] = "..-.", ['G'] = "--.", ['H'] = "....",
+    ['I'] = "..", ['J'] = ".---", ['K'] = "-.-", ['L'] = ".-..", ['M'] = "--", ['N'] = "-.", ['O'] = "---", ['P'] = ".--.",
+    ['Q'] = "--.-", ['R'] = ".-.", ['S'] = "...", ['T'] = "-", ['U'] = "..-", ['V'] = "...-", ['W'] = ".--", ['X'] = "-..-",
+    ['Y'] = "-.--", ['Z'] = "--..", ['0'] = "-----", ['1'] = ".----", ['2'] = "..---", ['3'] = "...--", ['4'] = "....-",
+    ['5'] = ".....", ['6'] = "-....", ['7'] = "--...", ['8'] = "---..", ['9'] = "----.",
+};
+
+void Send(string text)
+{
+    foreach (char ch in text.ToUpper())
+    {
+        if (ch == ' ') { Thread.Sleep(UNIT * 7); Console.Write(" / "); continue; }
+        if (!code.TryGetValue(ch, out var sym)) continue;
+        foreach (char s in sym) { led.High(); Thread.Sleep(s == '.' ? UNIT : UNIT * 3); led.Low(); Thread.Sleep(UNIT); }
+        Console.Write(sym + " ");
+        Thread.Sleep(UNIT * 2);
+    }
+    Console.WriteLine();
+}
+
+Send("SOS MicroCS");
+`);
+T("Fun and games", "Reaction time game", "reaction.cs",
+  "LED turns on after a random delay - press the button as fast as you can.", String.raw`
+// Reaction game: wait for the LED, then press the button
+var led = new Pin(2, GPIO.Output);
+var btn = new Pin(0, GPIO.InputPullUp);
+var rnd = new Random();
+var times = new List<long>();
+
+for (int round = 1; round <= 3; round++)
+{
+    Console.WriteLine($"round {round}: get ready...");
+    Thread.Sleep(1000 + rnd.Next(2000));
+    if (!btn.Read()) { Console.WriteLine("too early!"); continue; }
+    led.High();
+    var sw = Stopwatch.StartNew();
+    while (btn.Read() && sw.ElapsedMilliseconds < 3000) { }
+    led.Low();
+    if (sw.ElapsedMilliseconds >= 3000) { Console.WriteLine("too slow (3 s)"); continue; }
+    times.Add(sw.ElapsedMilliseconds);
+    Console.WriteLine($"{sw.ElapsedMilliseconds} ms");
+}
+if (times.Count > 0) Console.WriteLine($"best {times.Min()} ms, average {times.Average():F0} ms");
+`);
+T("Fun and games", "Dice roller with LEDs", "dice.cs",
+  "Roll a die on a button press and show it on 7 LEDs (or the console).", String.raw`
+// Electronic die: 7 LEDs in the classic pattern (a..g), button to roll
+int[] leds = { 13, 12, 14, 27, 26, 25, 33 };
+//  a . b      positions:  a=top-left  b=top-right  c=mid-left  d=center
+//  c d e                  e=mid-right f=bottom-left g=bottom-right
+//  f . g
+string[] faces = { "d", "ag", "adg", "abfg", "abdfg", "abcefg" };
+foreach (int p in leds) GPIO.Mode(p, GPIO.Output);
+var rnd = new Random();
+
+void Show(int value)
+{
+    string on = faces[value - 1];
+    for (int i = 0; i < 7; i++) GPIO.Write(leds[i], on.Contains((char)('a' + i)));
+    string Dot(char c) => on.Contains(c) ? "o" : ".";
+    Console.WriteLine($"{Dot('a')} . {Dot('b')}\n{Dot('c')} {Dot('d')} {Dot('e')}\n{Dot('f')} . {Dot('g')}\n");
+}
+
+for (int roll = 0; roll < 3; roll++)
+{
+    for (int spin = 0; spin < 6; spin++) { foreach (int p in leds) GPIO.Write(p, rnd.Next(2)); Thread.Sleep(60 + spin * 30); }
+    int v = rnd.Next(1, 7);
+    Console.WriteLine($"rolled {v}");
+    Show(v);
+    Thread.Sleep(800);
+}
+`);
+T("Fun and games", "Conway's Game of Life", "life.cs",
+  "Cellular automaton on a 16x16 grid printed to the console.", String.raw`
+// Game of Life on a 16x16 torus - prints a few generations
+const int N = 16;
+bool[][] NewGrid() { var g = new bool[N][]; for (int i = 0; i < N; i++) g[i] = new bool[N]; return g; }
+var grid = NewGrid();
+var rnd = new Random(42);
+for (int y = 0; y < N; y++) for (int x = 0; x < N; x++) grid[y][x] = rnd.Next(4) == 0;
+
+int Neighbours(int y, int x)
+{
+    int n = 0;
+    for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+            if ((dy != 0 || dx != 0) && grid[(y + dy + N) % N][(x + dx + N) % N]) n++;
+    return n;
+}
+
+for (int gen = 0; gen < 5; gen++)
+{
+    var sb = new StringBuilder($"generation {gen}\n");
+    for (int y = 0; y < N; y++) { for (int x = 0; x < N; x++) sb.Append(grid[y][x] ? "#" : "."); sb.Append('\n'); }
+    Console.WriteLine(sb.ToString());
+    var next = NewGrid();
+    for (int y = 0; y < N; y++)
+        for (int x = 0; x < N; x++) { int n = Neighbours(y, x); next[y][x] = n == 3 || (n == 2 && grid[y][x]); }
+    grid = next;
+}
+`);
+
+/* ---------------------------------------------------------------- Benchmarks */
+T("Benchmarks", "CPU benchmark", "bench_cpu.cs",
+  "Integer, floating point, string and collection speed of the board.", String.raw`
+// Quick speed test - compare boards (and builds) with the same script
+long Time(string name, Action body)
+{
+    GC.Collect();
+    var sw = Stopwatch.StartNew();
+    body();
+    Console.WriteLine($"{name,-22} {sw.ElapsedMilliseconds,6} ms");
+    return sw.ElapsedMilliseconds;
+}
+
+long total = 0;
+total += Time("integer loop 100k", () => { int s = 0; for (int i = 0; i < 100_000; i++) s += i & 7; });
+total += Time("double math 20k", () => { double s = 0; for (int i = 1; i < 20_000; i++) s += Math.Sqrt(i) * Math.Sin(i); });
+total += Time("method calls 50k", () => { int F(int x) => x + 1; int s = 0; for (int i = 0; i < 50_000; i++) s = F(s); });
+total += Time("string builder 5k", () => { var sb = new StringBuilder(); for (int i = 0; i < 5000; i++) sb.Append(i); });
+total += Time("List<int> 20k", () => { var l = new List<int>(); for (int i = 0; i < 20_000; i++) l.Add(i); l.Sort(); });
+total += Time("Dictionary 5k", () => { var d = new Dictionary<int, int>(); for (int i = 0; i < 5000; i++) d[i] = i; for (int i = 0; i < 5000; i++) _ = d[i]; });
+Console.WriteLine($"{"total",-22} {total,6} ms  ({Hal.Board}, {Hal.CpuHz / 1_000_000} MHz)");
+`);
+T("Benchmarks", "GPIO toggle speed", "bench_gpio.cs",
+  "How fast can a script toggle a pin? Static calls vs. a Pin object.", String.raw`
+// GPIO speed from C#: static call vs. Pin object (measure the pin with a scope too)
+const int P = 2, N = 20_000;
+GPIO.Mode(P, GPIO.Output);
+var pin = new Pin(P, GPIO.Output);
+
+var sw = Stopwatch.StartNew();
+for (int i = 0; i < N; i++) GPIO.Toggle(P);
+double a = sw.ElapsedMilliseconds;
+sw.Restart();
+for (int i = 0; i < N; i++) pin.Toggle();
+double b = sw.ElapsedMilliseconds;
+Console.WriteLine($"GPIO.Toggle: {N / Math.Max(a, 1):F0} kHz toggles   Pin.Toggle: {N / Math.Max(b, 1):F0} kHz toggles");
+`);
+
 const SNIPPETS = [
   { label: "cw", detail: "Console.WriteLine", text: "Console.WriteLine($0);" },
   { label: "cwi", detail: "Console.WriteLine($\"...\")", text: "Console.WriteLine($\"$0\");" },
@@ -1197,4 +2184,12 @@ const SNIPPETS = [
   { label: "append", detail: "append a line to a file", text: "File.AppendAllText(\"/log.txt\", $\"{Environment.TickCount}: $0\\n\");" },
   { label: "ls", detail: "list files", text: "foreach (var f in Directory.GetFiles(\"/$0\")) Console.WriteLine(f);" },
   { label: "has", detail: "if the board has a peripheral", text: "if (Hal.Has(\"$0\"))\n{\n    \n}" },
+  { label: "plot", detail: "print values for the serial plotter", text: "Console.WriteLine($\"a:{$0} b:{0}\");" },
+  { label: "pulse", detail: "GPIO.PulseIn (pulse length in µs)", text: "int us = GPIO.PulseIn($0, true, 30000);" },
+  { label: "regs", detail: "read I2C registers", text: "byte[] r = I2C.ReadRegisters(0, 0x$0, 0x00, 2);\nint value = (r[0] << 8) | r[1];" },
+  { label: "bcd", detail: "BCD helpers (RTC chips)", text: "int FromBcd(int b) => (b >> 4) * 10 + (b & 0x0F);\nint ToBcd(int v) => ((v / 10) << 4) | (v % 10);$0" },
+  { label: "clamp", detail: "Math.Clamp", text: "Math.Clamp($0, 0, 100)" },
+  { label: "map", detail: "map a value from one range to another", text: "double Map(double x, double inMin, double inMax, double outMin, double outMax) => (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;$0" },
+  { label: "usingb", detail: "using block (calls Dispose)", text: "using (var $0 = )\n{\n    \n}" },
+  { label: "cmd", detail: "read commands from the console", text: "for (;;)\n{\n    string line = Console.ReadLine();\n    if (line == null) break;\n    $0\n}" },
 ];

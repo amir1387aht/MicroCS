@@ -34,6 +34,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
         port.readable = new ReadableStream({ start(c) { ctl = c; } });
         // window.__rom: the "board" sits in the ESP32 ROM bootloader until RTS resets it
         port.writable = new WritableStream({ write(chunk) {
+          // window.__boot: the board is booting (prints an ESP-IDF log, ignores input) until that time
+          if (window.__boot && Date.now() < window.__boot) { if (!window.__bootSaid) { window.__bootSaid = 1; const log = 'ESP-ROM:esp32s3-20210327\r\nrst:0x1 (POWERON),boot:0x8 (SPI_FAST_FLASH_BOOT)\r\nI (27) boot: ESP-IDF v5.2 2nd stage bootloader\r\nI (114) esp_image: segment 1: paddr=00020020 vaddr=3c0a0020 size=02e8ch\r\n'; setTimeout(() => ctl.enqueue(new TextEncoder().encode(log)), 300); } return; }
           if (window.__rom) { if (!window.__romSaid) { window.__romSaid = 1; ctl.enqueue(new TextEncoder().encode('rst:0x1 (POWERON),boot:0x0 (DOWNLOAD(USB/UART0))\r\nwaiting for download\r\n')); } return; }
           return window.__serialWrite(Array.from(chunk)); } });
       },
@@ -41,6 +43,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
       async setSignals(s) { window.__signals = (window.__signals || []).concat([s]); if (s.requestToSend) window.__rom = 0; },
     };
     window.__serialPush = (b) => ctl.enqueue(new Uint8Array(b));
+    // a framing error: Chrome errors the stream and hands out a new one on the next port.readable
+    window.__serialError = () => { const old = ctl; port.readable = new ReadableStream({ start(c) { ctl = c; } }); old.error(new DOMException('Framing error', 'FramingError')); };
     Object.defineProperty(navigator, 'serial', { value: { requestPort: async () => port, addEventListener() {} } });
   });
   const tpl = async (name) => {
@@ -54,6 +58,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#btnConnect');
   await page.waitForFunction(() => document.getElementById('connText').textContent.startsWith('MicroCS'), null, { timeout: 8000 }).catch(() => {});
   check((await page.textContent('#connText')).startsWith('MicroCS 1.'), 'connected, info read: ' + await page.textContent('#connText'));
+  check(await page.evaluate(() => !window.__signals), 'connect leaves DTR/RTS alone (no reset on connect)');
+  if (!(await page.textContent('#connText')).startsWith('MicroCS 1.')) console.log(await page.innerText('#term'));
   await page.waitForSelector('.file');
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
@@ -101,7 +107,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.keyboard.press('Enter');
   await page.keyboard.type('.');
   await page.keyboard.press('Control+Space');
-  const items = await page.$$eval('#complete div', els => els.map(e => e.textContent));
+  let items = await page.$$eval('#complete div', els => els.map(e => e.textContent));
   check(items.some(t => t.startsWith('MGetDrives')), 'member completion: ' + items.slice(0, 3));
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+z'); 
@@ -211,6 +217,91 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.waitForFunction(() => /bootloader[\s\S]*— ready/.test(document.getElementById('term').innerText.split('— connected at').pop()), null, { timeout: 15000 }).catch(() => {});
   tt = await page.innerText('#term');
   check(/bootloader \(download mode\): resetting it[\s\S]*— ready/.test(tt), 'download mode detected, board reset, connected');
+  // a read error (framing) does not break the link
+  await page.evaluate(() => window.__serialError()); await sleep(200);
+  await page.click('#consMode button[data-m="shell"]');
+  await page.fill('#cin', 'cat /hello.cs'); await page.press('#cin', 'Enter'); await sleep(800);
+  tt = await page.innerText('#term');
+  check(/read error \(FramingError/.test(tt) && /\$ cat \/hello.cs\n[^\n]*Console/.test(tt.split('read error').pop()), 'survives a framing error on the port');
+  await page.click('#consMode button[data-m="repl"]');
+  // a board that is still booting (ESP-IDF log, no answer for ~3 s) connects without being reset
+  await page.click('#btnConnect'); await sleep(300);
+  await page.evaluate(() => { window.__signals = undefined; window.__boot = Date.now() + 3500; window.__bootSaid = 0; });
+  await page.click('#btnConnect');
+  await page.waitForFunction(() => /— ready/.test(document.getElementById('term').innerText.split('— connected at').pop()), null, { timeout: 20000 }).catch(() => {});
+  tt = (await page.innerText('#term')).split('— connected at').pop();
+  check(/2nd stage bootloader[\s\S]*— ready/.test(tt) && await page.evaluate(() => !window.__signals), 'booting board: boot log shown, waits, connects without a reset');
+
+  /* ---- IntelliSense */
+  await page.click('#btnTemplates'); await page.click('#gClose');
+  await page.evaluate(() => App.newScratch());
+  const typeIn = async (t) => { await page.keyboard.type(t, { delay: 5 }); await sleep(120); };
+  await page.click('#ta');
+  await typeIn('using System.C');
+  items = await page.$$eval('#complete div', e => e.map(x => x.textContent));
+  check(items.some(t => t.includes('System.Collections.Generic')) && items.some(t => t.includes('System.Collections')), 'using completion: ' + items.slice(0, 3));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+a'); await page.keyboard.press('Delete');
+  await typeIn('GPIO.Wr');
+  check(await page.isVisible('.cdoc') && /GPIO\.Write\(pin pin, bool value\)/.test(await page.innerText('.cdoc')), 'completion doc panel shows the signature: ' + (await page.innerText('.cdoc')).replace(/\s+/g, ' ').slice(0, 60));
+  await page.keyboard.press('Tab'); await typeIn('(');
+  let sig = await page.innerText('.sighelp');
+  check(await page.isVisible('.sighelp') && /1 of 2/.test(sig) && /Drives the pin/.test(sig) && await page.$eval('.sighelp b.act', e => e.textContent) === 'pin pin', 'parameter info on "(": ' + sig.replace(/\s+/g, ' ').slice(0, 90));
+  await typeIn('13, ');
+  check(await page.$eval('.sighelp b.act', e => e.textContent) === 'bool value', 'active parameter follows ","');
+  await page.keyboard.press('ArrowDown'); await sleep(80);
+  check(/2 of 2/.test(await page.innerText('.sighelp')) && /int value/.test(await page.innerText('.sighelp')), 'arrow keys switch overloads');
+  await typeIn('true);'); await page.keyboard.press('Enter');
+  check(!(await page.isVisible('.sighelp')), 'parameter info closes after ")"');
+  await typeIn('var dev = new I2cDevice(0, 0x48);'); await page.keyboard.press('Enter');
+  await typeIn('var regs = dev.ReadRe');
+  items = await page.$$eval('#complete div', e => e.map(x => x.textContent));
+  check(items[0] && items[0].startsWith('MReadRegister') && /byte\[\]/.test(items.join()), 'members of an inferred type: ' + items.slice(0, 2));
+  await page.keyboard.press('Escape');
+  await typeIn('gisters(0x10, 2);'); await page.keyboard.press('Enter');
+  await typeIn('regs.');
+  items = await page.$$eval('#complete div', e => e.map(x => x.textContent));
+  check(items.some(t => t.startsWith('PLength')) && items.some(t => t.startsWith('MSelect')), 'return type chained (byte[] members): ' + items.slice(0, 3) + ' ' + JSON.stringify((await page.inputValue('#ta')).slice(-80)));
+  await page.keyboard.press('Escape'); await page.keyboard.press('Backspace');
+  await page.keyboard.press('Enter');
+  await typeIn('class Motor { public int Speed; public void Run(int rpm, bool reverse = false) { } }'); await page.keyboard.press('Enter');
+  await typeIn('var m = new Motor(); m.');
+  items = await page.$$eval('#complete div', e => e.map(x => x.textContent));
+  check(items.some(t => t.startsWith('MRun')) && items.some(t => t.startsWith('PSpeed')), 'members of a class in this file: ' + items.slice(0, 3));
+  await typeIn('Run(');
+  check(/void Motor\.Run\(int rpm, bool reverse = false\)/.test(await page.innerText('.sighelp')), 'parameter info for user methods');
+  await typeIn('1);');
+  const hov = await page.evaluate(() => { const v = ed.ta.value, a = v.indexOf('ReadRegisters'); return ed.describe(v, { a, b: a + 13, word: 'ReadRegisters' }); });
+  check(/byte\[\].*ReadRegisters/.test(hov.replace(/<[^>]+>/g, '')), 'hover text for a member');
+  await page.screenshot({ path: OUT + '/4_intellisense.png' });
+
+  /* ---- find / replace, format, go to line */
+  await page.keyboard.press('Control+h');
+  check(await page.isVisible('#findbar') && await page.isVisible('#fRep'), 'Ctrl+H opens find/replace');
+  await page.fill('#fFind', 'dev'); await sleep(100);
+  check(/1 of 3/.test(await page.textContent('#fCount')), 'match count: ' + await page.textContent('#fCount'));
+  await page.fill('#fRep', 'sensor'); await page.click('#fRepAll'); await sleep(100);
+  check(!/\bdev\b/.test(await page.inputValue('#ta')) && /sensor\.ReadRegisters/.test(await page.inputValue('#ta')), 'replace all');
+  await page.keyboard.press('Escape'); await page.click('#fClose').catch(() => {});
+  await page.evaluate(() => { ed.ta.focus(); ed.insert('if (true)\n{\nConsole.WriteLine(1);\n  switch (2) {\ncase 2:\nbreak;\n}\n}', ed.ta.value.length, ed.ta.value.length); });
+  await page.keyboard.press('Shift+Alt+F'); await sleep(100);
+  check((await page.inputValue('#ta')).endsWith('if (true)\n{\n    Console.WriteLine(1);\n    switch (2) {\n        case 2:\n            break;\n    }\n}'), 'format document');
+  await page.keyboard.press('Alt+ArrowUp'); await sleep(50);
+  check(/\n}\n    }$/.test(await page.inputValue('#ta')), 'Alt+Up moves the line');
+  await page.keyboard.press('Control+z'); await sleep(50);
+
+  /* ---- serial plotter */
+  await page.click('#consView button[data-v="plot"]');
+  await page.evaluate(() => { plot.clear(); App.onDeviceText('Directory: 3 files, 12 KB\n'); });
+  await page.evaluate(() => App.onDeviceText('temp:21.5 hum:40\ntemp:22 hum:41\n12 13\n'));
+  check(await page.evaluate(() => plot.series.size === 4 && plot.series.get('temp').pts.length === 2), 'plotter parses named and plain values: ' + await page.evaluate(() => JSON.stringify([...plot.series.keys()]) + App.echoQ.length));
+  await page.screenshot({ path: OUT + '/5_plotter.png' });
+  await page.click('#consView button[data-v="text"]');
+
+  /* ---- drafts survive a reload */
+  await page.waitForTimeout(800);
+  const nDraft = await page.evaluate(() => JSON.parse(localStorage.getItem('mcs-studio.drafts') || '[]').length);
+  check(nDraft >= 1, nDraft + ' unsaved drafts kept');
   await page.click('#btnTheme'); await sleep(200);
   await page.screenshot({ path: OUT + '/2_light.png' });
   console.log(fails ? `${fails} FAILED` : 'ALL PASSED');

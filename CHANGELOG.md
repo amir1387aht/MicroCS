@@ -12,6 +12,31 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   Connecting recovers an ESP32 left in its ROM bootloader by the port's DTR/RTS lines. Tested
   in CI against the host shell (`mcs --repl --echo`, new `--echo` flag); every template is
   compiled and run on the simulated board.
+* **Studio: connecting no longer resets the board.** Studio used to set DTR/RTS low right after
+  opening the port; Chrome applies the two lines one after the other, which briefly gives
+  DTR=0/RTS=1 - "hold EN low" on ESP32 auto-reset circuits and on the native USB-Serial-JTAG -
+  so the board rebooted on every connect, and Studio then also reset it again when it did not
+  answer at once. Now the lines are left as the browser opens them (like `mcs_remote.py`), a
+  booting board gets up to 14 s (its boot log is shown live), only a board in the ROM download
+  mode is reset (esptool order, one line per call), read errors are reported and survived, and
+  the error message says what was received. Optional: ⋯ → *Release DTR/RTS on connect*.
+* **Studio IntelliSense:** signatures and docs for the whole library (`docs.js`) and a small
+  C# language service (`lang.js`): member lists with return types and a doc panel, parameter
+  info while typing a call (active parameter, overloads with ↑/↓, hints such as
+  `GPIO.Input, Output…`), hover tooltips, `using` namespace completion, type inference for
+  `var x = new T()`, method return types (`I2C.Scan(0)` → `List<int>`), `foreach` variables,
+  and the classes, fields, methods and local functions of the open file; camel-hump matching.
+* **Studio editor:** find / replace (Ctrl+F / Ctrl+H, case / word / regex, F3), go to line
+  (Ctrl+G), format document (Shift+Alt+F), move / copy lines (Alt+↑↓, Shift+Alt+↑↓), delete line
+  (Ctrl+Shift+K), bracket matching and Ctrl+] jump; unsaved files survive a reload.
+* **Studio serial plotter:** Console → *Plotter* charts the numbers a script prints
+  (`temp:21.5 hum:40` or `12 34`), up to 8 series, click to pause.
+* **Studio templates:** 125 (was 85) - new categories Sensors (MPU6050, DS3231, ADS1115, INA219,
+  AHT20/SHT31, DHT22, BH1750, joystick), Displays (MAX7219, LCD1602, TM1637, OLED text),
+  Motors and actuators (H-bridge, steppers, relay, smooth servo), Input devices (rotary encoder,
+  keypad, button gestures, touch), Control and filters (PID, moving average / median / EMA,
+  hysteresis, Kalman), Protocols and data (CRC-8/16/32, Modbus RTU, NMEA, Base64, command shell,
+  JSON, ring buffer), Serial plotter demos, Fun and games, Benchmarks.
 * Docs: the I2S direction constants are `I2S.Transmit` / `Receive` / `Duplex` (HAL.md said `Tx`/`Rx`).
 * **ESP32: scripts on flash** — the example mounts LittleFS on the `storage` partition
   (`mcs_esp32_littlefs()`), so uploaded files survive resets and power cycles.
