@@ -44,6 +44,45 @@ Neither LittleFS nor YAFFS2 is bundled: MicroCS only includes their headers
 | Bad blocks | reported as `LFS_ERR_CORRUPT` → LittleFS relocates; failing blocks get marked bad. Partition blocks 0 and 1 (superblock) must be good | full NAND bad-block management (factory markers, retire on erase/program failure) |
 | RAM | read + prog cache (one page each on NAND) + one cache per open file | heap grows with partition size: ~65 KB high-water for the test's two 8 MB NAND + one 2 MB NOR partitions (`MCS_YAFFS_CACHES`=4) |
 
+## Files on the chip's own flash (every port)
+
+Every port ships an internal-flash driver that fills an `mcs_flash_t`, and
+`mcs_flashfs_mount()` (`modules/fs/mcs_flashfs.c`) puts LittleFS or YAFFS2 on it
+in one call — formatting a blank partition the first time:
+
+```c
+static mcs_flashfs_t fs;
+if (mcs_flashfs_mount(&fs, &my_flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+    cfg.fs_ops = fs.ops; cfg.fs_ctx = fs.ctx;          /* mcs_runtime_cfg_t, or mcs_vfs_mount(&vfs, "/", fs.ops, fs.ctx, 0) */
+}
+```
+
+| Port | Driver | Default region | Notes |
+|---|---|---|---|
+| RP2040 / RP2350 | `mcs_rp2_flash_init(&f, 0, 0)` | top of the QSPI flash: `MCS_RP2_FS_SIZE` (last 1 MB on 2 MB boards, all but 1 MB on ≥4 MB boards) | 4 KB sectors, 256-byte pages; erase/program run through `flash_safe_execute` (interrupts and the other core paused) |
+| STM32 (every family: F0–F7, G0, G4, H5, H7, L0–L5, U0, U5, C0, WB, WL) | `mcs_stm32_flash_init(&f, 0, 0)` | a quarter of the flash at its top (≥2 erase units), refused if it overlaps the firmware | 2–8 KB pages, or 128/256 KB sectors on F2/F4/F7/H7; the program unit (8/16/32-byte flash words) is reported in `write_size`; L0/L1 flash erases to 0x00, the driver inverts |
+| ESP32 (all) | `mcs_esp32_partition_flash(&f, "storage")` | a data partition from the partition table | `mcs_esp32_flash_fs()` picks YAFFS2 when it is compiled in (`MICROCS_FS` = YAFFS2 in menuconfig), else the `esp_littlefs` component |
+| Zephyr | `mcs_zephyr_flash_area_init(&f, FIXED_PARTITION_ID(storage_partition))` | `storage_partition` | `mcs_zephyr_fs_mount()` (Zephyr's own LittleFS) stays the default; `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` (`CONFIG_MICROCS_YAFFS2`) uses YAFFS2 through the driver |
+| Arduino | the core's `LittleFS` / `SD` (`fs::FS`) | core partition | `mcs_arduino_fs.cpp` |
+| any board | `mcs_spinor_init` / `mcs_spinand_init` | external SPI chip | below |
+
+`mcs_flash_t.write_size` tells the LittleFS adapter the smallest program unit
+(`prog_size` = max(16, `write_size`)) so ECC flash that can be written only once
+per flash word (STM32 L4/G4/H7, ...) works; YAFFS2 writes whole chunks and needs at
+least 6 erase blocks.
+
+**Choosing the filesystem at build time** (the port examples default to LittleFS):
+
+| Build | LittleFS | YAFFS2 |
+|---|---|---|
+| CMake (`add_subdirectory(MicroCS)`, Pico SDK, STM32CubeIDE CMake) | `-DMICROCS_FS=littlefs` | `-DMICROCS_FS=yaffs2` |
+| ESP-IDF | menuconfig → MicroCS → *Filesystem on the "storage" partition* → LittleFS | → YAFFS2 (`CONFIG_MICROCS_FS_YAFFS2=y`) |
+| Zephyr | default | `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` |
+| Makefile / other | add `lfs.c lfs_util.c`, `-DMCS_ENABLE_LFS=1` | add yaffs2 `direct/` + `core/`, `-DMCS_ENABLE_YAFFS=1` + the defines below |
+
+`cmake/MicroCSFS.cmake` downloads LittleFS v2.9.3 or a pinned yaffs2 revision at
+configure time (`FetchContent`) and adds the sources and defines; nothing is vendored.
+
 ## Raw flash: NOR and NAND (`mcs_flash.h`, `MCS_ENABLE_FLASH`)
 `mcs_flash_t` describes a chip (page, spare, erase-block size, block count;
 `read`/`prog`/`erase`, plus `read_page`/`prog_page`/`is_bad`/`mark_bad` on NAND).
@@ -105,9 +144,16 @@ mcs_vfs_mount(&vfs, "/nand", &mcs_yaffs_ops, &dev, 0);
   it) and runs `tests/c/test_yaffs.c`: YAFFS2 on the simulated SPI NAND with in-band
   and spare-area tags, a block that wears out mid-churn (retired, bad-block marker
   written), and on SPI NOR.
+* Both tests also run the `mcs_flashfs_mount()` path on simulated *internal*
+  flash (`sim_iflash_t`): an L4-like part (2 KB pages, 8-byte double words), an
+  H7-like part (128 KB sectors, 32-byte flash words) and an RP2-like part (4 KB
+  sectors, 256-byte pages), each checking that a program unit is never written
+  twice between erases.
 
-None of this has been run on real chips or under power-cut testing yet; the
-designs rely on LittleFS's and YAFFS2's own power-loss guarantees.
+CI builds the port examples with the filesystem on internal flash (Pico /
+Pico 2, ESP-IDF targets, 12 STM32 families with both filesystems) and runs the
+Zephyr `native_sim` firmware with LittleFS and with YAFFS2. Power-cut testing
+relies on LittleFS's and YAFFS2's own power-loss guarantees.
 
 ## C# API
 `File`: ReadAllText, WriteAllText, AppendAllText, ReadAllLines, WriteAllLines,

@@ -108,7 +108,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
-YAFFS2 on SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
 
 </td>
 </tr>
@@ -416,7 +416,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 - exceptions, filters, `finally`, `using`, `foreach`, top-level statements
 - string interpolation with alignment & format specifiers
 - LINQ: `Where Select OrderBy GroupBy Zip Chunk Aggregate …`
-- `Encoding.UTF8`, `BitConverter`, `StringBuilder`, `Stopwatch`, `Random`
+- `Encoding.UTF8`, `BitConverter`, `BinaryPrimitives`, Base64 / hex `Convert`, `StringBuilder`, `Stopwatch`, `Random`
 
 </td>
 <td valign="top">
@@ -557,7 +557,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
-| Flash filesystems: LittleFS, YAFFS2, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated chips with bad blocks — not yet on real chips |
+| Flash filesystems: LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; all 12 STM32 families compiled with both) and runs both on Zephyr `native_sim` |
 | Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
@@ -572,9 +572,12 @@ optimized with superinstructions, `-O0` = plain bytecode):
       `auto` profile per MCU, ESP32-C2, LittleFS + YAFFS2 on SPI NOR / NAND
 - [x] **1.6** — fast images: bytecode optimizer + superinstructions, method/constructor caches,
       compact image format v3
+- [x] **next** — LittleFS or YAFFS2 on the internal flash of every port example (STM32, RP2040/RP2350, ESP32,
+      Zephyr; Arduino uses its core's LittleFS) with one call, `mcs_flashfs_mount()`; Base64 / hex / `BinaryPrimitives`
+      in the core library
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
-- [ ] Flash filesystems on internal flash in every port example (ESP32: done, LittleFS), USB mass-storage
+- [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell

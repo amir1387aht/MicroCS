@@ -49,4 +49,9 @@ extern const mcs_lib_entry_t mcs_lib_coll_entries[];
 void mcs_lib_str_make(mcs_vm_t* vm, int id);
 void mcs_lib_coll_make(mcs_vm_t* vm, int id);
 void lib_set_static(mcs_vm_t* vm, mcs_class_t* c, const char* name, mcs_value_t v);
+void lib_define_native_class(mcs_vm_t* vm, const mcs_class_def_t* def);
+/* byte helpers (mcs_lib_bytes.c): Encoding, BitConverter, BinaryPrimitives, Convert.ToBase64String... */
+extern const mcs_lib_entry_t mcs_lib_bytes_entries[];
+void mcs_lib_bytes_make(mcs_vm_t* vm, int id);
+extern const mcs_reg_t* const mcs_lib_convert_bytes_fns;
 #endif

@@ -1,0 +1,34 @@
+SGVsbG8sIE1pY3JvQ1Mh
+Hello, MicroCS!
+TWljcm8=
+'' -> '' -> ''
+'f' -> 'Zg==' -> 'f'
+'fo' -> 'Zm8=' -> 'fo'
+'foo' -> 'Zm9v' -> 'foo'
+'foob' -> 'Zm9vYg==' -> 'foob'
+'fooba' -> 'Zm9vYmE=' -> 'fooba'
+'foobar' -> 'Zm9vYmFy' -> 'foobar'
+256 bytes round trip: True, base64 length 344
++/+/
+Hello
+'abc': The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+'ab=c': The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+'a===': The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+'ab$d': The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+'QQ==QQ==': The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.
+000FA5FF
+48656C6C6F
+5 222 173 190 239 0
+0
+The input is not a valid hex string as its length is not a multiple of 2.
+The input is not a valid hex string as it contains a non-hex character.
+4D-69-63-72-6F-43-53-21
+4D-69-63
+12345678
+11-22-33-44-00-00-00-00
+FE-FF-33-44-00-00-00-00
+11223344
+44332211
+48879
+-2
+61374

@@ -28,6 +28,10 @@ MAP = {
     "int_statics": ("Core", "int (and long, byte, short, uint ...)", "static", ""),
     "dbl_statics": ("Core", "double / float", "static", "`MCS_ENABLE_FLOAT`"),
     "bool_statics": ("Core", "bool", "static", ""),
+    "enc_fns": ("Core", "Encoding", "static", "`using System.Text;`"),
+    "enc_members": ("Core", "Encoding.UTF8 / Encoding.ASCII", "instance", ""),
+    "bitconv_fns": ("Core", "BitConverter", "static", "little-endian; `ToString` gives `01-AB-FF`"),
+    "binprim_fns": ("Core", "BinaryPrimitives", "static", "`using System.Buffers.Binary;` optional last `offset` argument (MicroCS extension)"),
     "char_statics": ("Core", "char", "static", ""),
     "random_members": ("Core", "Random", "instance", "xorshift PRNG, seedable"),
     "sw_members": ("Core", "Stopwatch", "instance", "uses `cfg.ticks_fn`"),
@@ -50,6 +54,8 @@ MAP = {
     "file_fns": ("Filesystem (modules/fs)", "File", "static", "`mcs_fs_open_lib`"),
     "dir_fns": ("Filesystem (modules/fs)", "Directory", "static", ""),
     "path_fns": ("Filesystem (modules/fs)", "Path", "static", ""),
+    "drive_members": ("Filesystem (modules/fs)", "DriveInfo", "instance", "`new DriveInfo(path)`; size of the mount holding `path`"),
+    "drive_statics": ("Filesystem (modules/fs)", "DriveInfo", "static", ""),
     "hal_fns": ("Hardware (modules/hal)", "Hal", "static", "consts `Board`, `ApiVersion`"),
     "gpio_fns": ("Hardware (modules/hal)", "GPIO", "static", "consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`"),
     "pin_members": ("Hardware (modules/hal)", "Pin", "instance", "`new Pin(pin[, mode])`; pin = number or name (`\"PA5\"`, `\"GPIO21\"`, `\"LED\"`)"),
@@ -68,11 +74,9 @@ MAP = {
     "canframe_members": ("Hardware (modules/hal)", "CanFrame", "instance", "`new CanFrame(id, data[, extended])`"),
     "wdt_fns": ("Hardware (modules/hal)", "Watchdog", "static", ""),
     "rtc_fns": ("Hardware (modules/hal)", "RTC", "static", "Unix seconds"),
-    "bitconv_fns": ("Hardware (modules/hal)", "BitConverter", "static", "little-endian; const `IsLittleEndian`"),
-    "enc_members": ("Hardware (modules/hal)", "Encoding.UTF8 / Encoding.ASCII", "instance", ""),
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
-HIDDEN = {"rt_fns"}
+HIDDEN = {"rt_fns", "gpio_props"}
 ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
@@ -100,6 +104,8 @@ for s in src.values():
             items.append((name, kind, ar))
         tables[m.group(1)] = tables.get(m.group(1), []) + items
 
+# Convert.ToBase64String & co. are registered from a second table (src/mcs_lib_bytes.c)
+tables["convert_fns"] = tables.get("convert_fns", []) + tables.pop("convert_bytes_fns", [])
 missing = [t for t in tables if t not in MAP and t not in HIDDEN]
 if missing:
     sys.stderr.write("unmapped tables: %s\n" % ", ".join(missing))
