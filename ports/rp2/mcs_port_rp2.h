@@ -51,6 +51,27 @@ mcs_transport_t mcs_rp2_console_stdio(void);
 uint32_t mcs_rp2_ticks(void* ud);
 void mcs_rp2_delay(void* ud, uint32_t ms);
 
+#if MCS_ENABLE_FLASH
+/* The on-board QSPI flash as a mcs_flash_t (4 KB erase blocks), for
+ * mcs_flashfs_mount() = LittleFS or YAFFS2 for scripts. offset/size = the
+ * region (bytes from the start of flash, 4 KB aligned); 0, 0 = the default:
+ * the last MCS_RP2_FS_SIZE bytes (Pico: 1 MB of 2 MB, Pico 2: 3 MB of 4 MB).
+ * Fails (MCS_FLASH_EINVAL) if the region overlaps the firmware. Erase/program
+ * run through flash_safe_execute (interrupts and the other core paused). */
+#include "mcs_flash.h"
+#ifndef MCS_RP2_FS_SIZE
+#  if defined(PICO_FLASH_SIZE_BYTES) && PICO_FLASH_SIZE_BYTES >= (4u << 20)
+#    define MCS_RP2_FS_SIZE (PICO_FLASH_SIZE_BYTES - (1u << 20))
+#  elif defined(PICO_FLASH_SIZE_BYTES)
+#    define MCS_RP2_FS_SIZE (PICO_FLASH_SIZE_BYTES / 2)
+#  else
+#    define MCS_RP2_FS_SIZE (1u << 20)
+#  endif
+#endif
+typedef struct { mcs_flash_t flash; uint32_t offset; uint32_t size; } mcs_rp2_flash_t;
+int mcs_rp2_flash_init(mcs_rp2_flash_t* f, uint32_t offset, uint32_t size);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

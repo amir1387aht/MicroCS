@@ -94,12 +94,15 @@ jobs:
       - run: cmake -S . -B build/cmake && cmake --build build/cmake -j && echo 'Console.WriteLine(6 * 7);' > /tmp/a.cs && build/cmake/mcs /tmp/a.cs
 
   pico:
-    name: Raspberry Pi Pico · ${{ matrix.board }}
+    name: Raspberry Pi Pico · ${{ matrix.board }} ${{ matrix.fs }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         board: [pico, pico2]
+        fs: [littlefs]
+        include:
+          - { board: pico2, fs: yaffs2 }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -110,18 +113,21 @@ jobs:
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
       - name: Build ports/rp2/example
         run: |
-          cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk
+          cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=${{ matrix.fs }}
           cmake --build build/${{ matrix.board }}
           arm-none-eabi-size build/${{ matrix.board }}/microcs_pico.elf
 
   esp-idf:
-    name: ESP-IDF · ${{ matrix.target }}
+    name: ESP-IDF · ${{ matrix.target }} ${{ matrix.fs }}
     runs-on: ubuntu-24.04
     container: espressif/idf:v5.3.2
     strategy:
       fail-fast: false
       matrix:
         target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
+        fs: [littlefs]
+        include:
+          - { target: esp32s3, fs: yaffs2 }
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -133,6 +139,7 @@ jobs:
           cp -r ports/esp32/example/. /tmp/proj/
           cp -r . /tmp/proj/components/MicroCS
           cd /tmp/proj
+          if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
 
@@ -144,6 +151,7 @@ jobs:
       matrix:
         include:
           - { name: native_sim (run), board: native_sim/native/64 }
+          - { name: native_sim YAFFS2 (run), board: native_sim/native/64, fs: yaffs2, args: "-DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay" }
           - { name: nRF52840 DK, board: nrf52840dk/nrf52840 }
           - { name: nRF52840 DK USB console, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay" }
           - { name: Raspberry Pi Pico, board: rpi_pico }
@@ -173,7 +181,7 @@ jobs:
         run: west build -b ${{ matrix.board }} -d build microcs/ports/zephyr/example -- ${{ matrix.args }}
       - name: Smoke test on native_sim (REPL, Studio protocol, LittleFS, jobs)
         if: ${{ startsWith(matrix.board, 'native') }}
-        run: python3 microcs/tests/zephyr/smoke.py build/zephyr/zephyr.exe
+        run: python3 microcs/tests/zephyr/smoke.py build/zephyr/zephyr.exe ${{ matrix.fs || 'littlefs' }}
 
   arduino:
     name: Arduino · ${{ matrix.name }}

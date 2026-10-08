@@ -1,0 +1,15 @@
+/* native_sim with overlay-yaffs2.conf: YAFFS2 needs more than the board's 16 KB
+ * storage_partition (at least 6 erase blocks), so the unused MCUboot scratch
+ * area is folded into a 136 KB storage partition.
+ *   -DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay */
+/delete-node/ &scratch_partition;
+/delete-node/ &storage_partition;
+
+&flash0 {
+	partitions {
+		storage_partition: partition@de000 {
+			label = "storage";
+			reg = <0xde000 0x22000>;
+		};
+	};
+};

@@ -63,6 +63,9 @@ struct mcs_flash {
     int (*is_bad)(mcs_flash_t* f, uint32_t block);                 /* 1 = bad */
     int (*mark_bad)(mcs_flash_t* f, uint32_t block);
     void* ctx;
+    /* smallest program unit in bytes (0 = any size): internal MCU flash
+     * programs whole half/double/quad/flash words exactly once per erase */
+    uint32_t write_size;
 };
 
 /* A range of erase blocks handed to a filesystem (LittleFS / YAFFS2 adapters).

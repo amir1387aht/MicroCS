@@ -80,6 +80,41 @@ static void exercise_flash(const char* tag, mcs_flash_part_t* part, unsigned fil
 #undef T
 }
 
+
+/* mcs_flashfs_mount (one call) on simulated internal MCU flash with ECC write units */
+static void exercise_flashfs(const char* tag, uint32_t block_size, uint32_t blocks, uint32_t write_size, int nfiles) {
+    char what[128], code[512];
+#define T(x) (snprintf(what, sizeof what, "%s: %s", tag, x), what)
+    sim_iflash_t s; sim_iflash_init(&s, block_size, blocks, write_size);
+    mcs_flashfs_t fs;
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_LITTLEFS, 0) != 0, T("blank flash: no mount without FORMAT_IF_NEEDED"));
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_LITTLEFS, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0 && fs.ops == &mcs_lfs_ops,
+          T("mcs_flashfs_mount formats a blank partition"));
+    mcs_vfs_t v; mcs_vfs_init(&v);
+    mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    snprintf(code, sizeof code, "Directory.CreateDirectory(\"/app\"); File.WriteAllText(\"/app/main.cs\", \"Console.WriteLine(6*7);\");\n"
+                    "var t = new string('z', 3000); for (int i = 0; i < 60; i++) File.WriteAllText(\"/c\" + (i %% %d), t + (i + 40));\n"
+                    "Console.WriteLine(File.ReadAllText(\"/c0\").Length + \" \" + new DriveInfo(\"/\").DriveFormat);", nfiles);
+    int r = run(&v, code);
+    CHECK(r == MCS_OK && !strcmp(g_out, "3002 littlefs\n"), T("C# files + churn"));
+    if (strcmp(g_out, "3002 littlefs\n")) printf("got: [%s]\n", g_out);
+    CHECK(mcs_flashfs_unmount(&fs) == 0, T("unmount"));
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_LITTLEFS, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0, T("remount ('reboot')"));
+    mcs_vfs_init(&v); mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    r = run(&v, "Console.WriteLine(File.ReadAllText(\"/app/main.cs\"));");
+    CHECK(r == MCS_OK && !strcmp(g_out, "Console.WriteLine(6*7);\n"), T("files survive"));
+    mcs_flashfs_unmount(&fs);
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_LITTLEFS, MCS_FLASHFS_FORMAT) == 0, T("FORMAT (factory reset)"));
+    mcs_vfs_init(&v); mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    r = run(&v, "Console.WriteLine(File.Exists(\"/app/main.cs\"));");
+    CHECK(r == MCS_OK && !strcmp(g_out, "False\n"), T("format wiped the files"));
+    mcs_flashfs_unmount(&fs);
+    CHECK(s.align_violations == 0 && s.reprogram_violations == 0, T("whole write units, each programmed once per erase"));
+    printf("%s: %ld programs, %ld erases\n", tag, s.progs, s.erases);
+    sim_iflash_free(&s);
+#undef T
+}
+
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     lfs_t lfs;
@@ -153,6 +188,9 @@ int main(void) {
     CHECK(nand.flash.is_bad(&nand.flash, 12) == 1, "NAND: worn-out block marked bad");
     printf("NAND: %ld page programs, %ld block erases, %ld page reads\n", ns.progs, ns.erases, ns.reads);
     free(ns.mem); free(ns.prog_count); free(ns.next_page); free(ns.worn);
+    exercise_flashfs("flashfs LittleFS, STM32L4-like (2 KB pages as 4 KB blocks, 8-byte units)", 4096, 64, 8, 4);
+    exercise_flashfs("flashfs LittleFS, STM32H7-like (8 x 128 KB sectors, 32-byte units)", 128 * 1024, 8, 32, 2);
+    exercise_flashfs("flashfs LittleFS, RP2040-like (4 KB sectors, any size)", 4096, 256, 0, 4);
     printf("%d/%d checks passed (%d block programs)\n", checks - fails, checks, g_progs);
     return fails ? 1 : 0;
 }

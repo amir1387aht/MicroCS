@@ -80,6 +80,38 @@ static void exercise(const char* tag, struct yaffs_dev* dev, const char* name, u
     CHECK(yaffs_unmount(name) == 0, T("unmount"));
 }
 
+
+/* mcs_flashfs_mount (one call) with YAFFS2 on simulated internal MCU flash */
+static void exercise_flashfs(const char* tag, uint32_t block_size, uint32_t blocks, uint32_t write_size) {
+    char what[128];
+#define T2(x) (snprintf(what, sizeof what, "%s: %s", tag, x), what)
+    sim_iflash_t s; sim_iflash_init(&s, block_size, blocks, write_size);
+    mcs_flashfs_t fs;
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0 && fs.ops == &mcs_yaffs_ops,
+          T2("mcs_flashfs_mount on a blank partition"));
+    mcs_vfs_t v; mcs_vfs_init(&v); mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    int r = run(&v, "Directory.CreateDirectory(\"/app\"); File.WriteAllText(\"/app/main.cs\", \"Console.WriteLine(6*7);\");\n"
+                    "var t = new string('z', 3000); for (int i = 0; i < 200; i++) File.WriteAllText(\"/c\" + (i % 4), t + i);\n"
+                    "Console.WriteLine(File.ReadAllText(\"/c3\").Length + \" \" + new DriveInfo(\"/\").DriveFormat);");
+    CHECK(r == MCS_OK && !strcmp(g_out, "3003 yaffs2\n"), T2("C# files + churn"));
+    if (strcmp(g_out, "3003 yaffs2\n")) printf("got: [%s]\n", g_out);
+    CHECK(mcs_flashfs_unmount(&fs) == 0, T2("unmount"));
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0, T2("remount ('reboot')"));
+    mcs_vfs_init(&v); mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    r = run(&v, "Console.WriteLine(File.ReadAllText(\"/app/main.cs\"));");
+    CHECK(r == MCS_OK && !strcmp(g_out, "Console.WriteLine(6*7);\n"), T2("files survive"));
+    mcs_flashfs_unmount(&fs);
+    CHECK(mcs_flashfs_mount(&fs, &s.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT) == 0, T2("FORMAT (factory reset)"));
+    mcs_vfs_init(&v); mcs_vfs_mount(&v, "/", fs.ops, fs.ctx, 0);
+    r = run(&v, "Console.WriteLine(File.Exists(\"/app/main.cs\"));");
+    CHECK(r == MCS_OK && !strcmp(g_out, "False\n"), T2("format wiped the files"));
+    mcs_flashfs_unmount(&fs);
+    CHECK(s.align_violations == 0 && s.reprogram_violations == 0, T2("whole write units, each programmed once per erase"));
+    printf("%s: %ld programs, %ld erases\n", tag, s.progs, s.erases);
+    sim_iflash_free(&s);
+#undef T2
+}
+
 int main(void) {
     /* ---- SPI NAND, 128 blocks x 128 KB (16 MB), two partitions ---- */
     sim_nand_t ns; mcs_spinand_t nand; memset(&nand, 0, sizeof nand);
@@ -125,6 +157,9 @@ int main(void) {
     free(os.mem);
 
     free(ns.mem); free(ns.prog_count); free(ns.next_page); free(ns.worn);
+    exercise_flashfs("flashfs YAFFS2, STM32L4-like (4 KB blocks, 8-byte units)", 4096, 64, 8);
+    exercise_flashfs("flashfs YAFFS2, STM32H7-like (128 KB sectors, 32-byte units)", 128 * 1024, 8, 32);
+    exercise_flashfs("flashfs YAFFS2, RP2040-like (4 KB sectors)", 4096, 256, 0);
     unsigned cur, hw; yaffsfs_get_malloc_values(&cur, &hw);
     printf("yaffs heap high-water: %u bytes\n", hw);
     printf("%d/%d checks passed\n", checks - fails, checks);

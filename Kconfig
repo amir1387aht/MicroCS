@@ -23,4 +23,16 @@ menu "MicroCS"
             bool "Minimal (smallest flash; no floats, LINQ, Dictionary, extra string/array members)"
     endchoice
 
+    choice MICROCS_FS
+        prompt "Filesystem on the \"storage\" partition"
+        default MICROCS_FS_LITTLEFS
+        help
+            Where uploaded scripts and C# File/Directory files live.
+
+        config MICROCS_FS_LITTLEFS
+            bool "LittleFS (esp_littlefs component, BSD; C code can fopen() the files too)"
+        config MICROCS_FS_YAFFS2
+            bool "YAFFS2 (downloaded at build time; GPLv2 or commercial licence - see README)"
+    endchoice
+
 endmenu

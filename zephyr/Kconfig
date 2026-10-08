@@ -63,6 +63,17 @@ config MICROCS_FS
 	  from it; MicroCS Studio and tools/mcs_remote.py upload files there.
 	  Without it a RAM filesystem of MICROCS_RAMFS_SIZE bytes is used.
 
+config MICROCS_YAFFS2
+	bool "YAFFS2 instead of LittleFS for the persistent files"
+	depends on FLASH_MAP
+	help
+	  The example application puts YAFFS2 on `storage_partition` through
+	  mcs_zephyr_flash_area_init() + mcs_flashfs_mount() instead of mounting
+	  Zephyr's LittleFS. The yaffs2 sources are downloaded at build time
+	  (pinned revision, cmake/MicroCSFS.cmake). YAFFS2 is GPLv2 (or a
+	  commercial licence from Aleph One): linking it puts the firmware
+	  under those terms. See overlay-yaffs2.conf.
+
 config MICROCS_RAMFS_SIZE
 	int "RAM filesystem size when there is no persistent filesystem"
 	default 16384

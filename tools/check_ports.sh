@@ -26,6 +26,17 @@ stm32)
             -I"$core" -Iinclude -Iports/stm32 $PORT_CFLAGS
         echo "OK $f ($dev)"
     done
+    # internal flash driver + LittleFS / YAFFS2 (sources fetched by the Makefile targets)
+    make -s fetch-lfs fetch-yaffs > /dev/null
+    for fs in "-DMCS_ENABLE_LFS=1 -I$(make -s print-lfs-dir)" \
+              "-DMCS_ENABLE_YAFFS=1 -I$(make -s print-yaffs-dir) -DCONFIG_YAFFS_DIRECT -DCONFIG_YAFFS_YAFFS2 -DCONFIG_YAFFS_DEFINES_TYPES -DCONFIG_YAFFS_PROVIDE_DEFS -DCONFIG_YAFFSFS_PROVIDE_VALUES -DY_LOFF_T=off_t"; do
+        for f in ports/stm32/mcs_port_stm32.c ports/stm32/example_main.c modules/fs/mcs_flashfs.c; do
+            arm-none-eabi-gcc -mcpu="$cpu" -mthumb -std=gnu99 -Os -Wall -Wextra -Werror -c "$f" -o build/port_check.o \
+                -D"$dev" -DUSE_HAL_DRIVER -I"$conf" -I"$sdk/stm32${fam}xx-hal-driver/Inc" -I"$sdk/cmsis-device-${fam}/Include" \
+                -I"$core" -Iinclude -Iports/stm32 $fs $PORT_CFLAGS
+        done
+        echo "OK internal flash + ${fs%% *} ($dev)"
+    done
     ;;
 *)
     echo "usage: $0 stm32 <family> <device> [cpu]"; exit 2 ;;
