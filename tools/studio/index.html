@@ -12,6 +12,8 @@
   Hosted copy: https://amir1387aht.github.io/MicroCS/
     studio.css    look (Visual Studio 2022 Dark / Light)
     api.js        classes and members known to completion
+    docs.js       signatures and docs: completion details, parameter info, hover
+    lang.js       C# language service: symbols, type inference, call context
     templates.js  templates, examples and snippets
     studio.js     the app: serial link, editor, file manager, console
 -->
@@ -109,9 +111,23 @@
           <div class="code" id="code">
             <div class="curline" id="curline"></div>
             <div class="errline" id="errline"></div>
+            <div class="marks" id="marks"></div>
             <pre id="hl" aria-hidden="true"></pre>
             <textarea id="ta" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
             <div class="complete" id="complete"></div>
+          </div>
+          <div class="findbar" id="findbar">
+            <div class="frow">
+              <button class="fb tog" id="fToggle" title="Toggle replace (Ctrl+H)">›</button>
+              <input id="fFind" placeholder="Find" spellcheck="false">
+              <button class="fb" id="fCase" title="Match case">Aa</button><button class="fb" id="fWord" title="Match whole word"><u>ab</u></button><button class="fb" id="fRe" title="Regular expression">.*</button>
+              <span id="fCount"></span>
+              <button class="fb" id="fPrev" title="Previous (Shift+Enter, Shift+F3)">↑</button><button class="fb" id="fNext" title="Next (Enter, F3)">↓</button><button class="fb" id="fClose" title="Close (Esc)">✕</button>
+            </div>
+            <div class="frow r">
+              <input id="fRep" placeholder="Replace" spellcheck="false">
+              <button class="fb" id="fRepOne" title="Replace next (Enter)">Replace</button><button class="fb" id="fRepAll" title="Replace all (Ctrl+Enter)">All</button>
+            </div>
           </div>
           <div class="hex" id="hex"></div>
           <div class="welcome" id="welcome">
@@ -130,7 +146,10 @@
                 <span><kbd>Ctrl</kbd> <kbd>S</kbd></span><span>save to the device</span>
                 <span><kbd>F5</kbd> · <kbd>Ctrl</kbd> <kbd>Enter</kbd></span><span>save and run</span>
                 <span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></span><span>run the selection</span>
-                <span><kbd>Ctrl</kbd> <kbd>Space</kbd></span><span>completion</span>
+                <span><kbd>Ctrl</kbd> <kbd>Space</kbd></span><span>completion (with docs)</span>
+                <span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Space</kbd></span><span>parameter info</span>
+                <span><kbd>Ctrl</kbd> <kbd>F</kbd> · <kbd>Ctrl</kbd> <kbd>H</kbd></span><span>find · replace</span>
+                <span><kbd>Shift</kbd> <kbd>Alt</kbd> <kbd>F</kbd></span><span>format document</span>
                 <span><kbd>Ctrl</kbd> <kbd>/</kbd></span><span>toggle comment</span>
                 <span><kbd>Ctrl</kbd> <kbd>`</kbd></span><span>focus the console</span>
               </div>
@@ -145,10 +164,14 @@
           <div class="seg" id="consMode" title="C#: the device REPL · Shell: file/run/jobs commands (help)">
             <button data-m="repl" class="on">C#</button><button data-m="shell">Shell</button>
           </div>
+          <div class="seg" id="consView" title="Text output or a live chart of the numbers the device prints">
+            <button data-v="text" class="on">Output</button><button data-v="plot">Plotter</button>
+          </div>
           <button class="btn ghost sm" id="btnCtrlC" title="Send Ctrl+C: stop the running script" disabled><svg class="i"><use href="#i-stop"/></svg>Ctrl+C</button>
           <button class="btn ghost sm icon" id="btnClear" title="Clear the console"><svg class="i"><use href="#i-clear"/></svg></button>
         </div>
         <div class="term" id="term"></div>
+        <div class="plot" id="plotWrap"><canvas id="plot"></canvas><div class="plothint" id="plotHint">Print numbers from your script - <code>Console.WriteLine($"temp:{t} hum:{h}");</code> or <code>Console.WriteLine(a + " " + b);</code> - and they are charted here live. Click the chart to pause.</div></div>
         <div class="prompt">
           <span class="ps" id="ps">&gt;</span>
           <textarea id="cin" rows="1" spellcheck="false" placeholder="C# statement or expression — Enter runs, Shift+Enter new line, ↑ ↓ history" disabled></textarea>
@@ -187,6 +210,8 @@
 </div>
 <div class="toasts" id="toasts"></div>
 <script src="api.js"></script>
+<script src="docs.js"></script>
+<script src="lang.js"></script>
 <script src="templates.js"></script>
 <script src="studio.js"></script>
 </body>

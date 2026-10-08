@@ -288,3 +288,57 @@ footer .sp { flex: 1; }
 :root.light ::-webkit-scrollbar-thumb { background: #c2c3c9; background-clip: content-box; border: 4px solid transparent; }
 ::-webkit-scrollbar-corner { background: var(--tool); }
 footer.run { background: #ca5100; }
+
+/* ---- IntelliSense: doc panel, parameter info, hover */
+.complete i.p { background: #5f7f9b; } .complete i.f { background: #0e639c; } .complete i.l { background: #1f6f8b; } .complete i.e { background: #b38600; } .complete i.n { background: #6c6c6c; font-size: 8px; }
+.cdoc, .sighelp, .hovertip { position: absolute; z-index: 11; display: none; background: var(--tool); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.35);
+  color: var(--code); font: 12px/1.45 var(--ui); padding: 6px 9px; max-width: 520px; pointer-events: auto; }
+.cdoc { max-width: 380px; width: max-content; max-height: 228px; overflow: auto; }
+.cdoc code, .sighelp code, .hovertip code { display: block; font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word; }
+.cdoc code + code, .hovertip code + code { margin-top: 2px; }
+.cdoc p, .hovertip p { margin: 5px 0 0; color: var(--fg2); }
+.cdoc small, .hovertip small { color: var(--fg3); display: block; margin-top: 2px; }
+.cdoc pre { margin: 6px 0 0; font: 11.5px/1.4 var(--mono); color: var(--fg2); white-space: pre-wrap; }
+.sighelp .sg { display: flex; align-items: baseline; gap: 8px; }
+.sighelp .ov { flex: none; color: var(--fg3); font-size: 11px; user-select: none; white-space: nowrap; }
+.sighelp .ov a { cursor: pointer; padding: 0 3px; color: var(--fg2); }
+.sighelp .ov a:hover { color: var(--accent2); }
+.sighelp .sd { color: var(--fg2); margin-top: 3px; }
+.sighelp .pd { margin-top: 3px; padding-top: 3px; border-top: 1px solid var(--line2); color: var(--fg2); }
+.sighelp .pd b { color: var(--t-loc); font-weight: 600; }
+b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.dim { color: var(--fg3); }
+.hovertip { pointer-events: none; }
+
+/* ---- overlay marks: find matches, bracket pairs */
+.code .marks { position: absolute; top: 0; left: 0; pointer-events: none; will-change: transform; }
+.code .marks div { position: absolute; }
+.code .marks .fm { background: rgba(234, 92, 0, .33); }
+.code .marks .fm.cur { background: rgba(81, 92, 106, .0); outline: 2px solid #f5a623; background: rgba(245, 166, 35, .35); }
+.code .marks .bm { background: rgba(14, 69, 131, .55); outline: 1px solid #569cd6; }
+:root.light .code .marks .bm { background: rgba(219, 224, 204, .9); outline: 1px solid #b9b9b9; }
+.code .marks .bm.bad { background: rgba(241, 76, 76, .35); outline: 0; }
+
+/* ---- find / replace widget */
+.findbar { position: absolute; top: 0; right: 18px; z-index: 12; display: none; background: var(--tool); border: 1px solid var(--line); border-top: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.35); padding: 4px 6px; }
+.findbar.show { display: block; }
+.findbar .frow { display: flex; align-items: center; gap: 2px; }
+.findbar .frow.r { display: none; margin-top: 3px; padding-left: 22px; }
+.findbar.rep .frow.r { display: flex; }
+.findbar.rep .tog { transform: rotate(90deg); }
+.findbar input { width: 210px; height: 22px; background: var(--input); color: var(--fg); border: 1px solid var(--line); padding: 0 6px; font: 12px var(--ui); outline: none; }
+.findbar input:focus { border-color: var(--accent); }
+.findbar.bad #fFind { border-color: #f14c4c; }
+.findbar .fb { min-width: 22px; height: 22px; border: 1px solid transparent; background: transparent; color: var(--fg2); cursor: pointer; font: 12px var(--ui); padding: 0 4px; }
+.findbar .fb:hover { background: var(--hover); }
+.findbar .fb.on { border-color: var(--accent); background: rgba(0, 122, 204, .25); color: var(--fg); }
+.findbar #fCount { min-width: 70px; text-align: center; color: var(--fg3); font-size: 11.5px; white-space: nowrap; }
+
+/* ---- serial plotter */
+.plot { flex: 1; position: relative; display: none; min-height: 0; background: var(--bg); }
+.console-pane.plotting .plot { display: block; }
+.console-pane.plotting .term { display: none; }
+.plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.plothint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px 40px; color: var(--fg3); font-size: 12.5px; line-height: 1.7; pointer-events: none; }
+.plothint code { font: 12px var(--mono); color: var(--t-str); }
