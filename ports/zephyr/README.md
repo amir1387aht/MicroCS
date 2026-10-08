@@ -75,6 +75,7 @@ cfg.fs_ops = &mcs_zephyr_fs_ops; cfg.fs_ctx = &sd;  // mcs_runtime_cfg_t
 | `I2C` / `SPI` | aliases `mcs-i2cN` / `mcs-spiN` (fallback: `i2c0`, `spi1`…) |
 | `ADC.Read(n)` | n-th entry of `io-channels` in `/zephyr,user` |
 | `PWM.Set(n, ...)` | n-th entry of `pwms` in `/zephyr,user` |
+| `LedStrip` | `led_strip` device at alias `led-strip` (`CONFIG_LED_STRIP=y`, `chain-length`); the pin argument is ignored |
 | `DAC` | alias `mcs-dac` |
 | `I2S.Open(n)` | alias `mcs-i2sN` (fallback: `i2s0`) — memory-slab streaming, `CONFIG_I2S=y` |
 | `CAN.Open(n)` | alias `mcs-canN` (bus 0 falls back to chosen `zephyr,canbus`) |

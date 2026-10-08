@@ -122,6 +122,26 @@ Optional arguments are shown in `[brackets]`.
 | `Hal.Has(name)`, `Hal.Poll()`, `Hal.Run([ms])`, `Hal.DelayMicroseconds(us)`, `Hal.Reset()` | |
 | `Hal.OnEvent(n, fn(source, value))`, `Hal.Post(n[, source, value])`, `Hal.DroppedEvents` | user events |
 
+### LedStrip (WS2812 / NeoPixel)
+| Member | Description |
+|---|---|
+| `new LedStrip(pin, count[, order = LedStrip.GRB])` | WS2812/WS2812B/SK6812 on any GPIO; `pin` may be a name (`"GP16"`, `"NEOPIXEL"`); `LedStrip.GRB`, `RGB`, `GRBW` (SK6812 RGBW) |
+| `strip[i]` (get/set, `0xRRGGBB` or `0xWWRRGGBB`) · `GetPixel(i)` · `SetPixel(i, color)` · `SetPixel(i, r, g, b[, w])` | colours are kept in RAM until `Show()` |
+| `Fill(color[, first, count])` · `Clear()` · `Show()` · `Dispose()` | `Show()` applies `Brightness` and the wire order and sends the frame |
+| `Count`, `Pin`, `Brightness` (0–255, default 255) | |
+| `LedStrip.Rgb(r, g, b[, w])` · `LedStrip.Hsv(hue 0–359[, s = 255, v = 255])` | colour helpers |
+
+Registered when the port fills `ledstrip_write` (`Hal.Has("LedStrip")`, hardware API v3):
+
+| Port | Driver | Notes |
+|---|---|---|
+| RP2040 / RP2350 | PIO state machine (pio1, then pio0), up to 4 strips | any pin; `"NEOPIXEL"` = `PICO_DEFAULT_WS2812_PIN` (RP2040-Zero: GP16) |
+| ESP32 / S2 / S3 / C3 / C6 / H2 / P4 | RMT TX channel, up to 2 strips | any pin; not on ESP32-C2 (no RMT); `"NEOPIXEL"` = S3 GPIO48, C3/C6/H2 GPIO8 |
+| STM32 | cycle-timed bit-bang (SysTick), interrupts off during `Show()` | ~30 µs per LED with IRQs masked; needs HCLK ≥ 24 MHz |
+| Zephyr | `led_strip` driver on the devicetree alias `led-strip` | `CONFIG_LED_STRIP=y`; the pin comes from the devicetree |
+| Arduino | ESP32 core 3 RMT, Arduino-Pico PIO, otherwise Adafruit_NeoPixel | for the last one `#include <Adafruit_NeoPixel.h>` in the sketch |
+| Simulator | logs `[sim] ledstrip gpio N: …` with `--sim-log` | |
+
 ### I²S, QSPI, CAN
 | Member | Description |
 |---|---|

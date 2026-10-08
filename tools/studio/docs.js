@@ -659,6 +659,29 @@ new(int id, byte[] data, bool extended) | Extended (29-bit) when true
 .Length: int | Data length
 .Data: byte[] | Payload
 
+@LedStrip | WS2812 / WS2812B / SK6812 ("NeoPixel") addressable RGB LEDs on any pin (modules/hal)
+new(int pin, int count) | GRB strip (WS2812B); pin may be a name: "GP16", "NEOPIXEL"
+new(int pin, int count, int order) | LedStrip.GRB, LedStrip.RGB (WS2811) or LedStrip.GRBW (SK6812 RGBW)
+const GRB: int | Byte order of WS2812 / WS2812B (default)
+const RGB: int | Byte order of WS2811 and some clones
+const GRBW: int | SK6812 RGBW (colours 0xWWRRGGBB)
+Rgb(int r, int g, int b): int | Colour 0xRRGGBB from 0..255 parts
+Rgb(int r, int g, int b, int w): int | Colour 0xWWRRGGBB (RGBW strips)
+Hsv(int hue, int saturation = 255, int value = 255): int | Colour from hue 0..359 (rainbows)
+.this[int index]: int | Colour of one LED (0xRRGGBB); applied by Show()
+.SetPixel(int index, int color): void | Sets one LED
+.SetPixel(int index, int r, int g, int b): void | Sets one LED from 0..255 parts
+.SetPixel(int index, int r, int g, int b, int w): void | RGBW strips
+.GetPixel(int index): int | Colour of one LED
+.Fill(int color): void | Every LED
+.Fill(int color, int first, int count): void | A range of LEDs
+.Clear(): void | All off (call Show() to apply)
+.Show(): void | Sends the colours to the strip
+.Brightness: int | 0..255 scale applied by Show() (default 255)
+.Count: int | Number of LEDs
+.Pin: int | GPIO of the strip
+.Dispose(): void | Frees the pixel buffer
+
 @Exception | Base of every exception
 new() | Without a message
 new(string message) | With a message

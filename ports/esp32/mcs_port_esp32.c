@@ -924,9 +924,30 @@ bool mcs_esp32_flash_fs(const char* label, const mcs_vfs_ops_t** ops, void** ctx
 }
 #endif
 
+/* ------------------------------------------------------------------ WS2812 / NeoPixel (RMT)
+ * One RMT TX channel + bytes encoder per pin (created on first use), 10 MHz
+ * resolution: 0 = 0.4 us high + 0.85 us low, 1 = 0.8 us high + 0.45 us low. */
+#ifndef MCS_ESP32_RGB_LED            /* on-board RGB LED for the "NEOPIXEL" pin name */
+#  if CONFIG_IDF_TARGET_ESP32S3
+#    define MCS_ESP32_RGB_LED 48     /* ESP32-S3-DevKitC-1 v1.0 (v1.1: 38) */
+#  elif CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32H2
+#    define MCS_ESP32_RGB_LED 8      /* DevKitM / DevKitC */
+#  else
+#    define MCS_ESP32_RGB_LED -1
+#  endif
+#endif
+#if SOC_RMT_SUPPORTED   /* RMT driver shared with the Arduino-ESP32 port */
+#define MCS_LEDSTRIP_ESP32_RMT 1
+#include "mcs_ledstrip_drivers.h"
+static int e_ledstrip_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
+    (void)ctx; (void)order;
+    return mcs_ledstrip_rmt_write(pin, data, n);
+}
+#endif
 static int e_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
     if ((!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) && g_cfg.led >= 0) return g_cfg.led;
+    if (!strcmp(name, "NEOPIXEL") || !strcmp(name, "RGB_LED") || !strcmp(name, "WS2812")) return MCS_ESP32_RGB_LED;
     return -1;                       /* -> generic parser: "GPIO5", "IO5", "5" */
 }
 void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
@@ -987,6 +1008,9 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->delay_us = e_delay_us;
     hal->reset = e_reset;
     hal->unique_id = e_unique_id;
+#if SOC_RMT_SUPPORTED
+    hal->ledstrip_write = e_ledstrip_write;
+#endif
     hal->pin_lookup = e_pin_lookup;
     hal->cpu_hz = (uint32_t)CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000u;
     hal->poll_event = e_poll_event;

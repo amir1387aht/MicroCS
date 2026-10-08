@@ -68,6 +68,15 @@ static int a_gpio_irq(void*, int pin, int edge) {
     return 0;
 }
 static int a_pin_lookup(void*, const char* s) {
+    if (!strcmp(s, "NEOPIXEL") || !strcmp(s, "RGB_LED") || !strcmp(s, "WS2812")) {   /* on-board RGB LED */
+#if defined(PIN_NEOPIXEL)
+        return PIN_NEOPIXEL;
+#elif defined(PIN_RGB_LED)
+        return PIN_RGB_LED;
+#else
+        return -1;
+#endif
+    }
     if (!strcmp(s, "LED") || !strcmp(s, "LED_BUILTIN")) {
 #ifdef LED_BUILTIN
         return LED_BUILTIN;
@@ -410,6 +419,44 @@ static int a_wdt_feed(void*) { return esp_rc(esp_task_wdt_reset()); }
 static int a_adc_read_mv(void*, int pin) { return (int)analogReadMilliVolts((uint8_t)pin); }
 #endif
 
+/* ------------------------------------------------------------------ WS2812 / NeoPixel
+ * ESP32 (core 3.x): RMT, RP2040 / RP2350 (Arduino-Pico): PIO - the same drivers as the
+ * native ports. Other boards: the Adafruit NeoPixel library when the sketch includes
+ * <Adafruit_NeoPixel.h> (the include also tells the IDE to build that library). */
+#if defined(ESP32) && ESP_IDF_VERSION_MAJOR >= 5 && SOC_RMT_SUPPORTED
+#define MCS_LEDSTRIP_ESP32_RMT 1
+#include "mcs_ledstrip_drivers.h"
+#define MCS_ARDUINO_LEDSTRIP 1
+static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int) { return mcs_ledstrip_rmt_write(pin, d, n); }
+#elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
+#define MCS_LEDSTRIP_RP2_PIO 1
+#include "mcs_ledstrip_drivers.h"
+#define MCS_ARDUINO_LEDSTRIP 1
+static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int) { return mcs_ledstrip_pio_write(pin, d, n); }
+#elif defined(__has_include)
+#if __has_include(<Adafruit_NeoPixel.h>)
+#include <Adafruit_NeoPixel.h>
+#define MCS_ARDUINO_LEDSTRIP 1
+static Adafruit_NeoPixel* g_np[2];
+static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int order) {
+    if (pin < 0) return MCS_HAL_EINVAL;
+    size_t bpp = order == MCS_LED_GRBW ? 4 : 3;
+    uint16_t count = (uint16_t)(n / bpp);
+    neoPixelType type = (bpp == 4 ? NEO_GRBW : NEO_GRB) + NEO_KHZ800;   /* bytes arrive in wire order */
+    int k = 0;
+    while (k < 2 && g_np[k] && g_np[k]->getPin() != pin) k++;
+    if (k == 2) return MCS_HAL_EBUSY;
+    if (!g_np[k]) { g_np[k] = new Adafruit_NeoPixel(count, (int16_t)pin, type); if (!g_np[k]) return MCS_HAL_ERR; g_np[k]->begin(); }
+    if (g_np[k]->numPixels() != count) g_np[k]->updateLength(count);
+    g_np[k]->updateType(type);
+    if (!g_np[k]->getPixels()) return MCS_HAL_ERR;
+    memcpy(g_np[k]->getPixels(), d, (size_t)count * bpp);
+    g_np[k]->show();
+    delayMicroseconds(300);
+    return 0;
+}
+#endif
+#endif
 /* ------------------------------------------------------------------ RP2040 / RP2350 (Arduino-Pico): I2S, watchdog */
 #if defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
 #define MCS_ARDUINO_WDT 1
@@ -657,6 +704,9 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     hal->delay_us = a_delay_us;
     hal->reset = a_reset;
     hal->unique_id = a_unique_id;
+#ifdef MCS_ARDUINO_LEDSTRIP
+    hal->ledstrip_write = a_ledstrip_write;
+#endif
 #if defined(ESP32)
     hal->cpu_hz = (uint32_t)getCpuFrequencyMhz() * 1000000u;
 #elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)

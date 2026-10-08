@@ -30,6 +30,7 @@ mcs_rp2_hal_init(&hal, &pins);
 | `GPIO.OnChange` | GPIO IRQ callback |
 | `UART` | interrupt-driven receive ring |
 | `PWM.Set(gpio, ...)` | every GPIO can do PWM (channel = GPIO number) |
+| `LedStrip` | WS2812 on any GPIO through a PIO state machine (up to 4 strips); `"NEOPIXEL"` = `PICO_DEFAULT_WS2812_PIN` (Waveshare RP2040-Zero: GP16) |
 | `ADC.Read(0..3)` | GP26–GP29; `ADC.Read(4)` = internal temperature sensor |
 | `Timer` | hardware alarm pool |
 | `Watchdog`, `RTC`, `Hal.UniqueId` | hardware watchdog, software clock on the 64-bit µs timer (set it with `RTC.Set`), flash unique id |

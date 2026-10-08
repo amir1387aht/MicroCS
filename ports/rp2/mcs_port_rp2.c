@@ -371,13 +371,22 @@ mcs_transport_t mcs_rp2_console_stdio(void) {
     return t;
 }
 
+/* WS2812 / NeoPixel: PIO driver shared with the Arduino-Pico port */
+#define MCS_LEDSTRIP_RP2_PIO 1
+#include "mcs_ledstrip_drivers.h"
+static int r_ledstrip_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
+    (void)ctx; (void)order;
+    return mcs_ledstrip_pio_write(pin, data, n);
+}
 static int r_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
 #ifdef PICO_DEFAULT_LED_PIN
     if (!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) return PICO_DEFAULT_LED_PIN;
-#else
-    (void)name;
 #endif
+#ifdef PICO_DEFAULT_WS2812_PIN       /* boards with an RGB LED: Waveshare RP2040-Zero (GP16), ... */
+    if (!strcmp(name, "NEOPIXEL") || !strcmp(name, "RGB_LED") || !strcmp(name, "WS2812")) return PICO_DEFAULT_WS2812_PIN;
+#endif
+    (void)name;
     return -1;                       /* -> generic parser: "GP15", "GPIO15", "15" */
 }
 void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
@@ -424,6 +433,7 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->reset = r_reset;
     hal->unique_id = r_unique_id;
     hal->pin_lookup = r_pin_lookup;
+    hal->ledstrip_write = r_ledstrip_write;
     hal->cpu_hz = clock_get_hz(clk_sys);
 }
 

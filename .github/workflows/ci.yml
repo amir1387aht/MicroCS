@@ -103,6 +103,7 @@ jobs:
         fs: [littlefs]
         include:
           - { board: pico2, fs: yaffs2 }
+          - { board: waveshare_rp2040_zero, fs: littlefs }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk

@@ -50,6 +50,7 @@ mcs_arduino_i2s_pins(0, 26, 25, 22, 35);               // I2S.Open(0, ...): bclk
 | `ADC` | `analogRead`; `ADC.ReadMillivolts` calibrated on ESP32 (`analogReadMilliVolts`) |
 | `DAC` | ESP32 / ESP32-S2 DAC pins, SAMD / Due `DAC0` |
 | `PWM` | `analogWrite` + frequency (12-bit duty on ESP32, 16-bit on RP2040 / Teensy) |
+| `LedStrip` | WS2812 on any pin: RMT (ESP32 core 3), PIO (Arduino-Pico), otherwise Adafruit_NeoPixel when the sketch includes `<Adafruit_NeoPixel.h>`; `"NEOPIXEL"` = `PIN_NEOPIXEL` / `PIN_RGB_LED` |
 | `I2S` | ESP32 (IDF standard-mode driver, TX / RX / duplex), RP2040 (`I2S` library, WS = BCLK + 1) |
 | `CAN` | ESP32 TWAI (25 k … 1 Mbit/s) |
 | `Watchdog` | ESP32 task watchdog, RP2040, AVR |

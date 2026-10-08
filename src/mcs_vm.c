@@ -778,7 +778,7 @@ static int get_index_op(mcs_vm_t* vm) {
         case MCS_O_INSTANCE: case MCS_O_USERDATA: {
             mcs_value_t m;
             mcs_string_t* nm = mcs_intern_c(vm, "get_Item");
-            if (mcs_table_get_s(&mcs_class_of(vm, obj)->methods, nm, &m)) return call_method(vm, m, 1);
+            if (mcs_cls_get(vm, mcs_class_of(vm, obj), MCS_TAB_METHODS, nm, &m)) return call_method(vm, m, 1);
             break;
         }
         default: break;
@@ -806,7 +806,7 @@ static int set_index_op(mcs_vm_t* vm) {
         case MCS_O_INSTANCE: case MCS_O_USERDATA: {
             mcs_value_t m;
             mcs_string_t* nm = mcs_intern_c(vm, "set_Item");
-            if (mcs_table_get_s(&mcs_class_of(vm, obj)->methods, nm, &m)) return call_method(vm, m, 2);
+            if (mcs_cls_get(vm, mcs_class_of(vm, obj), MCS_TAB_METHODS, nm, &m)) return call_method(vm, m, 2);
             break;
         }
         case MCS_O_STRING: mcs_throw(vm, EXC_INVOP, "Strings are immutable; indexer is read only"); return CALL_ERR;

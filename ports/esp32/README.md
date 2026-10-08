@@ -116,6 +116,7 @@ mcs_esp32_hal_init(&hal, &pins);
 | `ADC.Read(gpio)` / `ReadMillivolts` | `adc_oneshot` + eFuse calibration |
 | `DAC` | `dac_oneshot` (ESP32, S2) |
 | `PWM` | LEDC (13-bit duty) |
+| `LedStrip` | RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
 | `Timer` | `gptimer` |
 | `I2S` | `i2s_std` |
 | `CAN` | TWAI |
