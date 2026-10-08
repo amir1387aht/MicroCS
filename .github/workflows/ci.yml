@@ -51,8 +51,10 @@ jobs:
       - uses: actions/checkout@v4
       - run: make -j
       - run: npm install --no-save --no-package-lock playwright-core@1
-      - name: tools/mcs_studio.html against the host device shell
+      - name: tools/studio against the host device shell
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs
+      - name: every Studio template compiles and runs on the simulated board
+        run: node tests/studio/test_templates.js ./mcs
 
   cortex-m:
     name: Cortex-M0/M4/M33 (emulated)

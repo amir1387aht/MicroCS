@@ -127,29 +127,46 @@ python3 tools/mcs_remote.py --exec "./mcs --shell --sim --ramfs 65536" put app.c
 
 The tool sends Ctrl-A first, so it works whether the device sits in the REPL or in machine mode.
 
-## 6. In the browser: `mcs_studio.html`
+## 6. In the browser: MicroCS Studio
 
-[`tools/mcs_studio.html`](../tools/mcs_studio.html) is a single, self-contained HTML file (no
-server, no install, works offline), also published at **https://amir1387aht.github.io/MicroCS/**
-(updated from `main` by `.github/workflows/pages.yml`). Open it in **Chrome or Edge** on a desktop — they have
-[Web Serial](https://developer.mozilla.org/docs/Web/API/Web_Serial_API) — click **Connect**
-and pick the board's port. It speaks the protocol above, like `mcs_remote.py`.
+**https://amir1387aht.github.io/MicroCS/** — nothing to install. Open it in **Chrome or Edge**
+on a desktop (they have [Web Serial](https://developer.mozilla.org/docs/Web/API/Web_Serial_API)),
+click **Connect** and pick the board's port. It speaks the protocol above, like `mcs_remote.py`.
+
+Offline, open [`tools/studio/index.html`](../tools/studio/index.html) from a clone or the
+release zip — double-click is enough, no server. The page is plain HTML/CSS/JS split by job
+(`studio.css` look, `studio.js` app, `templates.js` templates and snippets, `api.js`
+completion data, see [tools/studio/README.md](../tools/studio/README.md)); the published copy is
+updated from `main` by `.github/workflows/pages.yml`. The look follows Visual Studio 2022
+Dark (Light via the theme button).
 
 * **Device files** — browse folders, upload (button or drag & drop, several files at once),
   download, rename/move, duplicate, delete (folders recursively), create files and folders,
   *Run at boot* (copies a script to `/main.cs`). The bar at the bottom shows free space
   (`df`) and the VM heap (`mem`).
-* **Editor** — tabs, C# highlighting, completion for the MicroCS API (`Ctrl+Space`, `Class.`
-  members, snippets such as `cw`, `for`, `try`), auto-indent and bracket pairs, `Ctrl+/`
-  comments, templates (blink, button interrupt, scheduler, ADC, I2C scan, files). `Ctrl+S`
+* **Editor** — tabs, C# highlighting with Visual Studio's colours, completion for the MicroCS
+  API (`Ctrl+Space`, `Class.` members, 40+ snippets such as `cw`, `for`, `try`, `pin`,
+  `every`, `i2cdev`), auto-indent and bracket pairs, `Ctrl+/` comments. `Ctrl+S`
   saves to the device; `F5` / `Ctrl+Enter` saves and runs, streaming the output; compile
   errors and exceptions mark the line and are clickable in the console. `Ctrl+Shift+Enter`
   runs only the selection. Binary files (`.mcsb`) open in a hex view.
+* **Templates** (`Alt+T`) — 85 ready-to-run templates and examples in an *Add New Item* dialog
+  with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
+  `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
+  (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), and every
+  API — GPIO, PWM, ADC/DAC, UART, I2C (TMP102, EEPROM, BME280, SSD1306), SPI, timers, events,
+  watchdog, RTC, I2S, CAN, QSPI, files, and C# language features. *Add* opens one as a new
+  file, *Insert at cursor* pastes it into the current one. CI compiles and runs each one on
+  the simulated board (`tests/studio/test_templates.js`).
 * **Console** — the C# REPL (variables survive between lines and file operations; `↑`/`↓`
   history, `Shift+Enter` for multi-line input) or raw shell commands (`jobs`, `cat`, `help` …).
   Output of background jobs and the boot log appear here too; `Ctrl+C` stops a script.
 * **Reset board** pulses RTS like esptool. Boards on native USB (ESP32-S3/C3/C6 USB-Serial-JTAG,
   RP2040 CDC) disappear while resetting; the page reconnects automatically when they return.
+* **Connecting** sends Ctrl-C + Ctrl-A and waits for the `OK` status. If the board stays silent
+  or reports the ESP32 ROM bootloader (`waiting for download` — opening a port can toggle
+  DTR/RTS, which drive EN/IO0 on most ESP32 boards), Studio resets it once into the firmware
+  and tries again; if it still fails, the console shows what the device sent.
 
 Uploads are written to `<name>.part` and renamed, so an interrupted upload keeps the old file.
 If an upload stalls (a UART bridge losing bytes while the flash erases), it is retried in small
