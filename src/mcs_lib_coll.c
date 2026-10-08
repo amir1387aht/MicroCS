@@ -92,8 +92,32 @@ static bool sort_indices(mcs_vm_t* vm, const mcs_value_t* keys, uint32_t n, mcs_
     return ok;
 }
 /* sort items[start..start+n) in place (values stay reachable via `keys`) */
+/* all-int ranges with the default comparer: in-place heap sort, no extra memory (equal ints
+ * are indistinguishable, so stability does not matter). Keeps List<int>.Sort() usable on
+ * small heaps, where the general path needs 16 bytes per element. */
+static bool int_less(mcs_value_t a, mcs_value_t b, bool desc) { return desc ? a.as.i > b.as.i : a.as.i < b.as.i; }
+static void heap_sift(mcs_value_t* v, uint32_t i, uint32_t n, bool desc) {
+    for (;;) {
+        uint32_t c = 2 * i + 1;
+        if (c >= n) return;
+        if (c + 1 < n && int_less(v[c], v[c + 1], desc)) c++;
+        if (!int_less(v[i], v[c], desc)) return;
+        mcs_value_t t = v[i]; v[i] = v[c]; v[c] = t;
+        i = c;
+    }
+}
+static bool sort_ints_inplace(mcs_value_t* v, uint32_t n, bool desc) {
+    for (uint32_t i = 0; i < n; i++) if (v[i].type != MCS_T_INT) return false;
+    for (uint32_t i = n / 2; i-- > 0;) heap_sift(v, i, n, desc);
+    for (uint32_t e = n; e-- > 1;) {
+        mcs_value_t t = v[0]; v[0] = v[e]; v[e] = t;
+        heap_sift(v, 0, e, desc);
+    }
+    return true;
+}
 static bool sort_values(mcs_vm_t* vm, mcs_list_t* l, uint32_t start, uint32_t n, mcs_value_t cmp, bool desc) {
     if (n < 2) return true;
+    if (cmp.type == MCS_T_NULL && !g_multi_spec && sort_ints_inplace(l->items + start, n, desc)) return true;
     mcs_list_t* keys = new_rooted(vm, MCS_O_ARRAY, n);
     memcpy(keys->items, l->items + start, sizeof(mcs_value_t) * n);
     uint32_t* idx = MCS_ALLOC(vm, uint32_t, n);

@@ -4,6 +4,15 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Fix: `Console.ReadLine` on devices** — scripts run by the shell / `mcs_runtime` now read the
+  line typed in the console (`mcs_shell_readline`: input queue, backspace, CR LF, echo). Before,
+  it fell back to `fgets(stdin)`, which never saw the Studio's input and blocked Ctrl-C / Stop.
+  Ctrl-C while waiting stops the script; the wait honours the time limit and idle callback.
+* **Studio:** a console line typed while a script runs goes to the script (`Console.ReadLine`)
+  instead of waiting for the script to end; Refresh / Run re-read open, unmodified files that
+  changed on the device (e.g. a log the script appended to); double-click on a template = Add.
+* `List<int>.Sort()` / `Array.Sort(int[])` sort in place without extra memory (was 16 bytes per
+  element); the *CPU benchmark* template sizes fit a 160 KB heap (RP2040).
 * **`LedStrip` — WS2812 / NeoPixel / SK6812 on any pin** (hardware API v3, new `mcs_hal_t.ledstrip_write`
   hook): `new LedStrip(pin, count[, order])`, indexer, `SetPixel`, `Fill`, `Clear`, `Show`,
   `Brightness`, `LedStrip.Rgb` / `LedStrip.Hsv`, GRB / RGB / GRBW orders. Drivers: RP2040/RP2350 PIO,

@@ -1498,6 +1498,33 @@ const App = {
     }
     this.renderFiles();
     this.refreshStorage();
+    this.syncOpenTabs(!quiet);
+  },
+  /* re-read open, unmodified device files that changed on the device (a script wrote them);
+   * all = the user pressed Refresh: re-read them even if the size is the same */
+  async syncOpenTabs(all) {
+    for (const t of this.tabs.slice()) {
+      if (!t.path || t.local || t.dirty || dirName(t.path) !== this.cwd) continue;
+      const e = this.entries.find((x) => !x.dir && x.name === baseName(t.path));
+      if (!e) continue;
+      const size = t.binary ? t.binary.length : enc.encode(t.saved ?? "").length;
+      if (!all && e.size === size) continue;
+      await this.reloadTab(t);
+    }
+  },
+  async reloadTab(t) {
+    let data;
+    try { data = await dev.op(() => dev.get(t.path)); } catch { return; }
+    if (!this.tabs.includes(t) || t.dirty) return;
+    if (t === this.tab()) ed.stash();
+    if (t.dirty) return;
+    if (isText(data)) {
+      const text = new TextDecoder().decode(data);
+      if (!t.binary && text === t.saved) return;
+      Object.assign(t, { text, saved: text, binary: null, readOnly: false });
+    } else Object.assign(t, { binary: data, text: "", saved: "", readOnly: true });
+    if (t === this.tab()) { ed.tab = null; this.activate(t.id); }   // show it without stashing the old text back
+    else this.renderTabs();
   },
   async refreshStorage() {
     try {
@@ -1724,7 +1751,11 @@ const App = {
   },
   async openPath(path, size) {
     const have = this.tabs.find((t) => t.path === path && !t.local);
-    if (have) return this.activate(have.id);
+    if (have) {
+      this.activate(have.id);
+      if (!have.dirty) await this.reloadTab(have);   // the device copy may have changed since it was opened
+      return;
+    }
     if (size > 512 * 1024 && !(await dialog({ title: "Large file", text: `${baseName(path)} is ${fmtBytes(size)}. Downloading it over serial may take a while.`, ok: "Open anyway" }))) return;
     try {
       const data = await this.fetchFile(path);
@@ -1840,6 +1871,11 @@ const App = {
     cin.value = ""; this.autosize();
     if (text) { this.history = this.history.filter((h) => h !== text); this.history.push(text); if (this.history.length > 200) this.history.shift(); store.set("history", this.history); }
     this.hpos = -1;
+    if (dev.running) {                     // a script is running: the line is its Console.ReadLine input
+      term.write(text + "\n", "in");
+      try { await dev.write(text + "\n"); } catch (e) { term.line(e.message, "err"); }
+      return;
+    }
     if (this.consMode === "shell") {
       if (!text) return;
       term.line("", "");
@@ -1975,8 +2011,17 @@ const App = {
   },
   galWire() {
     $("gCats").onclick = (e) => { const d = e.target.closest("[data-c]"); if (d) { this.gal.cat = d.dataset.c; this.gal.sel = 0; this.galRender(); } };
-    $("gItems").onclick = (e) => { const d = e.target.closest("[data-i]"); if (d) { this.gal.sel = +d.dataset.i; this.galRender(); } };
-    $("gItems").ondblclick = (e) => { if (e.target.closest("[data-i]")) this.galAdd(false); };
+    /* select without re-rendering the list: replacing the clicked element between the two clicks
+     * of a double-click kept the browser from firing dblclick */
+    $("gItems").onclick = (e) => {
+      const d = e.target.closest("[data-i]");
+      if (!d) return;
+      this.gal.sel = +d.dataset.i;
+      $("gItems").querySelectorAll(".item.on").forEach((x) => x.classList.remove("on"));
+      d.classList.add("on");
+      this.galPreview();
+      if (e.detail === 2) this.galAdd(false);             // double-click = Add
+    };
     $("gSearch").oninput = () => { this.gal.sel = 0; this.galRender(); };
     $("gClose").onclick = $("gCancel").onclick = () => this.galClose();
     $("gAdd").onclick = () => this.galAdd(false);

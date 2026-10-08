@@ -173,6 +173,38 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.hover('.tab.active'); await page.click('.tab.active .x'); await sleep(200);
   check((await page.$$eval('.tab', e => e.length)) === nTabs - 1, 'tab close button closes the tab');
 
+  // Console.ReadLine gets the console line while a script runs; Stop works while it waits
+  fs.writeFileSync(ROOT + '/ask.cs', 'Console.Write("name? ");\nvar n = Console.ReadLine();\nConsole.WriteLine($"hi {n}");\nConsole.ReadLine();\nConsole.WriteLine("unreached");\n');
+  await page.evaluate(() => { App.runPath('/ask.cs'); });
+  await page.waitForFunction(() => /name\? /.test(document.getElementById('term').innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.fill('#cin', 'Bob'); await page.press('#cin', 'Enter');
+  await page.waitForFunction(() => /hi Bob/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
+  check(/hi Bob/.test(await page.innerText('#term')), 'Console.ReadLine reads the console line');
+  await page.click('#btnStop');
+  await page.waitForFunction(() => (document.getElementById('term').innerText.match(/■ stopped/g) || []).length >= 2, null, { timeout: 5000 }).catch(() => {});
+  tt = await page.innerText('#term');
+  check((tt.match(/■ stopped/g) || []).length >= 2 && !/unreached/.test(tt), 'Stop ends a script waiting in ReadLine');
+  check(await page.evaluate(() => !dev.running), 'device free again after stop');
+  fs.unlinkSync(ROOT + '/ask.cs');
+
+  // an open, unmodified file that a script changed is re-read on Refresh
+  await page.evaluate(() => App.refresh());
+  await page.evaluate(() => App.openPath('/log.txt', 10));
+  await sleep(300);
+  fs.appendFileSync(ROOT + '/log.txt', 'appended by a script\n');
+  await page.click('#btnRefresh');
+  await page.waitForFunction(() => /appended by a script/.test(document.getElementById('ta').value), null, { timeout: 5000 }).catch(() => {});
+  check((await page.inputValue('#ta')).endsWith('appended by a script\n'), 'Refresh re-reads the open file');
+
+  // double-click on a template = Add
+  await page.click('#btnTemplates');
+  await page.click('#gCats div[data-c="All"]');
+  const nTabs0 = await page.$$eval('.tab', e => e.length);
+  await page.dblclick('#gItems .item b:text-is("Uptime and timing")');
+  await sleep(200);
+  check(!(await page.isVisible('#galleryBg')) && (await page.$$eval('.tab', e => e.length)) === nTabs0 + 1 && (await page.inputValue('#ta')).includes('Stopwatch.StartNew'), 'double-click adds the template');
+
+
   // upload
   fs.writeFileSync(OUT + '/up.txt', 'uploaded text\n'.repeat(500));
   await page.setInputFiles('#fileInput', OUT + '/up.txt');

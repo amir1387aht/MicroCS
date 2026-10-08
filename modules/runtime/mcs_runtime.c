@@ -26,6 +26,11 @@ static int rt_read(void* ud, uint8_t* b, size_t n, uint32_t timeout_ms) {
     if (timeout_ms) rt_delay(rt, timeout_ms);      /* headless: just pass the time */
     return 0;
 }
+/* Console.ReadLine: what the user types on the console (see mcs_shell_readline) */
+static int rt_readline(void* ud, char* buf, size_t cap) {
+    mcs_runtime_t* rt = (mcs_runtime_t*)ud;
+    return rt_has_input(rt) ? mcs_shell_readline(&rt->shell, buf, cap) : -1;
+}
 static int rt_hook(mcs_vm_t* vm, void* ud) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
     if (rt->cfg.idle) rt->cfg.idle(rt->cfg.ud);
@@ -50,6 +55,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     c.ticks_fn = rt_ticks;
     c.delay_fn = rt_delay;
     c.hook_fn = rt_hook;
+    c.readline_fn = rt_readline;
     c.user_data = rt;
     if (cfg->stack_slots) c.stack_slots = cfg->stack_slots;
     if (cfg->max_frames) c.max_frames = cfg->max_frames;
