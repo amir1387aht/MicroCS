@@ -2073,7 +2073,10 @@ int mcs_safepoint(mcs_vm_t* vm) {
 
 uint32_t mcs_ticks(mcs_vm_t* vm) {
     if (vm->cfg.ticks_fn) return vm->cfg.ticks_fn(vm->cfg.user_data);
-#if MCS_ENABLE_STDIO
+#if defined(__ZEPHYR__) && defined(CONFIG_SYS_CLOCK_TICKS_PER_SEC)
+    extern int64_t sys_clock_tick_get(void);        /* Zephyr kernel (newlib has no clock() there) */
+    return (uint32_t)((uint64_t)sys_clock_tick_get() * 1000u / CONFIG_SYS_CLOCK_TICKS_PER_SEC);
+#elif MCS_ENABLE_STDIO
     return (uint32_t)((uint64_t)clock() * 1000u / CLOCKS_PER_SEC);
 #else
     return 0;   /* no hosted C library clock: set cfg.ticks_fn */

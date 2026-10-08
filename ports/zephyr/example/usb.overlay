@@ -1,0 +1,15 @@
+/* MicroCS console on native USB (CDC ACM) instead of a UART: boards with a USB
+ * device controller (nRF52840 dongle / Feather, RP2040, STM32F4/L4 ...).
+ *   west build -b <board> ports/zephyr/example -- -DZEPHYR_EXTRA_MODULES=$PWD \
+ *       -DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay */
+/ {
+	chosen {
+		zephyr,console = &cdc_acm_uart0;
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

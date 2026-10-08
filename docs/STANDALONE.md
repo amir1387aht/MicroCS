@@ -88,7 +88,14 @@ MicroCS 1.6.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mod
 * **Ctrl-C** cancels the current input or stops a running script; **Ctrl-E** paste mode
   (paste a whole file, **Ctrl-D** runs it); **Ctrl-A** switches to the machine protocol.
 * Dot commands: `.ls [dir]`, `.cat <file>`, `.run <file>`, `.rm <file>`, `.mem`, `.info`,
-  `.jobs`, `.clear` (reset all definitions), `.help`, `.exit` (machine mode).
+  `.jobs`, `.cancel <id>|all|scripts|files`, `.clear` (reset all definitions), `.help`,
+  `.exit` (machine mode).
+* **Jobs outlive their script.** `Scheduler.Every` / `Scheduler.After` hand a delegate to the
+  runtime's scheduler; the compiled code lives in RAM, so the job keeps running after the
+  script returns — and after its `.cs` file is deleted — until `.cancel` / `cancel`,
+  `Scheduler.Cancel(id)` / `Scheduler.CancelAll()`, or a reset. Only `/jobs.cfg` entries come
+  back after a reset. MicroCS Studio cancels the jobs left by earlier scripts before each Run
+  (⋯ → *Stop script jobs before each Run*) and has ⋯ → *Stop all jobs*.
 
 ## 4. Machine protocol (tools and IDEs)
 
@@ -104,7 +111,8 @@ One command per line; every reply ends with a status line starting with EOT (0x0
 | `rm`, `mkdir`, `mv` | file management |
 | `run <f>` | run a source or image file (NOEXEC mounts refused) |
 | `exec <code>` | compile + run one line |
-| `jobs`, `every <ms> <f>`, `after <ms> <f>`, `cancel <id>` | scheduler |
+| `jobs`, `every <ms> <f>`, `after <ms> <f>` | scheduler: list jobs (`<id> <state> every\|once <ms> runs=<n> <file or <delegate>>`), add file jobs |
+| `cancel <id>` / `cancel all` / `cancel scripts` / `cancel files` | cancel one job, every job, the delegate jobs scripts started, or the file jobs (`jobs.cfg`, `every`/`after`); bulk forms print `cancelled <n>` |
 | `df [dir]` | `<mount> <format> N KB total, N KB used, N KB free` per mount (or for the one holding `dir`) |
 | `mem`, `info`, `help` | diagnostics |
 | `repl` | back to the interactive prompt |

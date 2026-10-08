@@ -344,11 +344,11 @@ CAN.Send(0, 0x123, new byte[] { 1, 2, 3 });
 | DAC | `DAC` | ✅ where present | ✅ ESP32/S2 | — | ✅ | ESP32/SAMD |
 | PWM / servo / tone | `PWM` | ✅ TIM | ✅ LEDC | ✅ every pin | ✅ | ✅ `analogWrite` |
 | Hardware timers | `Timer` | ✅ TIM IRQ | ✅ gptimer | ✅ alarm pool | ✅ k_timer | software |
-| I²S audio | `I2S` | ✅ | ✅ std mode | planned (PIO) | planned | — |
+| I²S audio | `I2S` | ✅ | ✅ std mode | planned (PIO) | ✅ | ESP32 · RP2040 |
 | QSPI / OctoSPI | `QSPI` | ✅ QSPI + OSPI | ✅ quad SPI | — | — | — |
-| CAN / FDCAN | `CAN` `CanFrame` | ✅ bxCAN + FDCAN | ✅ TWAI | — | ✅ | — |
-| Watchdog | `Watchdog` | ✅ IWDG | ✅ task WDT | ✅ | ✅ | where the core has one |
-| RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ | ✅ software |
+| CAN / FDCAN | `CAN` `CanFrame` | ✅ bxCAN + FDCAN | ✅ TWAI | — | ✅ 2 buses | ESP32 TWAI |
+| Watchdog | `Watchdog` | ✅ IWDG | ✅ task WDT | ✅ | ✅ | ESP32 · RP2040 · AVR |
+| RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ RTC driver / software | ✅ software |
 | Board info, µs clock, reset | `Hal` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 Full reference: [HAL.md](docs/HAL.md) · generated API list: [STDLIB.md](docs/STDLIB.md) ·
@@ -370,7 +370,7 @@ integrations:
 | **ESP-IDF** | `git clone https://github.com/amir1387aht/MicroCS components/MicroCS` | the same `CMakeLists.txt` registers the IDF component `MicroCS` |
 | **STM32CubeIDE / CubeMX** | add `src/`, `modules/`, `ports/stm32` to the project, `include/` to the include paths | uses the Cube HAL headers of your project; family detected automatically |
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
-| **Zephyr** | add as a west module, `CONFIG_MICROCS=y` | devicetree aliases select the devices |
+| **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
 | **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.6.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
@@ -391,8 +391,8 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile |
 | **ESP32** · S2 · S3 · C2 · C3 · C6 · H2 · P4 (no Wi-Fi/BLE needed) | [`ports/esp32`](ports/esp32) | example firmware built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W…) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico` and `pico2` |
-| Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, …) | [`ports/zephyr`](ports/zephyr) | beta |
-| Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | beta |
+| Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
+| Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
 | Linux / macOS host (CLI, REPL, simulator board) | [`ports/unix`](ports/unix) | full test suite |
 | Your chip | [`ports/template`](ports/template) | fill in one table of function pointers |
@@ -556,7 +556,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
-| Zephyr / Arduino ports | 🧪 | API complete, community testing welcome |
+| Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: LittleFS, YAFFS2, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated chips with bad blocks — not yet on real chips |
 | Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
 

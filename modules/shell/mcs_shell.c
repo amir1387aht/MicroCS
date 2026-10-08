@@ -291,7 +291,7 @@ static int cmd_df(mcs_shell_t* sh, const char* path) {
 
 static void cmd_help(mcs_shell_t* sh) {
     out(sh, "ls [dir] | cat <f> | put <f> <len> | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
-            "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>\n"
+            "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
             "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
 }
@@ -375,8 +375,11 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         int id = mcs_sched_add_file(sh->sched, argv[2], every ? 0 : t, every ? t : 0, 1);
         if (id < 0) err(sh, "job table full"); else { outf(sh, "job %d\n", id); ok(sh); }
     } else if (!strcmp(c, "cancel")) {
-        if (!sh->sched || argc < 2) { err(sh, "usage: cancel <id>"); return; }
-        if (mcs_sched_cancel(sh->sched, atoi(argv[1]))) ok(sh); else err(sh, "no such job");
+        if (!sh->sched || argc < 2) { err(sh, "usage: cancel <id>|all|scripts|files"); return; }
+        int which = !strcmp(argv[1], "all") ? MCS_SCHED_ALL : !strcmp(argv[1], "scripts") ? MCS_SCHED_DELEGATES
+                  : !strcmp(argv[1], "files") ? MCS_SCHED_FILES : -1;
+        if (which >= 0) { outf(sh, "cancelled %d\n", mcs_sched_cancel_all(sh->sched, which)); ok(sh); }
+        else if (mcs_sched_cancel(sh->sched, atoi(argv[1]))) ok(sh); else err(sh, "no such job");
     }
 #endif
     else if (!strcmp(c, "repl")) {
@@ -400,13 +403,15 @@ static void repl_command(mcs_shell_t* sh, char* line) {
     int e;
     if (!strcmp(c, "help")) {
         out(sh, "C# statements and expressions run as you type them; expressions are printed.\n"
-                ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .df  .mem  .info  .jobs  .clear  .exit (machine mode)\n"
+                ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .df  .mem  .info  .jobs  .cancel <id>|all  .clear  .exit (machine mode)\n"
+                "Jobs started with Scheduler.Every/After keep running after the script ends (and after\n"
+                "its file is deleted) until .cancel, Scheduler.CancelAll() or a reset.\n"
                 "Ctrl-C clears / stops a script, Ctrl-E paste mode (Ctrl-D runs), Ctrl-A machine mode\n");
     } else if (!strcmp(c, "clear")) sh->code_len = 0;
     else if (!strcmp(c, "exit") || !strcmp(c, "shell")) { mcs_shell_set_repl(sh, false); ok(sh); return; }
     else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm") || !strcmp(c, "df")) && !sh->vfs) out(sh, "error: no filesystem\n");
     else if (!strcmp(c, "df")) { if ((e = cmd_df(sh, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
-    else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
+    else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "cancel") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
         if (!strcmp(c, "run")) { if (*a) mcs_exec_file(sh->vm, sh->vfs, a); else out(sh, "usage: .run <file>\n"); }
         else if (!strcmp(c, "ls")) { if ((e = mcs_vfs_list(sh->vfs, *a ? a : "/", ls_cb, sh))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
         else if (!strcmp(c, "cat")) {
@@ -420,6 +425,12 @@ static void repl_command(mcs_shell_t* sh, char* line) {
                  (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
         } else if (!strcmp(c, "info")) outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));
 #if MCS_ENABLE_SCHED
+        else if (!strcmp(c, "cancel") && sh->sched) {
+            if (!*a) out(sh, "usage: .cancel <id>|all|scripts|files\n");
+            else if (!strcmp(a, "all") || !strcmp(a, "scripts") || !strcmp(a, "files"))
+                outf(sh, "cancelled %d job(s)\n", mcs_sched_cancel_all(sh->sched, a[0] == 'a' ? MCS_SCHED_ALL : a[0] == 's' ? MCS_SCHED_DELEGATES : MCS_SCHED_FILES));
+            else if (!mcs_sched_cancel(sh->sched, atoi(a))) out(sh, "no such job\n");
+        }
         else if (!strcmp(c, "jobs") && sh->sched) {
             for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
                 mcs_job_t* j = &sh->sched->jobs[i];

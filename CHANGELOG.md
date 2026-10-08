@@ -4,6 +4,28 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Zephyr port completed:** files on LittleFS (`mcs_zephyr_fs_mount()` on `storage_partition`,
+  or any mounted Zephyr filesystem through `mcs_zephyr_fs_ops`, e.g. FAT on SD), so `/boot.cs`,
+  `/jobs.cfg`, `/main.cs` and Studio uploads persist; I2S (`mcs-i2sN` aliases, memory-slab
+  streaming), two CAN buses (`mcs-can0/1`), hardware RTC (`rtc` alias), watchdog fallbacks
+  (`wdt0`, `wdt`, `iwdg`), polled UART fallback for drivers without interrupts, USB CDC ACM
+  console (`overlay-usb.conf` + `usb.overlay`), Kconfig options (`MICROCS_HEAP_SIZE`,
+  `MICROCS_FS`, `MICROCS_RAMFS_SIZE`, `MICROCS_CONSOLE_ECHO`), board overlays for the nRF52840
+  DK and the Pico, a west manifest (`ports/zephyr/west.yml`). Fixed: the example's
+  `app.overlay` did not build (missing PWM include), `clock()` link error with newlib, `native_sim`
+  profile detection (`CONFIG_SRAM_SIZE=0`), the host-only POSIX backend compiled into Zephyr.
+  CI builds `native_sim`, nRF52840 DK (UART + USB), Pico and Nucleo-F429ZI with Zephyr 4.1 and
+  runs `tests/zephyr/smoke.py` on `native_sim`.
+* **Arduino port completed:** files on any `fs::FS` (ESP32 LittleFS / SPIFFS / FFat / SD /
+  SD_MMC, RP2040 LittleFS / SDFS) or the Arduino SD library (`MCS_ARDUINO_FS`,
+  `MCS_ARDUINO_SD_FS`, `mcs_arduino_fs_ops`); `MicroCS_REPL` is now a full device firmware
+  (LittleFS, boot scripts, Studio), new `MicroCS_SD` example; ESP32 I2S, CAN (TWAI), task
+  watchdog and calibrated `ADC.ReadMillivolts`; RP2040 I2S and watchdog; 12/16-bit PWM duty on
+  ESP32 / RP2040 / Teensy; `Hal.UniqueId` on RP2040, nRF52, SAMD, STM32. CI compiles every
+  example for ESP32, S3, C3, Pico, Pico 2 and Nano 33 BLE.
+* **Jobs:** shell `cancel all|scripts|files`, REPL `.cancel`, C `mcs_sched_cancel_all()`;
+  Studio stops the jobs earlier scripts left running before each Run (option) and has ⋯ →
+  *Stop all jobs*. Docs explain that `Scheduler.Every` jobs outlive their script and file.
 * **MicroCS Studio** (`tools/studio/`, online at https://amir1387aht.github.io/MicroCS/): a
   browser IDE over Web Serial — device file manager (upload/download/rename/delete, drag & drop,
   free space), C# editor with Visual Studio 2022 Dark colours, API completion and 40+ snippets

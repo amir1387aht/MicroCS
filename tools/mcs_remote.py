@@ -7,7 +7,7 @@
 
 Commands: ls [dir], cat <f>, put <local> [remote], get <remote> [local], rm <f>,
 mkdir <d>, mv <a> <b>, run <f>, exec <code>, jobs, every <t> <f>, after <t> <f>,
-cancel <id>, df [dir] (filesystem size / free space), mem, info. Several commands can be chained with "+".
+cancel <id>|all|scripts|files, df [dir] (filesystem size / free space), mem, info. Several commands can be chained with "+".
   repl      interactive C# prompt in this terminal (Ctrl-] quits)
 Exit status is 0 when every command succeeded.
 

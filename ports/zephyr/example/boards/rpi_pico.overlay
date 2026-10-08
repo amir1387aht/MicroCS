@@ -1,0 +1,64 @@
+/* MicroCS on the Raspberry Pi Pico: 1.5 MB for firmware, 512 KB LittleFS for
+ * C# files, ADC.Read(0..3) = GP26, GP27, GP28 and the temperature sensor,
+ * PWM.Set(0, ...) = GP25 (LED). */
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+	zephyr,user {
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 4>;
+		pwms = <&pwm 9 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+	};
+};
+
+&code_partition {
+	reg = <0x100 (DT_SIZE_K(1536) - 0x100)>;
+};
+
+&flash0 {
+	partitions {
+		storage_partition: partition@180000 {
+			label = "storage";
+			reg = <0x180000 DT_SIZE_K(512)>;
+		};
+	};
+};
+
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+	channel@2 {
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+	channel@4 {
+		reg = <4>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <12>;
+	};
+};
+
+&pwm {
+	status = "okay";
+};

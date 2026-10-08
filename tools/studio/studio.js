@@ -1800,6 +1800,13 @@ const App = {
     let st, tail = "";
     try {
       st = await dev.op(async () => {
+        if (store.get("stopJobsOnRun", true)) {        // Scheduler.Every jobs outlive their script: do not stack them run after run
+          try {
+            const c = await dev.cmd("cancel scripts");
+            const n = c.status === "OK" ? +((/cancelled (\d+)/.exec(new TextDecoder().decode(c.out)) || [])[1] || 0) : 0;
+            if (n) term.line(`— stopped ${n} job${n > 1 ? "s" : ""} left running by an earlier script —`, "sys");
+          } catch (e) { if (e instanceof TimeoutError) throw e; }
+        }
         const r = await dev.cmd("run " + path, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
         if (after) await after();
         return r;
@@ -1999,6 +2006,8 @@ const App = {
       "-",
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
       { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
+      { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
+      { label: (store.get("stopJobsOnRun", true) ? "✓ " : "") + "Stop script jobs before each Run", icon: "play", run: () => { const v = !store.get("stopJobsOnRun", true); store.set("stopJobsOnRun", v); toast(v ? "Run first cancels jobs left by earlier scripts (Scheduler.Every / After), so they do not pile up." : "Jobs from earlier runs keep running until you stop them (⋯ → Stop all jobs).", "info", 5000); } },
       "-",
       { label: (store.get("releaseLines", false) ? "✓ " : "") + "Release DTR/RTS on connect", icon: "plug", run: () => { const v = !store.get("releaseLines", false); store.set("releaseLines", v); toast(v ? "DTR and RTS will be released (low) when connecting - some boards need this, ESP32 boards may reset." : "DTR/RTS are left as the browser sets them (no reset on connect).", "info", 5000); } },
       { label: "Editor font larger", icon: "edit", run: () => this.font(1) },

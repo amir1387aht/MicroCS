@@ -1,0 +1,11 @@
+/* native_sim: a loopback CAN controller so CAN.Send / CAN.OnReceive can be tried without hardware */
+/ {
+	chosen {
+		zephyr,canbus = &can_loopback0;
+	};
+
+	can_loopback0: can_loopback0 {
+		status = "okay";
+		compatible = "zephyr,can-loopback";
+	};
+};
