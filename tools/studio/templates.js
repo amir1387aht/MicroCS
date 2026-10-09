@@ -1366,7 +1366,7 @@ const int PIN = 16;                   // RP2040-Zero on-board LED
 const int COUNT = 1;                  // number of LEDs (1 for an on-board LED)
 
 var strip = new LedStrip(PIN, COUNT); // add LedStrip.RGB for RGB-ordered LEDs, LedStrip.GRBW for SK6812 RGBW
-strip.Brightness = 40;                // 0..255, applied in Show() (keeps current and eyes safe)
+strip.Brightness = 100;                // 0..255, applied in Show() (keeps current and eyes safe)
 
 // 1. colour wipe: red, green, blue
 foreach (int color in new[] { LedStrip.Rgb(255, 0, 0), LedStrip.Rgb(0, 255, 0), LedStrip.Rgb(0, 0, 255) })
