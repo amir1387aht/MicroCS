@@ -32,7 +32,23 @@ menu "MicroCS"
         config MICROCS_FS_LITTLEFS
             bool "LittleFS (esp_littlefs component, BSD; C code can fopen() the files too)"
         config MICROCS_FS_YAFFS2
-            bool "YAFFS2 (downloaded at build time; GPLv2 or commercial licence - see README)"
+            bool "YAFFS2 (GPLv2 or commercial licence - see help)"
+            help
+                The yaffs2 sources are not bundled: set the MICROCS_YAFFS2_DIR
+                environment / CMake variable to a yaffs2 checkout (the folder
+                with direct/ and core/), or put one in <project>/components/yaffs2
+                or <project>/third_party/yaffs2, or allow the pinned revision to
+                be downloaded with MICROCS_FS_DOWNLOAD=1 (environment) /
+                -DMICROCS_FS_DOWNLOAD=ON. Linking YAFFS2 puts the firmware under
+                the GPLv2 (or a commercial licence from Aleph One).
     endchoice
+
+    config MICROCS_WS2812
+        bool "WS2812 / NeoPixel driver (C# LedStrip, RMT)"
+        default y
+        help
+            The built-in "ws2812" driver: C# LedStrip on any GPIO through an RMT
+            channel per strip. Turn it off to save ~3 KB of flash when no
+            addressable LEDs are used (Hal.Has("LedStrip") is then false).
 
 endmenu

@@ -1,5 +1,6 @@
 /* MicroCS port for RP2040 / RP2350 - pico-sdk. See mcs_port_rp2.h. */
 #include "mcs_port_rp2.h"
+#include "mcs_driver.h"
 #include <string.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
@@ -371,13 +372,13 @@ mcs_transport_t mcs_rp2_console_stdio(void) {
     return t;
 }
 
-/* WS2812 / NeoPixel: PIO driver shared with the Arduino-Pico port */
-#define MCS_LEDSTRIP_RP2_PIO 1
-#include "mcs_ledstrip_drivers.h"
-static int r_ledstrip_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
-    (void)ctx; (void)order;
-    return mcs_ledstrip_pio_write(pin, data, n);
-}
+/* "ws2812" driver (C# LedStrip): PIO backend shared with the Arduino-Pico port */
+#if MCS_ENABLE_WS2812
+#define MCS_WS2812_RP2_PIO 1
+#include "mcs_ws2812_backends.h"
+static const mcs_ws2812_ops_t r_ws2812_ops = { mcs_ws2812_pio_write };
+static const mcs_driver_t r_ws2812 = MCS_WS2812_DRIVER(&r_ws2812_ops, NULL);
+#endif
 static int r_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
 #ifdef PICO_DEFAULT_LED_PIN
@@ -433,7 +434,9 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->reset = r_reset;
     hal->unique_id = r_unique_id;
     hal->pin_lookup = r_pin_lookup;
-    hal->ledstrip_write = r_ledstrip_write;
+#if MCS_ENABLE_WS2812
+    mcs_driver_register_default(&r_ws2812);       /* keeps a "ws2812" you registered first */
+#endif
     hal->cpu_hz = clock_get_hz(clk_sys);
 }
 

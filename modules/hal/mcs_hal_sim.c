@@ -1,5 +1,6 @@
 /* MicroCS - simulated board. Deterministic so tests can assert on it. */
 #include "mcs_hal.h"
+#include "mcs_driver.h"
 #if MCS_ENABLE_HAL
 #include <string.h>
 #include <stdio.h>
@@ -182,6 +183,7 @@ static int p_set16(void* ctx, int ch, uint32_t f, uint16_t d) {
     logf_(SIM, "[sim] pwm%d %d Hz duty %d/65535\n", ch, (int)f, d);
     return 0;
 }
+#if MCS_ENABLE_WS2812
 static int l_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
     if (pin < 0 || pin >= 64) return MCS_HAL_EINVAL;
     int bpp = order == MCS_LED_GRBW ? 4 : 3;
@@ -189,6 +191,7 @@ static int l_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
     logf_(SIM, "[sim] ledstrip gpio %d: %d LEDs, first #%06X\n", pin, (int)n / bpp, first);
     return 0;
 }
+#endif
 static int p_stop(void* ctx, int ch) {
     if (ch < 0 || ch >= 8) return MCS_HAL_ENOTSUP;
     SIM->pwm_duty[ch] = SIM->pwm_duty16[ch] = 0;
@@ -340,7 +343,12 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->can_open = c_open; h->can_send = c_send; h->can_recv = c_recv;
     h->wdt_start = w_start; h->wdt_feed = w_feed;
     h->rtc_get = r_get; h->rtc_set = r_set;
-    h->ledstrip_write = l_write;
+#if MCS_ENABLE_WS2812
+    static const mcs_ws2812_ops_t ws_ops = { l_write };
+    static mcs_driver_t ws = MCS_WS2812_DRIVER(&ws_ops, NULL);
+    ws.ctx = s;                                   /* the "ws2812" driver logs frames */
+    mcs_driver_register(&ws);
+#endif
     h->micros = sim_micros; h->delay_us = sim_delay_us; h->reset = sys_reset; h->unique_id = sys_uid;
     h->cpu_hz = 160000000u;
     h->poll_event = sim_poll;

@@ -1,9 +1,12 @@
 # MicroCS firmware for Raspberry Pi Pico / Pico 2: a C# REPL on USB, all peripherals.
 #   export PICO_SDK_PATH=/path/to/pico-sdk
-#   cmake -B build -DPICO_BOARD=pico      (pico2 for RP2350)
+#   cmake -B build -DPICO_BOARD=pico -DMICROCS_LITTLEFS_DIR=/path/to/littlefs   (pico2 for RP2350)
 #   cmake --build build                   -> build/microcs_pico.uf2
-# Files: LittleFS on the on-board flash (downloaded at configure time);
-#   -DMICROCS_FS=yaffs2 for YAFFS2 (GPLv2), -DMICROCS_FS= for a RAM disk only.
+# Files: LittleFS on the on-board flash. Its sources are not bundled: give the folder
+#   (-DMICROCS_LITTLEFS_DIR=..., git clone -b v2.9.3 https://github.com/littlefs-project/littlefs),
+#   keep a copy in third_party/littlefs, or add -DMICROCS_FS_DOWNLOAD=ON to fetch v2.9.3 once.
+#   -DMICROCS_FS=yaffs2 for YAFFS2 (GPLv2; MICROCS_YAFFS2_DIR), -DMICROCS_FS= for a RAM disk only.
+#   -DMICROCS_WS2812=OFF leaves out the LedStrip driver (and hardware_pio).
 cmake_minimum_required(VERSION 3.13)
 # PICO_SDK_PATH may come from the environment or from -DPICO_SDK_PATH=...
 if(NOT PICO_SDK_PATH AND DEFINED ENV{PICO_SDK_PATH})

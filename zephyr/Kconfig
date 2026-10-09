@@ -69,10 +69,22 @@ config MICROCS_YAFFS2
 	help
 	  The example application puts YAFFS2 on `storage_partition` through
 	  mcs_zephyr_flash_area_init() + mcs_flashfs_mount() instead of mounting
-	  Zephyr's LittleFS. The yaffs2 sources are downloaded at build time
-	  (pinned revision, cmake/MicroCSFS.cmake). YAFFS2 is GPLv2 (or a
-	  commercial licence from Aleph One): linking it puts the firmware
+	  Zephyr's LittleFS. The yaffs2 sources are not bundled: pass
+	  -DMICROCS_YAFFS2_DIR=<yaffs2 checkout>, keep one in the west
+	  workspace (modules/fs/yaffs2) or the application (third_party/yaffs2),
+	  or allow the pinned revision to be downloaded with
+	  -DMICROCS_FS_DOWNLOAD=ON (cmake/MicroCSFS.cmake). YAFFS2 is GPLv2 (or
+	  a commercial licence from Aleph One): linking it puts the firmware
 	  under those terms. See overlay-yaffs2.conf.
+
+config MICROCS_WS2812
+	bool "WS2812 / NeoPixel driver (C# LedStrip on the led-strip alias)"
+	default y
+	help
+	  The built-in "ws2812" driver: C# LedStrip drives the led_strip
+	  device aliased `led-strip` in the devicetree (worldsemi,ws2812-spi,
+	  -gpio, -i2s, -rpi_pico-pio ...). Needs CONFIG_LED_STRIP=y; without
+	  the alias the class is not registered.
 
 config MICROCS_RAMFS_SIZE
 	int "RAM filesystem size when there is no persistent filesystem"

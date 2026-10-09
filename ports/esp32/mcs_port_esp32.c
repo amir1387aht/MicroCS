@@ -3,6 +3,7 @@
  * See mcs_port_esp32.h. Uses only public ESP-IDF driver APIs.
  */
 #include "mcs_port_esp32.h"
+#include "mcs_driver.h"
 #include <string.h>
 #include <sys/time.h>
 #include "sdkconfig.h"
@@ -936,13 +937,12 @@ bool mcs_esp32_flash_fs(const char* label, const mcs_vfs_ops_t** ops, void** ctx
 #    define MCS_ESP32_RGB_LED -1
 #  endif
 #endif
-#if SOC_RMT_SUPPORTED   /* RMT driver shared with the Arduino-ESP32 port */
-#define MCS_LEDSTRIP_ESP32_RMT 1
-#include "mcs_ledstrip_drivers.h"
-static int e_ledstrip_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
-    (void)ctx; (void)order;
-    return mcs_ledstrip_rmt_write(pin, data, n);
-}
+#if SOC_RMT_SUPPORTED && MCS_ENABLE_WS2812   /* "ws2812" driver: RMT backend shared with Arduino-ESP32 */
+#define MCS_WS2812_ESP32_RMT 1
+#include "mcs_ws2812_backends.h"
+static const mcs_ws2812_ops_t e_ws2812_ops = { mcs_ws2812_rmt_write };
+static const mcs_driver_t e_ws2812 = MCS_WS2812_DRIVER(&e_ws2812_ops, NULL);
+#define E_HAS_WS2812 1
 #endif
 static int e_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
@@ -1008,8 +1008,8 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->delay_us = e_delay_us;
     hal->reset = e_reset;
     hal->unique_id = e_unique_id;
-#if SOC_RMT_SUPPORTED
-    hal->ledstrip_write = e_ledstrip_write;
+#ifdef E_HAS_WS2812
+    mcs_driver_register_default(&e_ws2812);       /* keeps a "ws2812" you registered first */
 #endif
     hal->pin_lookup = e_pin_lookup;
     hal->cpu_hz = (uint32_t)CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000u;

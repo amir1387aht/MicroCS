@@ -1,4 +1,4 @@
-api 3 irq=True i2s=True qspi=True
+api 2 irq=True i2s=True qspi=True
 pins 5 28 35 21 13
 int levels True False
 unknown pin 'nope'
