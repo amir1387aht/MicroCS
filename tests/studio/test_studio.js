@@ -31,6 +31,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     const port = {
       readable: null, writable: null,
       async open() {     // fresh streams on every open, like a real port
+        if (window.__gone) throw new DOMException('Failed to open serial port.', 'NetworkError');
         port.readable = new ReadableStream({ start(c) { ctl = c; } });
         // window.__rom: the "board" sits in the ESP32 ROM bootloader until RTS resets it
         port.writable = new WritableStream({ write(chunk) {
@@ -45,7 +46,9 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     window.__serialPush = (b) => ctl.enqueue(new Uint8Array(b));
     // a framing error: Chrome errors the stream and hands out a new one on the next port.readable
     window.__serialError = () => { const old = ctl; port.readable = new ReadableStream({ start(c) { ctl = c; } }); old.error(new DOMException('Framing error', 'FramingError')); };
-    Object.defineProperty(navigator, 'serial', { value: { requestPort: async () => port, addEventListener() {} } });
+    // window.__unplug(): the USB device vanishes (board reset on native USB) until __gone is cleared
+    window.__unplug = () => { window.__gone = 1; ctl.close(); };
+    Object.defineProperty(navigator, 'serial', { value: { requestPort: async () => port, getPorts: async () => (window.__gone ? [] : [port]), addEventListener() {} } });
   });
   const tpl = async (name) => {
     if (!(await page.isVisible('#galleryBg'))) await page.click('#btnTemplates');
@@ -195,6 +198,26 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#btnRefresh');
   await page.waitForFunction(() => /appended by a script/.test(document.getElementById('ta').value), null, { timeout: 5000 }).catch(() => {});
   check((await page.inputValue('#ta')).endsWith('appended by a script\n'), 'Refresh re-reads the open file');
+
+  // a file that cannot fit is refused before it is sent
+  const spaceMsg = await page.evaluate(async () => {
+    const keep = App.storage; App.storage = { dir: App.cwd, free: 100 };
+    try { await App.putReliable(App.cwd.replace(/\/?$/, '/') + 'huge.bin', new Uint8Array(5000)); return 'sent'; }
+    catch (e) { return e.message; } finally { App.storage = keep; }
+  });
+  check(/not enough space/.test(spaceMsg) && !fs.existsSync(ROOT + '/huge.bin'), 'upload larger than free space refused: ' + spaceMsg);
+
+  // Reset: the board goes away (native USB) and Studio reconnects by itself, retrying until it can open the port
+  await page.evaluate(() => window.__unplug());
+  await sleep(1500);
+  check(/Waiting for the device/.test(await page.textContent('#connText')) || /Reconnecting/.test(await page.textContent('#connText')), 'waiting for the device after it vanished: ' + await page.textContent('#connText'));
+  await page.evaluate(() => { window.__gone = 0; });
+  await page.waitForFunction(() => /reconnected/.test(document.getElementById('term').innerText) && /ready/.test(document.getElementById('term').innerText.split('reconnected').pop()), null, { timeout: 10000 }).catch(() => {});
+  check(await page.evaluate(() => dev.connected) && /^MicroCS 1\./.test(await page.textContent('#connText')), 'reconnected after the device came back: ' + await page.textContent('#connText'));
+  // Reset button: answers again afterwards
+  await page.click('#btnReset');
+  await page.waitForFunction(() => /resetting the board[\s\S]*ready/.test(document.getElementById('term').innerText), null, { timeout: 10000 }).catch(() => {});
+  check(/resetting the board[\s\S]*ready/.test(await page.innerText('#term')) && await page.evaluate(() => dev.connected), 'Reset button: board answers again');
 
   // double-click on a template = Add
   await page.click('#btnTemplates');

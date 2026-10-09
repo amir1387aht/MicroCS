@@ -20,7 +20,16 @@ int mcs_sched_init(mcs_sched_t* s, mcs_vm_t* vm, struct mcs_vfs* vfs, mcs_ticks_
     return s->pin < 0 ? -1 : 0;
 }
 
+#if MCS_SCHED_DURING_SLEEP
+static int sched_idle(mcs_vm_t* vm, void* ud);
+#endif
 void mcs_sched_free(mcs_sched_t* s) {
+#if MCS_SCHED_DURING_SLEEP
+    if (s->idle_on) {
+        void* ud; if (mcs_get_idle(s->vm, &ud) == sched_idle && ud == s) mcs_set_idle(s->vm, s->prev_idle, s->prev_idle_ud);
+        s->idle_on = false;
+    }
+#endif
     if (s->pin >= 0) mcs_unpin(s->vm, s->pin);
     s->pin = -1;
     if (mcs_get_ext(s->vm, MCS_EXT_SCHED) == s) mcs_set_ext(s->vm, MCS_EXT_SCHED, NULL);
@@ -103,7 +112,14 @@ int mcs_sched_active(const mcs_sched_t* s) {
 static mcs_result_t run_job(mcs_sched_t* s, mcs_job_t* j) {
     if (j->is_file) {
 #if MCS_ENABLE_FS
-        if (s->vfs) return mcs_exec_file(s->vm, s->vfs, j->path);
+        if (s->vfs) {
+            if (!mcs_running(s->vm)) return mcs_exec_file(s->vm, s->vfs, j->path);
+            /* inside a sleeping script: keep its top-level variables intact */
+            int h = mcs_globals_save(s->vm);
+            mcs_result_t r = mcs_exec_file(s->vm, s->vfs, j->path);
+            mcs_globals_restore(s->vm, h);
+            return r;
+        }
 #endif
         return mcs_fail(s->vm, MCS_ERR_RUNTIME, "job %d: no filesystem for '%s'", j->id, j->path);
     }
@@ -112,7 +128,9 @@ static mcs_result_t run_job(mcs_sched_t* s, mcs_job_t* j) {
 }
 
 int32_t mcs_sched_poll(mcs_sched_t* s) {
-    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+    bool outer = !s->busy;              /* a job that sleeps does not start other jobs */
+    s->busy = true;
+    for (int i = 0; outer && i < MCS_SCHED_MAX_JOBS; i++) {
         mcs_job_t* j = &s->jobs[i];
         if (j->state != MCS_JOB_ACTIVE || (int32_t)(now(s) - j->next_due) < 0) continue;
         int id = j->id;
@@ -126,6 +144,7 @@ int32_t mcs_sched_poll(mcs_sched_t* s) {
         j->next_due += j->period_ms;
         if ((int32_t)(now(s) - j->next_due) >= 0) j->next_due = now(s) + j->period_ms;
     }
+    if (outer) s->busy = false;
     int32_t best = -1;
     uint32_t t = now(s);
     for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
@@ -259,8 +278,27 @@ static const mcs_reg_t sched_fns[] = {
     MCS_REG_END
 };
 
+#if MCS_SCHED_DURING_SLEEP
+/* While a script waits in Thread.Sleep, due jobs run (cooperative multitasking): a main
+ * loop `while (true) { ...; Thread.Sleep(100); }` no longer starves Scheduler.Every
+ * delegates and jobs.cfg scripts. The previous idle handler (HAL events) runs first. */
+static int sched_idle(mcs_vm_t* vm, void* ud) {
+    mcs_sched_t* s = (mcs_sched_t*)ud;
+    if (s->prev_idle) { s->prev_idle(vm, s->prev_idle_ud); if (mcs_has_exception(vm)) return 0; }
+    if (!s->busy) mcs_sched_poll(s);
+    return 0;
+}
+#endif
+
 void mcs_sched_open_lib(mcs_vm_t* vm, mcs_sched_t* s) {
     mcs_set_ext(vm, MCS_EXT_SCHED, s);
+#if MCS_SCHED_DURING_SLEEP
+    if (!s->idle_on) {
+        s->prev_idle = mcs_get_idle(vm, &s->prev_idle_ud);
+        mcs_set_idle(vm, sched_idle, s);
+        s->idle_on = true;
+    }
+#endif
     mcs_register_module(vm, "Scheduler", sched_fns);
 }
 #endif

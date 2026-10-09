@@ -171,7 +171,7 @@ class Device {
   lost() {
     const was = this.port;
     this.port = null; this.writer = null; this.mode = "unknown"; this.epoch++; this.kick();
-    if (was) { try { was.close(); } catch {} this.onLost(); }
+    if (was) { try { this.closeP = was.close().catch(() => {}); } catch {} this.onLost(); }
   }
   async close() {
     if (!this.port) return;
@@ -198,6 +198,16 @@ class Device {
     await p.setSignals({ requestToSend: false });
     await p.setSignals({ dataTerminalReady: false });
     this.mode = "unknown";
+  }
+  /* reboot through the firmware (Hal.Reset: watchdog / esp_restart / NVIC reset). Works on
+   * boards whose USB has no reset wiring (RP2040, STM32, ESP32-S3 native USB). true = the
+   * board went away / stopped answering (rebooting); false = not supported (no HAL). */
+  async softReset() {
+    await this.write("exec Hal.Reset();\n");
+    try {
+      const r = await this.status({ idle: 1500 });
+      return !r.status.startsWith("ERR") && r.status !== "OK" ? true : false;
+    } catch { this.mode = "unknown"; return true; }
   }
   data(v) {
     if (this.inOp) { this.buf = concat(this.buf, v); this.kick(); }
@@ -277,6 +287,8 @@ class Device {
           const pre = new TextDecoder().decode(this.buf.slice(0, k2)).replace(/\x04[^\n]*\n/g, "");
           this.buf = this.buf.slice(k2 + 4);
           if (pre.replace(/\^C|> |\.\.\. |[\r\n ]/g, "").length) this.onText(pre);
+          if (/Script aborted/.test(new TextDecoder().decode(heard) + pre))
+            this.onNote("the script running on the board (e.g. /main.cs from boot) was stopped so Studio can talk to it - scheduled jobs keep running");
           this.mode = "machine";
           return;
         }
@@ -1413,13 +1425,40 @@ const App = {
     const baud = +$("baud").value;
     try {
       this.setConn("busy", again ? "Reconnecting…" : "Connecting…");
+      if (dev.closeP) { await dev.closeP; dev.closeP = null; }   // the old handle must be closed before reopening
       await dev.open(port, baud, { release: store.get("releaseLines", false) });
-    } catch (e) { this.setConn("off", "Not connected"); if (!again) toast("Could not open the port: " + e.message, "err", 6000); return; }
+    } catch (e) {
+      if (again) { this.setConn("busy", "Waiting for the device…"); return false; }   // the reconnect loop retries
+      this.setConn("off", "Not connected"); toast("Could not open the port: " + e.message, "err", 6000); return false;
+    }
     this.lastPort = port; this.autoReconnect = true;
     store.set("baud", baud);
     term.line(`— ${again ? "reconnected" : "connected"} at ${baud} baud —`, "sys");
     if (again) await sleep(800);       // let the board finish booting
     await this.afterConnect();
+    return true;
+  },
+  /* after a reset / unplug: reopen the same USB device when it is back. Retries for a minute:
+   * right after the "connect" event the port often cannot be opened yet. */
+  async reconnectLoop() {
+    if (this.reconnecting || !this.lastPort) return;
+    this.reconnecting = true;
+    const t0 = Date.now(), want = this.lastPort.getInfo?.() || {};
+    const same = (p) => { const a = p.getInfo?.() || {}; return p === this.lastPort || (a.usbVendorId && a.usbVendorId === want.usbVendorId && a.usbProductId === want.usbProductId); };
+    try {
+      await sleep(400);
+      while (this.autoReconnect && !dev.connected && Date.now() - t0 < 60000) {
+        const ports = navigator.serial?.getPorts ? await navigator.serial.getPorts().catch(() => []) : [this.lastPort];
+        const cand = ports.find((p) => p === this.lastPort) || ports.find(same);
+        if (cand && (await this.openPort(cand, true))) return;
+        await sleep(700);
+      }
+      if (!dev.connected && this.autoReconnect) {
+        this.autoReconnect = false;
+        this.setConn("off", "Not connected");
+        term.line("— the device did not come back: press Connect —", "warn");
+      }
+    } finally { this.reconnecting = false; }
   },
   async afterConnect() {
     try {
@@ -1461,7 +1500,7 @@ const App = {
     document.querySelector("footer").classList.toggle("off", state === "off");
     const b = $("btnConnect");
     b.classList.toggle("primary", state !== "on");
-    b.querySelector("span").textContent = state === "on" ? "Disconnect" : "Connect";
+    b.querySelector("span").textContent = state === "on" ? "Disconnect" : state === "busy" && this.autoReconnect ? "Cancel" : "Connect";
   },
   enable(on) {
     for (const id of ["btnNewFile", "btnNewDir", "btnUpload", "btnRefresh", "btnReset", "btnCtrlC", "cin"]) $(id).disabled = !on;
@@ -1478,12 +1517,21 @@ const App = {
   },
   async reset() {
     if (!dev.connected) return;
+    term.line("— resetting the board —", "sys");
+    if (dev.running) {                                   // the run holds the line: stop it first
+      dev.stop();
+      for (let i = 0; i < 40 && dev.running; i++) await sleep(100);
+    }
+    const epoch = dev.epoch;
+    let soft = false;
+    try { soft = await dev.op(async () => { await dev.machine(); return dev.softReset(); }); } catch {}
     try {
-      term.line("— resetting the board —", "sys");
-      await dev.op(() => dev.resetBoard());
-      await sleep(300);
-      if (dev.connected) await this.afterConnect();     // native USB ports vanish on reset: auto-reconnect takes over
-    } catch (e) { toast("Reset failed: " + e.message, "err"); }
+      if (!soft && dev.connected) await dev.op(() => dev.resetBoard());   // ESP32 auto-reset circuit (EN via RTS/DTR)
+    } catch (e) { toast("Reset failed: " + e.message, "err"); return; }
+    dev.mode = "unknown";
+    await sleep(soft ? 1200 : 300);
+    /* native USB ports vanish on reset: the auto-reconnect loop takes over (and reconnects) */
+    if (dev.connected && dev.epoch === epoch) await this.afterConnect();
   },
 
   /* ---------- files */
@@ -1537,7 +1585,8 @@ const App = {
         $("stText").textContent = `${fmtBytes(total - used)} free of ${fmtBytes(total)}`;
         $("stBar").style.width = Math.max(1, pct).toFixed(1) + "%";
         $("stBarWrap").classList.toggle("full", pct > 90);
-      } else { $("stLabel").textContent = "Storage"; $("stText").textContent = "size unknown"; }
+        this.storage = { dir: this.cwd, free: total - used };
+      } else { $("stLabel").textContent = "Storage"; $("stText").textContent = "size unknown"; this.storage = null; }
       const mm = await dev.op(() => dev.cmd("mem"));
       const ms = /heap (\d+) bytes in use, peak (\d+)/.exec(new TextDecoder().decode(mm.out));
       $("memInfo").textContent = ms ? `VM heap: ${fmtBytes(+ms[1])} in use · peak ${fmtBytes(+ms[2])}` : "";
@@ -1665,8 +1714,18 @@ const App = {
     }
     this.refresh(true);
   },
+  /* refuse a write that cannot fit before sending it (the device checks too: `put` answers
+   * "not enough space"). Free space comes from the last df; the file it replaces counts as free. */
+  checkSpace(path, size) {
+    const st = this.storage;
+    if (!st || dirName(path) !== this.cwd || st.dir !== this.cwd) return;
+    const old = this.entries.find((e) => !e.dir && e.name === baseName(path));
+    const avail = st.free + (old ? old.size : 0) + 4096;   // flash filesystems report free space in whole blocks
+    if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(Math.max(0, avail - 4096))} free. Delete some files first.`);
+  },
   /* uploads go through the device's UART buffer: retry slower if bytes were lost */
   async putReliable(path, data, prog) {
+    this.checkSpace(path, data.length);
     try { return await dev.op(() => dev.put(path, data, prog)); }
     catch (e) {
       if (!/timed out|did not answer|stalled/i.test(e.message)) throw e;
@@ -1689,6 +1748,7 @@ const App = {
     try {
       const t = this.tabs.find((t) => t.path === src);
       const data = t && !t.binary ? enc.encode(t.text) : await this.fetchFile(src);
+      this.checkSpace(dst, data.length);
       await dev.op(() => dev.put(dst, data));
       toast(`Copied to ${dst}`, "ok"); this.refresh(true);
     } catch (e) { toast("Copy failed: " + e.message, "err"); }
@@ -2099,14 +2159,12 @@ const App = {
       term.line("— device disconnected" + (this.autoReconnect ? " - waiting for it to come back —" : " —"), "warn");
       this.setConn(this.autoReconnect ? "busy" : "off", this.autoReconnect ? "Waiting for the device…" : "Not connected");
       this.enable(false);
-      if (this.autoReconnect) { const b = $("btnConnect"); b.querySelector("span").textContent = "Cancel"; }
+      if (this.autoReconnect) { const b = $("btnConnect"); b.querySelector("span").textContent = "Cancel"; this.reconnectLoop(); }
     };
     /* native USB (ESP32-S3/C3/C6 USB-Serial-JTAG) disappears on every chip reset: reopen it when it comes back */
     if ("serial" in navigator) navigator.serial.addEventListener?.("connect", (e) => {
-      const p = e.target;
       if (dev.connected || !this.autoReconnect || !this.lastPort) return;
-      const a = p.getInfo?.() || {}, b = this.lastPort.getInfo?.() || {};
-      if (p === this.lastPort || (a.usbVendorId && a.usbVendorId === b.usbVendorId && a.usbProductId === b.usbProductId)) this.openPort(p, true);
+      this.reconnectLoop();
     });
     term.onLink = (path, line) => {
       if (path) { const t = this.tabs.find((x) => x.path === path); (t ? Promise.resolve(this.activate(t.id)) : this.openPath(path)).then(() => { ed.setError(line); ed.gotoLine(line); }); }

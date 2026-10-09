@@ -471,6 +471,43 @@ static void test_runtime(void) {
     CHECK(rt.vm == NULL);
 }
 
+/* a file job runs while main.cs sleeps, without clobbering main's top-level variables;
+ * `startup /main.cs` in jobs.cfg does not run main twice; `put` refuses files that do not
+ * fit and File.WriteAllText keeps the old contents when the new ones do not fit */
+static mcs_runtime_t rt_jobs;
+static void rt_jobs_setup(mcs_vm_t* vm, void* ud) {
+    (void)vm; (void)ud;
+    const char* j = "startup /main.cs\nevery 100ms /job.cs restart=3\n";
+    const char* m = "int n = 0; for (int i = 0; i < 5; i++) Thread.Sleep(100); Console.WriteLine($\"main n={n}\");"
+                    "File.WriteAllText(\"/keep.txt\", \"old\");"
+                    "try { File.WriteAllText(\"/keep.txt\", new string('x', 20000)); } catch (IOException) { Console.WriteLine(\"full\"); }"
+                    "Console.WriteLine(File.ReadAllText(\"/keep.txt\"));";
+    const char* jb = "int n = 99; Console.WriteLine(\"job\");";
+    mcs_vfs_write_file(&rt_jobs.vfs, "/jobs.cfg", j, strlen(j), false);
+    mcs_vfs_write_file(&rt_jobs.vfs, "/main.cs", m, strlen(m), false);
+    mcs_vfs_write_file(&rt_jobs.vfs, "/job.cs", jb, strlen(jb), false);
+}
+static void test_runtime_jobs_space(void) {
+    static uint8_t heap[160 * 1024];
+    mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+    cfg.heap = heap; cfg.heap_size = sizeof heap; cfg.ramfs_size = 8192;
+    cfg.console.read = rt_con_read; cfg.console.write = rt_con_write;
+    cfg.ticks = rt_ms; cfg.delay = rt_sleep; cfg.setup = rt_jobs_setup;
+    cfg.echo = false;
+    outlen = 0; outbuf[0] = 0;
+    rt_script = "\x01" "put /big.bin 100000\n" "jobs\n";
+    rt_pos = 0;
+    CHECK(mcs_runtime_start(&rt_jobs, &cfg) == 0);
+    while (mcs_runtime_step(&rt_jobs, 5)) {}
+    CHECK(strstr(outbuf, "main n=0\n") != NULL);
+    CHECK(strstr(outbuf, "job\n") != NULL && strstr(outbuf, "job\n") < strstr(outbuf, "main n="));
+    { const char* a = strstr(outbuf, "main n="); CHECK(a && !strstr(a + 1, "main n=")); }
+    CHECK(strstr(outbuf, "full\nold\n") != NULL);
+    CHECK(strstr(outbuf, "\x04" "ERR not enough space") != NULL);
+    CHECK(strstr(outbuf, "cancelled once") != NULL);
+    mcs_runtime_stop(&rt_jobs);
+}
+
 /* Console.ReadLine reads what the user types on the runtime console; Ctrl-C while it
  * waits stops the script */
 static void test_runtime_readline(void) {
@@ -524,6 +561,7 @@ int main(void) {
 #if MCS_ENABLE_RUNTIME && MCS_ENABLE_COMPILER && MCS_ENABLE_HAL
     test_runtime();
     test_runtime_readline();
+    test_runtime_jobs_space();
 #endif
     printf("%d/%d checks passed\n", checks - failures, checks);
     return failures != 0;

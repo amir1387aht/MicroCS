@@ -87,6 +87,14 @@ void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts) {
         if (sh->sched && !mcs_vfs_read_file(sh->vfs, "/jobs.cfg", &cfg, &len)) {
             int n = mcs_sched_load_config(sh->sched, cfg);
             if (n < 0) outf(sh, "jobs.cfg: syntax error on line %d\n", -n);
+            /* `startup /main.cs` would run main a second time: boot runs it anyway */
+            const char* boot_main = exists(sh, "/main.mcsb") ? "/main.mcsb" : exists(sh, "/main.cs") ? "/main.cs" : NULL;
+            for (int i = 0; boot_main && i < MCS_SCHED_MAX_JOBS; i++) {
+                mcs_job_t* j = &sh->sched->jobs[i];
+                if (j->state == MCS_JOB_ACTIVE && j->is_file && !j->periodic && !strcmp(j->path, boot_main) &&
+                    (!sh->sched->ticks || (int32_t)(j->next_due - sh->sched->ticks(sh->sched->ticks_ud)) <= 0))
+                    mcs_sched_cancel(sh->sched, j->id);
+            }
             mcs_vfs_free(sh->vfs, cfg, len);
         }
 #endif
@@ -117,6 +125,14 @@ static void cmd_put(mcs_shell_t* sh, const char* path, const char* len_s) {
     if (!path || !len_s || *end) { err(sh, "usage: put <path> <len>"); return; }
     char tmp[MCS_VFS_PATH_MAX];
     if (snprintf(tmp, sizeof tmp, "%s.part", path) >= (int)sizeof tmp) { err(sh, "path too long"); return; }
+    /* refuse before the data is sent. The upload goes to <path>.part first, so the old
+     * file is only dropped beforehand when the new one would not fit next to it. */
+    if (mcs_vfs_check_space(sh->vfs, path, n, false)) {
+        mcs_vfs_statfs_t st; mcs_vfs_statfs(sh->vfs, path, &st);
+        outf(sh, EOT "ERR not enough space: %lu bytes, %lu free\n", n, (unsigned long)st.free);
+        return;
+    }
+    if (mcs_vfs_check_space(sh->vfs, path, n, true)) mcs_vfs_remove(sh->vfs, path);
     mcs_vfs_file_t f;
     int e = mcs_vfs_open(sh->vfs, tmp, MCS_VFS_WRITE, &f);
     if (e) { err(sh, mcs_vfs_strerror(e)); return; }

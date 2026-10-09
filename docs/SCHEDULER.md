@@ -21,6 +21,8 @@ after     5s     /selftest.cs
 every     500ms  /blink.cs       restart=always
 every     1m     /report.cs      restart=3
 ```
+`startup /main.cs` is skipped at boot: the shell runs `/main.cs` anyway (it would run twice).
+
 `<time>` = number with optional `ms`/`s`/`m`/`h` suffix. `restart=never` (default: stop
 after the first failure), `always` (never stop), or `N` consecutive failures. Periodic jobs
 that fall behind run once late, then continue one period later (no burst catch-up).
@@ -32,6 +34,18 @@ Scheduler.After(250, () => Console.WriteLine("once"));
 Scheduler.Cancel(id); Scheduler.CancelAll(); int n = Scheduler.Count;
 ```
 Delegates are kept alive by one pinned list per scheduler.
+
+## Jobs while a script runs
+The VM is single-threaded, but due jobs also run while a script waits in `Thread.Sleep`
+(`MCS_SCHED_DURING_SLEEP`, default 1), so a main loop and jobs work together:
+
+```csharp
+Scheduler.Every(1000, () => Console.WriteLine("tick"));   // or `every 1s /report.cs` in jobs.cfg
+while (true) { /* poll sensors... */ Thread.Sleep(50); }  // jobs run during the sleeps
+```
+A loop that never sleeps starves them. A job that sleeps does not start other jobs. A script
+job (jobs.cfg) that runs inside a sleeping script gets its own top-level variables: the outer
+script's values are restored afterwards (`mcs_globals_save` / `mcs_globals_restore`).
 
 ## Not implemented (planned)
 Cron expressions, wall-clock/RTC schedules, priorities, preemption, job persistence

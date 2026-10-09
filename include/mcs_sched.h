@@ -17,6 +17,9 @@
 extern "C" {
 #endif
 
+#ifndef MCS_SCHED_DURING_SLEEP
+#define MCS_SCHED_DURING_SLEEP 1    /* due jobs run while a script waits in Thread.Sleep */
+#endif
 #ifndef MCS_SCHED_MAX_JOBS
 #define MCS_SCHED_MAX_JOBS 8
 #endif
@@ -49,6 +52,10 @@ typedef struct mcs_sched {
     mcs_job_t jobs[MCS_SCHED_MAX_JOBS];
     int next_id;
     int pin;                    /* pinned List holding job delegates */
+    bool busy;                  /* jobs are running (no nested poll) */
+    mcs_idle_fn prev_idle;      /* chained idle handler (HAL), see mcs_sched_open_lib */
+    void* prev_idle_ud;
+    bool idle_on;
 } mcs_sched_t;
 
 /* `ticks` is the millisecond clock (usually the same as cfg.ticks_fn). */
