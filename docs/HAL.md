@@ -26,7 +26,8 @@ Then `mcs_hal_open_lib(vm, &hal)` (library use) or `cfg.hal = &hal` (`mcs_runtim
   `GPIO.Pin("PC13")` returns the number.
 * **Only what exists is registered.** If the board has no CAN, there is no `CAN` class and
   `Hal.Has("CAN")` is false — scripts can adapt: `if (Hal.Has("DAC")) DAC.Write(0, 2048);`.
-  Names for `Has`: `GPIO GPIO.IRQ UART I2C SPI ADC DAC PWM Timer I2S QSPI CAN Watchdog RTC`.
+  Names for `Has`: `GPIO GPIO.IRQ UART I2C SPI ADC DAC PWM Timer I2S QSPI CAN Watchdog RTC`,
+  `Drivers`, and the drivers / classes added by [device drivers](DRIVERS.md) (`ws2812`, `LedStrip`, yours).
 * **Errors are exceptions.** Driver results map to `IOException` (bus error, NACK),
   `TimeoutException`, `NotSupportedException` (pin/bus not available) and
   `ArgumentException` / `ArgumentOutOfRangeException` (bad values). Catch them like in .NET.
@@ -131,9 +132,12 @@ Optional arguments are shown in `[brackets]`.
 | `Count`, `Pin`, `Brightness` (0–255, default 255) | |
 | `LedStrip.Rgb(r, g, b[, w])` · `LedStrip.Hsv(hue 0–359[, s = 255, v = 255])` | colour helpers |
 
-Registered when the port fills `ledstrip_write` (`Hal.Has("LedStrip")`, hardware API v3):
+`LedStrip` comes from the built-in **`ws2812` driver** ([DRIVERS.md](DRIVERS.md)): it is
+registered when the build has it (`MCS_ENABLE_WS2812`, CMake `-DMICROCS_WS2812=OFF` turns it
+off) and the port provides a backend — `Hal.Has("LedStrip")` / `Drivers.Has("ws2812")` tell.
+A firmware can replace the backend (e.g. SPI + DMA) with `mcs_driver_register`.
 
-| Port | Driver | Notes |
+| Port | Backend | Notes |
 |---|---|---|
 | RP2040 / RP2350 | PIO state machine (pio1, then pio0), up to 4 strips | any pin; `"NEOPIXEL"` = `PICO_DEFAULT_WS2812_PIN` (RP2040-Zero: GP16) |
 | ESP32 / S2 / S3 / C3 / C6 / H2 / P4 | RMT TX channel, up to 2 strips | any pin; not on ESP32-C2 (no RMT); `"NEOPIXEL"` = S3 GPIO48, C3/C6/H2 GPIO8 |
@@ -191,6 +195,8 @@ mcs_hal_open_lib(vm, &board);
 Events can also be delivered from an RTOS queue via `.poll_event` instead of `mcs_hal_post`
 (the ESP32 port does this). [`ports/template/mcs_port_template.c`](../ports/template/mcs_port_template.c)
 lists every member with a stub. Board tables written for HAL v1 (1.3) compile unchanged.
+Devices on top of the board (LED strips, displays, sensors ...) are not HAL members but
+[drivers](DRIVERS.md): a C# front end plus a per-MCU backend, registered with `mcs_driver_register`.
 
 ## Simulator board
 

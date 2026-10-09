@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags in
 `include/mcs_config.h`.
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -101,10 +101,16 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` | address `-1` = no address phase |
 | **CAN** | static | — | `Open(…)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` |  |
 | **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
-| **LedStrip** | instance | `Count` `Pin` `Brightness` | `get_Item(·)` `set_Item(·, ·)` `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
-| **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Watchdog** | static | — | `Start(·)` `Feed()` |  |
 | **RTC** | static | `Now` | `Set(·)` | Unix seconds |
+
+## Drivers (modules/drivers)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **Drivers** | static | `List` | `Has(·)` | registered device drivers (`mcs_driver.h`); `List` = names |
+| **LedStrip** | instance | `Count` `Pin` `Brightness` | `get_Item(·)` `set_Item(·, ·)` `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
+| **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 
 ## Scheduler (modules/sched)
 
@@ -122,4 +128,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_605 members in 65 tables._
+_607 members in 66 tables._

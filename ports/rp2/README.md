@@ -30,7 +30,7 @@ mcs_rp2_hal_init(&hal, &pins);
 | `GPIO.OnChange` | GPIO IRQ callback |
 | `UART` | interrupt-driven receive ring |
 | `PWM.Set(gpio, ...)` | every GPIO can do PWM (channel = GPIO number) |
-| `LedStrip` | WS2812 on any GPIO through a PIO state machine (up to 4 strips); `"NEOPIXEL"` = `PICO_DEFAULT_WS2812_PIN` (Waveshare RP2040-Zero: GP16) |
+| `LedStrip` | `ws2812` driver ([DRIVERS.md](../../docs/DRIVERS.md); `-DMICROCS_WS2812=OFF` drops it and `hardware_pio`): WS2812 on any GPIO through a PIO state machine (up to 4 strips); `"NEOPIXEL"` = `PICO_DEFAULT_WS2812_PIN` (Waveshare RP2040-Zero: GP16) |
 | `ADC.Read(0..3)` | GP26–GP29; `ADC.Read(4)` = internal temperature sensor |
 | `Timer` | hardware alarm pool |
 | `Watchdog`, `RTC`, `Hal.UniqueId` | hardware watchdog, software clock on the 64-bit µs timer (set it with `RTC.Set`), flash unique id |
@@ -55,8 +55,12 @@ if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_
   the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Override with `-DMCS_RP2_FS_SIZE=...` or pass
   an offset/size; the driver refuses a region that overlaps the firmware.
 * Erase/program go through `flash_safe_execute`, which pauses interrupts and the other core.
-* **YAFFS2 instead**: `cmake ... -DMICROCS_FS=yaffs2` (downloads yaffs2; GPLv2 or commercial
-  licence — linking it puts your firmware under those terms). `-DMICROCS_FS=` (empty) builds
+* **Filesystem sources** are not bundled or downloaded silently: pass
+  `-DMICROCS_LITTLEFS_DIR=/path/to/littlefs` (a `git clone -b v2.9.3` of littlefs), keep a copy in
+  `third_party/littlefs`, or add `-DMICROCS_FS_DOWNLOAD=ON` to fetch v2.9.3 once
+  ([FILESYSTEM.md](../../docs/FILESYSTEM.md#where-the-sources-come-from)).
+* **YAFFS2 instead**: `cmake ... -DMICROCS_FS=yaffs2` (`MICROCS_YAFFS2_DIR` or
+  `-DMICROCS_FS_DOWNLOAD=ON`; GPLv2 or commercial licence — linking it puts your firmware under those terms). `-DMICROCS_FS=` (empty) builds
   without flash files (RAM disk only).
 
 ## Checked in CI

@@ -762,6 +762,7 @@ Console.WriteLine($"heap use  {GC.GetTotalMemory(false)} bytes");
 var all = new[] { "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC" };
 Console.WriteLine("has       " + string.Join(" ", all.Where(n => Hal.Has(n))));
 Console.WriteLine("missing   " + string.Join(" ", all.Where(n => !Hal.Has(n))));
+if (Hal.Has("Drivers")) Console.WriteLine("drivers   " + string.Join(" ", Drivers.List));   // e.g. ws2812 (LedStrip)
 `);
 T("Board and system", "Memory and GC", "memory.cs",
   "Watch heap use and run the garbage collector.", String.raw`
@@ -1357,7 +1358,8 @@ T("Displays", "WS2812 / NeoPixel LED strip", "ledstrip.cs",
   "Addressable RGB LEDs (WS2812B, SK6812, on-board RGB LEDs) on any pin with LedStrip: wipe, rainbow, chase.", String.raw`
 // WS2812 / WS2812B / SK6812 ("NeoPixel") LEDs on ANY GPIO with the native LedStrip class.
 // The bit timing is done by the firmware: RP2040/RP2350 PIO, ESP32 RMT, a tight loop on STM32,
-// the led-strip driver on Zephyr (Hal.Has("LedStrip") tells whether the port has one).
+// the led-strip driver on Zephyr. LedStrip comes from the firmware's "ws2812" driver, which
+// can be left out of a build: Hal.Has("LedStrip") tells whether this firmware has it.
 // On-board RGB LEDs: Waveshare RP2040-Zero / RP2040-Matrix GP16, ESP32-S3-DevKitC GPIO48
 // (some v1.0 boards: 38), ESP32-C3/C6 DevKits GPIO8 - or pass "NEOPIXEL" where the port knows it.
 // Wiring a strip: DIN -> PIN (330 ohm in series helps), GND -> GND, 5 V -> a supply that can

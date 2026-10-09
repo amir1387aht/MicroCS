@@ -1093,6 +1093,7 @@ static bool has(const mcs_hal_t* h, const char* n) {
     if (!strcmp(n, "RTC")) return h->rtc_get != NULL;
     if (!strcmp(n, "Micros")) return h->micros != NULL;
 #if MCS_ENABLE_DRIVERS
+    if (!strcmp(n, "Drivers")) return true;      /* the C# Drivers class */
     if (mcs_driver_provides(n)) return true;     /* "ws2812", "LedStrip", your drivers */
 #endif
     return false;

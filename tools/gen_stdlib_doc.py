@@ -72,14 +72,15 @@ MAP = {
     "qspi_fns": ("Hardware (modules/hal)", "QSPI", "static", "address `-1` = no address phase"),
     "can_fns": ("Hardware (modules/hal)", "CAN", "static", ""),
     "canframe_members": ("Hardware (modules/hal)", "CanFrame", "instance", "`new CanFrame(id, data[, extended])`"),
-    "ledstrip_members": ("Hardware (modules/hal)", "LedStrip", "instance", "`new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]`"),
-    "ledstrip_statics": ("Hardware (modules/hal)", "LedStrip", "static", "consts `GRB RGB GRBW`; colours `0xRRGGBB`"),
     "wdt_fns": ("Hardware (modules/hal)", "Watchdog", "static", ""),
     "rtc_fns": ("Hardware (modules/hal)", "RTC", "static", "Unix seconds"),
+    "drivers_fns": ("Drivers (modules/drivers)", "Drivers", "static", "registered device drivers (`mcs_driver.h`); `List` = names"),
+    "ledstrip_members": ("Drivers (modules/drivers)", "LedStrip", "instance", "`ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]`"),
+    "ledstrip_statics": ("Drivers (modules/drivers)", "LedStrip", "static", "consts `GRB RGB GRBW`; colours `0xRRGGBB`"),
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}
-ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Scheduler (modules/sched)"]
+ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
 def strip_comments(s):

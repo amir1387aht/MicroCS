@@ -104,7 +104,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
 
   // completion
   await page.click('#ta'); await page.keyboard.press('Control+End'); await page.keyboard.press('Enter');
-  await page.keyboard.type('Dri');
+  await page.keyboard.type('DriveI');
   await sleep(100);
   check(await page.isVisible('#complete'), 'completion popup');
   await page.keyboard.press('Enter');

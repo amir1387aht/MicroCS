@@ -69,6 +69,9 @@ check: test
 	@echo "== feature flag builds"; for f in $(FLAG_SETS); do \
 	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_flags || { echo "BUILD FAIL $$f"; exit 1; }; \
 	echo "OK $$f"; done
+	@for f in "" "-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" "-DMCS_ENABLE_HAL=0"; do \
+	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f -c ports/template/mcs_port_template.c -o build/template.o || { echo "BUILD FAIL ports/template $$f"; exit 1; }; done; \
+	echo "OK ports/template (drivers, flash filesystem skeleton)"
 	@echo "== alternate configurations (full script suite)"; for f in $(ALT_CONFIGS); do \
 	$(CC) -std=gnu99 -O1 -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_alt || { echo "BUILD FAIL $$f"; exit 1; }; \
 	sh tests/run_tests.sh ./build/mcs_alt > build/alt.txt 2>&1 && echo "OK $$f ($$(tail -n 1 build/alt.txt))" || { cat build/alt.txt | grep FAIL; echo "FAIL $$f"; exit 1; }; done

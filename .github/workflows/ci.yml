@@ -94,7 +94,7 @@ jobs:
       - run: cmake -S . -B build/cmake && cmake --build build/cmake -j && echo 'Console.WriteLine(6 * 7);' > /tmp/a.cs && build/cmake/mcs /tmp/a.cs
 
   pico:
-    name: Raspberry Pi Pico · ${{ matrix.board }} ${{ matrix.fs }}
+    name: Raspberry Pi Pico · ${{ matrix.board }} ${{ matrix.fs }}${{ matrix.name }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -104,6 +104,7 @@ jobs:
         include:
           - { board: pico2, fs: yaffs2 }
           - { board: waveshare_rp2040_zero, fs: littlefs }
+          - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812" }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -112,11 +113,26 @@ jobs:
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
+      - name: Filesystem sources (LittleFS from a local clone; YAFFS2 through the opt-in download)
+        run: |
+          if [ "${{ matrix.fs }}" = littlefs ]; then
+            git clone -q --depth 1 --branch v2.9.3 https://github.com/littlefs-project/littlefs.git $HOME/littlefs
+            echo "FS_ARGS=-DMICROCS_LITTLEFS_DIR=$HOME/littlefs" >> $GITHUB_ENV
+          else
+            echo "FS_ARGS=-DMICROCS_FS_DOWNLOAD=ON" >> $GITHUB_ENV
+          fi
       - name: Build ports/rp2/example
         run: |
-          cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=${{ matrix.fs }}
+          cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=${{ matrix.fs }} $FS_ARGS ${{ matrix.args }}
           cmake --build build/${{ matrix.board }}
           arm-none-eabi-size build/${{ matrix.board }}/microcs_pico.elf
+      - name: Without sources or MICROCS_FS_DOWNLOAD the configure stops with a hint
+        if: ${{ matrix.board == 'pico' && matrix.fs == 'littlefs' && !matrix.args }}
+        run: |
+          if cmake -S ports/rp2/example -B build/nofs -G Ninja -DPICO_BOARD=pico -DPICO_SDK_PATH=$HOME/pico-sdk > build/nofs.txt 2>&1; then
+            echo "configure succeeded without LittleFS sources"; exit 1
+          fi
+          grep -q "MICROCS_LITTLEFS_DIR" build/nofs.txt && grep -q "MICROCS_FS_DOWNLOAD" build/nofs.txt
 
   esp-idf:
     name: ESP-IDF · ${{ matrix.target }} ${{ matrix.fs }}
@@ -140,7 +156,8 @@ jobs:
           cp -r ports/esp32/example/. /tmp/proj/
           cp -r . /tmp/proj/components/MicroCS
           cd /tmp/proj
-          if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; fi
+          # YAFFS2 sources are not bundled: allow the pinned download (or set MICROCS_YAFFS2_DIR)
+          if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; export MICROCS_FS_DOWNLOAD=1; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
 
@@ -152,7 +169,7 @@ jobs:
       matrix:
         include:
           - { name: native_sim (run), board: native_sim/native/64 }
-          - { name: native_sim YAFFS2 (run), board: native_sim/native/64, fs: yaffs2, args: "-DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay" }
+          - { name: native_sim YAFFS2 (run), board: native_sim/native/64, fs: yaffs2, args: "-DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay -DMICROCS_FS_DOWNLOAD=ON" }
           - { name: nRF52840 DK, board: nrf52840dk/nrf52840 }
           - { name: nRF52840 DK USB console, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay" }
           - { name: Raspberry Pi Pico, board: rpi_pico }
@@ -197,6 +214,7 @@ jobs:
           - { name: Raspberry Pi Pico, core: "rp2040:rp2040", fqbn: "rp2040:rp2040:rpipico", url: "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json" }
           - { name: Raspberry Pi Pico 2, core: "rp2040:rp2040", fqbn: "rp2040:rp2040:rpipico2", url: "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json" }
           - { name: Nano 33 BLE (nRF52840 Mbed), core: "arduino:mbed_nano", fqbn: "arduino:mbed_nano:nano33ble", url: "" }
+          - { name: "Raspberry Pi Pico (YAFFS2 bundled, no ws2812)", core: "rp2040:rp2040", fqbn: "rp2040:rp2040:rpipico", url: "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json", pack: "--fs yaffs2 --no-ws2812" }
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
@@ -208,7 +226,8 @@ jobs:
           arduino-cli lib install SD
       - name: Package the library (tools/make_arduino.py) and compile every example
         run: |
-          python3 tools/make_arduino.py --out dist/arduino
+          if [ -n "${{ matrix.pack }}" ]; then make -s fetch-yaffs; fi
+          python3 tools/make_arduino.py --out dist/arduino ${{ matrix.pack }}
           for ex in dist/arduino/MicroCS/examples/*/; do
             echo "::group::$ex"
             arduino-cli compile --fqbn ${{ matrix.fqbn }} --library dist/arduino/MicroCS --warnings default "$ex"
@@ -240,6 +259,10 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
       - name: Compile the port against STM32Cube${{ matrix.family }} headers
+        run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
+      - name: Same without the ws2812 driver (MCS_ENABLE_WS2812=0)
+        env:
+          PORT_CFLAGS: -DMCS_ENABLE_WS2812=0
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
       - name: Same with the auto profile (picked from the device's RAM/flash)
         env:

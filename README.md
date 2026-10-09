@@ -17,6 +17,7 @@
 
 [**Getting started**](docs/GETTING_STARTED.md) ·
 [**Hardware API**](docs/HAL.md) ·
+[**Drivers**](docs/DRIVERS.md) ·
 [**Examples**](examples/README.md) ·
 [**Porting**](docs/PORTING.md) ·
 [**Language**](docs/LANGUAGE.md) ·
@@ -107,7 +108,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-15 peripheral classes (incl. WS2812 `LedStrip` on any pin), interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
+14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin — optional), interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
 
 </td>
@@ -351,7 +352,7 @@ CAN.Send(0, 0x123, new byte[] { 1, 2, 3 });
 | RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ RTC driver / software | ✅ software |
 | Board info, µs clock, reset | `Hal` | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-Full reference: [HAL.md](docs/HAL.md) · generated API list: [STDLIB.md](docs/STDLIB.md) ·
+Full reference: [HAL.md](docs/HAL.md) · add your own devices: [DRIVERS.md](docs/DRIVERS.md) · generated API list: [STDLIB.md](docs/STDLIB.md) ·
 16 commented, runnable scripts: [examples/hardware](examples/hardware/)
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
 wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger).
@@ -552,7 +553,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
-| Hardware API v3 (15 classes incl. `LedStrip`, callbacks, events) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `examples/hardware/*` on the simulator board |
+| Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
@@ -608,5 +609,7 @@ whose output matches .NET (`tools/verify_dotnet.sh`), and docs must describe wha
 ## 📄 License
 
 [MIT](LICENSE) © MicroCS contributors. LittleFS (BSD-3-Clause) and YAFFS2 (GPLv2 or
-commercial) are not bundled; `make lfs-test` / `make yaffs-test` download them for the tests.
+commercial) are not bundled: builds use a copy you point at (`MICROCS_LITTLEFS_DIR` /
+`MICROCS_YAFFS2_DIR`) or download them only when asked (`-DMICROCS_FS_DOWNLOAD=ON`);
+`make lfs-test` / `make yaffs-test` download them for the tests.
 Linking YAFFS2 into a firmware puts that firmware under YAFFS2's licence terms.
