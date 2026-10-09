@@ -1,4 +1,4 @@
-version: "1.6.0"
+version: "1.7.0"
 description: "MicroCS - a C# scripting engine and firmware runtime for microcontrollers (REPL, GPIO, UART, I2C, SPI, ADC, DAC, PWM, timers, I2S, QSPI, TWAI)"
 url: "https://github.com/amir1387aht/MicroCS"
 license: "MIT"

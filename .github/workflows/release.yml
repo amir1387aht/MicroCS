@@ -1,0 +1,154 @@
+name: Release
+
+# Publishes GitHub release v<MCS_VERSION_STRING> with ready-to-flash firmware when include/mcs.h
+# gets a version that has no release yet (or by hand: Actions -> Release -> Run workflow).
+#   Raspberry Pi Pico / Pico 2 / RP2040-Zero: hold BOOTSEL, plug in, copy the .uf2 to the drive
+#   ESP32 boards: esptool.py --chip <chip> write_flash 0 microcs-<chip>.bin
+#   Linux: the mcs compiler, REPL and simulator;  Arduino IDE: the library zip
+on:
+  push:
+    branches: [main]
+    paths: [include/mcs.h, .github/workflows/release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Version check
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(sed -n 's/^#define MCS_VERSION_STRING "\(.*\)"/\1/p' include/mcs.h)
+          echo "version=$v" >> $GITHUB_OUTPUT
+          if gh release view "v$v" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then echo "new=false" >> $GITHUB_OUTPUT; echo "v$v already released"
+          else echo "new=true" >> $GITHUB_OUTPUT; echo "releasing v$v"; fi
+
+  host:
+    name: mcs · ${{ matrix.name }}
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { os: ubuntu-24.04, name: linux-x64 }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: |
+          make -s mcs CFLAGS="-O2"
+          make -s test
+          strip mcs
+          mkdir -p out && tar czf out/mcs-${{ needs.version.outputs.version }}-${{ matrix.name }}.tar.gz mcs README.md LICENSE
+      - uses: actions/upload-artifact@v4
+        with: { name: "host-${{ matrix.name }}", path: out/* }
+
+  pico:
+    name: firmware · ${{ matrix.board }}
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        board: [pico, pico2, waveshare_rp2040_zero]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain, pico-sdk, LittleFS
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
+          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
+          git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
+          git clone -q --depth 1 --branch v2.9.3 https://github.com/littlefs-project/littlefs.git $HOME/littlefs
+      - name: Build ports/rp2/example
+        run: |
+          cmake -S ports/rp2/example -B build/fw -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=littlefs -DMICROCS_LITTLEFS_DIR=$HOME/littlefs
+          cmake --build build/fw
+          mkdir -p out && cp build/fw/microcs_pico.uf2 out/microcs-${{ needs.version.outputs.version }}-${{ matrix.board }}.uf2
+      - uses: actions/upload-artifact@v4
+        with: { name: "fw-${{ matrix.board }}", path: out/* }
+
+  esp32:
+    name: firmware · ${{ matrix.target }}
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-24.04
+    container: espressif/idf:v5.3.2
+    strategy:
+      matrix:
+        target: [esp32, esp32s3, esp32c3, esp32c6]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ports/esp32/example (one image, flash at 0x0)
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          mkdir -p /tmp/proj/components
+          cp -r ports/esp32/example/. /tmp/proj/
+          cp -r . /tmp/proj/components/MicroCS
+          OUT=$PWD/out; mkdir -p $OUT
+          cd /tmp/proj
+          idf.py set-target ${{ matrix.target }}
+          idf.py build
+          cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $OUT/microcs-${{ needs.version.outputs.version }}-${{ matrix.target }}.bin @flash_args
+      - uses: actions/upload-artifact@v4
+        with: { name: "fw-${{ matrix.target }}", path: out/* }
+
+  arduino:
+    name: Arduino library
+    needs: version
+    if: needs.version.outputs.new == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 tools/make_arduino.py --out dist/arduino
+          mkdir -p out && cp dist/arduino/MicroCS-*.zip out/
+      - uses: actions/upload-artifact@v4
+        with: { name: arduino, path: out/* }
+
+  publish:
+    name: Publish v${{ needs.version.outputs.version }}
+    needs: [version, host, pico, esp32, arduino]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: assets, merge-multiple: true }
+      - name: Release notes (CHANGELOG section + how to flash)
+        env:
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          {
+            echo "**Try it without installing anything:** [MicroCS Studio](https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/) in Chrome or Edge, connected to a board flashed with one of the files below."
+            echo
+            echo "| Board | File | How to flash |"
+            echo "|---|---|---|"
+            echo "| Raspberry Pi Pico / Pico 2 / RP2040-Zero | \`microcs-$V-<board>.uf2\` | hold BOOTSEL, plug in, copy the file to the RPI-RP2 drive |"
+            echo "| ESP32 / ESP32-S3 / ESP32-C3 / ESP32-C6 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
+            echo "| Linux x64 | \`mcs-$V-<os>.tar.gz\` | compiler, REPL and simulator: \`./mcs --repl --sim\` |"
+            echo "| Arduino IDE | \`MicroCS-$V.zip\` | Sketch → Include Library → Add .ZIP Library |"
+            echo
+            awk -v v="## $V" 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' CHANGELOG.md
+          } > notes.md
+          cat notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          V: ${{ needs.version.outputs.version }}
+        run: |
+          title=$(grep -m1 "^## $V" CHANGELOG.md | sed 's/^## //')
+          gh release create "v$V" assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MicroCS ${title:-$V}" --notes-file notes.md

@@ -2,8 +2,14 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased
+## 1.7.0 — device drivers, optional LED strips, console games
 
+* **Releases with ready-to-flash firmware:** `.github/workflows/release.yml` publishes a GitHub release
+  for every new `MCS_VERSION_STRING` — `.uf2` for Pico / Pico 2 / RP2040-Zero, single-image `.bin`
+  for ESP32 / -S3 / -C3 / -C6, the Linux `mcs` binary and the Arduino library zip.
+* **Project:** README demo (`assets/demo.gif`, recorded by `tools/make_demo_gif.js`), social preview
+  image (`assets/social-preview.png`), issue and pull request templates, `SECURITY.md`,
+  `CODE_OF_CONDUCT.md`.
 * **Studio templates:** four playable console games under *Fun and games* — Guess the number,
   Rock, paper, scissors, Tic-tac-toe (against a simple computer player) and Hangman.
 * **Fix:** declaring a type again as an `enum` (or with a different kind) crashed the compiler; it

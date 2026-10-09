@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 🌐 MicroCS Studio (browser IDE)
+    url: https://amir1387aht.github.io/MicroCS/
+    about: Edit, upload and run C# on your board from Chrome or Edge.
+  - name: 📚 Documentation
+    url: https://github.com/amir1387aht/MicroCS/tree/main/docs#readme
+    about: Getting started, language, library, hardware API, porting, drivers.

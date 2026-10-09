@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.6.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -23,6 +23,15 @@
 [**Language**](docs/LANGUAGE.md) ·
 [**Library**](docs/STDLIB.md) ·
 [**All docs**](docs/README.md)
+
+<br>
+
+[![Open MicroCS Studio](https://img.shields.io/badge/▶_Open_MicroCS_Studio-in_your_browser-8b5cf6?style=for-the-badge)](https://amir1387aht.github.io/MicroCS/)
+[![Download firmware](https://img.shields.io/badge/⬇_Download-ready--to--flash_firmware-06b6d4?style=for-the-badge)](https://github.com/amir1387aht/MicroCS/releases/latest)
+
+<img src="assets/demo.gif" alt="MicroCS Studio: typing C# with IntelliSense, pressing F5 and the script runs on the board" width="880">
+
+<sub>MicroCS Studio connected to a board (here the simulator): type C#, press F5, it runs on the device — no reflashing.</sub>
 
 </div>
 
@@ -243,7 +252,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.6.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.7.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -265,12 +274,12 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 127 templates (boot scripts,
-scheduler, sensors, displays, motors, every peripheral), a serial plotter and the REPL — no install
+hover, find/replace, format) that saves to and runs on the device, 130+ templates (boot scripts,
+scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
 <p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
-<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 127 templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
+<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 130+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),
@@ -373,7 +382,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.6.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.7.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -605,6 +614,12 @@ CMakeLists.txt  microcs.mk  library.json  idf_component.yml  zephyr/   build int
 Bug reports, board ports and features are welcome — read [CONTRIBUTING.md](CONTRIBUTING.md)
 first. The short version: `make check` must stay green, new language features need a test
 whose output matches .NET (`tools/verify_dotnet.sh`), and docs must describe what the code does.
+
+Good places to start: [issues labelled *good first issue*](https://github.com/amir1387aht/MicroCS/labels/good%20first%20issue),
+a new [Studio template](tools/studio/templates.js), a [driver](docs/DRIVERS.md) for a sensor you own, or a
+[port](docs/PORTING.md) for your board. Questions and show-and-tell are welcome in the issues too.
+
+If MicroCS is useful to you, a ⭐ helps other people find it.
 
 ## 📄 License
 
