@@ -94,6 +94,10 @@ int mcs_vfs_list(mcs_vfs_t* vfs, const char* path, mcs_vfs_list_cb cb, void* ud)
 /* Size and free space of the filesystem that holds `path`. MCS_VFS_EINVAL if
  * the backend cannot tell (no statfs op). */
 int mcs_vfs_statfs(mcs_vfs_t* vfs, const char* path, mcs_vfs_statfs_t* st);
+/* MCS_VFS_ENOSPC when `len` bytes will not fit at `path` (free space, plus the
+ * current size of the file it replaces unless appending); OK when they fit or the
+ * filesystem cannot tell. Used by mcs_vfs_write_file and the shell's `put`. */
+int mcs_vfs_check_space(mcs_vfs_t* vfs, const char* path, uint64_t len, bool append);
 /* mount flags that apply to `path` (0 if unmounted) */
 int mcs_vfs_flags(mcs_vfs_t* vfs, const char* path);
 

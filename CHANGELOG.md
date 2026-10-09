@@ -4,6 +4,19 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Scheduler jobs run while a script sleeps:** `Thread.Sleep` in a main loop now runs due
+  jobs (Scheduler.Every/After delegates and jobs.cfg scripts); before, a looping `/main.cs`
+  starved every job. Nested script jobs keep the outer script's top-level variables intact.
+  `startup /main.cs` in jobs.cfg no longer runs main twice.
+* **No-space handling:** `File.WriteAllText` / `WriteAllBytes` / `AppendAllText` / `Copy` check
+  free space first and throw `IOException` without touching the old file (it used to be
+  truncated); the shell's `put` answers `ERR not enough space: N bytes, M free` before the data
+  is sent; Studio refuses uploads / saves that do not fit.
+* **Studio Reset / reconnect:** Reset reboots through the firmware (`Hal.Reset`, works on RP2040,
+  STM32 and native-USB ESP32 boards without reset wiring), falling back to the RTS/DTR pulse,
+  and stops a running script first. After a reset or unplug Studio keeps retrying to reopen the
+  port for a minute instead of giving up after the first failed open, and tells you when
+  connecting stopped a running script (e.g. a looping `/main.cs`).
 * **Fix: `Console.ReadLine` on devices** — scripts run by the shell / `mcs_runtime` now read the
   line typed in the console (`mcs_shell_readline`: input queue, backspace, CR LF, echo). Before,
   it fell back to `fgets(stdin)`, which never saw the Studio's input and blocked Ctrl-C / Stop.

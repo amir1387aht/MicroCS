@@ -2084,6 +2084,22 @@ uint32_t mcs_ticks(mcs_vm_t* vm) {
 }
 
 void mcs_set_idle(mcs_vm_t* vm, mcs_idle_fn fn, void* ud) { vm->idle_fn = fn; vm->idle_ud = ud; }
+bool mcs_running(mcs_vm_t* vm) { return vm->run_depth > 0; }
+int mcs_globals_save(mcs_vm_t* vm) {
+    mcs_value_t l = mcs_new_list(vm);
+    int h = mcs_pin(vm, l);
+    if (h < 0) return -1;
+    for (uint32_t i = 0; i < vm->global_count; i++) mcs_list_add(vm, l, vm->globals[i]);
+    return h;
+}
+void mcs_globals_restore(mcs_vm_t* vm, int h) {
+    if (h < 0) return;
+    mcs_value_t l = mcs_pinned(vm, h);
+    uint32_t n = mcs_len(l);
+    for (uint32_t i = 0; i < n && i < vm->global_count; i++) vm->globals[i] = mcs_index(l, i);
+    mcs_unpin(vm, h);
+}
+mcs_idle_fn mcs_get_idle(mcs_vm_t* vm, void** ud) { if (ud) *ud = vm->idle_ud; return vm->idle_fn; }
 
 void mcs_sleep(mcs_vm_t* vm, uint32_t ms) {
     bool sliced = vm->idle_fn || vm->cfg.hook_fn || vm->limits.time_ms || !vm->cfg.delay_fn;

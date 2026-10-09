@@ -227,7 +227,20 @@ int mcs_vfs_read_file(mcs_vfs_t* vfs, const char* path, char** data, size_t* len
     return MCS_VFS_OK;
 }
 
+int mcs_vfs_check_space(mcs_vfs_t* vfs, const char* path, uint64_t len, bool append) {
+    mcs_vfs_statfs_t st;
+    if (mcs_vfs_statfs(vfs, path, &st) || !st.total) return MCS_VFS_OK;   /* cannot tell */
+    uint64_t avail = st.free;
+    mcs_vfs_stat_t fs;
+    if (!append && !mcs_vfs_stat(vfs, path, &fs) && !fs.is_dir) avail += fs.size;   /* replaced */
+    return len > avail ? MCS_VFS_ENOSPC : MCS_VFS_OK;
+}
+
 int mcs_vfs_write_file(mcs_vfs_t* vfs, const char* path, const void* data, size_t len, bool append) {
+    /* refuse up front: a write that runs out of space half-way would already have
+     * truncated the old contents */
+    int se = mcs_vfs_check_space(vfs, path, len, append);
+    if (se) return se;
     mcs_vfs_file_t f;
     int e = mcs_vfs_open(vfs, path, append ? MCS_VFS_APPEND : MCS_VFS_WRITE, &f);
     if (e) return e;

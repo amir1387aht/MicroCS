@@ -399,6 +399,15 @@ int mcs_safepoint(mcs_vm_t* vm);
  * it to run GPIO / timer callbacks during Thread.Sleep). */
 typedef int (*mcs_idle_fn)(mcs_vm_t* vm, void* ud);
 void mcs_set_idle(mcs_vm_t* vm, mcs_idle_fn fn, void* ud);
+/* The current idle handler (to chain a second one in front of it). */
+/* true while a script / callback is executing (e.g. inside Thread.Sleep) */
+bool mcs_running(mcs_vm_t* vm);
+/* Top-level variables are VM globals shared by every script. To run another script
+ * nested inside a running one (a scheduler job during Thread.Sleep) without clobbering
+ * the outer script's variables: h = mcs_globals_save(vm); run; mcs_globals_restore(vm, h). */
+int mcs_globals_save(mcs_vm_t* vm);
+void mcs_globals_restore(mcs_vm_t* vm, int handle);
+mcs_idle_fn mcs_get_idle(mcs_vm_t* vm, void** ud);
 /* Scratch memory for natives from the VM's own allocator (counted against
  * cfg.heap_limit; raises the out-of-memory error instead of returning NULL).
  * realloc semantics: (NULL, 0, n) allocates, (p, n, 0) frees. Not GC-managed:
