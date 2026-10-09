@@ -1,0 +1,42 @@
+name: 🐞 Bug report
+description: A script, a port or a tool does something wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks! The smallest C# script (or C snippet) that shows the problem helps the most.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Script / steps to reproduce
+      description: Paste the C# script, the shell commands or the build command line.
+      render: csharp
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: MicroCS version
+      placeholder: "output of `mcs --version` or the REPL banner, e.g. 1.7.0"
+    validations: { required: true }
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it run?
+      multiple: true
+      options: [PC (mcs / simulator), Raspberry Pi Pico / RP2040 / RP2350, ESP32 (any), STM32, Zephyr, Arduino, MicroCS Studio (browser), Other]
+    validations: { required: true }
+  - type: input
+    id: board
+    attributes:
+      label: Board, toolchain, build options
+      placeholder: "e.g. ESP32-S3 DevKitC, ESP-IDF 5.3, CONFIG_MICROCS_FS_LITTLEFS=y"
+  - type: textarea
+    id: log
+    attributes:
+      label: Output / error message
+      render: text

@@ -1,0 +1,20 @@
+name: ✨ Feature request
+description: A C# feature, library class, driver or tool you are missing
+labels: [enhancement]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What would you like to do?
+      description: Show the C# you would like to write, or the use case on your device.
+    validations: { required: true }
+  - type: textarea
+    id: alt
+    attributes:
+      label: How do you do it today / alternatives
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to implement this (see CONTRIBUTING.md)

@@ -1,0 +1,32 @@
+name: 🔌 Board, port or driver
+description: Ask for (or offer) support for a microcontroller, board or device driver
+labels: [port]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board / MCU / device
+      placeholder: "e.g. Seeed XIAO nRF52840, STM32G0, SSD1306 OLED, BME680"
+    validations: { required: true }
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK / build system
+      options: [Arduino, ESP-IDF, pico-sdk, STM32Cube, Zephyr, PlatformIO, Bare metal, Other]
+  - type: input
+    id: mem
+    attributes:
+      label: RAM / flash
+      placeholder: "e.g. 32 KB / 256 KB"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Links to the datasheet or board, what you have tried. New ports start from ports/template (docs/PORTING.md); drivers from docs/DRIVERS.md.
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I have the hardware and can test it
+        - label: I would like to write the port / driver
