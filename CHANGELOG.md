@@ -2,6 +2,12 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* **Releases and CI:** the release also ships an ESP32-C2 image (40 MHz crystal); a manual run of
+  the Release workflow rebuilds the current version and refreshes its files. Every CI run keeps
+  the Pico `.uf2` and ESP32 `.bin` it built as downloadable artifacts (14 days).
+
 ## 1.7.0 — device drivers, optional LED strips, console games
 
 * **Releases with ready-to-flash firmware:** `.github/workflows/release.yml` publishes a GitHub release

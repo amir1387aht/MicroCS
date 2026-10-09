@@ -126,6 +126,12 @@ jobs:
           cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=${{ matrix.fs }} $FS_ARGS ${{ matrix.args }}
           cmake --build build/${{ matrix.board }}
           arm-none-eabi-size build/${{ matrix.board }}/microcs_pico.elf
+      - name: Keep the firmware (download it from the run's Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: "firmware-${{ matrix.board }}-${{ matrix.fs }}${{ matrix.args && '-no-ws2812' || '' }}"
+          path: build/${{ matrix.board }}/microcs_pico.uf2
+          retention-days: 14
       - name: Without sources or MICROCS_FS_DOWNLOAD the configure stops with a hint
         if: ${{ matrix.board == 'pico' && matrix.fs == 'littlefs' && !matrix.args }}
         run: |
@@ -160,6 +166,15 @@ jobs:
           if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; export MICROCS_FS_DOWNLOAD=1; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
+          # one image for `esptool.py write_flash 0 ...` (bootloader + partition table + app)
+          mkdir -p $GITHUB_WORKSPACE/fw
+          cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $GITHUB_WORKSPACE/fw/microcs-${{ matrix.target }}-${{ matrix.fs }}.bin @flash_args
+      - name: Keep the firmware (download it from the run's Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: "firmware-${{ matrix.target }}-${{ matrix.fs }}"
+          path: fw/*.bin
+          retention-days: 14
 
   zephyr:
     name: Zephyr · ${{ matrix.name }}
