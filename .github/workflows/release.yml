@@ -1,7 +1,8 @@
 name: Release
 
 # Publishes GitHub release v<MCS_VERSION_STRING> with ready-to-flash firmware when include/mcs.h
-# gets a version that has no release yet (or by hand: Actions -> Release -> Run workflow).
+# gets a version that has no release yet. Actions -> Release -> Run workflow rebuilds the current
+# version and replaces/adds its files on the existing release.
 #   Raspberry Pi Pico / Pico 2 / RP2040-Zero: hold BOOTSEL, plug in, copy the .uf2 to the drive
 #   ESP32 boards: esptool.py --chip <chip> write_flash 0 microcs-<chip>.bin
 #   Linux: the mcs compiler, REPL and simulator;  Arduino IDE: the library zip
@@ -33,7 +34,9 @@ jobs:
         run: |
           v=$(sed -n 's/^#define MCS_VERSION_STRING "\(.*\)"/\1/p' include/mcs.h)
           echo "version=$v" >> $GITHUB_OUTPUT
-          if gh release view "v$v" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then echo "new=false" >> $GITHUB_OUTPUT; echo "v$v already released"
+          # a manual run rebuilds and refreshes the files of an existing release (e.g. after adding a board)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then echo "new=true" >> $GITHUB_OUTPUT; echo "manual run: (re)building v$v"
+          elif gh release view "v$v" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then echo "new=false" >> $GITHUB_OUTPUT; echo "v$v already released"
           else echo "new=true" >> $GITHUB_OUTPUT; echo "releasing v$v"; fi
 
   host:
@@ -89,7 +92,7 @@ jobs:
     container: espressif/idf:v5.3.2
     strategy:
       matrix:
-        target: [esp32, esp32s3, esp32c3, esp32c6]
+        target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example (one image, flash at 0x0)
@@ -138,8 +141,9 @@ jobs:
             echo "| Board | File | How to flash |"
             echo "|---|---|---|"
             echo "| Raspberry Pi Pico / Pico 2 / RP2040-Zero | \`microcs-$V-<board>.uf2\` | hold BOOTSEL, plug in, copy the file to the RPI-RP2 drive |"
-            echo "| ESP32 / ESP32-S3 / ESP32-C3 / ESP32-C6 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
+            echo "| ESP32 / ESP32-S3 / ESP32-C2 / ESP32-C3 / ESP32-C6 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
             echo "| Linux x64 | \`mcs-$V-<os>.tar.gz\` | compiler, REPL and simulator: \`./mcs --repl --sim\` |"
+            echo "| ESP32-C2 note | | built for a 40 MHz crystal (ESP-IDF default); boards with a 26 MHz ESP8684 need a rebuild with \`CONFIG_XTAL_FREQ_26=y\` |"
             echo "| Arduino IDE | \`MicroCS-$V.zip\` | Sketch → Include Library → Add .ZIP Library |"
             echo
             awk -v v="## $V" 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' CHANGELOG.md
@@ -151,4 +155,9 @@ jobs:
           V: ${{ needs.version.outputs.version }}
         run: |
           title=$(grep -m1 "^## $V" CHANGELOG.md | sed 's/^## //')
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "v$V" release-files/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "v$V" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+            exit 0
+          fi
           gh release create "v$V" release-files/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MicroCS ${title:-$V}" --notes-file notes.md
