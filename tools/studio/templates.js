@@ -2225,6 +2225,131 @@ for (int gen = 0; gen < 5; gen++)
 }
 `);
 
+T("Fun and games", "Guess the number", "guess.cs",
+  "Console game: find the secret number 1..100 in as few guesses as you can.", String.raw`
+// Guess the number - type your guesses in the console ("q" quits)
+var rnd = new Random();
+int secret = rnd.Next(1, 101), tries = 0;
+Console.WriteLine("I'm thinking of a number from 1 to 100.");
+while (true)
+{
+    Console.Write("your guess: ");
+    string line = Console.ReadLine();
+    if (line == null || line.Trim() == "q") { Console.WriteLine($"\nit was {secret}"); break; }
+    if (!int.TryParse(line.Trim(), out int g)) { Console.WriteLine("type a number"); continue; }
+    tries++;
+    if (g < secret) Console.WriteLine("higher");
+    else if (g > secret) Console.WriteLine("lower");
+    else { Console.WriteLine($"correct! {tries} guesses"); break; }
+}
+`);
+T("Fun and games", "Rock, paper, scissors", "rps.cs",
+  "Console game: best of five against the board.", String.raw`
+// Rock, paper, scissors - type r, p or s ("q" quits)
+var rnd = new Random();
+string[] names = { "rock", "paper", "scissors" };
+int me = 0, you = 0;
+while (me < 3 && you < 3)
+{
+    Console.Write($"[you {you} : {me} board]  r/p/s? ");
+    string line = Console.ReadLine();
+    if (line == null || line.Trim() == "q") break;
+    int p = "rps".IndexOf(line.Trim().ToLower().Length > 0 ? line.Trim().ToLower()[0] : '?');
+    if (p < 0) { Console.WriteLine("type r, p or s"); continue; }
+    int c = rnd.Next(3);
+    Console.Write($"{names[p]} vs {names[c]}: ");
+    if (p == c) Console.WriteLine("draw");
+    else if ((p + 1) % 3 == c) { Console.WriteLine("board wins"); me++; }
+    else { Console.WriteLine("you win"); you++; }
+}
+Console.WriteLine(you == 3 ? "\nyou won the match!" : me == 3 ? "\nthe board won the match" : "\nbye");
+`);
+T("Fun and games", "Tic-tac-toe", "tictactoe.cs",
+  "Console game: play X against a simple computer O (cells 1-9).", String.raw`
+// Tic-tac-toe - you are X, type a cell 1..9 ("q" quits)
+//  1 | 2 | 3
+//  4 | 5 | 6
+//  7 | 8 | 9
+char[] b = "         ".ToCharArray();
+int[][] lines = { new[] {0,1,2}, new[] {3,4,5}, new[] {6,7,8}, new[] {0,3,6}, new[] {1,4,7}, new[] {2,5,8}, new[] {0,4,8}, new[] {2,4,6} };
+var rnd = new Random();
+
+void Draw()
+{
+    for (int r = 0; r < 3; r++)
+    {
+        string Cell(int i) => b[i] == ' ' ? (i + 1).ToString() : b[i].ToString();
+        Console.WriteLine($" {Cell(r * 3)} | {Cell(r * 3 + 1)} | {Cell(r * 3 + 2)}");
+        if (r < 2) Console.WriteLine("---+---+---");
+    }
+}
+char Winner()
+{
+    foreach (var l in lines)
+        if (b[l[0]] != ' ' && b[l[0]] == b[l[1]] && b[l[1]] == b[l[2]]) return b[l[0]];
+    return Array.IndexOf(b, ' ') < 0 ? 'D' : ' ';
+}
+// computer: win if possible, else block, else center, else random
+int Pick()
+{
+    foreach (char who in new[] { 'O', 'X' })
+        foreach (var l in lines)
+        {
+            int n = 0, free = -1;
+            foreach (int i in l) { if (b[i] == who) n++; else if (b[i] == ' ') free = i; }
+            if (n == 2 && free >= 0) return free;
+        }
+    if (b[4] == ' ') return 4;
+    int k;
+    do k = rnd.Next(9); while (b[k] != ' ');
+    return k;
+}
+
+Draw();
+while (Winner() == ' ')
+{
+    Console.Write("your move (1-9): ");
+    string line = Console.ReadLine();
+    if (line == null || line.Trim() == "q") { Console.WriteLine("\nbye"); return; }
+    if (!int.TryParse(line.Trim(), out int m) || m < 1 || m > 9 || b[m - 1] != ' ') { Console.WriteLine("pick a free cell 1-9"); continue; }
+    b[m - 1] = 'X';
+    if (Winner() == ' ') { int c = Pick(); b[c] = 'O'; Console.WriteLine($"board plays {c + 1}"); }
+    Draw();
+}
+char w = Winner();
+Console.WriteLine(w == 'X' ? "you win!" : w == 'O' ? "the board wins" : "draw");
+`);
+T("Fun and games", "Hangman", "hangman.cs",
+  "Console game: guess the hidden word one letter at a time.", String.raw`
+// Hangman - type one letter per line, 6 misses allowed ("q" quits)
+string[] words = { "microcontroller", "voltage", "resistor", "firmware", "interrupt", "oscilloscope", "breadboard", "sensor" };
+string word = words[new Random().Next(words.Length)];
+var guessed = new List<char>();
+int misses = 0;
+
+string Masked()
+{
+    var sb = new StringBuilder();
+    foreach (char c in word) sb.Append(guessed.Contains(c) ? c : '_').Append(' ');
+    return sb.ToString();
+}
+
+while (misses < 6 && Masked().Contains('_'))
+{
+    Console.WriteLine($"\n{Masked()}   misses: {misses}/6  {new string('X', misses)}");
+    Console.Write("letter: ");
+    string line = Console.ReadLine();
+    if (line == null || line.Trim() == "q") break;
+    line = line.Trim().ToLower();
+    if (line.Length != 1 || line[0] < 'a' || line[0] > 'z') { Console.WriteLine("type one letter"); continue; }
+    char g = line[0];
+    if (guessed.Contains(g)) { Console.WriteLine("already tried"); continue; }
+    guessed.Add(g);
+    if (!word.Contains(g)) misses++;
+}
+Console.WriteLine(Masked().Contains('_') ? $"\nthe word was '{word}'" : $"\n{word} - you got it!");
+`);
+
 /* ---------------------------------------------------------------- Benchmarks */
 T("Benchmarks", "CPU benchmark", "bench_cpu.cs",
   "Integer, floating point, string and collection speed of the board.", String.raw`
