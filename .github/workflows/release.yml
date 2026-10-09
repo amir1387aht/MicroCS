@@ -127,7 +127,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { path: assets, merge-multiple: true }
+        with: { path: release-files, merge-multiple: true }
       - name: Release notes (CHANGELOG section + how to flash)
         env:
           V: ${{ needs.version.outputs.version }}
@@ -151,4 +151,4 @@ jobs:
           V: ${{ needs.version.outputs.version }}
         run: |
           title=$(grep -m1 "^## $V" CHANGELOG.md | sed 's/^## //')
-          gh release create "v$V" assets/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MicroCS ${title:-$V}" --notes-file notes.md
+          gh release create "v$V" release-files/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MicroCS ${title:-$V}" --notes-file notes.md
