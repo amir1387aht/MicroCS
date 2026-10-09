@@ -473,7 +473,7 @@ Micros: long | Microseconds since start
 UniqueId: string | Chip id as hex
 CpuHz: int | CPU clock in Hz
 DroppedEvents: int | Events lost because the queue was full
-Has(string name): bool | "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC"
+Has(string name): bool | "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC", or a driver: "LedStrip", "ws2812"
 Poll(): void | Runs pending callbacks now
 Run(): void | Dispatches events forever (until Ctrl-C)
 Run(int ms): void | Dispatches events for ms milliseconds
@@ -659,7 +659,11 @@ new(int id, byte[] data, bool extended) | Extended (29-bit) when true
 .Length: int | Data length
 .Data: byte[] | Payload
 
-@LedStrip | WS2812 / WS2812B / SK6812 ("NeoPixel") addressable RGB LEDs on any pin (modules/hal)
+@Drivers | Device drivers compiled into the firmware (modules/drivers, mcs_driver.h)
+Has(string name): bool | A driver ("ws2812") or a class it adds ("LedStrip") is available
+List: string[] | Names of the registered drivers
+
+@LedStrip | WS2812 / WS2812B / SK6812 ("NeoPixel") addressable RGB LEDs on any pin ("ws2812" driver)
 new(int pin, int count) | GRB strip (WS2812B); pin may be a name: "GP16", "NEOPIXEL"
 new(int pin, int count, int order) | LedStrip.GRB, LedStrip.RGB (WS2811) or LedStrip.GRBW (SK6812 RGBW)
 const GRB: int | Byte order of WS2812 / WS2812B (default)

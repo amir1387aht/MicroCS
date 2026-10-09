@@ -1,18 +1,23 @@
-/* MicroCS - WS2812 / SK6812 ("NeoPixel") drivers shared by the native ports
- * and the Arduino port (hal->ledstrip_write). Include once, from one .c/.cpp
- * file, after defining which one you want:
- *   MCS_LEDSTRIP_RP2_PIO    RP2040 / RP2350 (pico-sdk or Arduino-Pico): one PIO state machine per pin
- *   MCS_LEDSTRIP_ESP32_RMT  ESP32 family with RMT (ESP-IDF >= 5.0 or Arduino-ESP32 3.x)
+/* MicroCS - backends of the "ws2812" driver (C# LedStrip, include/mcs_driver.h)
+ * shared by the native ports and the Arduino port. Include once, from one
+ * .c/.cpp file, after defining which one you want:
+ *   MCS_WS2812_RP2_PIO    RP2040 / RP2350 (pico-sdk or Arduino-Pico): one PIO state machine per pin
+ *   MCS_WS2812_ESP32_RMT  ESP32 family with RMT (ESP-IDF >= 5.0 or Arduino-ESP32 3.x)
  * Each sends n bytes MSB first at 800 kHz (T0H 0.4 us, T1H 0.8 us) and
- * returns after the >= 280 us latch gap. 0 or a negative MCS_HAL_E* code. */
-#ifndef MCS_LEDSTRIP_DRIVERS_H
-#define MCS_LEDSTRIP_DRIVERS_H
+ * returns after the >= 280 us latch gap. 0 or a negative MCS_HAL_E* code.
+ * The functions have the mcs_ws2812_ops_t.write signature:
+ *   static const mcs_ws2812_ops_t ops = { mcs_ws2812_pio_write };
+ *   static const mcs_driver_t ws2812 = MCS_WS2812_DRIVER(&ops, NULL);
+ *   mcs_driver_register_default(&ws2812); */
+#ifndef MCS_WS2812_BACKENDS_H
+#define MCS_WS2812_BACKENDS_H
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
 #include "mcs_hal.h"
+#include "mcs_driver.h"
 
-#if defined(MCS_LEDSTRIP_RP2_PIO)
+#if defined(MCS_WS2812_RP2_PIO)
 #include "hardware/pio.h"
 #include "hardware/gpio.h"
 #include "hardware/clocks.h"
@@ -68,7 +73,8 @@ static int mcs_ws_sm(int pin, PIO* pio_out) {
     }
     return -1;
 }
-static int mcs_ledstrip_pio_write(int pin, const uint8_t* data, size_t n) {
+static int mcs_ws2812_pio_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
+    (void)ctx; (void)order;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     PIO pio;
     int sm = mcs_ws_sm(pin, &pio);
@@ -79,9 +85,9 @@ static int mcs_ledstrip_pio_write(int pin, const uint8_t* data, size_t n) {
     busy_wait_us(350);                                     /* last byte leaves the OSR, then the latch */
     return 0;
 }
-#endif /* MCS_LEDSTRIP_RP2_PIO */
+#endif /* MCS_WS2812_RP2_PIO */
 
-#if defined(MCS_LEDSTRIP_ESP32_RMT)
+#if defined(MCS_WS2812_ESP32_RMT)
 #include "driver/rmt_tx.h"
 #include "driver/gpio.h"
 #include "esp_rom_sys.h"
@@ -93,7 +99,8 @@ static int mcs_ledstrip_pio_write(int pin, const uint8_t* data, size_t n) {
 #endif
 static struct { int pin; rmt_channel_handle_t ch; rmt_encoder_handle_t enc; } mcs_rmt_strips[MCS_ESP32_LEDSTRIPS];
 static int mcs_rmt_count;
-static int mcs_ledstrip_rmt_write(int pin, const uint8_t* data, size_t n) {
+static int mcs_ws2812_rmt_write(void* ctx, int pin, const uint8_t* data, size_t n, int order) {
+    (void)ctx; (void)order;
     if (!GPIO_IS_VALID_OUTPUT_GPIO(pin)) return MCS_HAL_EINVAL;
     int k = 0;
     while (k < mcs_rmt_count && mcs_rmt_strips[k].pin != pin) k++;
@@ -129,5 +136,5 @@ static int mcs_ledstrip_rmt_write(int pin, const uint8_t* data, size_t n) {
     esp_rom_delay_us(300);                                 /* latch */
     return 0;
 }
-#endif /* MCS_LEDSTRIP_ESP32_RMT */
+#endif /* MCS_WS2812_ESP32_RMT */
 #endif

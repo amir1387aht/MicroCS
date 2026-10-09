@@ -48,7 +48,7 @@ Only peripherals whose `HAL_xxx_MODULE_ENABLED` is set in `stm32xxxx_hal_conf.h`
 | `I2C.Scan` | `HAL_I2C_IsDeviceReady` |
 | `SPI.Open(bus, hz, mode)` | re-programs prescaler / CPOL / CPHA when `spi_clock_hz` is given |
 | `PWM.Set` | timer ARR/CCR computed from `clock_hz` (0 = from the APB clock) |
-| `LedStrip` | WS2812 on any pin, SysTick-timed bit-bang with interrupts masked during `Show()` (~30 µs per LED); HCLK ≥ 24 MHz |
+| `LedStrip` | `ws2812` driver (`MCS_ENABLE_WS2812=0` / `-DMICROCS_WS2812=OFF` leaves it out; replace the backend with `mcs_driver_register`, e.g. SPI + DMA): WS2812 on any pin, SysTick-timed bit-bang with interrupts masked during `Show()` (~30 µs per LED); HCLK ≥ 24 MHz |
 | `Timer.Start` | timer update interrupt |
 | `QSPI` | `HAL_QSPI_Command` / `HAL_OSPI_Command` |
 | `CAN` | bxCAN or FDCAN (classic frames), accept-all filter |
@@ -87,8 +87,9 @@ if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&                      // top quart
   regions overlapping the firmware are refused.
 * The CPU stalls while its own flash bank erases (up to 1–2 s for a 128 KB F4 sector); uploads
   use the retrying Studio/shell protocol, so this is harmless.
-* CMake (`MICROCS_PORT=stm32`): `-DMICROCS_FS=littlefs` or `-DMICROCS_FS=yaffs2` downloads and
-  adds the sources (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `-DMCS_ENABLE_LFS=1 -DMCS_ENABLE_FLASH=1`
+* CMake (`MICROCS_PORT=stm32`): `-DMICROCS_FS=littlefs` or `-DMICROCS_FS=yaffs2` adds the sources
+  from `MICROCS_LITTLEFS_DIR` / `MICROCS_YAFFS2_DIR`, a copy in the project (`Middlewares/Third_Party/littlefs`,
+  `third_party/`, `lib/` ...) or, with `-DMICROCS_FS_DOWNLOAD=ON`, a one-time download (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `-DMCS_ENABLE_LFS=1 -DMCS_ENABLE_FLASH=1`
   (see [FILESYSTEM.md](../../docs/FILESYSTEM.md#files-on-the-chips-own-flash-every-port)).
 
 ## Memory

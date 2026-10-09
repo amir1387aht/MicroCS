@@ -65,8 +65,10 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
 * **YAFFS2 instead**: menuconfig → MicroCS → *Filesystem on the "storage" partition* →
-  YAFFS2 (or `CONFIG_MICROCS_FS_YAFFS2=y` in `sdkconfig.defaults`). The build downloads
-  yaffs2 and `mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx)` mounts it through
+  YAFFS2 (or `CONFIG_MICROCS_FS_YAFFS2=y` in `sdkconfig.defaults`). The yaffs2 sources are
+  not bundled: set `MICROCS_YAFFS2_DIR` (environment or `idf.py -DMICROCS_YAFFS2_DIR=...`), keep a
+  checkout in `<project>/third_party/yaffs2`, or allow the pinned download with
+  `MICROCS_FS_DOWNLOAD=1 idf.py build`; then `mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx)` mounts it through
   `mcs_esp32_partition_flash()` (any data partition as an `mcs_flash_t`). YAFFS2 is
   GPLv2 (or commercial licence): linking it puts your firmware under those terms. C code
   then uses the files through MicroCS, not `fopen()`. The example calls
@@ -116,7 +118,7 @@ mcs_esp32_hal_init(&hal, &pins);
 | `ADC.Read(gpio)` / `ReadMillivolts` | `adc_oneshot` + eFuse calibration |
 | `DAC` | `dac_oneshot` (ESP32, S2) |
 | `PWM` | LEDC (13-bit duty) |
-| `LedStrip` | RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
+| `LedStrip` | `ws2812` driver (menuconfig → MicroCS → *WS2812 / NeoPixel driver*): RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
 | `Timer` | `gptimer` |
 | `I2S` | `i2s_std` |
 | `CAN` | TWAI |

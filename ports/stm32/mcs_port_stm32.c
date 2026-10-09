@@ -3,6 +3,7 @@
  * Add this file + mcs_port_stm32.h to your Cube project next to MicroCS.
  */
 #include "mcs_port_stm32.h"
+#include "mcs_driver.h"
 #include <string.h>
 
 static mcs_stm32_board_t* g_board;
@@ -108,11 +109,12 @@ static int st_gpio_write(void* ctx, int pin, int v) {
     HAL_GPIO_WritePin(g, (uint16_t)(1u << (pin & 15)), v ? GPIO_PIN_SET : GPIO_PIN_RESET);
     return 0;
 }
-/* ------------------------------------------------------------------ WS2812 / NeoPixel
+/* ------------------------------------------------------------------ "ws2812" driver backend (C# LedStrip)
  * Bit-banged on any GPIO with interrupts off, timed by the SysTick counter
  * (every Cortex-M has it; HAL_Init starts it): 0.4 / 0.8 us high, 1.25 us per
  * bit. Needs HCLK >= 24 MHz (48 MHz+ recommended on Cortex-M0). Interrupts are
  * held off for ~30 us per LED: long strips delay UART reception accordingly. */
+#if MCS_ENABLE_WS2812
 static inline uint32_t st_elapsed(uint32_t t0, uint32_t load) {
     uint32_t e = t0 - SysTick->VAL;
     if ((int32_t)e < 0) e += load;
@@ -160,6 +162,9 @@ static int st_ledstrip_write(void* ctx, int pin, const uint8_t* d, size_t n, int
     }
     return 0;
 }
+static const mcs_ws2812_ops_t st_ws2812_ops = { st_ledstrip_write };
+static const mcs_driver_t st_ws2812 = MCS_WS2812_DRIVER(&st_ws2812_ops, NULL);
+#endif
 static int st_gpio_read(void* ctx, int pin) {
     (void)ctx;
     GPIO_TypeDef* g = port_fast(pin);
@@ -1036,7 +1041,9 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->delay_us = st_delay_us;
     hal->reset = st_reset;
     hal->unique_id = st_unique_id;
-    hal->ledstrip_write = st_ledstrip_write;
+#if MCS_ENABLE_WS2812
+    mcs_driver_register_default(&st_ws2812);      /* keeps a "ws2812" you registered first */
+#endif
     hal->pin_lookup = s_pin_lookup;
     hal->cpu_hz = SystemCoreClock;
 }

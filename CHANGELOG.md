@@ -4,6 +4,29 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Fix:** declaring a type again as an `enum` (or with a different kind) crashed the compiler; it
+  is now the error `the type 'X' is already defined` (partial classes/structs/interfaces still merge).
+* **Device drivers** (`include/mcs_driver.h`, `modules/drivers/`, [docs/DRIVERS.md](docs/DRIVERS.md)):
+  a driver = a C# front end + a per-MCU backend (`ops` table + context), kept in a small registry
+  (`mcs_driver_register` / `_register_default` / `_unregister` / `_find`). Firmware can add its own
+  drivers or replace a built-in backend without editing MicroCS; C# `Drivers.Has(name)`,
+  `Drivers.List`, and `Hal.Has` also answers for driver and class names. The template port shows a
+  `ws2812` backend and a complete custom driver (`Buzzer`).
+* **`LedStrip` is now the built-in `ws2812` driver and optional:** `MCS_ENABLE_WS2812` (CMake
+  `-DMICROCS_WS2812=OFF` — on RP2 it also drops `hardware_pio`; ESP-IDF menuconfig and Zephyr
+  `CONFIG_MICROCS_WS2812`; `make_arduino.py --no-ws2812`; `microcs.mk` `MICROCS_WS2812 := 0`).
+  The unreleased `mcs_hal_t.ledstrip_write` hook is gone (the HAL API stays at v2); backends
+  register `MCS_WS2812_DRIVER(&ops, ctx)`. `include/mcs_ledstrip_drivers.h` is now
+  `include/mcs_ws2812_backends.h` (`mcs_ws2812_pio_write`, `mcs_ws2812_rmt_write`).
+* **Filesystem sources are looked up, not downloaded behind your back:** `cmake/MicroCSFS.cmake`
+  uses `MICROCS_LITTLEFS_DIR` / `MICROCS_YAFFS2_DIR` (CMake or environment), then a copy next to the
+  project or MicroCS (`third_party/`, `lib/`, `external/`, `Middlewares/Third_Party/`, siblings, the
+  west workspace, `make fetch-lfs` output), then an earlier download; it downloads only with
+  `-DMICROCS_FS_DOWNLOAD=ON` / `MICROCS_FS_DOWNLOAD=1`, else stops with a message saying what to
+  set. LittleFS must be v2.x. The Pico example now needs one of those for its default LittleFS.
+* **Arduino:** `tools/make_arduino.py --fs littlefs|yaffs2 [--fs-dir DIR]` bundles a flash
+  filesystem into the library (for `mcs_flashfs_mount` on any `mcs_flash_t`), `--define NAME=VALUE`
+  sets build options in the packaged `mcs_config.h`.
 * **Scheduler jobs run while a script sleeps:** `Thread.Sleep` in a main loop now runs due
   jobs (Scheduler.Every/After delegates and jobs.cfg scripts); before, a looping `/main.cs`
   starved every job. Nested script jobs keep the outer script's top-level variables intact.
@@ -26,8 +49,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   changed on the device (e.g. a log the script appended to); double-click on a template = Add.
 * `List<int>.Sort()` / `Array.Sort(int[])` sort in place without extra memory (was 16 bytes per
   element); the *CPU benchmark* template sizes fit a 160 KB heap (RP2040).
-* **`LedStrip` — WS2812 / NeoPixel / SK6812 on any pin** (hardware API v3, new `mcs_hal_t.ledstrip_write`
-  hook): `new LedStrip(pin, count[, order])`, indexer, `SetPixel`, `Fill`, `Clear`, `Show`,
+* **`LedStrip` — WS2812 / NeoPixel / SK6812 on any pin** (the `ws2812` driver, see *Device drivers* above): `new LedStrip(pin, count[, order])`, indexer, `SetPixel`, `Fill`, `Clear`, `Show`,
   `Brightness`, `LedStrip.Rgb` / `LedStrip.Hsv`, GRB / RGB / GRBW orders. Drivers: RP2040/RP2350 PIO,
   ESP32 RMT (all chips with RMT), STM32 cycle-timed bit-bang, Zephyr `led_strip` (alias `led-strip`),
   Arduino (ESP32 RMT, Arduino-Pico PIO, Adafruit_NeoPixel), simulator log. Pin name `"NEOPIXEL"`

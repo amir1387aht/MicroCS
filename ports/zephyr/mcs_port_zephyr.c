@@ -1,5 +1,6 @@
 /* MicroCS port for Zephyr RTOS - portable driver APIs only. See mcs_port_zephyr.h. */
 #include "mcs_port_zephyr.h"
+#include "mcs_driver.h"
 #include <string.h>
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
@@ -742,7 +743,7 @@ static int z_reset(void* ctx) {
  * Through Zephyr's led_strip API on the devicetree node aliased `led-strip`
  * (worldsemi,ws2812-spi / -gpio / -i2s / -rpi_pico-pio, ...; CONFIG_LED_STRIP=y).
  * The strip's pin comes from the devicetree, so LedStrip's pin argument is not used. */
-#if defined(CONFIG_LED_STRIP) && DT_NODE_EXISTS(DT_ALIAS(led_strip))
+#if MCS_ENABLE_WS2812 && defined(CONFIG_LED_STRIP) && DT_NODE_EXISTS(DT_ALIAS(led_strip))
 #include <zephyr/drivers/led_strip.h>
 #define Z_STRIP_LEN DT_PROP_OR(DT_ALIAS(led_strip), chain_length, 64)
 static int z_ledstrip_write(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
@@ -759,6 +760,8 @@ static int z_ledstrip_write(void* ctx, int pin, const uint8_t* d, size_t n, int 
     }
     return led_strip_update_rgb(dev, px, count) ? MCS_HAL_ERR : 0;
 }
+static const mcs_ws2812_ops_t z_ws2812_ops = { z_ledstrip_write };
+static const mcs_driver_t z_ws2812 = MCS_WS2812_DRIVER(&z_ws2812_ops, NULL);
 #define Z_HAS_LEDSTRIP 1
 #endif
 static int z_unique_id(void* ctx, uint8_t* buf, size_t cap) {
@@ -991,7 +994,7 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     hal->reset = z_reset;
     hal->unique_id = z_unique_id;
 #ifdef Z_HAS_LEDSTRIP
-    hal->ledstrip_write = z_ledstrip_write;
+    mcs_driver_register_default(&z_ws2812);       /* "ws2812" driver on the led-strip alias */
 #endif
     hal->cpu_hz = (uint32_t)sys_clock_hw_cycles_per_sec();
 }

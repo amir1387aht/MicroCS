@@ -126,8 +126,12 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
    has (GPIO first — everything else is optional; see [HAL.md](HAL.md#writing-a-board-table)).
 3. Post interrupts with `mcs_hal_post(MCS_HAL_EV_GPIO, pin, level)` and timer ticks with
    `MCS_HAL_EV_TIMER`.
-4. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
-5. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
+4. Optional: persistent files — fill the template's `mcs_flash_t` (`read` / `prog` / `erase` of
+   the chip's flash) and build with `MICROCS_FS=littlefs` or `yaffs2`
+   ([FILESYSTEM.md](FILESYSTEM.md#every-port-and-new-mcus)); drivers — fill the template's
+   `ws2812_write` backend for `LedStrip`, or add your own driver ([DRIVERS.md](DRIVERS.md)).
+5. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
+6. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
    freely downloadable.
 
 ## 5. Bare-metal Cortex-M reference (`ports/cortex-m/`)

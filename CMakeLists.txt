@@ -15,8 +15,10 @@
 #   MICROCS_CONFIG    path of your own config header (overrides MICROCS_PROFILE)
 #   MICROCS_PORT      "" | stm32 | rp2 | esp32 | template          (adds ports/<port>/mcs_port_<port>.c)
 #   MICROCS_MODULES   ON: filesystem, HAL, scheduler, shell/REPL, runtime (default ON)
-#   MICROCS_FS        "" | littlefs | yaffs2: compile a flash filesystem in (downloaded once,
-#                     see cmake/MicroCSFS.cmake) -> mcs_flashfs_mount() on the port's flash driver
+#   MICROCS_FS        "" | littlefs | yaffs2: compile a flash filesystem in -> mcs_flashfs_mount() on the
+#                     port's flash driver. Sources are not bundled: MICROCS_LITTLEFS_DIR / MICROCS_YAFFS2_DIR,
+#                     a copy found next to the project, or -DMICROCS_FS_DOWNLOAD=ON (cmake/MicroCSFS.cmake)
+#   MICROCS_WS2812    ON: the built-in "ws2812" driver (C# LedStrip; RP2: links hardware_pio) (default ON)
 cmake_minimum_required(VERSION 3.13)
 
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -39,6 +41,9 @@ if(ESP_PLATFORM)
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs
         PRIV_REQUIRES esp_system)
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
+    if(NOT CONFIG_MICROCS_WS2812)       # menuconfig > MicroCS > WS2812 / NeoPixel driver
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_WS2812=0)
+    endif()
     if(CONFIG_MICROCS_FS_YAFFS2)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
         set_source_files_properties(${_mcs_fs_srcs} PROPERTIES COMPILE_OPTIONS "-w;-include;sys/types.h")
@@ -73,7 +78,10 @@ if(NOT DEFINED MICROCS_FS)
     set(MICROCS_FS "" CACHE STRING "Flash filesystem to compile in: littlefs, yaffs2 (GPLv2) or empty")
 endif()
 if(NOT DEFINED MICROCS_MODULES)
-    option(MICROCS_MODULES "Build the optional modules (fs, hal, sched, shell, runtime)" ON)
+    option(MICROCS_MODULES "Build the optional modules (fs, hal, drivers, sched, shell, runtime)" ON)
+endif()
+if(NOT DEFINED MICROCS_WS2812)
+    option(MICROCS_WS2812 "Built-in ws2812 driver: C# LedStrip (WS2812 / SK6812 strips)" ON)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -116,6 +124,9 @@ elseif(MICROCS_FS)
     include(${MICROCS_DIR}/cmake/MicroCSFS.cmake)
     microcs_add_fs(microcs "${MICROCS_FS}")
 endif()
+if(NOT MICROCS_WS2812)
+    target_compile_definitions(microcs PUBLIC MCS_ENABLE_WS2812=0)
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(microcs PRIVATE -Wall -Wextra)
 endif()
@@ -130,7 +141,10 @@ endif()
 if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
                           hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
-                          hardware_flash hardware_sync hardware_pio)
+                          hardware_flash hardware_sync)
+    if(MICROCS_WS2812)
+        target_link_libraries(microcs PUBLIC hardware_pio)   # the ws2812 driver's PIO backend
+    endif()
     if(TARGET pico_flash)
         target_link_libraries(microcs PUBLIC pico_flash)   # flash_safe_execute (pico-sdk >= 1.5.1)
     endif()

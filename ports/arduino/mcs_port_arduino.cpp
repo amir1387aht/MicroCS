@@ -1,5 +1,6 @@
 /* MicroCS port for the Arduino API. See mcs_port_arduino.h. */
 #include "mcs_port_arduino.h"
+#include "mcs_driver.h"
 #include <string.h>
 #if defined(ARDUINO_ARCH_AVR)
 #include <avr/wdt.h>
@@ -419,20 +420,23 @@ static int a_wdt_feed(void*) { return esp_rc(esp_task_wdt_reset()); }
 static int a_adc_read_mv(void*, int pin) { return (int)analogReadMilliVolts((uint8_t)pin); }
 #endif
 
-/* ------------------------------------------------------------------ WS2812 / NeoPixel
- * ESP32 (core 3.x): RMT, RP2040 / RP2350 (Arduino-Pico): PIO - the same drivers as the
+/* ------------------------------------------------------------------ "ws2812" driver (C# LedStrip)
+ * ESP32 (core 3.x): RMT, RP2040 / RP2350 (Arduino-Pico): PIO - the same backends as the
  * native ports. Other boards: the Adafruit NeoPixel library when the sketch includes
- * <Adafruit_NeoPixel.h> (the include also tells the IDE to build that library). */
-#if defined(ESP32) && ESP_IDF_VERSION_MAJOR >= 5 && SOC_RMT_SUPPORTED
-#define MCS_LEDSTRIP_ESP32_RMT 1
-#include "mcs_ledstrip_drivers.h"
+ * <Adafruit_NeoPixel.h> (the include also tells the IDE to build that library).
+ * MCS_ENABLE_WS2812=0 (tools/make_arduino.py --no-ws2812) leaves it out. */
+#if !MCS_ENABLE_WS2812
+/* off */
+#elif defined(ESP32) && ESP_IDF_VERSION_MAJOR >= 5 && SOC_RMT_SUPPORTED
+#define MCS_WS2812_ESP32_RMT 1
+#include "mcs_ws2812_backends.h"
 #define MCS_ARDUINO_LEDSTRIP 1
-static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int) { return mcs_ledstrip_rmt_write(pin, d, n); }
+#define a_ledstrip_write mcs_ws2812_rmt_write
 #elif defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
-#define MCS_LEDSTRIP_RP2_PIO 1
-#include "mcs_ledstrip_drivers.h"
+#define MCS_WS2812_RP2_PIO 1
+#include "mcs_ws2812_backends.h"
 #define MCS_ARDUINO_LEDSTRIP 1
-static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int) { return mcs_ledstrip_pio_write(pin, d, n); }
+#define a_ledstrip_write mcs_ws2812_pio_write
 #elif defined(__has_include)
 #if __has_include(<Adafruit_NeoPixel.h>)
 #include <Adafruit_NeoPixel.h>
@@ -456,6 +460,10 @@ static int a_ledstrip_write(void*, int pin, const uint8_t* d, size_t n, int orde
     return 0;
 }
 #endif
+#endif
+#ifdef MCS_ARDUINO_LEDSTRIP
+static const mcs_ws2812_ops_t a_ws2812_ops = { a_ledstrip_write };
+static const mcs_driver_t a_ws2812 = MCS_WS2812_DRIVER(&a_ws2812_ops, NULL);
 #endif
 /* ------------------------------------------------------------------ RP2040 / RP2350 (Arduino-Pico): I2S, watchdog */
 #if defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
@@ -705,7 +713,7 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     hal->reset = a_reset;
     hal->unique_id = a_unique_id;
 #ifdef MCS_ARDUINO_LEDSTRIP
-    hal->ledstrip_write = a_ledstrip_write;
+    mcs_driver_register_default(&a_ws2812);       /* keeps a "ws2812" you registered first */
 #endif
 #if defined(ESP32)
     hal->cpu_hz = (uint32_t)getCpuFrequencyMhz() * 1000000u;

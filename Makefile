@@ -54,7 +54,8 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=16 -DMCS_TARGET_FLASH_KB=64" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=64 -DMCS_PORT_HAL=1" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DSTM32F072xB -DMCS_PORT_HAL=1" \
-	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_ENABLE_SUPEROPS=0"
+	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_ENABLE_SUPEROPS=0" \
+	"-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
 	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
@@ -68,6 +69,9 @@ check: test
 	@echo "== feature flag builds"; for f in $(FLAG_SETS); do \
 	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_flags || { echo "BUILD FAIL $$f"; exit 1; }; \
 	echo "OK $$f"; done
+	@for f in "" "-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" "-DMCS_ENABLE_HAL=0"; do \
+	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f -c ports/template/mcs_port_template.c -o build/template.o || { echo "BUILD FAIL ports/template $$f"; exit 1; }; done; \
+	echo "OK ports/template (drivers, flash filesystem skeleton)"
 	@echo "== alternate configurations (full script suite)"; for f in $(ALT_CONFIGS); do \
 	$(CC) -std=gnu99 -O1 -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_alt || { echo "BUILD FAIL $$f"; exit 1; }; \
 	sh tests/run_tests.sh ./build/mcs_alt > build/alt.txt 2>&1 && echo "OK $$f ($$(tail -n 1 build/alt.txt))" || { cat build/alt.txt | grep FAIL; echo "FAIL $$f"; exit 1; }; done

@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 3
+#define MCS_HAL_API_VERSION 2
 
 #ifndef MCS_HAL_MAX_XFER
 #define MCS_HAL_MAX_XFER 256     /* largest single transfer per call; buffers live on the C stack */
@@ -207,23 +207,18 @@ typedef struct mcs_hal {
      * queue). Return 1 when *ev was filled, 0 when empty. */
     int (*poll_event)(void* ctx, mcs_hal_event_t* ev);
 
-    /* ---------------- v3 ---------------- */
-    /* Addressable LEDs (WS2812 / WS2812B / SK6812 / WS2811, 800 kHz one-wire):
-     * send n bytes MSB first on `pin` (T0H 0.4 us, T1H 0.8 us, 1.25 us per bit),
-     * then keep the line low >= 280 us so the strip latches. The bytes are
-     * already in the strip's wire order and scaled by brightness; `order`
-     * (MCS_LED_GRB / _RGB / _GRBW) tells the layout to drivers that need it
-     * (Zephyr's led_strip API). Any pin: done with PIO (RP2), RMT (ESP32),
-     * a cycle-timed loop with interrupts off (STM32) or the platform driver. */
-    int (*ledstrip_write)(void* ctx, int pin, const uint8_t* data, size_t n, int order);
 } mcs_hal_t;
-
-enum { MCS_LED_GRB = 0, MCS_LED_RGB = 1, MCS_LED_GRBW = 2 };
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
  * object classes Pin / I2cDevice / SpiDevice / CanFrame. The HAL struct must
  * outlive the VM. Stored in MCS_EXT_HAL. */
 void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* hal);
+/* Helpers for driver front ends (mcs_driver.h) and your own natives:
+ * a pin given as a number or a board name ("GP16", "PA5", "NEOPIXEL") - raises
+ * ArgumentException and returns -1 when unknown; and the C# exception for a
+ * negative MCS_HAL_E* code ("op: not supported" ...), returns null. */
+int mcs_hal_pin_arg(mcs_vm_t* vm, mcs_value_t v);
+mcs_value_t mcs_hal_raise(mcs_vm_t* vm, const char* op, int rc);
 /* Release the VM's HAL slot (call before mcs_free when VMs are recycled). */
 void mcs_hal_close_lib(mcs_vm_t* vm);
 /* The board table opened on this VM (NULL if none). */

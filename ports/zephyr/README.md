@@ -54,8 +54,8 @@ west build -b native_sim/native/64 microcs/ports/zephyr/example
 it the first time, or reuses an `fstab` automount) and C# sees it as `/`. Boards without a
 storage partition fall back to a RAM filesystem — add one in `boards/<board>.overlay` (see
 [`boards/rpi_pico.overlay`](example/boards/rpi_pico.overlay)). **YAFFS2** on the same partition: build with
-`-DEXTRA_CONF_FILE=overlay-yaffs2.conf` (`CONFIG_MICROCS_YAFFS2=y`, downloads yaffs2 —
-GPLv2 or commercial licence); `mcs_zephyr_flash_area_init()` wraps any flash area as an
+`-DEXTRA_CONF_FILE=overlay-yaffs2.conf` (`CONFIG_MICROCS_YAFFS2=y`; yaffs2 from `-DMICROCS_YAFFS2_DIR=...`, the west workspace
+`modules/fs/yaffs2`, or a one-time download with `-DMICROCS_FS_DOWNLOAD=ON` — GPLv2 or commercial licence); `mcs_zephyr_flash_area_init()` wraps any flash area as an
 `mcs_flash_t` and `mcs_flashfs_mount()` formats/mounts it (YAFFS2 needs ≥6 erase blocks:
 `boards/native_sim_yaffs2.overlay` gives `native_sim` a 136 KB storage partition). Any other mounted Zephyr
 filesystem works too, e.g. FAT on an SD card:
@@ -75,7 +75,7 @@ cfg.fs_ops = &mcs_zephyr_fs_ops; cfg.fs_ctx = &sd;  // mcs_runtime_cfg_t
 | `I2C` / `SPI` | aliases `mcs-i2cN` / `mcs-spiN` (fallback: `i2c0`, `spi1`…) |
 | `ADC.Read(n)` | n-th entry of `io-channels` in `/zephyr,user` |
 | `PWM.Set(n, ...)` | n-th entry of `pwms` in `/zephyr,user` |
-| `LedStrip` | `led_strip` device at alias `led-strip` (`CONFIG_LED_STRIP=y`, `chain-length`); the pin argument is ignored |
+| `LedStrip` | `ws2812` driver (`CONFIG_MICROCS_WS2812`, default y): `led_strip` device at alias `led-strip` (`CONFIG_LED_STRIP=y`, `chain-length`); the pin argument is ignored |
 | `DAC` | alias `mcs-dac` |
 | `I2S.Open(n)` | alias `mcs-i2sN` (fallback: `i2s0`) — memory-slab streaming, `CONFIG_I2S=y` |
 | `CAN.Open(n)` | alias `mcs-canN` (bus 0 falls back to chosen `zephyr,canbus`) |

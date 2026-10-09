@@ -4,6 +4,7 @@
 #include "mcs_vfs.h"
 #include "mcs_sched.h"
 #include "mcs_hal.h"
+#include "mcs_driver.h"
 #include "mcs_runtime.h"
 #include <stdio.h>
 #include <string.h>
@@ -362,6 +363,16 @@ static void test_sleep_limit(void) {
     mcs_free(vm);
 }
 
+/* fuzz finding (CI run 52): a type declared again as an enum crashed the parser */
+static void test_type_redefinition(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "dup.cs", "enum A { X }\nclass B { enum A { Y } }\n") == MCS_ERR_COMPILE);
+    CHECK(strstr(mcs_last_error(vm), "already defined") != NULL);
+    CHECK(mcs_exec_source(vm, "dup2.cs", "class C { }\nenum C { Z }\n") == MCS_ERR_COMPILE);
+    CHECK(mcs_exec_source(vm, "part.cs", "partial class P { public int a = 1; }\npartial class P { public int b = 2; }\n"
+                                          "Console.WriteLine(new P().a + new P().b);") == MCS_OK && strstr(outbuf, "3\n"));
+    mcs_free(vm);
+}
 static void test_arity(void) {
     mcs_vm_t* vm = new_vm();
     CHECK(mcs_exec_source(vm, "a.cs", "Action a0 = () => {}; Action<int,int> a2 = (x, y) => {}; static int F(int a, int b, int c) => a;") == MCS_OK);
@@ -537,6 +548,78 @@ static void test_runtime_readline(void) {
 }
 #endif
 
+#if MCS_ENABLE_DRIVERS && MCS_ENABLE_COMPILER
+/* a user driver (front end + backend ops), replacing the ws2812 backend,
+ * register_default keeping the first one, unregister */
+typedef struct { int (*beep)(void* ctx, int hz); } beeper_ops_t;
+static int beeps, beep_hz;
+static int my_beep(void* ctx, int hz) { beeps += *(int*)ctx; beep_hz = hz; return hz > 0 ? 0 : MCS_HAL_EINVAL; }
+static mcs_value_t bp_beep(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
+    (void)self; (void)argc;
+    const mcs_driver_t* d = mcs_driver_find("beeper");
+    int hz = (int)mcs_to_int(vm, argv[0]);
+    if (mcs_has_exception(vm)) return mcs_null();
+    int rc = ((const beeper_ops_t*)d->ops)->beep(d->ctx, hz);
+    return rc < 0 ? mcs_hal_raise(vm, "Beeper.Beep", rc) : mcs_null();
+}
+static const mcs_reg_t beeper_fns[] = { MCS_FN("Beep", bp_beep, 1), MCS_REG_END };
+static void beeper_open(mcs_vm_t* vm, const mcs_driver_t* d) { (void)d; mcs_register_module(vm, "Beeper", beeper_fns); }
+#if MCS_ENABLE_WS2812
+static int ws_frames, ws_bytes;
+static int my_ws(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
+    (void)ctx; (void)d; (void)order; ws_frames++; ws_bytes = (int)n; return pin == 7 ? MCS_HAL_EBUSY : 0;
+}
+#endif
+static void test_drivers(void) {
+    static int step = 1;
+    static const beeper_ops_t bops = { my_beep };
+    static const mcs_driver_t beeper = { "beeper", "Beeper", beeper_open, &bops, &step };
+    static const mcs_driver_t beeper2 = { "beeper", "Beeper", NULL, NULL, NULL };
+    static const mcs_driver_t bad = { "", NULL, NULL, NULL, NULL };
+    static mcs_hal_t hal; static mcs_hal_sim_t sim;
+    memset(&sim, 0, sizeof sim);
+    mcs_hal_sim_init(&hal, &sim);              /* registers the simulator's "ws2812" */
+    CHECK((mcs_driver_find("ws2812") != NULL) == MCS_ENABLE_WS2812);
+    CHECK(mcs_driver_register(&bad) == MCS_HAL_EINVAL);
+    CHECK(mcs_driver_register(&beeper) == 0);
+    CHECK(mcs_driver_register_default(&beeper2) == 0 && mcs_driver_find("beeper") == &beeper);
+    int n0 = mcs_driver_count();
+#if MCS_ENABLE_WS2812
+    static const mcs_ws2812_ops_t wops = { my_ws };
+    static const mcs_driver_t myws = MCS_WS2812_DRIVER(&wops, NULL);
+    CHECK(mcs_driver_register(&myws) == 0 && mcs_driver_count() == n0);   /* replaced, not added */
+#endif
+    CHECK(mcs_driver_provides("Beeper") && mcs_driver_provides("beeper") && !mcs_driver_provides("Beep"));
+    mcs_vm_t* vm = new_vm();
+    mcs_hal_open_lib(vm, &hal);
+    CHECK(mcs_exec_source(vm, "drv.cs",
+        "Beeper.Beep(440); Beeper.Beep(880);"
+        "Console.WriteLine($\"{Drivers.Has(\"beeper\")} {Hal.Has(\"Beeper\")} {Drivers.Has(\"x\")} {Drivers.List.Length}\");"
+        "try { Beeper.Beep(0); } catch (ArgumentException e) { Console.WriteLine(e.Message); }") == MCS_OK);
+    CHECK(beeps == 3 && beep_hz == 0);
+    char want[96]; snprintf(want, sizeof want, "True True False %d\nBeeper.Beep: invalid argument\n", n0);
+    CHECK(!strcmp(outbuf, want));
+#if MCS_ENABLE_WS2812
+    outlen = 0; outbuf[0] = 0;
+    CHECK(mcs_exec_source(vm, "ws.cs",
+        "var s = new LedStrip(3, 5, LedStrip.GRBW); s.Fill(0x123456); s.Show();"
+        "try { new LedStrip(7, 1).Show(); } catch (IOException e) { Console.WriteLine(e.Message); }") == MCS_OK);
+    CHECK(ws_frames == 2 && ws_bytes == 3);
+    CHECK(strstr(outbuf, "LedStrip.Show: busy") != NULL);
+#endif
+    mcs_hal_close_lib(vm);
+    mcs_free(vm);
+    CHECK(mcs_driver_unregister("beeper") == 0 && mcs_driver_unregister("beeper") == MCS_HAL_ENODEV);
+    CHECK(mcs_driver_count() == n0 - 1 && !mcs_driver_provides("Beeper"));
+    vm = new_vm();
+    mcs_hal_open_lib(vm, &hal);                /* no Beeper class any more */
+    CHECK(mcs_exec_source(vm, "gone.cs", "Beeper.Beep(1);") != MCS_OK);
+    mcs_hal_close_lib(vm);
+    mcs_free(vm);
+    mcs_hal_sim_init(&hal, &sim);              /* the simulator's ws2812 again */
+}
+#endif
+
 int main(void) {
     test_normalize();
     test_mounts();
@@ -551,8 +634,12 @@ int main(void) {
 #if MCS_ENABLE_COMPILER
     test_sleep_limit();
     test_arity();
+    test_type_redefinition();
 #if MCS_ENABLE_HAL
     test_hal_events();
+#endif
+#if MCS_ENABLE_DRIVERS
+    test_drivers();
 #endif
     test_intern_churn();
     test_dict_index();

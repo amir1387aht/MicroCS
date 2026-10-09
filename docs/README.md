@@ -7,6 +7,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 |---|---|---|
 | 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
 | 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
+| 🧩 | [Device drivers](DRIVERS.md) | the driver registry, the built-in `ws2812` driver (`LedStrip`) and its per-MCU backends, writing your own, turning drivers off |
 | 🧭 | [Porting & build systems](PORTING.md) | Make, CMake, ESP-IDF, Zephyr, PlatformIO, Arduino, CubeIDE/Keil/IAR; the vendor ports; new chips |
 | 📟 | [Standalone firmware](STANDALONE.md) | `mcs_runtime`, the REPL, boot sequence, upload protocol, `mcs_remote.py` |
 | 🔧 | [Embedding](EMBEDDING.md) | the C API: VMs, running code, C bindings, calling scripts, limits, GC rules |

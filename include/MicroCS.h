@@ -7,6 +7,7 @@
 #include "mcs.h"
 #include "mcs_bind.h"
 #include "mcs_hal.h"
+#include "mcs_driver.h"
 #include "mcs_vfs.h"
 #include "mcs_sched.h"
 #include "mcs_shell.h"

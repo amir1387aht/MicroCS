@@ -14,3 +14,5 @@ Console.WriteLine(Hal.Has("LedStrip"));
 strip.Clear(); Console.WriteLine($"{strip[0]:X6} {strip[2]:X6}");
 var c = 0; for (var i = 0; i < 360; i += 60) c ^= LedStrip.Hsv(i); Console.WriteLine($"{c:X6}");
 strip.Dispose();
+// drivers: LedStrip comes from the built-in "ws2812" driver
+Console.WriteLine($"{Drivers.Has("ws2812")} {Drivers.Has("LedStrip")} {Drivers.Has("nope")} {Hal.Has("ws2812")} {string.Join(",", Drivers.List)}");

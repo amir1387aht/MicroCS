@@ -77,11 +77,57 @@ least 6 erase blocks.
 |---|---|---|
 | CMake (`add_subdirectory(MicroCS)`, Pico SDK, STM32CubeIDE CMake) | `-DMICROCS_FS=littlefs` | `-DMICROCS_FS=yaffs2` |
 | ESP-IDF | menuconfig → MicroCS → *Filesystem on the "storage" partition* → LittleFS | → YAFFS2 (`CONFIG_MICROCS_FS_YAFFS2=y`) |
-| Zephyr | default | `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` |
+| Zephyr | default (Zephyr's own LittleFS module) | `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` |
+| Arduino IDE | the core's `LittleFS` (ESP32, RP2040) via `mcs_arduino_fs`; other boards: `tools/make_arduino.py --fs littlefs` | `tools/make_arduino.py --fs yaffs2` |
 | Makefile / other | add `lfs.c lfs_util.c`, `-DMCS_ENABLE_LFS=1` | add yaffs2 `direct/` + `core/`, `-DMCS_ENABLE_YAFFS=1` + the defines below |
 
-`cmake/MicroCSFS.cmake` downloads LittleFS v2.9.3 or a pinned yaffs2 revision at
-configure time (`FetchContent`) and adds the sources and defines; nothing is vendored.
+### Where the sources come from
+
+Neither filesystem is bundled with MicroCS, and **nothing is downloaded unless you ask
+for it.** `cmake/MicroCSFS.cmake` (CMake, pico-sdk, STM32CubeMX, ESP-IDF's YAFFS2,
+Zephyr's YAFFS2) looks in this order:
+
+1. `MICROCS_LITTLEFS_DIR` / `MICROCS_YAFFS2_DIR` — a CMake or environment variable with the
+   folder holding `lfs.c` + `lfs.h`, or the yaffs2 checkout with `direct/` and `core/`
+   (configuring stops if the folder does not have them);
+2. a copy next to your project or MicroCS: `<project>/littlefs`, `lib/`, `libs/`,
+   `third_party/`, `thirdparty/`, `external/`, `extern/`, `vendor/`, `deps/`, `components/`,
+   `Middlewares/Third_Party/` and `<project>/..`; `<MicroCS>/third_party/` and `<MicroCS>/..`;
+   the west workspace (`modules/fs/littlefs`); `MicroCS/build/third_party` (`make fetch-lfs` /
+   `make fetch-yaffs`) — the same names with `yaffs2`;
+3. an earlier download in `<build>/_microcs_deps`;
+4. with `-DMICROCS_FS_DOWNLOAD=ON` (or the environment variable `MICROCS_FS_DOWNLOAD=1`, handy
+   for `idf.py`): download LittleFS v2.9.3 / the pinned yaffs2 revision once into
+   `<build>/_microcs_deps`.
+
+If none applies, configuring stops and tells you which variable to set. The configure
+log names the folder used (`-- MicroCS: LittleFS from ...`); any LittleFS v2.x works.
+
+```sh
+git clone -b v2.9.3 https://github.com/littlefs-project/littlefs ~/src/littlefs
+cmake -B build -DPICO_BOARD=pico -DMICROCS_LITTLEFS_DIR=~/src/littlefs    # or: -DMICROCS_FS_DOWNLOAD=ON
+```
+
+ESP-IDF's LittleFS comes from the `joltwallet/littlefs` component (`idf_component.yml`,
+fetched by the IDF component manager) and Zephyr's from its `littlefs` module, so only
+their YAFFS2 option uses the lookup above.
+
+### Every port, and new MCUs
+
+| Port | LittleFS | YAFFS2 | Flash driver |
+|---|---|---|---|
+| RP2040 / RP2350 (pico-sdk) | ✓ `-DMICROCS_FS=littlefs` (example default) | ✓ `-DMICROCS_FS=yaffs2` | `mcs_rp2_flash_init` |
+| STM32 (CubeMX CMake / Make) | ✓ | ✓ (better on 128 KB sectors) | `mcs_stm32_flash_init` |
+| ESP32 (ESP-IDF) | ✓ esp_littlefs component (default) | ✓ menuconfig | `mcs_esp32_partition_flash` |
+| Zephyr | ✓ Zephyr LittleFS (default) | ✓ `overlay-yaffs2.conf` | `mcs_zephyr_flash_area_init` |
+| Arduino | ✓ core LittleFS / SD, or bundled (`--fs littlefs`, boards whose core has no LittleFS) | ✓ bundled (`--fs yaffs2`) | any `mcs_flash_t` (SPI NOR / NAND drivers) |
+| any other MCU (`ports/template`) | ✓ | ✓ | write `read` / `prog` / `erase` of a `mcs_flash_t` — skeleton in `ports/template/mcs_port_template.c` |
+
+Both adapters only talk to `mcs_flash_t`, so a new MCU needs nothing filesystem-specific:
+describe its flash (erase-block size and count, program unit in `write_size`), implement
+three functions, and call `mcs_flashfs_mount()`. On Arduino the core's own LittleFS
+(ESP32, RP2040) already links `lfs_*`; do not bundle a second copy there (use
+`mcs_arduino_fs` or `--fs yaffs2`).
 
 ## Raw flash: NOR and NAND (`mcs_flash.h`, `MCS_ENABLE_FLASH`)
 `mcs_flash_t` describes a chip (page, spare, erase-block size, block count;

@@ -239,6 +239,20 @@
 #ifndef MCS_ENABLE_SCHED
 #define MCS_ENABLE_SCHED 1         /* job scheduler                 */
 #endif
+#ifndef MCS_ENABLE_DRIVERS
+#define MCS_ENABLE_DRIVERS MCS_ENABLE_HAL /* device drivers (mcs_driver.h): registry + C# Drivers class */
+#endif
+#if MCS_ENABLE_DRIVERS && !MCS_ENABLE_HAL
+#undef MCS_ENABLE_DRIVERS
+#define MCS_ENABLE_DRIVERS 0       /* drivers are opened with the HAL library */
+#endif
+#ifndef MCS_ENABLE_WS2812
+#define MCS_ENABLE_WS2812 MCS_ENABLE_DRIVERS /* built-in "ws2812" driver: C# LedStrip (WS2812/SK6812) */
+#endif
+#if MCS_ENABLE_WS2812 && !MCS_ENABLE_DRIVERS
+#undef MCS_ENABLE_WS2812
+#define MCS_ENABLE_WS2812 0
+#endif
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
 #endif
