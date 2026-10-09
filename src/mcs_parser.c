@@ -1766,6 +1766,8 @@ static void parse_type_decl(parser_t* P, uint8_t mods) {
     token_t* nm = expect(P, TK_IDENT, "type name");
     classdecl_t* c = find_class(P->prog, nm->start, nm->len);
     bool is_new = c == NULL;
+    if (c && (kind == C_ENUM || c->kind != (uint8_t)kind))   /* only partial class/struct/interface reopen */
+        perr(P, nm, "the type '%.*s' is already defined", (int)nm->len, nm->start);
     if (!c) {
         c = (classdecl_t*)arena_alloc(P->A, sizeof(classdecl_t));
         c->kind = (uint8_t)kind; c->name = nm->start; c->len = nm->len; c->line = nm->line;
@@ -1789,7 +1791,8 @@ static void parse_type_decl(parser_t* P, uint8_t mods) {
     skip_where(P);
     if (kind == C_ENUM) {
         expect(P, TK_LBRACE, "'{'");
-        enumval_t* tl = NULL;
+        enumval_t* tl = c->enums;
+        while (tl && tl->next) tl = tl->next;
         while (!check(P, TK_RBRACE)) {
             skip_attributes(P);
             token_t* en = expect(P, TK_IDENT, "enum member");

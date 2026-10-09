@@ -363,6 +363,16 @@ static void test_sleep_limit(void) {
     mcs_free(vm);
 }
 
+/* fuzz finding (CI run 52): a type declared again as an enum crashed the parser */
+static void test_type_redefinition(void) {
+    mcs_vm_t* vm = new_vm();
+    CHECK(mcs_exec_source(vm, "dup.cs", "enum A { X }\nclass B { enum A { Y } }\n") == MCS_ERR_COMPILE);
+    CHECK(strstr(mcs_last_error(vm), "already defined") != NULL);
+    CHECK(mcs_exec_source(vm, "dup2.cs", "class C { }\nenum C { Z }\n") == MCS_ERR_COMPILE);
+    CHECK(mcs_exec_source(vm, "part.cs", "partial class P { public int a = 1; }\npartial class P { public int b = 2; }\n"
+                                          "Console.WriteLine(new P().a + new P().b);") == MCS_OK && strstr(outbuf, "3\n"));
+    mcs_free(vm);
+}
 static void test_arity(void) {
     mcs_vm_t* vm = new_vm();
     CHECK(mcs_exec_source(vm, "a.cs", "Action a0 = () => {}; Action<int,int> a2 = (x, y) => {}; static int F(int a, int b, int c) => a;") == MCS_OK);
@@ -624,6 +634,7 @@ int main(void) {
 #if MCS_ENABLE_COMPILER
     test_sleep_limit();
     test_arity();
+    test_type_redefinition();
 #if MCS_ENABLE_HAL
     test_hal_events();
 #endif

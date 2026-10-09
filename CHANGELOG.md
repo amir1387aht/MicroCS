@@ -4,6 +4,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Fix:** declaring a type again as an `enum` (or with a different kind) crashed the compiler; it
+  is now the error `the type 'X' is already defined` (partial classes/structs/interfaces still merge).
 * **Device drivers** (`include/mcs_driver.h`, `modules/drivers/`, [docs/DRIVERS.md](docs/DRIVERS.md)):
   a driver = a C# front end + a per-MCU backend (`ops` table + context), kept in a small registry
   (`mcs_driver_register` / `_register_default` / `_unregister` / `_find`). Firmware can add its own
