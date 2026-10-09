@@ -4,6 +4,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Studio templates:** four playable console games under *Fun and games* — Guess the number,
+  Rock, paper, scissors, Tic-tac-toe (against a simple computer player) and Hangman.
 * **Fix:** declaring a type again as an `enum` (or with a different kind) crashed the compiler; it
   is now the error `the type 'X' is already defined` (partial classes/structs/interfaces still merge).
 * **Device drivers** (`include/mcs_driver.h`, `modules/drivers/`, [docs/DRIVERS.md](docs/DRIVERS.md)):
