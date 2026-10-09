@@ -233,6 +233,11 @@ int mcs_vfs_check_space(mcs_vfs_t* vfs, const char* path, uint64_t len, bool app
     uint64_t avail = st.free;
     mcs_vfs_stat_t fs;
     if (!append && !mcs_vfs_stat(vfs, path, &fs) && !fs.is_dir) avail += fs.size;   /* replaced */
+    /* flash filesystems count free space in whole blocks and keep small files inline in
+     * metadata (LittleFS can report 0 free blocks and still store a 30-byte file): only
+     * refuse what clearly cannot fit - one block (4 KB, at most 1/8 of the volume) of slack */
+    uint64_t slack = st.total / 8 < 4096 ? st.total / 8 : 4096;
+    avail += slack;
     return len > avail ? MCS_VFS_ENOSPC : MCS_VFS_OK;
 }
 

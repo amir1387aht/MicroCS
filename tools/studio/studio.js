@@ -1720,8 +1720,8 @@ const App = {
     const st = this.storage;
     if (!st || dirName(path) !== this.cwd || st.dir !== this.cwd) return;
     const old = this.entries.find((e) => !e.dir && e.name === baseName(path));
-    const avail = st.free + (old ? old.size : 0);
-    if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(avail)} free. Delete some files first.`);
+    const avail = st.free + (old ? old.size : 0) + 4096;   // flash filesystems report free space in whole blocks
+    if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(Math.max(0, avail - 4096))} free. Delete some files first.`);
   },
   /* uploads go through the device's UART buffer: retry slower if bytes were lost */
   async putReliable(path, data, prog) {
