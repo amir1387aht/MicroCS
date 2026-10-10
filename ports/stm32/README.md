@@ -5,6 +5,13 @@ H5, H7, L0, L1, L4, L5, U5, WB, WL. The port uses the handles CubeMX generates (
 `hi2c1`, `hspi1`, `hadc1`, `htim3`…) and the official `HAL_xxx()` functions, so your clock
 tree, pin muxing and DMA settings stay exactly as configured in CubeMX.
 
+## Just want to try it? Ready-to-flash firmware
+
+Nucleo-F401RE, F411RE, F446RE, G474RE, L476RG, H743ZI and the Black Pill F411CE have a complete
+firmware in every [release](https://github.com/amir1387aht/MicroCS/releases/latest): copy the
+`.bin` to the Nucleo's ST-LINK drive, open its virtual COM port at 115200 baud (or MicroCS
+Studio) and type C#. Pins, flash layout and how to rebuild: [`firmware/`](firmware/README.md).
+
 ## Quick start (CubeIDE / CubeMX project)
 
 1. In CubeMX enable what you want to use from C#: a USART with its global interrupt (the
@@ -81,7 +88,9 @@ if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&                      // top quart
 ```
 
 * Every family: page flash (F0/F1/F3/G0/G4/L0/L1/L4/L5/U0/U5/C0/WB/WL, 2–8 KB pages), sector
-  flash (F2/F4/F7: the region must lie in the uniform 128/256 KB top sectors; H5 8 KB, H7 128 KB).
+  flash (F2/F4/F7: the region must lie in the uniform 128/256 KB top sectors, or — with an explicit
+  address — in a run of equal small sectors such as the 16 KB sectors 1–3 when your linker script
+  keeps them free, see [`firmware/stm32.ld`](firmware/stm32.ld); H5 8 KB, H7 128 KB).
   The program unit (8/16/32-byte flash words with ECC) is honoured; L0/L1 erase to 0x00 and the
   driver stores inverted bytes. On STM32WB the region stays below the wireless stack.
 * Pass an address and size to pick the region yourself (e.g. reserve it in the linker script);
@@ -135,7 +144,9 @@ stop the build with an `#error` (define `MCS_ALLOW_SMALL_TARGET=1` to try anyway
 ## Checked in CI
 
 `tools/check_ports.sh stm32 <family> <device> <cpu>` compiles the port with `-Werror`
-against the official STM32Cube HAL headers of the family, once with the default
-configuration and once with the auto profile (`PORT_CFLAGS`), then with the flash driver +
-LittleFS and + YAFFS2. CI covers F0, F1, F4, F7, G0,
-G4, H5, H7, L0, L4, U5 and WB.
+against the official STM32Cube HAL headers of the family in 8 configurations (default, without
+the ws2812/servo drivers, without drivers, auto profile, internal flash + LittleFS / YAFFS2 /
+TinyFS) for 18 boards covering F0, F1, F4, F7, G0, G4, H5, H7, L0, L4, U5 and WB.
+`tools/build_stm32_firmware.sh` links the [ready-to-flash firmware](firmware/README.md) for 7
+boards, and `tools/renode_check.py` boots the F4 and H743 images in the Renode emulator and
+uses their REPL (an expression, `Hal.Board`, a file in internal flash, the LED).

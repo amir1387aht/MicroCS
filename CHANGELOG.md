@@ -2,6 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.9.1 — ready-to-flash STM32 firmware
+
+* **STM32 firmware in every release:** `microcs-<version>-<board>.bin` and `.hex` for
+  Nucleo-F401RE, Nucleo-F411RE, Nucleo-F446RE, Black Pill F411CE, Nucleo-G474RE, Nucleo-L476RG and
+  Nucleo-H743ZI. Copy the `.bin` to the Nucleo's ST-LINK drive (Black Pill: USB DFU), open the
+  virtual COM port at 115200 baud or MicroCS Studio and use the C# REPL — no CubeMX project or
+  toolchain needed. Each image sets up the clock from the internal oscillator (no crystal
+  needed), the console UART, `new Pin("LED")` and every GPIO, I2C1 on the Arduino D14/D15 pins,
+  four PWM / `Servo` outputs on TIM3 and TinyFS in the chip's own flash (28 KB on F4, 105 KB on
+  G474/L476, 307 KB on H743) for `/boot.cs`, `/main.cs` and uploads. Pins and flash layout:
+  [ports/stm32/firmware/README.md](ports/stm32/firmware/README.md).
+* `tools/build_stm32_firmware.sh <board>` builds them (downloads the STM32Cube HAL + CMSIS of
+  the family); the board setup is one file, `ports/stm32/firmware/board.c`.
+* CI builds the 7 images on every push and boots the F4 and H743 ones in the Renode emulator
+  (`tools/renode_check.py`: REPL, `Hal.Board`, a file written to and read back from the internal
+  flash, the LED pin).
+* STM32 flash driver: `mcs_stm32_flash_init()` with an explicit address on F2/F4/F7 may now use a
+  run of equal small sectors (e.g. the 16 KB sectors 1–3) when the linker script keeps them free
+  and marks them with `__mcs_fs_flash_start` / `__mcs_fs_flash_end`.
+
 ## 1.9.0 — TinyFS on internal flash, Servo driver, complete config header
 
 * **TinyFS, a built-in flash filesystem for the MCU's own flash:** STM32s (and any other chip)

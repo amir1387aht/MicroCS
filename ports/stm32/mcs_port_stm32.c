@@ -1219,6 +1219,8 @@ static int if_erase(mcs_flash_t* f, uint32_t block) {
 
 extern const uint8_t _sidata[] __attribute__((weak));
 extern uint8_t _sdata[] __attribute__((weak)), _edata[] __attribute__((weak));
+/* optional: a flash range the linker script keeps free for files (code placed around it) */
+extern const uint8_t __mcs_fs_flash_start[] __attribute__((weak)), __mcs_fs_flash_end[] __attribute__((weak));
 
 int mcs_stm32_flash_init(mcs_stm32_flash_t* d, uint32_t addr, uint32_t size) {
     uint32_t total = if_flash_size(), top = FLASH_BASE + total, unit;
@@ -1230,6 +1232,11 @@ int mcs_stm32_flash_init(mcs_stm32_flash_t* d, uint32_t addr, uint32_t size) {
 #endif
 #if IF_MIXED_SECTORS
     unit = 8 * IF_SECTOR_U;                            /* the uniform top sectors */
+    if (addr >= FLASH_BASE && addr < top) {            /* or a run of the small ones (e.g. 16 KB sectors 1-3) */
+        uint32_t st, sz;
+        if_sector(addr - FLASH_BASE, &st, &sz);
+        unit = sz;
+    }
 #else
     unit = IF_ERASE_UNIT;
 #endif
@@ -1250,7 +1257,10 @@ int mcs_stm32_flash_init(mcs_stm32_flash_t* d, uint32_t addr, uint32_t size) {
     }
 #endif
     if ((addr - FLASH_BASE) % unit || size % unit) return MCS_FLASH_EINVAL;
-    if (_sidata) {                                     /* firmware = .text ... + .data load image */
+    if (__mcs_fs_flash_start && addr >= (uint32_t)(uintptr_t)__mcs_fs_flash_start &&
+        (uint64_t)addr + size <= (uint32_t)(uintptr_t)__mcs_fs_flash_end) {
+        /* inside the range the linker script reserved: no firmware there */
+    } else if (_sidata) {                              /* firmware = .text ... + .data load image */
         uint32_t fw_end = (uint32_t)(uintptr_t)_sidata + (uint32_t)(_edata - _sdata);
         if (fw_end > addr) return MCS_FLASH_EINVAL;
     }

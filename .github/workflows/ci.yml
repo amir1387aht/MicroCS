@@ -300,3 +300,51 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi > /dev/null
       - name: Compile the port (default, no ws2812/servo, no drivers, auto profile, internal flash + LittleFS / YAFFS2 / TinyFS) in parallel
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
+
+  # The ready-to-flash STM32 firmware published with every release: link it for each
+  # board and boot it in the Renode emulator where Renode models the chip (STM32F4, H743):
+  # REPL prompt, an expression, a file written to the internal flash (TinyFS), the LED.
+  stm32-firmware:
+    name: STM32 firmware · ${{ matrix.board }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { board: nucleo_f401re, family: f4, renode: "platforms/cpus/stm32f4.repl sysbus.usart2" }
+          - { board: nucleo_f411re, family: f4, renode: "platforms/cpus/stm32f4.repl sysbus.usart2" }
+          - { board: nucleo_f446re, family: f4, renode: "platforms/cpus/stm32f4.repl sysbus.usart2" }
+          - { board: blackpill_f411ce, family: f4, renode: "platforms/cpus/stm32f4.repl sysbus.usart1" }
+          - { board: nucleo_g474re, family: g4 }
+          - { board: nucleo_l476rg, family: l4 }
+          - { board: nucleo_h743zi, family: h7, renode: "platforms/cpus/stm32h743.repl sysbus.usart3" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: build/sdk
+          key: stm32-fw-sdk-${{ matrix.family }}-${{ hashFiles('tools/build_stm32_firmware.sh') }}
+          restore-keys: stm32-fw-sdk-${{ matrix.family }}-
+      - uses: actions/cache@v4
+        if: matrix.renode
+        with:
+          path: ~/renode
+          key: renode-1.16.1
+      - name: Arm GCC
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi > /dev/null
+      - name: Build the firmware (.elf / .bin / .hex)
+        run: sh tools/build_stm32_firmware.sh ${{ matrix.board }}
+      - name: Boot it in Renode and use the REPL
+        if: matrix.renode
+        run: |
+          if [ ! -x ~/renode/renode ]; then
+            mkdir -p ~/renode
+            curl -sSfL https://github.com/renode/renode/releases/download/v1.16.1/renode-1.16.1.linux-portable-dotnet.tar.gz | tar xz -C ~/renode --strip-components=1
+          fi
+          python3 tools/renode_check.py ~/renode/renode build/fw/stm32/microcs-${{ matrix.board }}.elf ${{ matrix.renode }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stm32-firmware-${{ matrix.board }}
+          path: build/fw/stm32/microcs-${{ matrix.board }}.*

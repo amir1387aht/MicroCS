@@ -22,8 +22,8 @@ extern "C" {
 
 #define MCS_VERSION_MAJOR 1
 #define MCS_VERSION_MINOR 9
-#define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.9.0"
+#define MCS_VERSION_PATCH 1
+#define MCS_VERSION_STRING "1.9.1"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;

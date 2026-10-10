@@ -241,7 +241,10 @@ void mcs_stm32_delay(void* ud, uint32_t ms);     /* HAL_Delay (or osDelay with F
  * overlaps the firmware (linker symbols _sidata/_sdata/_edata).
  *   page families (F0 F1 F3 G0 G4 L0 L1 L4 L5 U5 WB WL C0 U0): 4 KB blocks
  *     (whole pages, 8 KB on U5; with TinyFS alone one page, MCS_STM32_FS_BLOCK); F2/F4/F7: 128/256 KB sectors (the region must
- *     sit in the uniform top sectors); H5: 8 KB, H7: 128 KB sectors.
+ *     sit in the uniform top sectors by default; an explicit addr may also pick a run of
+ *     equal small sectors, e.g. the 16 KB sectors 1-3 when the linker script places the
+ *     code around them and marks them with __mcs_fs_flash_start/__mcs_fs_flash_end);
+ *     H5: 8 KB, H7: 128 KB sectors.
  *   program unit (half/double/quad/flash word) is reported in write_size;
  *   L0/L1 flash erases to 0x00: the driver stores inverted bytes.
  * The CPU stalls while its own bank erases (up to ~1-2 s for a 128 KB sector
