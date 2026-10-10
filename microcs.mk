@@ -6,7 +6,7 @@
 #     include $(MICROCS_DIR)/microcs.mk
 #     C_SOURCES    += $(MICROCS_SRCS)  # CubeMX Makefile variable names
 #     C_INCLUDES   += $(MICROCS_INCS)
-#     C_DEFS       += $(MICROCS_DEFS)  # MICROCS_CONFIG / MICROCS_PROFILE / MICROCS_WS2812 choices
+#     C_DEFS       += $(MICROCS_DEFS)  # MICROCS_CONFIG / MICROCS_PROFILE / MICROCS_WS2812 / MICROCS_SERVO choices
 #
 # Configuration: every MCS_* option goes into a project header mcs_user_config.h (template:
 # $(MICROCS_DIR)/config/mcs_user_config.h). It is used automatically when it is in one of the
@@ -38,4 +38,8 @@ endif
 # MICROCS_WS2812 := 0 leaves out the built-in "ws2812" driver (C# LedStrip)
 ifeq ($(MICROCS_WS2812),0)
 MICROCS_DEFS += -DMCS_ENABLE_WS2812=0
+endif
+# MICROCS_SERVO := 0 leaves out the built-in "servo" driver (C# Servo)
+ifeq ($(MICROCS_SERVO),0)
+MICROCS_DEFS += -DMCS_ENABLE_SERVO=0
 endif

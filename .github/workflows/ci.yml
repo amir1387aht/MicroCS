@@ -37,12 +37,14 @@ jobs:
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER --image
 
   flash-fs:
-    name: Flash filesystems (LittleFS, YAFFS2 on simulated SPI NOR/NAND)
+    name: Flash filesystems (LittleFS, YAFFS2, TinyFS on simulated flash)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: make lfs-test
       - run: make yaffs-test
+      - name: TinyFS (internal flash, power cut at every step)
+        run: make tinyfs-test
 
   studio:
     name: Studio (browser, fake Web Serial)
@@ -105,6 +107,7 @@ jobs:
         fs: [littlefs]
         include:
           - { board: pico2, fs: yaffs2 }
+          - { board: pico, fs: tinyfs, args: "-DMICROCS_FS_SIZE=65536" }
           - { board: waveshare_rp2040_zero, fs: littlefs }
           - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812" }
     steps:
@@ -120,6 +123,8 @@ jobs:
           if [ "${{ matrix.fs }}" = littlefs ]; then
             git clone -q --depth 1 --branch v2.9.3 https://github.com/littlefs-project/littlefs.git $HOME/littlefs
             echo "FS_ARGS=-DMICROCS_LITTLEFS_DIR=$HOME/littlefs" >> $GITHUB_ENV
+          elif [ "${{ matrix.fs }}" = tinyfs ]; then
+            echo "TinyFS is built in: nothing to fetch"
           else
             echo "FS_ARGS=-DMICROCS_FS_DOWNLOAD=ON" >> $GITHUB_ENV
           fi
@@ -153,6 +158,7 @@ jobs:
         fs: [littlefs]
         include:
           - { target: esp32s3, fs: yaffs2 }
+          - { target: esp32c3, fs: tinyfs }
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -166,6 +172,7 @@ jobs:
           cd /tmp/proj
           # YAFFS2 sources are not bundled: allow the pinned download (or set MICROCS_YAFFS2_DIR)
           if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; export MICROCS_FS_DOWNLOAD=1; fi
+          if [ "${{ matrix.fs }}" = tinyfs ]; then echo CONFIG_MICROCS_FS_TINYFS=y >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
           # one image for `esptool.py write_flash 0 ...` (bootloader + partition table + app)
@@ -187,6 +194,7 @@ jobs:
         include:
           - { name: native_sim (run), board: native_sim/native/64 }
           - { name: native_sim YAFFS2 (run), board: native_sim/native/64, fs: yaffs2, args: "-DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay -DMICROCS_FS_DOWNLOAD=ON" }
+          - { name: native_sim TinyFS (run), board: native_sim/native/64, fs: tinyfs, args: "-DEXTRA_CONF_FILE=overlay-tinyfs.conf" }
           - { name: nRF52840 DK, board: nrf52840dk/nrf52840 }
           - { name: nRF52840 DK USB console, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay" }
           - { name: Raspberry Pi Pico, board: rpi_pico }
@@ -252,36 +260,43 @@ jobs:
           done
 
   stm32:
-    name: STM32 HAL · ${{ matrix.family }}
+    name: STM32 · ${{ matrix.board }}
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { family: f0, device: STM32F072xB, cpu: cortex-m0 }
-          - { family: f1, device: STM32F103xB, cpu: cortex-m3 }
-          - { family: f4, device: STM32F446xx, cpu: cortex-m4 }
-          - { family: f7, device: STM32F767xx, cpu: cortex-m7 }
-          - { family: g0, device: STM32G071xx, cpu: cortex-m0plus }
-          - { family: g4, device: STM32G474xx, cpu: cortex-m4 }
-          - { family: h5, device: STM32H563xx, cpu: cortex-m33 }
-          - { family: h7, device: STM32H743xx, cpu: cortex-m7 }
-          - { family: l0, device: STM32L073xx, cpu: cortex-m0plus }
-          - { family: l4, device: STM32L476xx, cpu: cortex-m4 }
-          - { family: u5, device: STM32U575xx, cpu: cortex-m33 }
-          - { family: wb, device: STM32WB55xx, cpu: cortex-m4 }
+          - { board: "Blue Pill (F103C8)", family: f1, device: STM32F103xB, cpu: cortex-m3 }
+          - { board: "Nucleo-F072RB", family: f0, device: STM32F072xB, cpu: cortex-m0 }
+          - { board: "Black Pill (F401CC)", family: f4, device: STM32F401xC, cpu: cortex-m4 }
+          - { board: "Black Pill (F411CE)", family: f4, device: STM32F411xE, cpu: cortex-m4 }
+          - { board: "STM32F4-Discovery (F407VG)", family: f4, device: STM32F407xx, cpu: cortex-m4 }
+          - { board: "STM32F429I-Discovery (F429ZI)", family: f4, device: STM32F429xx, cpu: cortex-m4 }
+          - { board: "Nucleo-F446RE", family: f4, device: STM32F446xx, cpu: cortex-m4 }
+          - { board: "Nucleo-F767ZI", family: f7, device: STM32F767xx, cpu: cortex-m7 }
+          - { board: "Nucleo-G071RB", family: g0, device: STM32G071xx, cpu: cortex-m0plus }
+          - { board: "Nucleo-G431KB", family: g4, device: STM32G431xx, cpu: cortex-m4 }
+          - { board: "Nucleo-G474RE", family: g4, device: STM32G474xx, cpu: cortex-m4 }
+          - { board: "Nucleo-H563ZI", family: h5, device: STM32H563xx, cpu: cortex-m33 }
+          - { board: "Nucleo-H743ZI", family: h7, device: STM32H743xx, cpu: cortex-m7 }
+          - { board: "Nucleo-L073RZ", family: l0, device: STM32L073xx, cpu: cortex-m0plus }
+          - { board: "Nucleo-L432KC", family: l4, device: STM32L432xx, cpu: cortex-m4 }
+          - { board: "Nucleo-L476RG", family: l4, device: STM32L476xx, cpu: cortex-m4 }
+          - { board: "Nucleo-U575ZI", family: u5, device: STM32U575xx, cpu: cortex-m33 }
+          - { board: "Nucleo-WB55RG", family: wb, device: STM32WB55xx, cpu: cortex-m4 }
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
-      - name: Compile the port against STM32Cube${{ matrix.family }} headers
-        run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
-      - name: Same without the ws2812 driver (MCS_ENABLE_WS2812=0)
-        env:
-          PORT_CFLAGS: -DMCS_ENABLE_WS2812=0
-        run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
-      - name: Same with the auto profile (picked from the device's RAM/flash)
-        env:
-          PORT_CFLAGS: -DMCS_PORT_HAL=1 -DMCS_PROFILE=MCS_PROFILE_AUTO
+      # ST headers (shallow clones), LittleFS and YAFFS2 sources: cached per family
+      - uses: actions/cache@v4
+        with:
+          path: |
+            build/sdk
+            build/third_party
+          key: stm32-sdk-${{ matrix.family }}-${{ hashFiles('Makefile') }}
+          restore-keys: stm32-sdk-${{ matrix.family }}-
+      - name: Arm GCC
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi > /dev/null
+      - name: Compile the port (default, no ws2812/servo, no drivers, auto profile, internal flash + LittleFS / YAFFS2 / TinyFS) in parallel
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}

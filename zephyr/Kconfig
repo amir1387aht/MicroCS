@@ -75,6 +75,15 @@ config MICROCS_FS
 	  from it; MicroCS Studio and tools/mcs_remote.py upload files there.
 	  Without it a RAM filesystem of MICROCS_RAMFS_SIZE bytes is used.
 
+config MICROCS_TINYFS
+	bool "TinyFS (built in) instead of LittleFS for the persistent files"
+	depends on FLASH_MAP
+	help
+	  The example application puts MicroCS's own small power-fail-safe
+	  filesystem on `storage_partition` through mcs_zephyr_flash_area_init()
+	  + mcs_flashfs_mount(). Nothing to download or link (MIT). Needs a
+	  partition of at least two erase blocks. See overlay-tinyfs.conf.
+
 config MICROCS_YAFFS2
 	bool "YAFFS2 instead of LittleFS for the persistent files"
 	depends on FLASH_MAP
@@ -97,6 +106,14 @@ config MICROCS_WS2812
 	  device aliased `led-strip` in the devicetree (worldsemi,ws2812-spi,
 	  -gpio, -i2s, -rpi_pico-pio ...). Needs CONFIG_LED_STRIP=y; without
 	  the alias the class is not registered.
+
+config MICROCS_SERVO
+	bool "Servo driver (C# Servo on a PWM channel)"
+	default y
+	help
+	  The built-in "servo" driver: C# Servo drives hobby servos and ESCs
+	  with 50 Hz pulses on the board's PWM channels (the `pwms` of the
+	  MicroCS PWM node). Turn it off to save ~3 KB of flash.
 
 config MICROCS_RAMFS_SIZE
 	int "RAM filesystem size when there is no persistent filesystem"

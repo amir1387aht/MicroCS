@@ -44,6 +44,12 @@ menu "MicroCS"
 
         config MICROCS_FS_LITTLEFS
             bool "LittleFS (esp_littlefs component, BSD; C code can fopen() the files too)"
+        config MICROCS_FS_TINYFS
+            bool "TinyFS (built in, MIT; no extra sources)"
+            help
+                MicroCS's own small power-fail-safe flash filesystem on the
+                "storage" partition (mcs_vfs_tinyfs.c). Nothing to download or
+                link; files are visible to C# only (not to fopen()).
         config MICROCS_FS_YAFFS2
             bool "YAFFS2 (GPLv2 or commercial licence - see help)"
             help
@@ -63,5 +69,13 @@ menu "MicroCS"
             The built-in "ws2812" driver: C# LedStrip on any GPIO through an RMT
             channel per strip. Turn it off to save ~3 KB of flash when no
             addressable LEDs are used (Hal.Has("LedStrip") is then false).
+
+    config MICROCS_SERVO
+        bool "Servo driver (C# Servo on a LEDC PWM channel)"
+        default y
+        help
+            The built-in "servo" driver: C# Servo drives hobby servos and ESCs
+            with 50 Hz pulses on a PWM channel (LEDC). Turn it off to save
+            ~3 KB of flash (Hal.Has("Servo") is then false).
 
 endmenu

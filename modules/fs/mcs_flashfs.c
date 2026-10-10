@@ -1,5 +1,5 @@
 /*
- * MicroCS - LittleFS or YAFFS2 on any mcs_flash_t in one call (see mcs_vfs.h).
+ * MicroCS - LittleFS, YAFFS2 or TinyFS on any mcs_flash_t in one call (see mcs_vfs.h).
  *
  * Mount, and on a blank or foreign partition format it; the result is a
  * backend (ops + ctx) for mcs_vfs_mount() or mcs_runtime_cfg_t.fs_ops/fs_ctx.
@@ -7,7 +7,7 @@
  * static table so callers need neither lfs.h nor the yaffs headers.
  */
 #include "mcs_vfs.h"
-#if MCS_ENABLE_FS && MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#if MCS_ENABLE_FS && MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS || MCS_ENABLE_TINYFS)
 #include <string.h>
 #if MCS_ENABLE_LFS
 #include "lfs.h"
@@ -32,10 +32,14 @@ static struct {
 #if MCS_ENABLE_YAFFS
     struct yaffs_dev dev;
 #endif
+#if MCS_ENABLE_TINYFS
+    mcs_tinyfs_t tiny;
+#endif
 } g_fs[MCS_FLASHFS_MAX];
 
 const char* mcs_flashfs_kind_name(int kind) {
-    return kind == MCS_FLASHFS_YAFFS2 ? "yaffs2" : kind == MCS_FLASHFS_LITTLEFS ? "littlefs" : "?";
+    return kind == MCS_FLASHFS_YAFFS2 ? "yaffs2" : kind == MCS_FLASHFS_LITTLEFS ? "littlefs"
+         : kind == MCS_FLASHFS_TINYFS ? "tinyfs" : "?";
 }
 
 /* erase every block of the partition (skipping bad NAND blocks) */
@@ -62,7 +66,7 @@ int mcs_flashfs_mount(mcs_flashfs_t* fs, mcs_flash_t* flash, uint32_t first_bloc
     int slot = 0;
     while (slot < MCS_FLASHFS_MAX && g_fs[slot].used) slot++;
     if (slot == MCS_FLASHFS_MAX) return MCS_VFS_ENOMEM;
-    if ((flags & MCS_FLASHFS_FORMAT) && erase_all(&fs->part) != MCS_VFS_OK) return MCS_VFS_EIO;
+    if ((flags & MCS_FLASHFS_FORMAT) && kind != MCS_FLASHFS_TINYFS && erase_all(&fs->part) != MCS_VFS_OK) return MCS_VFS_EIO;
 #if MCS_ENABLE_LFS
     if (kind == MCS_FLASHFS_LITTLEFS) {
         lfs_t* lfs = &g_fs[slot].lfs;
@@ -97,6 +101,16 @@ int mcs_flashfs_mount(mcs_flashfs_t* fs, mcs_flash_t* flash, uint32_t first_bloc
         return MCS_VFS_OK;
     }
 #endif
+#if MCS_ENABLE_TINYFS
+    if (kind == MCS_FLASHFS_TINYFS) {
+        mcs_tinyfs_t* t = &g_fs[slot].tiny;
+        int e = mcs_tinyfs_mount(t, &fs->part, flags);
+        if (e) return e;
+        g_fs[slot].used = 1;
+        fs->ops = &mcs_tinyfs_ops; fs->ctx = t; fs->kind = kind; fs->slot = slot;
+        return MCS_VFS_OK;
+    }
+#endif
     return MCS_VFS_EINVAL;
 }
 
@@ -111,6 +125,9 @@ int mcs_flashfs_unmount(mcs_flashfs_t* fs) {
         e = yaffs_unmount(fs->name) ? MCS_VFS_EIO : 0;
         yaffs_remove_device(&g_fs[fs->slot].dev);
     }
+#endif
+#if MCS_ENABLE_TINYFS
+    if (fs->kind == MCS_FLASHFS_TINYFS) e = mcs_tinyfs_unmount(&g_fs[fs->slot].tiny);
 #endif
     g_fs[fs->slot].used = 0;
     fs->ops = NULL; fs->ctx = NULL;

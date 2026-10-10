@@ -2,6 +2,46 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.9.0 — TinyFS on internal flash, Servo driver, complete config header
+
+* **TinyFS, a built-in flash filesystem for the MCU's own flash:** STM32s (and any other chip)
+  without an external NOR/NAND can keep `/boot.cs`, `/main.cs`, uploads and data files in a few KB
+  of internal flash — e.g. 8 KB of a 64/128 KB F103. Part of MicroCS (`modules/fs/mcs_vfs_tinyfs.c`,
+  MIT, no sources to fetch, ~5 KB of Thumb-2 code, ~1 KB of static RAM, no heap): a log of CRC'd
+  records, power-fail safe (garbage collection ends with a commit record), wear levelling across
+  the erase blocks, works from 2 erase blocks. Selected like LittleFS and YAFFS2:
+  `MCS_ENABLE_TINYFS 1`, CMake `-DMICROCS_FS=tinyfs`, ESP-IDF menuconfig *TinyFS*
+  (`CONFIG_MICROCS_FS_TINYFS`), Zephyr `overlay-tinyfs.conf` (`CONFIG_MICROCS_TINYFS`), Arduino
+  `make_arduino.py --fs tinyfs`; `mcs_flashfs_mount(..., MCS_FLASHFS_TINYFS, ...)` or
+  `MCS_FLASHFS_DEFAULT`. Options `MCS_TINYFS_MAX_FILES` / `_CHUNK` / `_HANDLES` / `_MAX_UNIT`.
+* **Internal-flash size:** `MCS_INTFLASH_SIZE` (CMake `-DMICROCS_FS_SIZE=8192`) sets how much of
+  the chip's flash holds files on STM32 (`MCS_STM32_FS_SIZE`) and RP2 (`MCS_RP2_FS_SIZE`). With
+  TinyFS alone the STM32 driver uses each flash page as a block (`MCS_STM32_FS_BLOCK` overrides).
+* **Flash port for new MCUs:** fill a `mcs_flash_port_t` (region size, erase unit, program unit,
+  `read` / `write` / `erase`) and `mcs_intflash_init()` makes the `mcs_flash_t` that TinyFS,
+  LittleFS and YAFFS2 use (`include/mcs_flash.h`, skeleton in `ports/template`). STM32, RP2040 /
+  RP2350, ESP32 and Zephyr ship theirs.
+* **`Servo` driver** (built-in `servo` driver, like `ws2812`): `new Servo(channel[, minUs, maxUs[,
+  maxAngle]])`, `Angle` / `Write`, `Pulse` / `WritePulse`, eased `MoveTo(deg, ms)`, `Detach` /
+  `Attach`. Default backend: the board's HAL PWM at 50 Hz on every port and the simulator; register
+  `MCS_SERVO_DRIVER(ops, ctx)` for a PCA9685 or a servo bus. Off with `MCS_ENABLE_SERVO 0`, CMake
+  `-DMICROCS_SERVO=OFF`, `CONFIG_MICROCS_SERVO=n`, `make_arduino.py --no-servo`,
+  `MICROCS_SERVO := 0`. Studio: Servo templates (sweep, smooth motion, pan/tilt with two servos),
+  a `servo` snippet, completions and docs.
+* **Config header with the defaults set:** [`config/mcs_user_config.h`](config/mcs_user_config.h)
+  now holds every option *set* to its default value (each in `#ifndef`, so `-D` and the build
+  systems still win) — copying it enables it, then edit the values. Only the options detected per
+  compiler / CPU / board stay commented. `tools/gen_config.py --profile lowram -o
+  mcs_user_config.h` writes it with another profile's values (`--profile auto --ram-kb --flash-kb`,
+  `-D NAME=VALUE`); MicroCS warns when the header's profile differs from the build's.
+  `make_arduino.py --profile` uses it. `make test` checks the template against
+  `include/mcs_config.h` (`gen_config.py --check`), `make check` builds every generated profile.
+* **CI:** 18 popular STM32 boards (Blue Pill, Black Pill F401/F411, F4 / F429 Discovery, Nucleo
+  F072/F446/F767/G071/G431/G474/H563/H743/L073/L432/L476/U575/WB55) compile in parallel jobs, each
+  in 8 configurations at once (default, no ws2812/servo, no drivers, auto profile, internal flash +
+  LittleFS / YAFFS2 / TinyFS) with the ST headers cached. `make tinyfs-test` (power cut at every
+  flash operation) runs in `make test` and the flash-filesystem job.
+
 ## 1.8.0 — project config header
 
 * **`mcs_user_config.h`, one header for every build option:** copy the new template

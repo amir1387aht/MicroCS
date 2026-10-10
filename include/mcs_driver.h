@@ -24,6 +24,9 @@
  * Drivers.List (names), Hal.Has("LedStrip") (also true for driver class names).
  *
  * Built-in drivers (each with its own MCS_ENABLE_* switch):
+ *   servo   C# Servo - hobby servos / ESCs on a PWM channel (MCS_ENABLE_SERVO).
+ *           Default backend: the board's HAL PWM at 50 Hz (every port and the
+ *           simulator); register your own for a PCA9685 or a servo bus.
  *   ws2812  C# LedStrip - WS2812 / WS2812B / SK6812 / WS2811 strips (MCS_ENABLE_WS2812).
  *           Backends: RP2040/RP2350 PIO, ESP32 RMT, STM32 bit-bang, Zephyr
  *           led_strip, Arduino (RMT / PIO / Adafruit_NeoPixel), simulator.
@@ -89,6 +92,34 @@ typedef struct {
 #if MCS_ENABLE_WS2812
 void mcs_ws2812_open(mcs_vm_t* vm, const mcs_driver_t* drv);
 #define MCS_WS2812_DRIVER(ops, ctx) { "ws2812", "LedStrip", mcs_ws2812_open, (ops), (ctx) }
+#endif
+
+/* ------------------------------------------------------------ servo driver
+ * C# Servo: new Servo(channel[, minUs = 500, maxUs = 2500[, maxAngle = 180]]),
+ * s.Angle / s.Write(deg), s.Pulse / s.WritePulse(us), s.MoveTo(deg, ms), s.Detach().
+ * The front end converts angles to pulse widths and checks every argument; a
+ * backend implements two functions (channel = the number given to `new Servo`):
+ *
+ *   set_pulse(ctx, channel, pulse_us, period_us): output a pulse of pulse_us
+ *       microseconds every period_us (20000 = 50 Hz) until told otherwise.
+ *       Return 0 or a negative MCS_HAL_E* code.
+ *   stop(ctx, channel): stop the signal (the servo goes limp). May be NULL.
+ *
+ *   static int my_pulse(void* ctx, int ch, uint32_t us, uint32_t period) { return pca9685_set(ctx, ch, us, period); }
+ *   static const mcs_servo_ops_t my_ops = { my_pulse, NULL };
+ *   static const mcs_driver_t my_servo = MCS_SERVO_DRIVER(&my_ops, &pca);
+ *   mcs_driver_register(&my_servo);                 // replaces the default HAL-PWM backend
+ */
+typedef struct {
+    int (*set_pulse)(void* ctx, int channel, uint32_t pulse_us, uint32_t period_us);
+    int (*stop)(void* ctx, int channel);
+} mcs_servo_ops_t;
+#if MCS_ENABLE_SERVO
+void mcs_servo_open(mcs_vm_t* vm, const mcs_driver_t* drv);
+#define MCS_SERVO_DRIVER(ops, ctx) { "servo", "Servo", mcs_servo_open, (ops), (ctx) }
+/* Register the default backend (HAL PWM of `hal`) unless a "servo" driver exists.
+ * Called by mcs_hal_open_lib, so every port and the simulator get it. */
+void mcs_servo_use_hal(const mcs_hal_t* hal);
 #endif
 
 #ifdef __cplusplus

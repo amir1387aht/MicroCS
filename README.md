@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.8.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -117,7 +117,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin — optional), interrupt callbacks, a virtual filesystem (RAM, POSIX, LittleFS and
+14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
 
 </td>
@@ -252,7 +252,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.8.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.9.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -382,17 +382,18 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.8.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.9.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
 (Cube HAL handles, ESP-IDF drivers, pico-sdk `hardware_*`, Zephyr devices) — it never ships
 its own register definitions, so it follows whatever chip variant and clock setup you
 configured. Tuning is done in one project header, **`mcs_user_config.h`** (copy
-[`config/mcs_user_config.h`](config/mcs_user_config.h): every option with its default; found
-automatically by every build integration), or with `-D` flags, which still win
-([CONFIGURATION.md](docs/CONFIGURATION.md)); 7 [profiles](include/profiles/) are one
-`#define MCS_PROFILE` away. The `auto`
+[`config/mcs_user_config.h`](config/mcs_user_config.h): every option set to its default value,
+edit what you need; found automatically by every build integration), or with `-D` flags, which
+still win ([CONFIGURATION.md](docs/CONFIGURATION.md)); 7 [profiles](include/profiles/) —
+`python3 tools/gen_config.py --profile lowram -o mcs_user_config.h` writes the header with a
+profile's defaults. The `auto`
 profile picks the right one from the target's RAM and flash size — CMake `MICROCS_RAM_KB` /
 `MICROCS_FLASH_KB`, Zephyr's `CONFIG_SRAM_SIZE`, or the STM32/RP2/nRF52/SAMD device macro;
 it is the default for `MICROCS_PORT=stm32` and on Zephyr.
@@ -565,12 +566,12 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
-| Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `examples/hardware/*` on the simulator board |
+| Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
-| STM32 / RP2 ports | ✅ | CI: 12 STM32 families compiled `-Werror`, Pico + Pico 2 firmware built |
+| STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each, Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
-| Flash filesystems: LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; all 12 STM32 families compiled with both) and runs both on Zephyr `native_sim` |
+| Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |
 | Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
@@ -588,6 +589,9 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [x] **next** — LittleFS or YAFFS2 on the internal flash of every port example (STM32, RP2040/RP2350, ESP32,
       Zephyr; Arduino uses its core's LittleFS) with one call, `mcs_flashfs_mount()`; Base64 / hex / `BinaryPrimitives`
       in the core library
+- [x] **1.9** — TinyFS: a built-in power-fail-safe filesystem for a few KB of the MCU's own flash (no
+      external chip), selectable like LittleFS / YAFFS2, flash port for new MCUs (`mcs_flash_port_t`);
+      `Servo` driver; config header with every default set; CI on 18 STM32 boards
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
@@ -602,9 +606,9 @@ optimized with superinstructions, `-O0` = plain bytecode):
 
 ```
 include/        public API: MicroCS.h, mcs.h, mcs_hal.h, mcs_runtime.h, mcs_config.h (defaults), profiles/
-config/         mcs_user_config.h: template of the project config header (every option)
+config/         mcs_user_config.h: the project config header (every option at its default)
 src/            core: lexer, parser, compiler, bytecode, VM, GC, stdlib
-modules/        optional: fs/ (VFS, RAM, POSIX, LittleFS, YAFFS2, SPI NOR/NAND) hal/ sched/ shell/ runtime/
+modules/        optional: fs/ (VFS, RAM, POSIX, TinyFS, LittleFS, YAFFS2, SPI NOR/NAND) hal/ drivers/ sched/ shell/ runtime/
 ports/          stm32 · esp32 · rp2 · zephyr · arduino · cortex-m · unix · template
 examples/       hardware/ scripts, quickstart_embed.c, firmware_example.c, lowram/
 tests/          *.cs with expected .out, C unit tests, protocol tests

@@ -1067,6 +1067,18 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
 #define IF_PROG(a, U_) HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (a), (U_).d)
 #endif
 
+/* Erase block of the page families. TinyFS alone uses one flash page (1-2 KB on F0/F1/F3/G0/G4/L4:
+ * an 8 KB region is then 4-8 blocks); LittleFS/YAFFS2 want at least 4 KB. Override with MCS_STM32_FS_BLOCK
+ * (a multiple of the page size). */
+#ifndef MCS_STM32_FS_BLOCK
+#if MCS_ENABLE_TINYFS && !MCS_ENABLE_LFS && !MCS_ENABLE_YAFFS
+#define MCS_STM32_FS_BLOCK FLASH_PAGE_SIZE
+#else
+#define MCS_STM32_FS_BLOCK 0
+#endif
+#endif
+#define IF_PAGE_UNIT (MCS_STM32_FS_BLOCK ? (uint32_t)(MCS_STM32_FS_BLOCK) : (FLASH_PAGE_SIZE > 4096U ? FLASH_PAGE_SIZE : 4096U))
+
 #if defined(STM32F2) || defined(STM32F4) || defined(STM32F7)
 #define IF_MIXED_SECTORS 1          /* 16/64/128 KB (F7: 32/128/256 KB) sectors */
 #elif defined(FLASH_TYPEERASE_SECTORS) && defined(FLASH_SECTOR_SIZE)
@@ -1074,10 +1086,10 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
 #define IF_ERASE_UNIT FLASH_SECTOR_SIZE
 #elif defined(STM32F0) || defined(STM32F1) || defined(STM32F3) || defined(STM32L0) || defined(STM32L1)
 #define IF_PAGE_ADDR 1              /* erase by page address */
-#define IF_ERASE_UNIT (FLASH_PAGE_SIZE > 4096U ? FLASH_PAGE_SIZE : 4096U)
+#define IF_ERASE_UNIT IF_PAGE_UNIT
 #else
 #define IF_PAGE_INDEX 1             /* erase by bank + page number */
-#define IF_ERASE_UNIT (FLASH_PAGE_SIZE > 4096U ? FLASH_PAGE_SIZE : 4096U)
+#define IF_ERASE_UNIT IF_PAGE_UNIT
 #endif
 #if defined(STM32L0) || defined(STM32L1)
 #define IF_ERASED 0x00
@@ -1085,7 +1097,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
 #define IF_ERASED 0xFF
 #endif
 #ifndef MCS_STM32_FS_SIZE
-#define MCS_STM32_FS_SIZE 0         /* 0 = a quarter of the flash */
+#define MCS_STM32_FS_SIZE MCS_INTFLASH_SIZE   /* 0 = a quarter of the flash */
 #endif
 
 static uint32_t if_flash_size(void) {

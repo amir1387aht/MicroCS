@@ -64,6 +64,8 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
   | 16 MB | `0xE70000` | 14.4 MB |
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
+* **TinyFS instead** (built in, nothing to fetch): menuconfig → MicroCS → *Filesystem on the
+  "storage" partition* → TinyFS (`CONFIG_MICROCS_FS_TINYFS=y`); `mcs_esp32_flash_fs()` mounts it.
 * **YAFFS2 instead**: menuconfig → MicroCS → *Filesystem on the "storage" partition* →
   YAFFS2 (or `CONFIG_MICROCS_FS_YAFFS2=y` in `sdkconfig.defaults`). The yaffs2 sources are
   not bundled: set `MICROCS_YAFFS2_DIR` (environment or `idf.py -DMICROCS_YAFFS2_DIR=...`), keep a
