@@ -1,5 +1,6 @@
 /* MicroCS build profile: MCU runtime (precompiled .mcsb images only).
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_mcu.h"'
+ * Use: #define MCS_PROFILE MCS_PROFILE_MCU in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_MCU (CMake: MICROCS_PROFILE=mcu)
  * Measured (arm-none-eabi-gcc 13.2, Cortex-M0, -Os, object totals before
  * --gc-sections): ~121 KB flash incl. FS/HAL/scheduler modules, plus newlib/libm; ~8 KB heap
  * after mcs_new() with the full stdlib (emulated m0-runtime target). The auto profile picks

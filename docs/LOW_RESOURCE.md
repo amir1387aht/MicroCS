@@ -14,6 +14,11 @@ what each one costs, and how to measure your own script.
 
 ## Quick answer
 
+Pick the profile with `#define MCS_PROFILE MCS_PROFILE_<NAME>` in your project's
+`mcs_user_config.h`, `-DMCS_PROFILE=MCS_PROFILE_<NAME>`, or CMake `MICROCS_PROFILE=<name>`;
+every other switch below goes into the same header or onto the command line
+([CONFIGURATION.md](CONFIGURATION.md)).
+
 | Target | Build | Notes |
 |---|---|---|
 | any | `profiles/mcs_profile_auto.h` (CMake `MICROCS_PROFILE=auto`, default for STM32 and Zephyr) | picks one of the rows below from `MCS_TARGET_RAM_KB` / `MCS_TARGET_FLASH_KB` or the device macro |
@@ -154,7 +159,8 @@ LittleFS adapter 0.9 KB.
 ### 8a. Fitting 64 KB of flash: `profiles/mcs_profile_min.h`
 Nothing is removed from MicroCS — every part of the standard library is a switch. The `min`
 profile turns off the big ones; a script that calls a disabled member gets a
-`MissingMemberException`. Turn any of them back on with `-D…=1`; cost on top of the min
+`MissingMemberException`. Turn any of them back on with `#define MCS_ENABLE_… 1` in
+`mcs_user_config.h` (or `-D…=1`); cost on top of the min
 profile (core objects, Cortex-M0):
 
 | Switch | Gives back | Flash |
@@ -195,6 +201,12 @@ project builds the right runtime for a 16 KB STM32F072 and a 1 MB STM32H7:
 set(MICROCS_PROFILE auto)          # default when MICROCS_PORT=stm32
 set(MICROCS_RAM_KB 64)             # optional: otherwise from the device macro / Zephyr Kconfig
 set(MICROCS_FLASH_KB 256)
+```
+or, with any build system, in `mcs_user_config.h`:
+```c
+#define MCS_PROFILE         MCS_PROFILE_AUTO
+#define MCS_TARGET_RAM_KB   64     /* optional, as above */
+#define MCS_TARGET_FLASH_KB 256
 ```
 
 | Detected | Profile |

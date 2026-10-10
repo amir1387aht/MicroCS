@@ -69,8 +69,11 @@ For 32–64 KB RAM parts see [LOW_RESOURCE.md](LOW_RESOURCE.md).
 1. Add MicroCS to your build — `include microcs.mk`, `add_subdirectory(MicroCS)`, an ESP-IDF
    component, a Zephyr module, a PlatformIO/Arduino library, or just the `.c` files in your
    IDE. Every variant is in [PORTING.md](PORTING.md).
-2. Optional: pick a profile: `-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'`
-   (`tiny`, `mcu`, `lowram`, `embedded`, `linux` — see `include/profiles/`).
+2. Optional: configure it. Copy [`config/mcs_user_config.h`](../config/mcs_user_config.h)
+   into your project as `mcs_user_config.h` and uncomment what you change, e.g.
+   `#define MCS_PROFILE MCS_PROFILE_EMBEDDED` (`auto`, `min`, `tiny`, `mcu`, `lowram`,
+   `embedded`, `linux` — see `include/profiles/`). `-D…` options work too and win over
+   the header. Details: [CONFIGURATION.md](CONFIGURATION.md).
 3. Create a VM on a static pool and run a script (a runnable version is
    [`examples/quickstart_embed.c`](../examples/quickstart_embed.c), `make quickstart`):
 

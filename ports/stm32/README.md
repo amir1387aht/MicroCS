@@ -89,7 +89,7 @@ if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&                      // top quart
   use the retrying Studio/shell protocol, so this is harmless.
 * CMake (`MICROCS_PORT=stm32`): `-DMICROCS_FS=littlefs` or `-DMICROCS_FS=yaffs2` adds the sources
   from `MICROCS_LITTLEFS_DIR` / `MICROCS_YAFFS2_DIR`, a copy in the project (`Middlewares/Third_Party/littlefs`,
-  `third_party/`, `lib/` ...) or, with `-DMICROCS_FS_DOWNLOAD=ON`, a one-time download (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `-DMCS_ENABLE_LFS=1 -DMCS_ENABLE_FLASH=1`
+  `third_party/`, `lib/` ...) or, with `-DMICROCS_FS_DOWNLOAD=ON`, a one-time download (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `MCS_ENABLE_LFS 1`, `MCS_ENABLE_FLASH 1` (in `mcs_user_config.h` or with `-D`)
   (see [FILESYSTEM.md](../../docs/FILESYSTEM.md#files-on-the-chips-own-flash-every-port)).
 
 ## Memory
@@ -106,8 +106,9 @@ of your CubeMX project (`STM32F072xB`, `STM32G474xx`, …) selects the RAM/flash
 picks the profile — `min` below 32 KB of RAM or 128 KB of flash (F070/F072/F103/G070/L073…),
 `tiny` on other 128 KB-flash parts, `lowram`, `mcu` or `embedded` as RAM grows, everything
 on H5/H7/U5/F7. The HAL classes stay enabled
-whenever the part has 128 KB of flash or more. In CubeIDE/Makefile projects add
-`-DMCS_USER_CONFIG_FILE="profiles/mcs_profile_auto.h" -DMCS_PORT_HAL=1` to get the same.
+whenever the part has 128 KB of flash or more. In CubeIDE/Makefile projects put
+`#define MCS_PROFILE MCS_PROFILE_AUTO` and `#define MCS_PORT_HAL 1` in your `mcs_user_config.h`
+(or `-DMCS_PROFILE=MCS_PROFILE_AUTO -DMCS_PORT_HAL=1`) to get the same.
 Where one macro covers several sizes (`STM32F103xB` = F103x8 and F103xB) the smaller one is
 assumed; define `MCS_TARGET_RAM_KB` / `MCS_TARGET_FLASH_KB` to override.
 

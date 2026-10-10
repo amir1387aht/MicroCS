@@ -16,6 +16,17 @@ config MICROCS_PORT
 	imply HWINFO
 	imply REBOOT
 
+config MICROCS_USER_CONFIG_FILE
+	string "Project config header (mcs_user_config.h)"
+	default ""
+	help
+	  Path of the header with your MCS_* options (template:
+	  config/mcs_user_config.h in MicroCS), absolute or relative to the
+	  application folder. Empty: mcs_user_config.h in the application
+	  folder, its include/ or src/ folder is used when it exists. NONE: no
+	  config header. These Kconfig options win over the header, except the
+	  profile: MCS_PROFILE in the header wins.
+
 choice MICROCS_PROFILE_CHOICE
 	prompt "MicroCS configuration profile"
 	default MICROCS_PROFILE_AUTO
@@ -23,6 +34,7 @@ choice MICROCS_PROFILE_CHOICE
 	  Which include/profiles/mcs_profile_<name>.h configures the runtime.
 	  AUTO picks one from CONFIG_SRAM_SIZE / CONFIG_FLASH_SIZE (16 KB RAM /
 	  64 KB flash minimum; see include/profiles/mcs_profile_auto.h).
+	  MCS_PROFILE in mcs_user_config.h overrides this choice.
 
 config MICROCS_PROFILE_AUTO
 	bool "Auto (from the board's RAM and flash size)"

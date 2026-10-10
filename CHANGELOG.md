@@ -2,8 +2,35 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased
+## 1.8.0 — project config header
 
+* **`mcs_user_config.h`, one header for every build option:** copy the new template
+  [`config/mcs_user_config.h`](config/mcs_user_config.h) — every `MCS_*` option of the core,
+  modules and ports, commented out with its default and a description — into your project and
+  uncomment what you change. `include/mcs_config.h` includes it before anything else, so the
+  library, the ports and the application all see it. It is found automatically when it is on the
+  include path (`__has_include`); `-DMCS_USER_CONFIG_FILE="…"` names another file,
+  `-DMCS_USER_CONFIG=1` forces it on compilers without `__has_include`, `-DMCS_USER_CONFIG=0`
+  ignores it. Guide: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+* **Compiler options keep working and win:** precedence is `-D` (CMake, Kconfig, menuconfig,
+  PlatformIO flags) → the header → the profile → the defaults.
+* **Profiles by name:** `#define MCS_PROFILE MCS_PROFILE_LOWRAM` (or `-DMCS_PROFILE=…`) with
+  `MCS_PROFILE_FULL/AUTO/EMBEDDED/MCU/LOWRAM/TINY/MIN/LINUX`. Build systems pass their choice as
+  `MCS_DEFAULT_PROFILE`, so a profile in the header wins over CMake `MICROCS_PROFILE`, menuconfig or
+  Kconfig. The old `-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_x.h"'` still works.
+* **Build integrations find the header:** CMake (next to the top-level `CMakeLists.txt` or in its
+  `include/`, `src/`, `main/`; `MICROCS_CONFIG=path|NONE`), ESP-IDF (project folder / `main/`,
+  menuconfig *Project config header*), Zephyr (application folder, `include/`, `src/`;
+  `CONFIG_MICROCS_USER_CONFIG_FILE`), PlatformIO (project `include/`), `microcs.mk`
+  (`MICROCS_CONFIG`, `MICROCS_PROFILE` now accepts every profile), Arduino
+  (`tools/make_arduino.py` writes `src/mcs_user_config.h`; new `--config` and `--profile`; it no
+  longer patches `mcs_config.h`).
+* **Ports:** the STM32 port reads `MCS_STM32_HAL_HEADER` from the header too; every port documents
+  its options in the template.
+* **Examples and tests:** `examples/lowram` is configured by its own `mcs_user_config.h`;
+  `make test` checks discovery, `MCS_USER_CONFIG_FILE`, `MCS_USER_CONFIG=0/1` and the precedence
+  (`tests/c/test_config.c`), CI repeats it through CMake, `make check` builds the unmodified
+  template and the profiles by name.
 * **Releases and CI:** the release also ships an ESP32-C2 image (40 MHz crystal); a manual run of
   the Release workflow rebuilds the current version and refreshes its files. Every CI run keeps
   the Pico `.uf2` and ESP32 `.bin` it built as downloadable artifacts (14 days).

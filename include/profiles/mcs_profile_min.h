@@ -6,7 +6,7 @@
  *
  * Everything below is a switch, not a removal: scripts that use a disabled
  * member fail with MissingMemberException, and any switch can be turned back
- * on with -D... (each costs flash, see docs/LOW_RESOURCE.md for the sizes).
+ * on in mcs_user_config.h or with -D... (each costs flash, see docs/LOW_RESOURCE.md).
  * Kept: classes/structs/interfaces/enums, exceptions, arrays, strings
  * (Substring/IndexOf/Contains/Trim/ToUpper/... and interpolation), List<T>,
  * Console, Math (integer), Thread.Sleep, Environment.TickCount, Char.Is...,
@@ -19,7 +19,8 @@
  *
  * Measured (tools/cm_check.sh target m0-64k, Cortex-M0, -Os, newlib-nano,
  * no printf in the firmware): see docs/LOW_RESOURCE.md.
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_min.h"' */
+ * Use: #define MCS_PROFILE MCS_PROFILE_MIN in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_MIN (CMake: MICROCS_PROFILE=min) */
 #ifndef MCS_ENABLE_COMPILER
 #define MCS_ENABLE_COMPILER 0
 #endif

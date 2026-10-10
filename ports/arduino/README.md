@@ -10,11 +10,28 @@ ESP32-S3, ESP32-C3, Raspberry Pi Pico, Pico 2 and the Nano 33 BLE (nRF52840, Mbe
 ## Install
 
 ```sh
-python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.7.0.zip
+python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.8.0.zip
 ```
 
 Arduino IDE: *Sketch → Include Library → Add .ZIP Library…*. PlatformIO:
 `lib_deps = https://github.com/amir1387aht/MicroCS` with `framework = arduino`.
+
+## Configuration
+
+The Arduino IDE cannot pass `-D` options to a library, so the package carries its
+configuration in **`src/mcs_user_config.h`** (a copy of
+[`config/mcs_user_config.h`](../../config/mcs_user_config.h): every option, commented out with
+its default). Edit it in the installed library (`Arduino/libraries/MicroCS/src/`), or bake
+your own settings into the package:
+
+```sh
+python3 tools/make_arduino.py --config my_mcs_user_config.h   # your header instead of the template
+python3 tools/make_arduino.py --profile lowram --define MCS_ENABLE_LINQ=0 --no-ws2812
+```
+
+`--profile`, `--define`, `--no-ws2812` and `--fs` are written at the top of that file. Port
+options such as `MCS_ARDUINO_NO_WIRE` go there too. PlatformIO projects use the project's
+`include/mcs_user_config.h` or `build_flags = -D…` instead ([CONFIGURATION.md](../../docs/CONFIGURATION.md)).
 
 ## Examples
 

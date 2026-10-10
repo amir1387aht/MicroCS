@@ -95,7 +95,8 @@ QSPI API; use the flash API from C).
 |---|---|---|
 | `CONFIG_MICROCS` | n | the runtime (compiler, VM, stdlib, shell, scheduler) |
 | `CONFIG_MICROCS_PORT` | y | this board port |
-| `CONFIG_MICROCS_PROFILE_*` | AUTO | configuration from `CONFIG_SRAM_SIZE` / `CONFIG_FLASH_SIZE` |
+| `CONFIG_MICROCS_PROFILE_*` | AUTO | configuration from `CONFIG_SRAM_SIZE` / `CONFIG_FLASH_SIZE` (`MCS_PROFILE` in `mcs_user_config.h` wins) |
+| `CONFIG_MICROCS_USER_CONFIG_FILE` | "" | project config header; empty = `mcs_user_config.h` in the application folder, its `include/` or `src/` (if present); `NONE` = none |
 | `CONFIG_MICROCS_HEAP_SIZE` | 96 / 64 / 40 KB | C# heap of the example (by RAM size) |
 | `CONFIG_MICROCS_FS` | y with LittleFS | LittleFS on `storage_partition` |
 | `CONFIG_MICROCS_YAFFS2` | n | YAFFS2 on `storage_partition` instead (`overlay-yaffs2.conf`) |

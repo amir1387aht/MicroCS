@@ -21,7 +21,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules build/test_flash
+test: mcs build/test_modules build/test_flash test-config
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -38,24 +38,36 @@ build/test_modules: tests/c/test_modules.c $(OBJ)
 build/test_flash: tests/c/test_flash.c tests/c/flash_sim.h $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_flash.c -o $@ $(LDLIBS)
 
+# Project config header (include/mcs_config.h + tests/c/config/mcs_user_config.h):
+# found on the include path, named with MCS_USER_CONFIG_FILE, forced with
+# MCS_USER_CONFIG=1 and skipped with MCS_USER_CONFIG=0; library and test are
+# built with the same flags each time.
+CONFIG_VARIANTS = "-Itests/c/config" "-I. -DMCS_USER_CONFIG_FILE=\"tests/c/config/mcs_user_config.h\"" \
+	"-Itests/c/config -DMCS_USER_CONFIG=1" "-Itests/c/config -DMCS_USER_CONFIG=0 -DEXPECT_NO_HEADER"
+test-config: | build
+	@for f in $(CONFIG_VARIANTS); do \
+	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -DMCS_GC_GROW=3 \
+	  $(SRC) $(MOD_SRC) tests/c/test_config.c -o build/test_config $(LDLIBS) && ./build/test_config || { echo "FAIL config: $$f"; exit 1; }; done
+
 # Full verification: tests, GC torture, every feature-flag combination
 FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
 	"-DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_LINES=0 -DMCS_ENABLE_BYTECODE_SAVE=0" "-DMCS_INT64=1" \
 	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
 	"-DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DMCS_ENABLE_COMPILER=0" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_mcu.h\"" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_embedded.h\"" "-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_linux.h\"" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_lowram.h\"" "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_LINQ=0" \
+	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_PROFILE=MCS_PROFILE_TINY" "-DMCS_PROFILE=MCS_PROFILE_MCU" \
+	"-DMCS_PROFILE=MCS_PROFILE_EMBEDDED" "-DMCS_PROFILE=MCS_PROFILE_LINUX" \
+	"-DMCS_PROFILE=MCS_PROFILE_LOWRAM" "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_LINQ=0" \
 	"-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16 -DMCS_POOL_ALIGN=16 -DMCS_ERROR_SIZE=64" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_min.h\"" "-DMCS_LAZY_CLASSES=0" \
+	"-DMCS_PROFILE=MCS_PROFILE_MIN" "-DMCS_LAZY_CLASSES=0" \
 	"-DMCS_ENABLE_STRING_EXTRA=0 -DMCS_ENABLE_ARRAY_EXTRA=0 -DMCS_ENABLE_STACK_QUEUE=0" \
 	"-DMCS_ENABLE_CONVERT=0 -DMCS_ENABLE_DIAGNOSTICS=0" "-DMCS_ENABLE_STDIO=0 -DMCS_ENABLE_MALLOC=0 -DMCS_TINY_PRINTF=1" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=16 -DMCS_TARGET_FLASH_KB=64" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DMCS_TARGET_RAM_KB=64 -DMCS_PORT_HAL=1" \
-	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_auto.h\" -DSTM32F072xB -DMCS_PORT_HAL=1" \
+	"-DMCS_PROFILE=MCS_PROFILE_AUTO -DMCS_TARGET_RAM_KB=16 -DMCS_TARGET_FLASH_KB=64" \
+	"-DMCS_PROFILE=MCS_PROFILE_AUTO -DMCS_TARGET_RAM_KB=64 -DMCS_PORT_HAL=1" \
+	"-DMCS_PROFILE=MCS_PROFILE_AUTO -DSTM32F072xB -DMCS_PORT_HAL=1" \
 	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_ENABLE_SUPEROPS=0" \
-	"-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0"
+	"-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" \
+	"-Iconfig" "-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN" "-Itests/c/config -DMCS_GC_GROW=3"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
 	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
@@ -112,7 +124,8 @@ quickstart: $(OBJ) examples/quickstart_embed.c
 	./build/quickstart_embed
 
 # small-MCU firmware skeleton: whole library built with the lowram profile, image run in place
-LOWRAM_FLAGS = -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
+# (the profile and options come from examples/lowram/mcs_user_config.h)
+LOWRAM_FLAGS =
 examples/lowram/node_image.h: examples/lowram/node.cs mcs
 	./mcs -O0 -C examples/lowram/node.cs -n node_image -o $@
 example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c | build
@@ -122,7 +135,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test test-config check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

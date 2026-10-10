@@ -8,7 +8,7 @@
  *   - no on-device compiler / disassembler (build images with `mcs -c` on the host)
  *   - smaller VM limits: 128 value-stack slots, 24 call frames, 12 nested try blocks, 16 C roots
  *   - first GC after 4 KB instead of 16 KB (lower peak, more collections)
- * The LINQ operators stay enabled; add -DMCS_ENABLE_LINQ=0 to save ~12 KB flash.
+ * The LINQ operators stay enabled; MCS_ENABLE_LINQ 0 saves ~12 KB flash.
  *
  * Measured on the emulated Cortex-M0 target `m0-lowram` (tools/cm_check.sh,
  * 64 KB RAM part): the VM needs ~5 KB of heap after mcs_new() (class tables
@@ -16,7 +16,8 @@
  * heap + 1 KB RAM filesystem) with a 30 KB peak. The examples/lowram node
  * runs in 16 KB of RAM (target m0-16k: 12 KB pool, 11.2 KB peak).
  * See docs/LOW_RESOURCE.md.
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' */
+ * Use: #define MCS_PROFILE MCS_PROFILE_LOWRAM in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_LOWRAM (CMake: MICROCS_PROFILE=lowram) */
 #ifndef MCS_ENABLE_COMPILER
 #define MCS_ENABLE_COMPILER 0
 #endif

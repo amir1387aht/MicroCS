@@ -3,7 +3,8 @@
  * design; see docs/PERFORMANCE.md.) Measured: ~84 KB flash (Cortex-M0, -Os, object totals) for the VM +
  * reduced stdlib. For the smallest flash use profiles/mcs_profile_min.h (64 KB flash /
  * 16 KB RAM firmware); see docs/LOW_RESOURCE.md.
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_tiny.h"' */
+ * Use: #define MCS_PROFILE MCS_PROFILE_TINY in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_TINY (CMake: MICROCS_PROFILE=tiny) */
 #ifndef MCS_ENABLE_COMPILER
 #define MCS_ENABLE_COMPILER 0
 #endif

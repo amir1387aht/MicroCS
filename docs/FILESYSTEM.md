@@ -79,7 +79,7 @@ least 6 erase blocks.
 | ESP-IDF | menuconfig → MicroCS → *Filesystem on the "storage" partition* → LittleFS | → YAFFS2 (`CONFIG_MICROCS_FS_YAFFS2=y`) |
 | Zephyr | default (Zephyr's own LittleFS module) | `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` |
 | Arduino IDE | the core's `LittleFS` (ESP32, RP2040) via `mcs_arduino_fs`; other boards: `tools/make_arduino.py --fs littlefs` | `tools/make_arduino.py --fs yaffs2` |
-| Makefile / other | add `lfs.c lfs_util.c`, `-DMCS_ENABLE_LFS=1` | add yaffs2 `direct/` + `core/`, `-DMCS_ENABLE_YAFFS=1` + the defines below |
+| Makefile / other | add `lfs.c lfs_util.c`, `MCS_ENABLE_LFS 1` (in `mcs_user_config.h` or `-D`) | add yaffs2 `direct/` + `core/`, `MCS_ENABLE_YAFFS 1` + the defines below |
 
 ### Where the sources come from
 

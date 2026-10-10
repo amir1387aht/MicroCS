@@ -7,6 +7,8 @@
 #   keep a copy in third_party/littlefs, or add -DMICROCS_FS_DOWNLOAD=ON to fetch v2.9.3 once.
 #   -DMICROCS_FS=yaffs2 for YAFFS2 (GPLv2; MICROCS_YAFFS2_DIR), -DMICROCS_FS= for a RAM disk only.
 #   -DMICROCS_WS2812=OFF leaves out the LedStrip driver (and hardware_pio).
+# Options: a mcs_user_config.h next to this file (template: MicroCS/config/mcs_user_config.h)
+#   is used automatically, e.g. #define MCS_RP2_FS_SIZE (512 * 1024); -D options win over it.
 cmake_minimum_required(VERSION 3.13)
 # PICO_SDK_PATH may come from the environment or from -DPICO_SDK_PATH=...
 if(NOT PICO_SDK_PATH AND DEFINED ENV{PICO_SDK_PATH})

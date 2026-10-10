@@ -7,9 +7,13 @@ include/, src/, modules/*/ and ports/arduino/ into one folder and copies the
 
     python3 tools/make_arduino.py [--out dist/arduino]
 
-Build options (Arduino libraries cannot take -D flags, so they are written into
-the packaged mcs_config.h):
+Configuration: Arduino libraries cannot take -D flags, so the library ships the
+project config header src/mcs_user_config.h (config/mcs_user_config.h: every
+MCS_* option with its default, all commented out). Edit it in the installed
+library (Arduino/libraries/MicroCS/src/), or bake the options in here:
 
+    --config FILE           start from your own mcs_user_config.h instead of the template
+    --profile NAME          full | auto | embedded | mcu | lowram | tiny | min | linux
     --no-ws2812             leave out the "ws2812" driver (C# LedStrip)
     --define NAME[=VALUE]   any MCS_* option, e.g. --define MCS_ENABLE_SCHED=0 (repeatable)
     --fs littlefs|yaffs2    bundle a flash filesystem so mcs_flashfs_mount() works on any
@@ -97,6 +101,9 @@ def bundle_fs(fs, d, src):
     return ["MCS_ENABLE_YAFFS=1", "MCS_YAFFS_OSGLUE=1"]
 
 
+PROFILES = ["full", "auto", "embedded", "mcu", "lowram", "tiny", "min", "linux"]
+
+
 def version():
     with open(os.path.join(ROOT, "include", "mcs.h")) as f:
         m = re.search(r'#define MCS_VERSION_STRING "([^"]+)"', f.read())
@@ -108,6 +115,8 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "arduino"))
     ap.add_argument("--no-ws2812", action="store_true", help="leave out the ws2812 driver (C# LedStrip)")
     ap.add_argument("--define", action="append", default=[], metavar="NAME[=VALUE]", help="MCS_* build option")
+    ap.add_argument("--config", help="your mcs_user_config.h (default: config/mcs_user_config.h)")
+    ap.add_argument("--profile", choices=PROFILES, help="build profile (MCS_PROFILE)")
     ap.add_argument("--fs", choices=["littlefs", "yaffs2"], help="bundle a flash filesystem")
     ap.add_argument("--fs-dir", help="filesystem sources (default: looked up, never downloaded)")
     a = ap.parse_args()
@@ -126,14 +135,21 @@ def main():
     for f in glob.glob(os.path.join(ROOT, "include", "profiles", "*.h")):
         shutil.copy(f, os.path.join(src, "profiles"))
     defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else [])
+    if a.profile:
+        defines.append("MCS_PROFILE=MCS_PROFILE_" + a.profile.upper())
     if a.fs:
         defines += bundle_fs(a.fs, fs_dir, src)
         print(f"bundled {a.fs} from {fs_dir}")
-    if defines:                          # Arduino has no -D for libraries: put them in mcs_config.h
-        cfg = os.path.join(src, "mcs_config.h")
-        with open(cfg) as f:
-            txt = f.read()
-        head = "/* make_arduino.py build options */\n"
+    # Arduino has no -D for libraries: the options go into the library's mcs_user_config.h,
+    # which mcs_config.h finds next to itself (library and sketch see the same file)
+    config = a.config or os.path.join(ROOT, "config", "mcs_user_config.h")
+    if not os.path.isfile(config):
+        raise SystemExit(f"make_arduino: no config header {config}")
+    with open(config) as f:
+        txt = f.read()
+    head = ""
+    if defines or a.fs == "yaffs2":
+        head = "/* make_arduino.py build options (like -D: they win over the settings below) */\n"
         for dd in defines:
             n, _, v = dd.partition("=")
             if not re.match(r"^[A-Za-z_]\w*$", n):
@@ -141,8 +157,9 @@ def main():
             head += f"#ifndef {n}\n#define {n} {v or 1}\n#endif\n"
         if a.fs == "yaffs2":
             head += '#include "mcs_yaffs_config.h"\n'
-        with open(cfg, "w") as f:
-            f.write(head + txt)
+        head += "\n"
+    with open(os.path.join(src, "mcs_user_config.h"), "w") as f:
+        f.write(head + txt)
     for d in glob.glob(os.path.join(ROOT, "ports", "arduino", "examples", "*")):
         shutil.copytree(d, os.path.join(lib, "examples", os.path.basename(d)))
     shutil.copy(os.path.join(ROOT, "LICENSE"), lib)

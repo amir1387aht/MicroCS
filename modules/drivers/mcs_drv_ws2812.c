@@ -9,7 +9,8 @@
  * puts them in the strip's byte order and calls the backend's write()
  * (mcs_ws2812_ops_t) of the driver registered as "ws2812": PIO on RP2, RMT on
  * ESP32, bit-bang on STM32, led_strip on Zephyr ... (see include/mcs_driver.h).
- * Off with -DMCS_ENABLE_WS2812=0 (CMake -DMICROCS_WS2812=OFF, menuconfig, Kconfig).
+ * Off with MCS_ENABLE_WS2812 0 in mcs_user_config.h or -DMCS_ENABLE_WS2812=0
+ * (CMake -DMICROCS_WS2812=OFF, menuconfig, Kconfig).
  */
 #include "mcs_driver.h"
 #if MCS_ENABLE_WS2812

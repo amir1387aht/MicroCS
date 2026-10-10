@@ -14,8 +14,9 @@
  *
  * With MCS_PORT_HAL=1 (board ports) the HAL stays enabled when flash >= 128 KB.
  * Less than 16 KB of RAM stops the build (MCS_ALLOW_SMALL_TARGET=1 to try anyway).
- * Any option can still be overridden with -D on the command line.
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_auto.h"' (CMake: MICROCS_PROFILE=auto). */
+ * Any option can still be overridden in mcs_user_config.h or with -D.
+ * Use: #define MCS_PROFILE MCS_PROFILE_AUTO in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_AUTO (CMake: MICROCS_PROFILE=auto). */
 #ifndef MCS_PROFILE_AUTO_H
 #define MCS_PROFILE_AUTO_H
 

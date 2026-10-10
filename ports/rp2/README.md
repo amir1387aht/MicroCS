@@ -52,7 +52,7 @@ if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_
 ```
 
 * Region: `MCS_RP2_FS_SIZE` bytes at the end of flash — 1 MB on 2 MB boards (Pico), all but
-  the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Override with `-DMCS_RP2_FS_SIZE=...` or pass
+  the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Override with `MCS_RP2_FS_SIZE` (in `mcs_user_config.h` or `-D`) or pass
   an offset/size; the driver refuses a region that overlaps the firmware.
 * Erase/program go through `flash_safe_execute`, which pauses interrupts and the other core.
 * **Filesystem sources** are not bundled or downloaded silently: pass

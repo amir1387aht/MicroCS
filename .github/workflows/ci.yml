@@ -92,6 +92,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: cmake -S . -B build/cmake && cmake --build build/cmake -j && echo 'Console.WriteLine(6 * 7);' > /tmp/a.cs && build/cmake/mcs /tmp/a.cs
+      - name: Project config header (mcs_user_config.h found next to CMakeLists.txt, MICROCS_PROFILE, -D)
+        run: cmake -S tests/c/config -B build/cfg && cmake --build build/cfg -j && build/cfg/test_config
 
   pico:
     name: Raspberry Pi Pico · ${{ matrix.board }} ${{ matrix.fs }}${{ matrix.name }}
@@ -281,5 +283,5 @@ jobs:
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
       - name: Same with the auto profile (picked from the device's RAM/flash)
         env:
-          PORT_CFLAGS: -DMCS_PORT_HAL=1 -DMCS_USER_CONFIG_FILE="profiles/mcs_profile_auto.h"
+          PORT_CFLAGS: -DMCS_PORT_HAL=1 -DMCS_PROFILE=MCS_PROFILE_AUTO
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}

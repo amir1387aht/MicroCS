@@ -3,8 +3,8 @@
  *
  * YAFFS2 is not bundled - and it is GPLv2 (or a commercial licence from Aleph
  * One): linking it into a firmware makes that firmware a derived work. Build
- * with -DMCS_ENABLE_YAFFS=1, the yaffs2 direct + core sources and their usual
- * defines (CONFIG_YAFFS_DIRECT CONFIG_YAFFS_YAFFS2 CONFIG_YAFFS_PROVIDE_DEFS
+ * with MCS_ENABLE_YAFFS 1 (mcs_user_config.h or -D), the yaffs2 direct + core
+ * sources and their usual defines (CONFIG_YAFFS_DIRECT CONFIG_YAFFS_YAFFS2 CONFIG_YAFFS_PROVIDE_DEFS
  * CONFIG_YAFFSFS_PROVIDE_VALUES CONFIG_YAFFS_DEFINES_TYPES); `make yaffs-test`
  * downloads a pinned revision into build/third_party and does exactly that.
  *
@@ -15,7 +15,7 @@
  *
  * ctx is the struct yaffs_dev; paths are passed to the *_reldev API, so the
  * VFS prefix and the YAFFS device name are independent. YAFFS needs an OS glue
- * layer (yaffs_osglue.h: lock, malloc, time, errno); -DMCS_YAFFS_OSGLUE=1
+ * layer (yaffs_osglue.h: lock, malloc, time, errno); MCS_YAFFS_OSGLUE 1
  * compiles a single-threaded one from this file.
  */
 #include "mcs_vfs.h"

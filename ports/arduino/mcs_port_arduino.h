@@ -44,6 +44,8 @@
 #include <SPI.h>
 #endif
 
+/* Port options (MCS_ARDUINO_UARTS/_TIMERS/_ADC_BITS, MCS_ARDUINO_NO_WIRE/_NO_SPI): set them in
+ * the library's src/mcs_user_config.h (tools/make_arduino.py --define / --config). */
 #ifndef MCS_ARDUINO_UARTS
 #define MCS_ARDUINO_UARTS 4
 #endif
