@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.9.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.1-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -252,7 +252,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.9.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.9.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -281,6 +281,11 @@ scheduler, sensors, displays, motors, every peripheral, console games), a serial
 <p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
 <p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 130+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
+
+**Ready-to-flash firmware** in every [release](https://github.com/amir1387aht/MicroCS/releases/latest):
+Raspberry Pi Pico / Pico 2 / RP2040-Zero (`.uf2`), ESP32 / S3 / C2 / C3 / C6 (`.bin`) and the STM32
+boards Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI and Black Pill F411CE
+(`.bin` / `.hex`, [details](ports/stm32/firmware/README.md)).
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),
 [`ports/esp32/example`](ports/esp32/example) (ESP-IDF), [`ports/stm32/example_main.c`](ports/stm32/example_main.c)
@@ -382,7 +387,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.9.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.9.1.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -402,7 +407,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 
 | Target | Port | Verified in CI |
 |---|---|---|
-| **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile |
+| **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile; [ready-to-flash firmware](ports/stm32/firmware/README.md) for 7 boards built, the F4 and H743 images booted in the Renode emulator (REPL, files in internal flash) |
 | **ESP32** · S2 · S3 · C2 · C3 · C6 · H2 · P4 (no Wi-Fi/BLE needed) | [`ports/esp32`](ports/esp32) | example firmware built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W…) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico` and `pico2` |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
@@ -568,7 +573,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
-| STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each, Pico + Pico 2 firmware built |
+| STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |
