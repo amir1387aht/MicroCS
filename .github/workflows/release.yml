@@ -77,9 +77,12 @@ jobs:
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
           git clone -q --depth 1 --branch v2.9.3 https://github.com/littlefs-project/littlefs.git $HOME/littlefs
-      - name: Build ports/rp2/example
+          # FreeRTOS SMP from Raspberry Pi's FreeRTOS-Kernel (the RTOS of pico-examples; RP2040 + RP2350 ports)
+          mkdir -p $HOME/FreeRTOS-Kernel && curl -sSL https://github.com/raspberrypi/FreeRTOS-Kernel/archive/4f7299d6ea746b27a9dd19e87af568e34bd65b15.tar.gz | tar xz --strip-components=1 -C $HOME/FreeRTOS-Kernel
+      - name: Build ports/rp2/example (FreeRTOS SMP, C# threads on both cores)
         run: |
-          cmake -S ports/rp2/example -B build/fw -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=littlefs -DMICROCS_LITTLEFS_DIR=$HOME/littlefs
+          cmake -S ports/rp2/example -B build/fw -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=littlefs -DMICROCS_LITTLEFS_DIR=$HOME/littlefs \
+            -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel
           cmake --build build/fw
           mkdir -p out && cp build/fw/microcs_pico.uf2 out/microcs-${{ needs.version.outputs.version }}-${{ matrix.board }}.uf2
       - uses: actions/upload-artifact@v4
@@ -96,7 +99,7 @@ jobs:
         target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
     steps:
       - uses: actions/checkout@v4
-      - name: Build ports/esp32/example (one image, flash at 0x0)
+      - name: Build ports/esp32/example (one image, flash at 0x0; C# threads on FreeRTOS tasks)
         shell: bash
         run: |
           . $IDF_PATH/export.sh
@@ -105,6 +108,8 @@ jobs:
           cp -r . /tmp/proj/components/MicroCS
           OUT=$PWD/out; mkdir -p $OUT
           cd /tmp/proj
+          # FreeRTOS is ESP-IDF's own OS: release images run C# threads on its tasks (both cores on ESP32 / S3)
+          echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults
           idf.py set-target ${{ matrix.target }}
           idf.py build
           cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $OUT/microcs-${{ needs.version.outputs.version }}-${{ matrix.target }}.bin @flash_args
@@ -168,6 +173,7 @@ jobs:
             echo "| STM32 Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI | \`microcs-$V-nucleo_<board>.bin\` | copy the file to the NOD_xxx drive of the Nucleo's ST-LINK (or STM32CubeProgrammer, \`.hex\` keeps your files); the console is the ST-LINK virtual COM port |"
             echo "| STM32 Black Pill (F411CE) | \`microcs-$V-blackpill_f411ce.bin\` | USB DFU (hold BOOT0, reset): \`dfu-util -a 0 -s 0x08000000:leave -D microcs-$V-blackpill_f411ce.bin\`, or ST-LINK; console = USART1 (PA9 TX, PA10 RX) via a USB-serial adapter |"
             echo "| Linux x64 | \`mcs-$V-<os>.tar.gz\` | compiler, REPL and simulator: \`./mcs --repl --sim\` |"
+            echo "| Threads | | Pico / Pico 2 / RP2040-Zero and ESP32 files run FreeRTOS (SMP on dual cores): \`Thread.RunOn(1, …)\` and \`jobs.cfg\` jobs use real threads; STM32 files are bare-metal |"
             echo "| ESP32-C2 note | | built for a 40 MHz crystal (ESP-IDF default); boards with a 26 MHz ESP8684 need a rebuild with \`CONFIG_XTAL_FREQ_26=y\` |"
             echo "| Arduino IDE | \`MicroCS-$V.zip\` | Sketch → Include Library → Add .ZIP Library |"
             echo

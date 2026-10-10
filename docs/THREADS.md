@@ -79,16 +79,20 @@ also exist without an OS, so one script can check what it runs on.
 
 ## jobs.cfg
 
-Add `thread` to a file job to run it on its own OS thread, timed by the OS.
-`core=`, `prio=`, `stack=` and `heap=` imply `thread`:
+When an OS is chosen, file jobs (`every`, `after`, `at`) run on their own OS thread, timed by
+the OS (`MCS_SCHED_THREADS`, on by default with threads; set it to 0 to make `thread` opt-in).
+`startup` jobs and jobs marked `main` stay on the main VM. `thread`, `core=`, `prio=`, `stack=`
+and `heap=` ask for a thread explicitly:
 
 ```
-every 10ms /control.cs thread core=1 heap=24k
-every 1s   /log.cs     thread stack=8k prio=-1
-startup    /main.cs
+every 10ms /control.cs core=1 heap=24k
+every 1s   /log.cs     stack=8k prio=-1
+every 50ms /ui.cs      main          # polled on the main VM, as without an OS
+startup    /main.cs                  # always on the main VM
 ```
 
-Without an OS these options are ignored and the job is polled as before. `jobs` / `.jobs`
+If no thread slot or heap is free, the job falls back to the main VM. Without an OS these
+options are ignored and the job is polled as before. `jobs` / `.jobs`
 in the shell show `thread core=N worker=ID` for running thread jobs.
 
 ## From C
@@ -117,6 +121,7 @@ set the defaults. Without the runtime, call `mcs_threads_init()` and then
 | `MCS_THREAD_STACK` | 8 KB (12 KB on ESP32) | OS stack per thread (`stack=`) |
 | `MCS_THREAD_SLOTS` / `MCS_THREAD_FRAMES` | 256 / 48 | VM stack of a thread |
 | `MCS_THREAD_PRIORITY` | 0 | relative to the starting thread |
+| `MCS_SCHED_THREADS` | `MCS_ENABLE_THREADS` | `jobs.cfg` file jobs on threads by default (`main` opts out) |
 | `MCS_CHANNELS_MAX` / `MCS_CHANNEL_MSG_MAX` | 8 / 1024 | |
 
 ## Where are the FreeRTOS headers?

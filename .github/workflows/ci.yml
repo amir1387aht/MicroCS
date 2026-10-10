@@ -131,6 +131,7 @@ jobs:
           - { board: waveshare_rp2040_zero, fs: littlefs }
           - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812", tag: "-no-ws2812" }
           - { board: waveshare_rp2040_zero, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
+          - { board: pico2, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -139,9 +140,9 @@ jobs:
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
-      - name: FreeRTOS-Kernel (SMP port for both RP2040 cores)
+      - name: FreeRTOS-Kernel (Raspberry Pi's fork, as in the release images; RP2040 + RP2350 SMP ports)
         if: ${{ matrix.freertos }}
-        run: git clone -q --depth 1 --branch V11.1.0 https://github.com/FreeRTOS/FreeRTOS-Kernel.git $HOME/FreeRTOS-Kernel
+        run: mkdir -p $HOME/FreeRTOS-Kernel && curl -sSL https://github.com/raspberrypi/FreeRTOS-Kernel/archive/4f7299d6ea746b27a9dd19e87af568e34bd65b15.tar.gz | tar xz --strip-components=1 -C $HOME/FreeRTOS-Kernel
       - name: Filesystem sources (LittleFS from a local clone; YAFFS2 through the opt-in download)
         run: |
           if [ "${{ matrix.fs }}" = littlefs ]; then

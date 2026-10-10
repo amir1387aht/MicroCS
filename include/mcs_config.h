@@ -451,6 +451,9 @@
 #ifndef MCS_THREAD_PRIORITY
 #define MCS_THREAD_PRIORITY 0      /* relative to the starting thread: > 0 higher, < 0 lower (docs/THREADS.md) */
 #endif
+#ifndef MCS_SCHED_THREADS
+#define MCS_SCHED_THREADS MCS_ENABLE_THREADS /* jobs.cfg / shell file jobs run on OS threads (`main` opts out) */
+#endif
 #ifndef MCS_CHANNELS_MAX
 #define MCS_CHANNELS_MAX 8         /* named Channels shared between threads */
 #endif

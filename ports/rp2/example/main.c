@@ -3,7 +3,7 @@
  * at the "> " prompt. Scripts and files live in LittleFS on the on-board
  * flash (the last 1 MB on a Pico, 3 MB on a Pico 2) and survive resets and
  * firmware updates; build with -DMICROCS_FS=yaffs2 for YAFFS2 or
- * -DMICROCS_FS= for a RAM disk. With -DMICROCS_OS=freertos (RP2040) the runtime runs
+ * -DMICROCS_FS= for a RAM disk. With -DMICROCS_OS=freertos (RP2040 / RP2350) the runtime runs
  * in a FreeRTOS SMP task on core 0 and C# threads can use core 1 (docs/THREADS.md). */
 #include <stdio.h>
 #include "pico/stdlib.h"
@@ -13,7 +13,11 @@
 #if MCS_OS == MCS_OS_FREERTOS
 #include "FreeRTOS.h"
 #include "task.h"
-static uint8_t heap[128 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps */
+#if PICO_RP2350
+static uint8_t heap[256 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps (520 KB SRAM) */
+#else
+static uint8_t heap[128 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps (264 KB SRAM) */
+#endif
 #else
 static uint8_t heap[160 * 1024] __attribute__((aligned(8)));
 #endif

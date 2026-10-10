@@ -96,8 +96,9 @@ void mcs_sched_run(mcs_sched_t* s, mcs_delay_fn delay, void* delay_ud, volatile 
  * <time> is a number with an optional ms/s/m/h suffix (default ms). '#' starts a
  * comment. Options for a real OS thread (builds with an OS, docs/THREADS.md; without
  * one they are accepted and the job runs in the polled scheduler as before):
- *     thread  core=<n>  prio=<n>  stack=<size>  heap=<size>   (size: bytes or 8k)
- * core/prio/stack/heap imply `thread`. Returns the number of jobs added, or
+ *     thread  main  core=<n>  prio=<n>  stack=<size>  heap=<size>   (size: bytes or 8k)
+ * With MCS_SCHED_THREADS (default with an OS) file jobs other than `startup` use a
+ * thread unless marked `main`; core/prio/stack/heap imply `thread`. Returns the number of jobs added, or
  * -(line number) on a syntax error. */
 /* The job with this id, NULL if none. */
 mcs_job_t* mcs_sched_job(mcs_sched_t* s, int id);

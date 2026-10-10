@@ -175,8 +175,9 @@ idf.py set-target esp32c2 && idf.py build flash monitor
 * **Pins** that suit an ESP8684-DevKitC: UART1 TX 7 / RX 10, I²C SDA 5 / SCL 6,
   SPI SCLK 4 / MOSI 3 / MISO 2, PWM 0 on GPIO 1.
 
-## Threads on both cores (optional)
+## Threads on both cores
 
+The ready-to-flash release images have threads on. For your own build:
 `idf.py menuconfig` → Component config → MicroCS → **Real threads on FreeRTOS tasks**
 (`CONFIG_MICROCS_THREADS=y`). The REPL keeps core 0, and C# can use core 1:
 
@@ -186,7 +187,8 @@ Console.WriteLine(w.Result);
 var loop = Thread.Every(10, "/control.cs", "Tick", 1); // OS-timed, every 10 ms on core 1
 ```
 
-`jobs.cfg` uses the same model: `every 10ms /control.cs thread core=1`. Each thread has its own C#
+`jobs.cfg` file jobs then run on threads by default: `every 10ms /control.cs core=1`
+(`main` keeps a job on the main VM). Each thread has its own C#
 heap (32 KB, taken from the VM heap) and a 12 KB task stack. Off (the default), the firmware
 is single-threaded, as before. See [docs/THREADS.md](../../docs/THREADS.md).
 

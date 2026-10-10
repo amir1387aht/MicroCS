@@ -13,15 +13,23 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   work. A `Worker` has `Join`, `Stop`, `Result`, `State` and `Error`; named `Channel`s copy
   values between threads. Each thread gets its own VM and heap. The filesystem, console and
   peripherals are shared under locks. Interrupt callbacks stay with the main VM.
-* **`jobs.cfg`:** `every 10ms /control.cs thread core=1 heap=24k prio=1` runs a job on its own
-  thread (`thread`, `core=`, `prio=`, `stack=`, `heap=`). Without an OS these options are
-  ignored and the job is polled as before. `jobs` / `.jobs` show thread jobs.
+* **The scheduler uses the OS too:** with an OS chosen, `jobs.cfg` file jobs run on their own
+  OS thread, timed by the OS (`MCS_SCHED_THREADS`, default on with threads). `startup` jobs and
+  jobs marked `main` stay on the main VM; when no thread slot or heap is free, a job falls back
+  to the main VM. Per job: `core=`, `prio=`, `stack=`, `heap=` (e.g. `every 10ms /control.cs
+  core=1 heap=24k prio=1`). Without an OS these options are ignored and the job is polled as
+  before. `jobs` / `.jobs` show thread jobs.
+* **Release firmware runs on FreeRTOS:** the ready-to-flash ESP32 images are built with
+  threads on ESP-IDF's FreeRTOS, and the Pico / Pico 2 / RP2040-Zero `.uf2` files with
+  Raspberry Pi's FreeRTOS SMP kernel (the RTOS pico-examples uses; pico-sdk itself has none),
+  so `Thread.RunOn(1, …)` uses the second core out of the box. STM32 images stay bare-metal.
 * **Headers found or asked for:** CMake picks up a `freertos_kernel` / `FreeRTOS-Kernel` /
   CubeMX target, `MICROCS_FREERTOS_PATH` + `_PORT` + `_CONFIG_DIR` or `FREERTOS_KERNEL_PATH`, or
   a FreeRTOS-Kernel folder in the project. If none is found, configure stops and names the
   variable to set. `make OS=freertos` and IDE builds stop the same way.
-* `ports/rp2/example`: `-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=…` runs the REPL on core 0
-  under FreeRTOS SMP and leaves core 1 for C#. `ports/zephyr/example/overlay-threads.conf`.
+* `ports/rp2/example`: `-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=…` (Raspberry Pi's
+  FreeRTOS-Kernel fork) runs the REPL on core 0 under FreeRTOS SMP and leaves core 1 for C#,
+  on RP2040 and RP2350. `ports/zephyr/example/overlay-threads.conf`.
 * C API (`mcs_threads.h`, `mcs_os.h`): `mcs_thread_start/stop/join/info`. `mcs_runtime` sets
   threads up by itself (`cfg.thread_setup`, `cfg.thread_heap`, `cfg.thread_stack`).
   Filesystems can be locked (`mcs_vfs_t.lock`). Worker VMs can open the HAL without callbacks

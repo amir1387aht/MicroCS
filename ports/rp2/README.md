@@ -65,17 +65,22 @@ if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_
   `-DMICROCS_FS_DOWNLOAD=ON`; GPLv2 or commercial licence — linking it puts your firmware under those terms). `-DMICROCS_FS=` (empty) builds
   without flash files (RAM disk only).
 
-## Both cores (optional, FreeRTOS SMP)
+## Both cores (FreeRTOS SMP)
+
+The pico-sdk has no OS of its own; Raspberry Pi's supported RTOS is FreeRTOS SMP from
+their [FreeRTOS-Kernel fork](https://github.com/raspberrypi/FreeRTOS-Kernel) (RP2040 and
+RP2350 ports, used by pico-examples). The release `.uf2` files are built this way.
 
 ```sh
-git clone -b V11.1.0 https://github.com/FreeRTOS/FreeRTOS-Kernel
+git clone https://github.com/raspberrypi/FreeRTOS-Kernel
 cmake -S ports/rp2/example -B build -DPICO_BOARD=pico -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$PWD/FreeRTOS-Kernel
 ```
 
 The REPL runs in a FreeRTOS task on core 0 (configuration:
 `example/freertos/FreeRTOSConfig.h`). `Thread.RunOn(1, "/dsp.cs", "Filter", 128)`,
 `Thread.Every(10, "/control.cs", "Tick", 1)` and `thread core=1` jobs in `jobs.cfg` run on
-core 1. RP2040 boards only (the RP2350 FreeRTOS port is not wired up yet). Without
+core 1, and `jobs.cfg` file jobs run on threads by default. Works on RP2040 and RP2350
+(`-DPICO_BOARD=pico2`). Without
 `MICROCS_OS`, the firmware is single-threaded, as before. See
 [docs/THREADS.md](../../docs/THREADS.md).
 

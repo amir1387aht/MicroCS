@@ -34,7 +34,12 @@ static void setup(mcs_vm_t* vm, void* ud) {
     const char* prod = "var ch = new Channel(\"c\", 4); for (int i = 1; i <= 10; i++) ch.Send(i);"
                        "File.WriteAllText(\"/t.txt\", \"from \" + Board.Name());";
     const char* tick = "File.AppendAllText(\"/ticks.txt\", \"x\");";
-    const char* jobs = "every 50ms /tick.cs thread heap=48k\n";
+    /* with an OS, file jobs run on OS threads by default; `main` and startup jobs stay on the main VM */
+    const char* jobs = "every 50ms /tick.cs heap=48k\nafter 10ms /where.cs\nafter 10ms /where.cs main\nstartup /boot2.cs\n";
+    const char* where = "File.AppendAllText(\"/where.txt\", Thread.Id > 0 ? \"T\" : \"M\");";
+    const char* boot2 = "File.AppendAllText(\"/boot2.txt\", Thread.Id == 0 ? \"main\" : \"thread\");";
+    mcs_vfs_write_file(&rt.vfs, "/where.cs", where, strlen(where), false);
+    mcs_vfs_write_file(&rt.vfs, "/boot2.cs", boot2, strlen(boot2), false);
     const char* m =
         "var w = Thread.Run(\"/lib.cs\", \"Sq\", 7); Console.WriteLine(\"sq \" + w.Result);"
         "var ch = new Channel(\"c\", 4); var p = Thread.Start(\"/prod.cs\");"
@@ -74,6 +79,18 @@ static void test_runtime_threads(void) {
     char* tk; size_t tl;
     CHECK(mcs_vfs_read_file(&rt.vfs, "/ticks.txt", &tk, &tl) == 0);
     if (tk) { CHECK(tl >= 4); mcs_vfs_free(&rt.vfs, tk, tl); }
+    CHECK(mcs_vfs_read_file(&rt.vfs, "/where.txt", &tk, &tl) == 0);
+    if (tk) { CHECK(tl == 2 && memchr(tk, 'T', tl) && memchr(tk, 'M', tl)); mcs_vfs_free(&rt.vfs, tk, tl); }
+    CHECK(mcs_vfs_read_file(&rt.vfs, "/boot2.txt", &tk, &tl) == 0);
+    if (tk) { CHECK(tl == 4 && !memcmp(tk, "main", 4)); mcs_vfs_free(&rt.vfs, tk, tl); }
+    /* listings say which jobs run on threads */
+    int on_thread = 0, on_main = 0;
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+        mcs_job_t* j = &rt.sched.jobs[i];
+        if (j->state == MCS_JOB_FREE || !j->is_file) continue;
+        if (j->thread) on_thread++; else on_main++;
+    }
+    CHECK(on_thread == 2 && on_main == 2);
 
     /* C API: source in memory */
     mcs_thread_spec_t sp = MCS_THREAD_SPEC_DEFAULTS;

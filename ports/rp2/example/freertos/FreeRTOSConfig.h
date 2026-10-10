@@ -1,4 +1,5 @@
-/* FreeRTOS SMP on both RP2040 cores for MicroCS threads (-DMICROCS_OS=freertos, docs/THREADS.md).
+/* FreeRTOS SMP on both cores of the RP2040 / RP2350 for MicroCS threads (-DMICROCS_OS=freertos,
+ * docs/THREADS.md), the Raspberry Pi FreeRTOS-Kernel fork's RP2040 / RP2350_ARM_NTZ ports.
  * The REPL runs in a task on core 0; Thread.RunOn(1, ...) / `thread core=1` jobs run on core 1. */
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
@@ -62,4 +63,11 @@
 #define INCLUDE_xTaskGetHandle                  1
 #define INCLUDE_xTaskResumeFromISR              1
 #define INCLUDE_xQueueGetMutexHolder            1
+#if PICO_RP2350
+#define configENABLE_MPU                        0
+#define configENABLE_TRUSTZONE                  0
+#define configRUN_FREERTOS_SECURE_ONLY          1
+#define configENABLE_FPU                        1
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY    16
+#endif
 #endif

@@ -71,6 +71,9 @@ int mcs_sched_add_file(mcs_sched_t* s, const char* path, uint32_t delay, uint32_
     j->max_failures = max_failures;
     j->next_due = now(s) + delay;
     j->state = MCS_JOB_ACTIVE;
+#if MCS_ENABLE_THREADS && MCS_SCHED_THREADS
+    j->thread = true;                   /* an OS was chosen: file jobs run on OS threads */
+#endif
     return j->id;
 }
 
@@ -155,6 +158,10 @@ static void thread_start(mcs_sched_t* s, mcs_job_t* j) {
     sp.stack_size = (uint32_t)j->stack_kb * 1024u;
     sp.heap_size = (uint32_t)j->heap_kb * 1024u;
     int id = mcs_thread_start(&sp);
+    if (id == -1 || id == -2) {         /* all threads busy / no heap left: run it on the main VM */
+        j->thread = false;
+        return;
+    }
     if (id < 0) {
         j->state = MCS_JOB_FAILED;
         mcs_fail(s->vm, MCS_ERR_RUNTIME, "job %d: cannot start a thread for '%s': %s", j->id, j->path, mcs_thread_strerror(id));
@@ -184,7 +191,7 @@ int32_t mcs_sched_poll(mcs_sched_t* s) {
         if (j->state == MCS_JOB_ACTIVE && j->thread && j->is_file) {   /* the OS thread runs and times it */
             if (j->worker) thread_status(s, j);
             else if ((int32_t)(now(s) - j->next_due) >= 0) thread_start(s, j);
-            continue;
+            if (j->thread) continue;    /* else it fell back to the main VM: run it below */
         }
 #endif
         if (j->state != MCS_JOB_ACTIVE || (int32_t)(now(s) - j->next_due) < 0) continue;
@@ -298,7 +305,7 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
             memcpy(path, q, pn); path[pn] = 0;
             q = skip_ws(q + pn);
             uint16_t maxf = 1;
-            bool thread = false;
+            bool thread = MCS_SCHED_THREADS && !startup;   /* startup scripts stay on the main VM */
             int32_t core = -1, prio = 0;
             uint32_t stack = 0, heap = 0;
             size_t on;
@@ -309,6 +316,7 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
                     else if (vn == 6 && !strncmp(v, "always", 6)) maxf = 0;
                     else { uint32_t n; if (!parse_time(v, vn, &n) || n > 65535) return -line_no; maxf = (uint16_t)n; }
                 } else if (on == 6 && !strncmp(q, "thread", 6)) thread = true;
+                else if (on == 4 && !strncmp(q, "main", 4)) thread = false;
                 else if (on > 5 && !strncmp(q, "core=", 5)) { if (!parse_int(q + 5, on - 5, &core) || core > 127) return -line_no; thread = true; }
                 else if (on > 5 && !strncmp(q, "prio=", 5)) { if (!parse_int(q + 5, on - 5, &prio) || prio < -64 || prio > 64) return -line_no; thread = true; }
                 else if (on > 6 && !strncmp(q, "stack=", 6)) { if (!parse_size(q + 6, on - 6, &stack)) return -line_no; thread = true; }
@@ -319,10 +327,12 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
             (void)once;
             int id = mcs_sched_add_file(s, path, startup ? 0 : (periodic ? 0 : t), periodic ? t : 0, maxf);
             if (id < 0) return -line_no;
-            if (thread) {
+            {
                 mcs_job_t* j = mcs_sched_job(s, id);
 #if MCS_ENABLE_THREADS
-                j->thread = true;
+                j->thread = thread;
+#else
+                (void)thread;           /* no OS: polled on the main VM as always */
 #endif
                 j->core = (int8_t)core; j->prio = (int8_t)prio;
                 j->stack_kb = (uint16_t)((stack + 1023) / 1024); j->heap_kb = (uint16_t)((heap + 1023) / 1024);
