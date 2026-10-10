@@ -233,6 +233,36 @@
 #ifndef MCS_ENABLE_SERVO
 #define MCS_ENABLE_SERVO          MCS_ENABLE_DRIVERS    /* built-in "servo" driver: C# Servo (hobby servos on a PWM channel) */
 #endif
+/* u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8, needs olikraus' u8g2 library (the build finds
+ * or downloads it). Displays and fonts compiled in - names: `python3 tools/u8g2.py displays`,
+ * `python3 tools/u8g2.py fonts`; other fonts load from MCS_U8G2_FONT_DIR at run time. */
+#ifndef MCS_ENABLE_U8G2
+#define MCS_ENABLE_U8G2           0    /* "u8g2" driver: C# U8g2 / U8x8 (needs the u8g2 library) */
+#endif
+#ifndef MCS_U8G2_DISPLAYS
+#define MCS_U8G2_DISPLAYS         U8G2_DISPLAY(ssd1306_i2c_128x64_noname) U8G2_DISPLAY(ssd1306_i2c_128x32_univision) U8G2_DISPLAY(sh1106_i2c_128x64_noname) U8G2_DISPLAY(ssd1306_128x64_noname)    /* displays compiled in */
+#endif
+#ifndef MCS_U8G2_FONTS
+#define MCS_U8G2_FONTS            U8G2_FONT(u8g2_font_6x10_tf) U8G2_FONT(u8g2_font_5x7_tr) U8G2_FONT(u8g2_font_helvB10_tr) U8G2_FONT(u8g2_font_ncenB14_tr) U8G2_FONT(u8g2_font_logisoso24_tn) U8G2_FONT(u8g2_font_open_iconic_embedded_1x_t)    /* fonts in flash, the first is the default */
+#endif
+#ifndef MCS_U8X8_FONTS
+#define MCS_U8X8_FONTS            U8X8_FONT(u8x8_font_chroma48medium8_r) U8X8_FONT(u8x8_font_8x13_1x2_r)    /* U8x8 fonts in flash */
+#endif
+#ifndef MCS_U8G2_FONT_DIR
+#define MCS_U8G2_FONT_DIR         "/fonts"    /* font files: <dir>/u8g2_font_<name>.bin, <dir>/u8x8_font_<name>.bin */
+#endif
+#ifndef MCS_U8G2_MAX_FONTS
+#define MCS_U8G2_MAX_FONTS        4    /* font files kept loaded per display */
+#endif
+#ifndef MCS_U8G2_MAX_FONT_SIZE
+#define MCS_U8G2_MAX_FONT_SIZE    65536    /* largest font file accepted (bytes) */
+#endif
+#ifndef MCS_U8G2_EXTRA
+#define MCS_U8G2_EXTRA            8    /* fonts / displays added with mcs_u8g2_add_font / mcs_u8g2_add_display */
+#endif
+#ifndef MCS_U8G2_I2C_BUF
+#define MCS_U8G2_I2C_BUF          34    /* I2C transfer buffer per display (bytes) */
+#endif
 #ifndef MCS_ENABLE_SCHED
 #define MCS_ENABLE_SCHED          1    /* job scheduler */
 #endif

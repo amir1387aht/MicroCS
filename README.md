@@ -117,7 +117,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
+14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
@@ -365,11 +365,13 @@ CAN.Send(0, 0x123, new byte[] { 1, 2, 3 });
 | Watchdog | `Watchdog` | ✅ IWDG | ✅ task WDT | ✅ | ✅ | ESP32 · RP2040 · AVR |
 | RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ RTC driver / software | ✅ software |
 | Board info, µs clock, reset | `Hal` | ✅ | ✅ | ✅ | ✅ | ✅ |
+| OLED / LCD displays (opt-in, [u8g2](docs/U8G2.md)) | `U8g2` `U8x8` | ✅ I²C / SPI | ✅ | ✅ | ✅ | ✅ U8g2 library |
 
 Full reference: [HAL.md](docs/HAL.md) · add your own devices: [DRIVERS.md](docs/DRIVERS.md) · generated API list: [STDLIB.md](docs/STDLIB.md) ·
 16 commented, runnable scripts: [examples/hardware](examples/hardware/)
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
-wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger).
+wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger) · displays:
+[examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -572,6 +574,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
+| U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
@@ -599,6 +602,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
       `Servo` driver; config header with every default set; CI on 18 STM32 boards
 - [x] **1.10** — optional real OS threads (FreeRTOS, ESP-IDF, Zephyr, POSIX): `Thread.Run` / `RunOn(core, …)` /
       `Every`, `Channel`s, `thread core=1` jobs in `jobs.cfg`; ESP32 and RP2040 second core
+- [x] **1.11** — optional u8g2 displays: C# `U8g2` / `U8x8` (365 displays, every font built in or from a file),
+      found or downloaded by every build, `--oled` simulator
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC

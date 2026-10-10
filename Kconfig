@@ -91,4 +91,56 @@ menu "MicroCS"
             with 50 Hz pulses on a PWM channel (LEDC). Turn it off to save
             ~3 KB of flash (Hal.Has("Servo") is then false).
 
+    config MICROCS_U8G2
+        bool "U8g2 displays (C# U8g2 / U8x8 on olikraus' u8g2 library)"
+        default n
+        help
+            C# U8g2 and U8x8 for OLED / LCD / e-paper displays (SSD1306, SH1106,
+            ST7920, ...) on I2C, SPI or parallel pins (docs/U8G2.md). u8g2 is not
+            bundled: its sources come from MICROCS_U8G2_DIR, a copy next to the
+            project (u8g2/, third_party/u8g2, ...) or a one-time download of
+            u8g2 2.37.1 with MICROCS_U8G2_DOWNLOAD. Only the displays and fonts
+            listed below are linked.
+
+    config MICROCS_U8G2_DIR
+        string "u8g2 sources (folder with csrc/ or src/clib/)"
+        depends on MICROCS_U8G2
+        default ""
+        help
+            A clone of https://github.com/olikraus/u8g2, the U8g2 Arduino library
+            or its csrc folder. Empty: look next to the project, then download
+            (when allowed below).
+
+    config MICROCS_U8G2_DOWNLOAD
+        bool "Download u8g2 2.37.1 when no local copy is found"
+        depends on MICROCS_U8G2
+        default n
+        help
+            Fetches the U8g2_Arduino 2.37.1 release once into the build folder
+            (also the environment variable MICROCS_U8G2_DOWNLOAD=1).
+
+    config MICROCS_U8G2_DISPLAYS
+        string "Displays compiled in (space separated)"
+        depends on MICROCS_U8G2
+        default ""
+        help
+            u8g2 setup names without the u8g2_Setup_ prefix and the _f/_1/_2
+            suffix, e.g. "ssd1306_i2c_128x64_noname sh1106_i2c_128x64_noname"
+            (python3 tools/u8g2.py displays). Empty: the MCS_U8G2_DISPLAYS
+            default (SSD1306 128x64 / 128x32, SH1106 128x64).
+
+    config MICROCS_U8G2_FONTS
+        string "U8g2 fonts in flash (space separated, the first is the default)"
+        depends on MICROCS_U8G2
+        default ""
+        help
+            e.g. "6x10_tf helvB10_tr" (python3 tools/u8g2.py fonts). Every other
+            font loads from /fonts/u8g2_font_<name>.bin at run time
+            (python3 tools/u8g2.py extract). Empty: six small default fonts.
+
+    config MICROCS_U8X8_FONTS
+        string "U8x8 fonts in flash (space separated)"
+        depends on MICROCS_U8G2
+        default ""
+
 endmenu

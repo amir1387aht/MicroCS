@@ -117,6 +117,35 @@ jobs:
       - name: Project config header (mcs_user_config.h found next to CMakeLists.txt, MICROCS_PROFILE, -D)
         run: cmake -S tests/c/config -B build/cfg && cmake --build build/cfg -j && build/cfg/test_config
 
+
+  u8g2:
+    name: U8g2 displays (optional, u8g2 2.37.1)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Without the sources, configure and compile stop with instructions
+        run: |
+          if cmake -S . -B /tmp/nou8 -DMICROCS_U8G2=ON > /tmp/nou8.txt 2>&1; then echo "configure succeeded without u8g2"; exit 1; fi
+          grep -q "MICROCS_U8G2_DIR" /tmp/nou8.txt && grep -q "MICROCS_U8G2_DOWNLOAD" /tmp/nou8.txt && echo "OK configure hint"
+          if cmake -S . -B /tmp/badu8 -DMICROCS_U8G2=ON -DMICROCS_U8G2_DOWNLOAD=ON -DMICROCS_U8G2_DISPLAYS=no_such_display > /tmp/badu8.txt 2>&1; then echo "bad display name accepted"; exit 1; fi
+          grep -q "no display 'no_such_display'" /tmp/badu8.txt && echo "OK name check"
+      - name: CMake host build (download, display and font lists, Arduino names)
+        run: |
+          cmake -S . -B build/cu8 -DMICROCS_U8G2=ON -DMICROCS_U8G2_DOWNLOAD=ON \
+            "-DMICROCS_U8G2_DISPLAYS=ssd1306_i2c_128x64_noname;U8G2_SH1106_128X64_NONAME_F_HW_I2C;st7920_s_128x64" \
+            "-DMICROCS_U8G2_FONTS=profont12_tr;6x10_tf"
+          cmake --build build/cu8 -j
+          build/cu8/mcs --features | grep -q u8g2
+          build/cu8/mcs --oled -e 'var d = new U8g2("sh1106_128x64_noname"); d.Begin(); d.DrawStr(0, 12, "CMake"); d.SendBuffer(); Console.WriteLine(d.Font + " " + string.Join(",", U8g2.Displays));' 2>/dev/null | tee /tmp/cu8.txt
+          grep -q "profont12_tr ssd1306_i2c_128x64_noname,sh1106_i2c_128x64_noname,st7920_s_128x64" /tmp/cu8.txt
+      - name: make u8g2-test (scripts vs. simulated SSD1306 / SH1106 frames, font files, examples)
+        run: make fetch-u8g2 u8g2-test
+      - name: tools/u8g2.py (lists, config lines)
+        run: |
+          python3 tools/u8g2.py displays ssd1306 | head -5
+          python3 tools/u8g2.py fonts logisoso | head -5
+          python3 tools/u8g2.py config --displays ssd1306_i2c_128x64_noname --fonts helvB10_tr
+
   pico:
     name: Raspberry Pi Pico · ${{ matrix.board }} ${{ matrix.fs }}${{ matrix.name }}
     runs-on: ubuntu-24.04
@@ -132,6 +161,7 @@ jobs:
           - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812", tag: "-no-ws2812" }
           - { board: waveshare_rp2040_zero, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
           - { board: pico2, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
+          - { board: pico, fs: tinyfs, args: "-DMICROCS_U8G2=ON -DMICROCS_U8G2_DOWNLOAD=ON", name: " u8g2", tag: "-u8g2" }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -187,6 +217,7 @@ jobs:
           - { target: esp32, fs: threads }
           - { target: esp32s3, fs: threads }
           - { target: esp32c3, fs: threads }
+          - { target: esp32s3, fs: u8g2 }
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -203,6 +234,8 @@ jobs:
           if [ "${{ matrix.fs }}" = tinyfs ]; then echo CONFIG_MICROCS_FS_TINYFS=y >> sdkconfig.defaults; fi
           # "threads": LittleFS + real C# threads on FreeRTOS tasks (both cores on ESP32 / S3)
           if [ "${{ matrix.fs }}" = threads ]; then echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults; fi
+          # "u8g2": LittleFS + C# U8g2 / U8x8, u8g2 2.37.1 downloaded at configure time
+          if [ "${{ matrix.fs }}" = u8g2 ]; then printf 'CONFIG_MICROCS_U8G2=y\nCONFIG_MICROCS_U8G2_DOWNLOAD=y\n' >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
           # one image for `esptool.py write_flash 0 ...` (bootloader + partition table + app)
@@ -231,6 +264,7 @@ jobs:
           - { name: nRF52840 DK threads, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-threads.conf" }
           - { name: Raspberry Pi Pico, board: rpi_pico }
           - { name: STM32 Nucleo-F429ZI, board: nucleo_f429zi }
+          - { name: nRF52840 DK u8g2, board: nrf52840dk/nrf52840, args: "-DCONFIG_MICROCS_U8G2=y -DCONFIG_MICROCS_U8G2_DOWNLOAD=y" }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -272,6 +306,7 @@ jobs:
           - { name: Raspberry Pi Pico 2, core: "rp2040:rp2040", fqbn: "rp2040:rp2040:rpipico2", url: "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json" }
           - { name: Nano 33 BLE (nRF52840 Mbed), core: "arduino:mbed_nano", fqbn: "arduino:mbed_nano:nano33ble", url: "" }
           - { name: "Raspberry Pi Pico (YAFFS2 bundled, no ws2812)", core: "rp2040:rp2040", fqbn: "rp2040:rp2040:rpipico", url: "https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json", pack: "--fs yaffs2 --no-ws2812" }
+          - { name: "ESP32 (u8g2)", core: "esp32:esp32", fqbn: "esp32:esp32:esp32", url: "https://espressif.github.io/arduino-esp32/package_esp32_index.json", pack: "--u8g2 --u8g2-displays ssd1306_i2c_128x64_noname,sh1106_i2c_128x64_noname --u8g2-fonts helvB10_tr,6x10_tf" }
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
@@ -281,9 +316,10 @@ jobs:
           arduino-cli core update-index ${URLS:+--additional-urls $URLS}
           arduino-cli core install ${{ matrix.core }} ${URLS:+--additional-urls $URLS}
           arduino-cli lib install SD
+          case "${{ matrix.pack }}" in *--u8g2*) arduino-cli lib install U8g2;; esac
       - name: Package the library (tools/make_arduino.py) and compile every example
         run: |
-          if [ -n "${{ matrix.pack }}" ]; then make -s fetch-yaffs; fi
+          case "${{ matrix.pack }}" in *yaffs2*) make -s fetch-yaffs;; esac
           python3 tools/make_arduino.py --out dist/arduino ${{ matrix.pack }}
           for ex in dist/arduino/MicroCS/examples/*/; do
             echo "::group::$ex"

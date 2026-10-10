@@ -30,6 +30,10 @@
 #                     second-core jobs on the OS's tasks (docs/THREADS.md, cmake/MicroCSOS.cmake).
 #                     FreeRTOS: a freertos_kernel / FreeRTOS-Kernel target, or MICROCS_FREERTOS_PATH
 #                     + MICROCS_FREERTOS_PORT + MICROCS_FREERTOS_CONFIG_DIR
+#   MICROCS_U8G2      ON: C# U8g2 / U8x8 on olikraus' u8g2 library (docs/U8G2.md; default OFF, or ON when
+#                     mcs_user_config.h has #define MCS_ENABLE_U8G2 1). Sources: MICROCS_U8G2_DIR, a copy
+#                     found next to the project or -DMICROCS_U8G2_DOWNLOAD=ON; compiled in only the
+#                     MICROCS_U8G2_DISPLAYS / _FONTS / MICROCS_U8X8_FONTS lists (cmake/MicroCSU8g2.cmake)
 cmake_minimum_required(VERSION 3.13)
 
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -63,6 +67,7 @@ function(microcs_config_defs config root)
         message(STATUS "MicroCS: config header ${_cfg}")
     endif()
     set(MICROCS_CONFIG_DEFS ${_defs} PARENT_SCOPE)
+    set(MICROCS_CONFIG_FILE "${_cfg}" PARENT_SCOPE)
 endfunction()
 
 # MICROCS_PROFILE name -> MICROCS_PROFILE_DEFS (MCS_DEFAULT_PROFILE=MCS_PROFILE_<NAME>)
@@ -88,9 +93,18 @@ if(ESP_PLATFORM)
         set(_mcs_fs_srcs ${MICROCS_YAFFS_SRCS})
         set(_mcs_fs_incs ${MICROCS_YAFFS_INC})
     endif()
+    set(_mcs_u8g2_srcs "")
+    set(_mcs_u8g2_incs "")
+    if(CONFIG_MICROCS_U8G2)             # menuconfig > MicroCS > U8g2 displays
+        include(${MICROCS_DIR}/cmake/MicroCSU8g2.cmake)
+        microcs_u8g2_from_kconfig()
+        microcs_u8g2_sources()
+        set(_mcs_u8g2_srcs ${MICROCS_U8G2_SRCS})
+        set(_mcs_u8g2_incs ${MICROCS_U8G2_INC})
+    endif()
     idf_component_register(
-        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_fs_srcs}
-        INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs}
+        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
+        INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs
         PRIV_REQUIRES esp_system)
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
@@ -105,6 +119,9 @@ if(ESP_PLATFORM)
     endif()
     if(CONFIG_MICROCS_THREADS)          # menuconfig > MicroCS > Real threads (FreeRTOS is part of ESP-IDF)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_OS=MCS_OS_FREERTOS)
+    endif()
+    if(CONFIG_MICROCS_U8G2)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC ${MICROCS_U8G2_DEFS})
     endif()
     if(CONFIG_MICROCS_FS_YAFFS2)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
@@ -166,7 +183,7 @@ if(NOT DEFINED MICROCS_OS)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.10.0 LANGUAGES C)
+    project(MicroCS VERSION 1.11.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})
@@ -218,6 +235,13 @@ if(MICROCS_OS AND NOT MICROCS_OS STREQUAL "none")
     include(${MICROCS_DIR}/cmake/MicroCSOS.cmake)
     microcs_add_os(microcs "${MICROCS_OS}")
 endif()
+include(${MICROCS_DIR}/cmake/MicroCSU8g2.cmake)
+microcs_u8g2_wanted(_mcs_u8g2 "${MICROCS_CONFIG_FILE}")
+if(_mcs_u8g2 AND MICROCS_MODULES)
+    microcs_add_u8g2(microcs)
+elseif(DEFINED MICROCS_U8G2 AND NOT MICROCS_U8G2)
+    target_compile_definitions(microcs PUBLIC MCS_ENABLE_U8G2=0)
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(microcs PRIVATE -Wall -Wextra)
 endif()
@@ -254,4 +278,9 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILI
    AND NOT _mcs_os_lc STREQUAL "freertos")      # a FreeRTOS host build is a library for your own app
     add_executable(mcs ${MICROCS_DIR}/ports/unix/main.c)
     target_link_libraries(mcs PRIVATE microcs)
+    if(_mcs_u8g2 AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT APPLE)
+        target_link_options(mcs PRIVATE -Wl,--gc-sections)   # only the u8g2 fonts / displays in use
+    elseif(_mcs_u8g2 AND APPLE)
+        target_link_options(mcs PRIVATE -Wl,-dead_strip)
+    endif()
 endif()

@@ -370,6 +370,48 @@
 #undef MCS_ENABLE_SERVO
 #define MCS_ENABLE_SERVO 0
 #endif
+
+/* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
+ * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by
+ * default; the build looks for it (or downloads it) when this is 1. docs/U8G2.md.
+ * Displays and fonts are chosen here, before the build; only these are linked:
+ *   MCS_U8G2_DISPLAYS  U8G2_DISPLAY(<name>)... - a u8g2_Setup_<name>_f/_1/_2 without the
+ *                      suffix; `python3 tools/u8g2.py displays ssd1306` lists the names
+ *   MCS_U8G2_FONTS     U8G2_FONT(u8g2_font_<name>)... in flash for SetFont("<name>"); the
+ *                      first is the default. All other fonts load from files at run time:
+ *                      MCS_U8G2_FONT_DIR/u8g2_font_<name>.bin (tools/u8g2.py extract)
+ *   MCS_U8X8_FONTS     U8X8_FONT(u8x8_font_<name>)... the same for U8x8 */
+#ifndef MCS_ENABLE_U8G2
+#define MCS_ENABLE_U8G2 0          /* "u8g2" driver: C# U8g2 / U8x8 (needs the u8g2 library) */
+#endif
+#if MCS_ENABLE_U8G2 && !MCS_ENABLE_DRIVERS
+#undef MCS_ENABLE_U8G2
+#define MCS_ENABLE_U8G2 0
+#endif
+#ifndef MCS_U8G2_DISPLAYS
+#define MCS_U8G2_DISPLAYS U8G2_DISPLAY(ssd1306_i2c_128x64_noname) U8G2_DISPLAY(ssd1306_i2c_128x32_univision) U8G2_DISPLAY(sh1106_i2c_128x64_noname) U8G2_DISPLAY(ssd1306_128x64_noname) /* displays compiled in */
+#endif
+#ifndef MCS_U8G2_FONTS
+#define MCS_U8G2_FONTS U8G2_FONT(u8g2_font_6x10_tf) U8G2_FONT(u8g2_font_5x7_tr) U8G2_FONT(u8g2_font_helvB10_tr) U8G2_FONT(u8g2_font_ncenB14_tr) U8G2_FONT(u8g2_font_logisoso24_tn) U8G2_FONT(u8g2_font_open_iconic_embedded_1x_t) /* ~7 KB of flash */
+#endif
+#ifndef MCS_U8X8_FONTS
+#define MCS_U8X8_FONTS U8X8_FONT(u8x8_font_chroma48medium8_r) U8X8_FONT(u8x8_font_8x13_1x2_r) /* U8x8 fonts in flash */
+#endif
+#ifndef MCS_U8G2_FONT_DIR
+#define MCS_U8G2_FONT_DIR "/fonts"  /* SetFont("x") loads MCS_U8G2_FONT_DIR/u8g2_font_x.bin when x is not built in */
+#endif
+#ifndef MCS_U8G2_MAX_FONTS
+#define MCS_U8G2_MAX_FONTS 4       /* font files kept loaded per display (VM heap) */
+#endif
+#ifndef MCS_U8G2_MAX_FONT_SIZE
+#define MCS_U8G2_MAX_FONT_SIZE 65536 /* largest font file accepted (bytes) */
+#endif
+#ifndef MCS_U8G2_EXTRA
+#define MCS_U8G2_EXTRA 8           /* fonts / displays a firmware can add with mcs_u8g2_add_font / _display */
+#endif
+#ifndef MCS_U8G2_I2C_BUF
+#define MCS_U8G2_I2C_BUF 34        /* I2C transfer buffer per display (u8x8 sends <= 33 bytes) */
+#endif
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
 #endif
