@@ -2,6 +2,39 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.10.0 — real OS threads (optional): FreeRTOS, Zephyr, POSIX, second core
+
+* **C# on real OS threads, opt-in.** Choose an OS (ESP-IDF menuconfig *Real threads*,
+  Zephyr `CONFIG_MICROCS_THREADS=y`, CMake `-DMICROCS_OS=freertos|posix`, `make OS=posix`,
+  or `MCS_OS` in `mcs_user_config.h`) and scripts and functions run on their own OS tasks,
+  in parallel: `Thread.Start(path [, core [, heapKB]])`, `Thread.Run(path, fn, args…)`,
+  `Thread.RunOn(core, path, fn, args…)` for the **second core of the ESP32 / ESP32-S3 /
+  RP2040** (FreeRTOS SMP) and SMP Zephyr boards, and `Thread.Every(ms, …)` for OS-timed periodic
+  work. A `Worker` has `Join`, `Stop`, `Result`, `State` and `Error`; named `Channel`s copy
+  values between threads. Each thread gets its own VM and heap. The filesystem, console and
+  peripherals are shared under locks. Interrupt callbacks stay with the main VM.
+* **`jobs.cfg`:** `every 10ms /control.cs thread core=1 heap=24k prio=1` runs a job on its own
+  thread (`thread`, `core=`, `prio=`, `stack=`, `heap=`). Without an OS these options are
+  ignored and the job is polled as before. `jobs` / `.jobs` show thread jobs.
+* **Headers found or asked for:** CMake picks up a `freertos_kernel` / `FreeRTOS-Kernel` /
+  CubeMX target, `MICROCS_FREERTOS_PATH` + `_PORT` + `_CONFIG_DIR` or `FREERTOS_KERNEL_PATH`, or
+  a FreeRTOS-Kernel folder in the project. If none is found, configure stops and names the
+  variable to set. `make OS=freertos` and IDE builds stop the same way.
+* `ports/rp2/example`: `-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=…` runs the REPL on core 0
+  under FreeRTOS SMP and leaves core 1 for C#. `ports/zephyr/example/overlay-threads.conf`.
+* C API (`mcs_threads.h`, `mcs_os.h`): `mcs_thread_start/stop/join/info`. `mcs_runtime` sets
+  threads up by itself (`cfg.thread_setup`, `cfg.thread_heap`, `cfg.thread_stack`).
+  Filesystems can be locked (`mcs_vfs_t.lock`). Worker VMs can open the HAL without callbacks
+  (`mcs_hal_open_lib_ex`).
+* **No OS = no change:** `MCS_OS_NONE` is the default. Without an OS, no thread code is
+  compiled, and the core gains only `Thread.Cores` (1), `Thread.CurrentCore` (0) and
+  `Thread.Os` (`"None"`).
+* Core: the parser and `OrderBy().ThenBy()` no longer use static buffers, so separate VMs can
+  run at the same time.
+* Tests: `make threads-test` (in `make test`), `make tsan-test` (ThreadSanitizer),
+  `make freertos-test` (the FreeRTOS POSIX simulator port), and CI builds of ESP32,
+  ESP32-C3, Zephyr and RP2040 with threads.
+
 ## 1.9.1 — ready-to-flash STM32 firmware
 
 * **STM32 firmware in every release:** `microcs-<version>-<board>.bin` and `.hex` for

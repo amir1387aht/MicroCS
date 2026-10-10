@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.9.1-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.10.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -118,7 +118,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
-YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
 </tr>
@@ -252,7 +252,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.9.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.10.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -387,7 +387,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.9.1.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.10.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -597,6 +597,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [x] **1.9** — TinyFS: a built-in power-fail-safe filesystem for a few KB of the MCU's own flash (no
       external chip), selectable like LittleFS / YAFFS2, flash port for new MCUs (`mcs_flash_port_t`);
       `Servo` driver; config header with every default set; CI on 18 STM32 boards
+- [x] **1.10** — optional real OS threads (FreeRTOS, ESP-IDF, Zephyr, POSIX): `Thread.Run` / `RunOn(core, …)` /
+      `Every`, `Channel`s, `thread core=1` jobs in `jobs.cfg`; ESP32 and RP2040 second core
 - [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC

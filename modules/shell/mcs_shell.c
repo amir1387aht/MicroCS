@@ -188,6 +188,20 @@ static int ls_cb(void* ud, const char* name, const mcs_vfs_stat_t* st) {
 static const char* job_state(int s) {
     return s == MCS_JOB_ACTIVE ? "active" : s == MCS_JOB_DONE ? "done" : s == MCS_JOB_FAILED ? "failed" : "cancelled";
 }
+
+static void print_job(mcs_shell_t* sh, const mcs_job_t* j) {
+    outf(sh, "%d %s %s %u ms runs=%u %s", j->id, job_state(j->state), j->periodic ? "every" : "once",
+         (unsigned)j->period_ms, (unsigned)j->runs, j->is_file ? j->path : "<delegate>");
+#if MCS_ENABLE_THREADS
+    if (j->thread) {
+        out(sh, " thread");
+        if (j->core >= 0) outf(sh, " core=%d", j->core);
+        if (j->worker) outf(sh, " worker=%d", j->worker);
+    }
+#endif
+    out(sh, "\n");
+}
+
 static bool parse_ms(const char* s, uint32_t* out) {
     char* end; unsigned long v = strtoul(s, &end, 10);
     if (end == s) return false;
@@ -406,8 +420,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
             mcs_job_t* j = &sh->sched->jobs[i];
             if (j->state == MCS_JOB_FREE) continue;
-            outf(sh, "%d %s %s %u ms runs=%u %s\n", j->id, job_state(j->state), j->periodic ? "every" : "once",
-                 (unsigned)j->period_ms, (unsigned)j->runs, j->is_file ? j->path : "<delegate>");
+            print_job(sh, j);
         }
         ok(sh);
     } else if (!strcmp(c, "every") || !strcmp(c, "after")) {
@@ -477,8 +490,7 @@ static void repl_command(mcs_shell_t* sh, char* line) {
             for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
                 mcs_job_t* j = &sh->sched->jobs[i];
                 if (j->state == MCS_JOB_FREE) continue;
-                outf(sh, "%d %s %s %u ms runs=%u %s\n", j->id, job_state(j->state), j->periodic ? "every" : "once",
-                     (unsigned)j->period_ms, (unsigned)j->runs, j->is_file ? j->path : "<delegate>");
+                print_job(sh, j);
             }
         }
 #endif

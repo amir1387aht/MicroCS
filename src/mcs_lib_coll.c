@@ -65,7 +65,8 @@ static int cmp_multi(mcs_vm_t* vm, mcs_list_t* spec, mcs_value_t a, mcs_value_t 
     }
     return 0;
 }
-static mcs_list_t* g_multi_spec; /* set only during a ThenBy sort */
+/* ThenBy sort spec of the sort in progress (per VM: VMs may run on several OS threads) */
+#define g_multi_spec (vm->sort_spec)
 /* stable bottom-up merge sort of index array by keys[] */
 static bool sort_indices(mcs_vm_t* vm, const mcs_value_t* keys, uint32_t n, mcs_value_t cmp, bool desc, uint32_t* idx) {
     for (uint32_t i = 0; i < n; i++) idx[i] = i;

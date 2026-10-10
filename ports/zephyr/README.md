@@ -103,3 +103,16 @@ QSPI API; use the flash API from C).
 | `CONFIG_MICROCS_YAFFS2` | n | YAFFS2 on `storage_partition` instead (`overlay-yaffs2.conf`) |
 | `CONFIG_MICROCS_RAMFS_SIZE` | 16 KB | RAM filesystem when there is no partition |
 | `CONFIG_MICROCS_CONSOLE_ECHO` | y | echo typed characters (raw terminals) |
+
+## Threads (optional)
+
+`CONFIG_MICROCS_THREADS=y` runs C# scripts and functions on Zephyr threads: `Thread.Run`,
+`Thread.RunOn(cpu, …)` (SMP boards, `CONFIG_SCHED_CPU_MASK`), `Thread.Every`, `Channel`s,
+and `thread` jobs in `jobs.cfg`. Thread stacks come from the system heap, so size
+`CONFIG_HEAP_MEM_POOL_SIZE` for them:
+
+```sh
+west build -b <board> ports/zephyr/example -- -DEXTRA_CONF_FILE=overlay-threads.conf
+```
+
+See [docs/THREADS.md](../../docs/THREADS.md).

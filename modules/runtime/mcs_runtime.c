@@ -2,16 +2,41 @@
 #include "mcs_runtime.h"
 #if MCS_ENABLE_RUNTIME
 #include <string.h>
+#include "mcs_threads.h"
 
 /* Every callback gets the runtime itself as user data, so the board glue keeps
  * its own ud pointers (console.ud, time_ud, ud). */
 static bool rt_has_input(const mcs_runtime_t* rt) {
     return rt->cfg.console.read && rt->cfg.mode != MCS_RUNTIME_HEADLESS;
 }
-static void rt_write(void* ud, const char* s, size_t n) {
+static void rt_write_raw(void* ud, const char* s, size_t n) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
     if (rt->cfg.console.write) rt->cfg.console.write(rt->cfg.console.ud, s, n);
 }
+#if MCS_ENABLE_THREADS
+/* threads print whole lines under the console lock; the main VM takes it too */
+static void rt_write(void* ud, const char* s, size_t n) {
+    mcs_threads_console_lock();
+    rt_write_raw(ud, s, n);
+    mcs_threads_console_unlock();
+}
+#if MCS_ENABLE_POOL_HEAP
+/* the pool is shared by the main VM, the RAM filesystem and thread heaps once a
+ * thread runs; before that there is nobody to race with */
+static void* rt_pool_realloc(void* pool, void* p, size_t o, size_t n) {
+    if (!mcs_threads_active()) return mcs_pool_realloc(pool, p, o, n);
+    mcs_threads_heap_lock();
+    void* r = mcs_pool_realloc(pool, p, o, n);
+    mcs_threads_heap_unlock();
+    return r;
+}
+#endif
+#else
+#define rt_write rt_write_raw
+#endif
+#if MCS_ENABLE_POOL_HEAP && !MCS_ENABLE_THREADS
+#define rt_pool_realloc mcs_pool_realloc
+#endif
 static uint32_t rt_ticks(void* ud) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
     return rt->cfg.ticks ? rt->cfg.ticks(rt->cfg.time_ud) : 0;
@@ -45,7 +70,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
 #if MCS_ENABLE_POOL_HEAP
     if (cfg->heap && cfg->heap_size) {
         mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
-        c.realloc_fn = mcs_pool_realloc;
+        c.realloc_fn = rt_pool_realloc;
         c.alloc_ud = &rt->pool;
         size_t reserve = cfg->ramfs_size + 2048;   /* RAM fs + fragmentation slack */
         c.heap_limit = cfg->heap_size > reserve + 8192 ? cfg->heap_size - reserve : cfg->heap_size;
@@ -72,7 +97,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     if (cfg->fs_ops) e = mcs_vfs_mount(&rt->vfs, "/", cfg->fs_ops, cfg->fs_ctx, 0);
     else if (cfg->ramfs_size) {
 #if MCS_ENABLE_POOL_HEAP
-        if (cfg->heap && cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, mcs_pool_realloc, &rt->pool);
+        if (cfg->heap && cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, rt_pool_realloc, &rt->pool);
         else
 #endif
         mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, NULL, NULL);
@@ -86,6 +111,25 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
 #if MCS_ENABLE_SCHED
     mcs_sched_init(&rt->sched, vm, vfs, rt_ticks, rt);
     mcs_sched_open_lib(vm, &rt->sched);
+#endif
+#if MCS_ENABLE_THREADS
+    {
+        mcs_threads_cfg_t tc;
+        memset(&tc, 0, sizeof tc);
+        tc.vfs = vfs;
+        tc.hal = cfg->hal;
+        tc.write = rt_write_raw;            /* called with the console lock held */
+        tc.write_ud = rt;
+#if MCS_ENABLE_POOL_HEAP
+        if (cfg->heap && cfg->heap_size) { tc.heap_fn = rt_pool_realloc; tc.heap_ud = &rt->pool; }
+#endif
+        tc.setup = cfg->thread_setup;
+        tc.ud = cfg->ud;
+        tc.heap_size = cfg->thread_heap;
+        tc.stack_size = cfg->thread_stack;
+        tc.stdlib = cfg->stdlib;
+        if (mcs_threads_init(&tc) == 0) mcs_threads_open_lib(vm);
+    }
 #endif
     if (cfg->setup) cfg->setup(vm, cfg->ud);
 
@@ -127,6 +171,9 @@ bool mcs_runtime_step(mcs_runtime_t* rt, uint32_t timeout_ms) {
 
 void mcs_runtime_stop(mcs_runtime_t* rt) {
     if (!rt->vm) return;
+#if MCS_ENABLE_THREADS
+    mcs_threads_shutdown(2000);         /* their heaps live in ours */
+#endif
 #if MCS_ENABLE_SCHED
     mcs_sched_free(&rt->sched);
 #endif

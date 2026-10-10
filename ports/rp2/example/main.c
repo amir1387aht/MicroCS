@@ -3,13 +3,20 @@
  * at the "> " prompt. Scripts and files live in LittleFS on the on-board
  * flash (the last 1 MB on a Pico, 3 MB on a Pico 2) and survive resets and
  * firmware updates; build with -DMICROCS_FS=yaffs2 for YAFFS2 or
- * -DMICROCS_FS= for a RAM disk. */
+ * -DMICROCS_FS= for a RAM disk. With -DMICROCS_OS=freertos (RP2040) the runtime runs
+ * in a FreeRTOS SMP task on core 0 and C# threads can use core 1 (docs/THREADS.md). */
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "mcs_runtime.h"
 #include "mcs_port_rp2.h"
 
+#if MCS_OS == MCS_OS_FREERTOS
+#include "FreeRTOS.h"
+#include "task.h"
+static uint8_t heap[128 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps */
+#else
 static uint8_t heap[160 * 1024] __attribute__((aligned(8)));
+#endif
 static mcs_runtime_t rt;
 static mcs_hal_t hal;
 #ifdef MCS_HAVE_FLASHFS
@@ -17,8 +24,7 @@ static mcs_rp2_flash_t flash;
 static mcs_flashfs_t flashfs;
 #endif
 
-int main(void) {
-    stdio_init_all();
+static void microcs_main(void) {
     mcs_rp2_cfg_t pins = MCS_RP2_CFG_DEFAULT;
 #if PICO_RP2350
     pins.name = "Raspberry Pi Pico 2";
@@ -46,3 +52,20 @@ int main(void) {
     cfg.hal = &hal;
     for (;;) mcs_runtime_run(&rt, &cfg);         /* restarts if the session ends */
 }
+
+#if MCS_OS == MCS_OS_FREERTOS
+static void microcs_task(void* arg) { (void)arg; microcs_main(); }
+int main(void) {
+    stdio_init_all();
+    TaskHandle_t t;
+    xTaskCreate(microcs_task, "microcs", 16 * 1024 / sizeof(StackType_t), NULL, 1, &t);
+    vTaskCoreAffinitySet(t, 1u << 0);           /* REPL on core 0, core 1 for C# threads */
+    vTaskStartScheduler();
+    for (;;) {}
+}
+#else
+int main(void) {
+    stdio_init_all();
+    microcs_main();
+}
+#endif

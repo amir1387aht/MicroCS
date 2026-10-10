@@ -41,6 +41,12 @@ typedef struct {
     uint32_t runs;
     int fn_slot;                /* index into the pinned delegate list */
     char path[MCS_SCHED_PATH_MAX];
+    /* file job on its own OS thread (jobs.cfg `thread`, MCS_ENABLE_THREADS; ignored without an OS) */
+    bool thread;
+    int8_t core;                /* -1 = any core */
+    int8_t prio;                /* relative to the scheduler's thread */
+    uint16_t stack_kb, heap_kb; /* 0 = MCS_THREAD_STACK / MCS_THREAD_HEAP */
+    int worker;                 /* thread id while it runs (mcs_threads.h), 0 = none */
 } mcs_job_t;
 
 struct mcs_vfs;
@@ -84,11 +90,17 @@ void mcs_sched_run(mcs_sched_t* s, mcs_delay_fn delay, void* delay_ud, volatile 
                    uint32_t max_sleep_ms, uint32_t run_for_ms);
 
 /* Load a jobs table, one job per line:
- *     startup <path>              run once at start
- *     after   <time> <path>       run once after <time>
- *     every   <time> <path> [restart=never|always|<n>]
+ *     startup <path> [options]            run once at start
+ *     after   <time> <path> [options]     run once after <time>
+ *     every   <time> <path> [restart=never|always|<n>] [options]
  * <time> is a number with an optional ms/s/m/h suffix (default ms). '#' starts a
- * comment. Returns the number of jobs added, or -(line number) on a syntax error. */
+ * comment. Options for a real OS thread (builds with an OS, docs/THREADS.md; without
+ * one they are accepted and the job runs in the polled scheduler as before):
+ *     thread  core=<n>  prio=<n>  stack=<size>  heap=<size>   (size: bytes or 8k)
+ * core/prio/stack/heap imply `thread`. Returns the number of jobs added, or
+ * -(line number) on a syntax error. */
+/* The job with this id, NULL if none. */
+mcs_job_t* mcs_sched_job(mcs_sched_t* s, int id);
 int mcs_sched_load_config(mcs_sched_t* s, const char* text);
 
 /* C# API: Scheduler.Every(ms, action [, maxFailures]), Scheduler.After(ms, action),

@@ -8,12 +8,15 @@
  *   mcs -e "code"            run code from the command line
  *   mcs                      interactive REPL
  *   mcs --shell              standalone runtime / script manager on stdin+stdout
- *   options: --heap N (bytes, hard limit), --stack N (slots), --stats, see usage() */
+ *   options: --heap N (bytes, hard limit), --stack N (slots), --stats, see usage()
+ * Built with -DMCS_OS=MCS_OS_POSIX (make OS=posix) scripts can also start OS threads
+ * (Thread.Start / Thread.Run / Channel, docs/THREADS.md). */
 #include "mcs.h"
 #include "mcs_vfs.h"
 #include "mcs_hal.h"
 #include "mcs_sched.h"
 #include "mcs_shell.h"
+#include "mcs_threads.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -269,6 +272,15 @@ static uint32_t sim_clock_us(void* ud) {
 #if MCS_ENABLE_SCHED
 static mcs_sched_t g_sched;
 #endif
+#if MCS_ENABLE_THREADS
+/* console output of the main VM and of the threads, one call at a time */
+static void out_write(void* ud, const char* s, size_t n) { (void)ud; fwrite(s, 1, n, stdout); fflush(stdout); }
+static void locked_write(void* ud, const char* s, size_t n) {
+    mcs_threads_console_lock();
+    out_write(ud, s, n);
+    mcs_threads_console_unlock();
+}
+#endif
 
 int main(int argc, char** argv) {
     const char *compile = NULL, *compile_h = NULL, *out = NULL, *disasm = NULL, *code = NULL, *file = NULL, *name = "mcs_app";
@@ -329,6 +341,9 @@ int main(int argc, char** argv) {
 #if MCS_ENABLE_SHELL
     if (shell) cfg.error_fn = stdio_write;   /* everything goes over the transport */
 #endif
+#if MCS_ENABLE_THREADS
+    if (!cfg.error_fn) cfg.write_fn = locked_write;
+#endif
     mcs_vm_t* vm = mcs_new(&cfg);
     if (!vm) { fprintf(stderr, "mcs: cannot create VM\n"); return 1; }
     g_vm = vm;
@@ -367,6 +382,21 @@ int main(int argc, char** argv) {
     mcs_sched_open_lib(vm, &g_sched);
 #else
     (void)run_for;
+#endif
+
+#if MCS_ENABLE_THREADS
+    {
+        mcs_threads_cfg_t tc;
+        memset(&tc, 0, sizeof tc);
+#if MCS_ENABLE_FS
+        tc.vfs = vfs;
+#endif
+#if MCS_ENABLE_HAL
+        if (sim) tc.hal = &g_hal;
+#endif
+        tc.write = out_write;            /* called with the console lock held */
+        if (mcs_threads_init(&tc) == 0) mcs_threads_open_lib(vm);
+    }
 #endif
 
     int rc = 0;
@@ -443,6 +473,19 @@ int main(int argc, char** argv) {
     if (!shell && !compile && !compile_h && !disasm && mcs_sched_active(&g_sched))
         mcs_sched_run(&g_sched, delay, NULL, &g_interrupted, 50, run_for);
     mcs_sched_free(&g_sched);
+#endif
+#if MCS_ENABLE_THREADS
+    /* threads the script started keep it alive, like jobs (Ctrl-C / --run-for end it) */
+    if (!shell && !compile && !compile_h && !disasm) {
+        uint32_t t0 = ticks(NULL);
+        while (mcs_thread_count() && !g_interrupted && !(run_for && ticks(NULL) - t0 >= run_for)) {
+#if MCS_ENABLE_HAL
+            if (mcs_hal_get(vm)) mcs_hal_poll(vm);
+#endif
+            delay(NULL, 5);
+        }
+    }
+    mcs_threads_shutdown(2000);
 #endif
     if (stats) {
         mcs_mem_stats_t st; mcs_mem_stats(vm, &st);

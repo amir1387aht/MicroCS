@@ -67,10 +67,15 @@ typedef struct {
     uint16_t max_frames;
     uint8_t stdlib;             /* MCS_LIB_* mask, 0 = MCS_LIB_ALL */
     uint32_t time_limit_ms;     /* per top-level run (REPL line, job, callback); 0 = none */
+    /* OS threads (MCS_ENABLE_THREADS, docs/THREADS.md; ignored without an OS):
+     * thread heaps come from `heap` (or the OS heap when heap is NULL) */
+    void (*thread_setup)(mcs_vm_t* vm, void* ud);  /* your bindings for every thread VM (gets ud) */
+    uint32_t thread_heap;       /* default heap per thread, 0 = MCS_THREAD_HEAP */
+    uint32_t thread_stack;      /* default stack per thread in bytes, 0 = MCS_THREAD_STACK */
 } mcs_runtime_cfg_t;
 
 #define MCS_RUNTIME_DEFAULTS { NULL, 0, NULL, NULL, 0, { NULL, NULL, NULL }, NULL, NULL, NULL, \
-    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0 }
+    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0 }
 
 typedef struct {
     mcs_runtime_cfg_t cfg;

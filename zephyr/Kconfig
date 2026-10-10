@@ -115,6 +115,23 @@ config MICROCS_SERVO
 	  with 50 Hz pulses on the board's PWM channels (the `pwms` of the
 	  MicroCS PWM node). Turn it off to save ~3 KB of flash.
 
+config MICROCS_THREADS
+	bool "Real threads on Zephyr threads (C# Thread.Run / RunOn, SMP cores)"
+	default n
+	select DYNAMIC_THREAD
+	select DYNAMIC_THREAD_ALLOC
+	imply SCHED_CPU_MASK if SMP
+	imply THREAD_NAME
+	help
+	  C# scripts and functions on their own Zephyr threads: Thread.Start,
+	  Thread.Run, Thread.RunOn(cpu, ...) (pinned with CONFIG_SCHED_CPU_MASK
+	  on SMP boards), Thread.Every for kernel-timed periodic work, Channels
+	  between threads and `thread core=<n>` jobs in jobs.cfg. Every thread
+	  has its own VM and heap (MCS_THREAD_HEAP) and a stack from the system
+	  heap (CONFIG_HEAP_MEM_POOL_SIZE must hold MCS_THREADS_MAX stacks of
+	  MCS_THREAD_STACK bytes; see overlay-threads.conf). Off: MicroCS stays
+	  the single-threaded runtime. See docs/THREADS.md.
+
 config MICROCS_RAMFS_SIZE
 	int "RAM filesystem size when there is no persistent filesystem"
 	default 16384

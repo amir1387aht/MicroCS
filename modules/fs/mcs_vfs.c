@@ -7,6 +7,10 @@
 
 void mcs_vfs_init(mcs_vfs_t* vfs) { memset(vfs, 0, sizeof *vfs); }
 
+/* backend call under the optional thread lock: LOCKED(lock, int_expr) */
+static int locked_(const mcs_vfs_lock_t* l, int r) { if (l) l->leave(l->ud); return r; }
+#define LOCKED(l, expr) ((l) ? ((l)->enter((l)->ud), locked_((l), (expr))) : (expr))
+
 int mcs_vfs_normalize(const char* path, char* out, size_t cap) {
     if (!path || cap < 2) return MCS_VFS_EINVAL;
     size_t n = 0;
@@ -95,7 +99,7 @@ int mcs_vfs_statfs(mcs_vfs_t* vfs, const char* path, mcs_vfs_statfs_t* st) {
     memset(st, 0, sizeof *st);
     st->mount = m->prefix;
     if (!m->ops->statfs) return MCS_VFS_EINVAL;
-    int e = m->ops->statfs(m->ctx, st);
+    int e = LOCKED(vfs->lock, m->ops->statfs(m->ctx, st));
     st->mount = m->prefix;
     if (st->free > st->total) st->free = st->total;
     return e;
@@ -105,11 +109,12 @@ int mcs_vfs_open(mcs_vfs_t* vfs, const char* path, int flags, mcs_vfs_file_t* f)
     RESOLVE(path);
     if ((flags & (MCS_VFS_WRITE | MCS_VFS_APPEND)) && (m->flags & MCS_VFS_RDONLY)) return MCS_VFS_EACCES;
     f->m = m;
-    return m->ops->open(m->ctx, rel, flags, &f->fh);
+    f->lock = vfs->lock;
+    return LOCKED(vfs->lock, m->ops->open(m->ctx, rel, flags, &f->fh));
 }
-int mcs_vfs_read(mcs_vfs_file_t* f, void* buf, size_t n) { return f->m->ops->read(f->m->ctx, f->fh, buf, n); }
-int mcs_vfs_write(mcs_vfs_file_t* f, const void* buf, size_t n) { return f->m->ops->write(f->m->ctx, f->fh, buf, n); }
-int mcs_vfs_close(mcs_vfs_file_t* f) { return f->m->ops->close(f->m->ctx, f->fh); }
+int mcs_vfs_read(mcs_vfs_file_t* f, void* buf, size_t n) { return LOCKED(f->lock, f->m->ops->read(f->m->ctx, f->fh, buf, n)); }
+int mcs_vfs_write(mcs_vfs_file_t* f, const void* buf, size_t n) { return LOCKED(f->lock, f->m->ops->write(f->m->ctx, f->fh, buf, n)); }
+int mcs_vfs_close(mcs_vfs_file_t* f) { return LOCKED(f->lock, f->m->ops->close(f->m->ctx, f->fh)); }
 
 static bool is_mount_point(mcs_vfs_t* vfs, const char* norm) {
     for (int i = 0; i < vfs->count; i++) if (!strcmp(vfs->mounts[i].prefix, norm)) return true;
@@ -122,7 +127,7 @@ int mcs_vfs_stat(mcs_vfs_t* vfs, const char* path, mcs_vfs_stat_t* st) {
     if (e) return e;
     char rel[MCS_VFS_PATH_MAX];
     mcs_vfs_mount_t* m = resolve(vfs, norm, rel, &e);
-    if (m && (e = m->ops->stat(m->ctx, rel, st)) == MCS_VFS_OK) return e;
+    if (m && (e = LOCKED(vfs->lock, m->ops->stat(m->ctx, rel, st))) == MCS_VFS_OK) return e;
     if (!strcmp(norm, "/") || is_mount_point(vfs, norm)) { st->size = 0; st->is_dir = true; return MCS_VFS_OK; }
     return m ? e : MCS_VFS_ENOENT;
 }
@@ -131,13 +136,13 @@ int mcs_vfs_remove(mcs_vfs_t* vfs, const char* path) {
     RESOLVE(path);
     if (m->flags & MCS_VFS_RDONLY) return MCS_VFS_EACCES;
     if (!strcmp(rel, "/")) return MCS_VFS_EACCES;
-    return m->ops->remove(m->ctx, rel);
+    return LOCKED(vfs->lock, m->ops->remove(m->ctx, rel));
 }
 int mcs_vfs_mkdir(mcs_vfs_t* vfs, const char* path) {
     RESOLVE(path);
     if (m->flags & MCS_VFS_RDONLY) return MCS_VFS_EACCES;
     if (!strcmp(rel, "/")) return MCS_VFS_EEXIST;
-    return m->ops->mkdir(m->ctx, rel);
+    return LOCKED(vfs->lock, m->ops->mkdir(m->ctx, rel));
 }
 int mcs_vfs_rename(mcs_vfs_t* vfs, const char* from, const char* to) {
     char rel2[MCS_VFS_PATH_MAX]; int e2;
@@ -147,7 +152,7 @@ int mcs_vfs_rename(mcs_vfs_t* vfs, const char* from, const char* to) {
     if (m != m2) return MCS_VFS_EINVAL;
     if (m->flags & MCS_VFS_RDONLY) return MCS_VFS_EACCES;
     if (!m->ops->rename) return MCS_VFS_EINVAL;
-    return m->ops->rename(m->ctx, rel, rel2);
+    return LOCKED(vfs->lock, m->ops->rename(m->ctx, rel, rel2));
 }
 
 typedef struct { mcs_vfs_list_cb cb; void* ud; int stopped; } list_wrap_t;
@@ -167,7 +172,7 @@ int mcs_vfs_list(mcs_vfs_t* vfs, const char* path, mcs_vfs_list_cb cb, void* ud)
     list_wrap_t w = { cb, ud, 0 };
     bool any = false;
     if (m) {
-        e = m->ops->list(m->ctx, rel, list_fwd, &w);
+        e = LOCKED(vfs->lock, m->ops->list(m->ctx, rel, list_fwd, &w));
         if (e == MCS_VFS_OK) any = true;
         else if (!is_mount_point(vfs, norm) && strcmp(norm, "/")) return e;
         if (w.stopped) return MCS_VFS_OK;

@@ -1,0 +1,18 @@
+os True cores>=1 True id 0
+fib 6765
+greet ababab
+squares 5 16 core 0
+joined True alive False state done
+producer finished on a thread: True
+sum 550 state done count 0
+[thread 5] Unhandled exception. InvalidOperationException: boom in a thread
+[thread 5]    at Boom in /math.cs:line 5
+caught: True
+state failed error set True
+spinning True
+stopped True stopped
+periodic runs>=3 True stopped
+bad core rejected
+dictionary rejected
+try receive True threads left 0
+parallel 16724

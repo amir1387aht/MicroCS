@@ -16,6 +16,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 📚 | [Standard library](STDLIB.md) | generated reference of every class and member a script can call |
 | 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / TinyFS / LittleFS / YAFFS2 backends, flash ports, `File` / `Directory` / `Path` |
 | ⏱️ | [Scheduler](SCHEDULER.md) | startup / once / periodic jobs, `jobs.cfg` |
+| 🧵 | [Threads](THREADS.md) | optional real OS threads: FreeRTOS / Zephyr / POSIX, second core, `Channel` |
 | 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, GC tuning, measured results |
 | 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
 | 🏗️ | [Architecture](ARCHITECTURE.md) | pipeline, VM, GC, modules, invariants for contributors |

@@ -381,6 +381,83 @@
 #define MCS_ENABLE_RUNTIME 0       /* the runtime is built on the shell */
 #endif
 
+/* Optional operating system for real OS threads (Thread.Start / Thread.Run / Channel,
+ * jobs.cfg `thread` jobs, work on the second core of ESP32 / RP2040 / SMP parts); see
+ * docs/THREADS.md. Nothing changes unless you choose one - without an OS MicroCS is
+ * exactly the single-threaded runtime with the polled scheduler it always was.
+ *   MCS_OS_NONE      (default) no OS: polled scheduler only; Thread.Start raises an exception
+ *   MCS_OS_FREERTOS  FreeRTOS / FreeRTOS SMP / ESP-IDF FreeRTOS. Its headers must be on the
+ *                    include path (#error otherwise: tell the build where FreeRTOS is)
+ *   MCS_OS_ZEPHYR    Zephyr kernel threads (only inside a Zephyr build)
+ *   MCS_OS_POSIX     pthreads (Linux / macOS hosts)
+ *   MCS_OS_AUTO      pick for me: Zephyr in a Zephyr build, FreeRTOS under ESP-IDF or when
+ *                    FreeRTOS.h + FreeRTOSConfig.h are found on the include path, else none */
+#define MCS_OS_NONE     0
+#define MCS_OS_FREERTOS 1
+#define MCS_OS_ZEPHYR   2
+#define MCS_OS_POSIX    3
+#define MCS_OS_AUTO     9
+#ifndef MCS_OS
+#define MCS_OS MCS_OS_NONE
+#endif
+#if MCS_OS == MCS_OS_AUTO
+#undef MCS_OS
+#if defined(__ZEPHYR__)
+#define MCS_OS MCS_OS_ZEPHYR
+#elif defined(ESP_PLATFORM)
+#define MCS_OS MCS_OS_FREERTOS
+#elif defined(__has_include)
+#if __has_include("FreeRTOS.h") && __has_include("FreeRTOSConfig.h")
+#define MCS_OS MCS_OS_FREERTOS
+#else
+#define MCS_OS MCS_OS_NONE
+#endif
+#else
+#define MCS_OS MCS_OS_NONE
+#endif
+#endif
+#ifndef MCS_ENABLE_THREADS
+#define MCS_ENABLE_THREADS (MCS_OS != MCS_OS_NONE) /* OS threads: Thread.Start/Run/Every, Channel */
+#endif
+#if MCS_ENABLE_THREADS && (MCS_OS == MCS_OS_NONE || !MCS_ENABLE_POOL_HEAP)
+#undef MCS_ENABLE_THREADS
+#define MCS_ENABLE_THREADS 0       /* needs an OS and the pool allocator (one heap per thread) */
+#endif
+#ifndef MCS_THREADS_MAX
+#define MCS_THREADS_MAX 8          /* OS threads running C# at the same time */
+#endif
+#ifndef MCS_THREAD_HEAP
+#if MCS_OS == MCS_OS_POSIX
+#define MCS_THREAD_HEAP (256 * 1024) /* default C# heap of a thread (bytes; Thread.Start heapKB) */
+#elif defined(__LP64__) || defined(_WIN64)
+#define MCS_THREAD_HEAP (64 * 1024)  /* 64-bit RTOS builds (e.g. Zephyr native_sim/native/64) */
+#else
+#define MCS_THREAD_HEAP (32 * 1024)
+#endif
+#endif
+#ifndef MCS_THREAD_STACK
+#if defined(ESP_PLATFORM) || defined(__XTENSA__)
+#define MCS_THREAD_STACK 12288     /* default OS stack of a thread in bytes (the compiler recurses) */
+#else
+#define MCS_THREAD_STACK 8192
+#endif
+#endif
+#ifndef MCS_THREAD_SLOTS
+#define MCS_THREAD_SLOTS 256       /* value-stack slots of a thread's VM */
+#endif
+#ifndef MCS_THREAD_FRAMES
+#define MCS_THREAD_FRAMES 48       /* call depth of a thread's VM */
+#endif
+#ifndef MCS_THREAD_PRIORITY
+#define MCS_THREAD_PRIORITY 0      /* relative to the starting thread: > 0 higher, < 0 lower (docs/THREADS.md) */
+#endif
+#ifndef MCS_CHANNELS_MAX
+#define MCS_CHANNELS_MAX 8         /* named Channels shared between threads */
+#endif
+#ifndef MCS_CHANNEL_MSG_MAX
+#define MCS_CHANNEL_MSG_MAX 1024   /* largest Channel message / Thread.Run argument list (bytes) */
+#endif
+
 /* Size of the last-error message buffer inside the VM (mcs_last_error). */
 #ifndef MCS_ERROR_SIZE
 #define MCS_ERROR_SIZE 256

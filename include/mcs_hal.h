@@ -219,6 +219,11 @@ void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* hal);
  * negative MCS_HAL_E* code ("op: not supported" ...), returns null. */
 int mcs_hal_pin_arg(mcs_vm_t* vm, mcs_value_t v);
 mcs_value_t mcs_hal_raise(mcs_vm_t* vm, const char* op, int rc);
+/* Same with MCS_HAL_* flags. MCS_HAL_NO_EVENTS: the VM never dispatches interrupt /
+ * timer / UART / CAN events (VMs on OS threads: the event queue has one consumer, the
+ * main VM); registering a callback raises InvalidOperationException. */
+#define MCS_HAL_NO_EVENTS 1u
+void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags);
 /* Release the VM's HAL slot (call before mcs_free when VMs are recycled). */
 void mcs_hal_close_lib(mcs_vm_t* vm);
 /* The board table opened on this VM (NULL if none). */
