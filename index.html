@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MicroCS Studio</title>
+<!--
+  MicroCS Studio - file manager, C# editor and console for a MicroCS device.
+  Open this file in Chrome or Edge (desktop) - double-click works, no server or
+  install needed - click Connect and pick the board's serial port. It speaks the
+  shell protocol (docs/STANDALONE.md) over Web Serial, like tools/mcs_remote.py.
+  Hosted copy: https://amir1387aht.github.io/MicroCS/
+    studio.css    look (Visual Studio 2022 Dark / Light)
+    api.js        classes and members known to completion
+    docs.js       signatures and docs: completion details, parameter info, hover
+    lang.js       C# language service: symbols, type inference, call context
+    templates.js  templates, examples and snippets
+    studio.js     the app: serial link, editor, file manager, console
+-->
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0V8zM12 18v4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 10v6M9 13h6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/></symbol>
+  <symbol id="i-file-plus" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M12 11v6M9 14h6"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M10 12l-2 2 2 2M14 12l2 2-2 2"/></symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM7 3v5h8V3M7 21v-7h10v7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+  <symbol id="i-clear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></symbol>
+  <symbol id="i-boot" viewBox="0 0 24 24"><path d="M5 19l4-4M14 4l6 6-7 7-6-6zM4 20l3-1-2-2z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1M3 7v10a2 2 0 0 0 2 2h12l4-8H7l-4 8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-template" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+</svg>
+
+<div class="app">
+  <header>
+    <div class="brand"><div class="logo">C#</div><b>MicroCS Studio</b></div>
+    <button class="btn primary" id="btnConnect"><svg class="i"><use href="#i-plug"/></svg><span>Connect</span></button>
+    <select class="sel" id="baud" title="Baud rate (UART bridges; ignored by native USB)">
+      <option>9600</option><option>57600</option><option selected>115200</option><option>230400</option>
+      <option>460800</option><option>921600</option>
+    </select>
+    <span class="chip" id="connChip"><span class="dot" id="connDot"></span><span id="connText">Not connected</span></span>
+    <div class="spacer"></div>
+    <button class="btn boxed" id="btnReset" disabled title="Reset the board (EN pin via RTS, like esptool)"><svg class="i"><use href="#i-power"/></svg>Reset board</button>
+    <div class="sep"></div>
+    <button class="btn ghost icon" id="btnTheme" title="Light / dark theme"><svg class="i"><use href="#i-sun"/></svg></button>
+  </header>
+
+  <main id="main">
+    <aside class="side">
+      <div class="panel-head">
+        <div class="panel-title"><svg class="i"><use href="#i-chip"/></svg>Device Explorer</div>
+        <button class="btn ghost sm icon" id="btnNewFile" title="New file" disabled><svg class="i"><use href="#i-file-plus"/></svg></button>
+        <button class="btn ghost sm icon" id="btnNewDir" title="New folder" disabled><svg class="i"><use href="#i-folder-plus"/></svg></button>
+        <button class="btn ghost sm icon" id="btnUpload" title="Upload files from this computer" disabled><svg class="i"><use href="#i-upload"/></svg></button>
+        <button class="btn ghost sm icon" id="btnRefresh" title="Refresh" disabled><svg class="i"><use href="#i-refresh"/></svg></button>
+        <input type="file" id="fileInput" multiple hidden>
+        <input type="file" id="openLocal" hidden accept=".cs,.txt,.json,.csv,.cfg,.md,.ini,.xml,.html,.mcsb,*/*">
+      </div>
+      <div class="crumbs" id="crumbs"></div>
+      <div class="files" id="files">
+        <div class="dropzone">Drop files to upload</div>
+        <div id="fileList"></div>
+      </div>
+      <div class="xfer" id="xfer">
+        <div class="row"><span id="xferName"></span><span id="xferPct"></span></div>
+        <div class="bar"><div id="xferBar"></div></div>
+      </div>
+      <div class="storage" id="storage">
+        <div class="row"><span id="stLabel">Storage</span><span id="stText">—</span></div>
+        <div class="bar" id="stBarWrap"><div id="stBar"></div></div>
+        <div class="meminfo" id="memInfo"></div>
+      </div>
+    </aside>
+    <div class="split-v" id="splitSide"></div>
+
+    <section class="center" id="center">
+      <div class="editor-pane">
+        <div class="tabs">
+          <div class="tablist" id="tablist"></div>
+          <div class="toolbar">
+            <button class="btn ghost sm" id="btnTemplates" title="New file from a template"><svg class="i"><use href="#i-template"/></svg>Templates</button>
+            <button class="btn ghost sm icon" id="btnOpenLocal" title="Open a file from this computer"><svg class="i"><use href="#i-open"/></svg></button>
+            <button class="btn ghost sm icon" id="btnSave" title="Save to device (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg></button>
+            <button class="btn sm run" id="btnRun" title="Save and run on the device (F5 / Ctrl+Enter)" disabled><svg class="i"><use href="#i-play"/></svg>Run</button>
+            <button class="btn sm danger" id="btnStop" title="Stop the running script (Ctrl+C on the device)" disabled><svg class="i"><use href="#i-stop"/></svg>Stop</button>
+            <button class="btn ghost sm icon" id="btnMore" title="More"><svg class="i"><use href="#i-dots"/></svg></button>
+          </div>
+        </div>
+        <div class="editor" id="editor">
+          <div class="gutter" id="gutter"><div id="gutterIn"></div></div>
+          <div class="code" id="code">
+            <div class="curline" id="curline"></div>
+            <div class="errline" id="errline"></div>
+            <div class="marks" id="marks"></div>
+            <pre id="hl" aria-hidden="true"></pre>
+            <textarea id="ta" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
+            <div class="complete" id="complete"></div>
+          </div>
+          <div class="findbar" id="findbar">
+            <div class="frow">
+              <button class="fb tog" id="fToggle" title="Toggle replace (Ctrl+H)">›</button>
+              <input id="fFind" placeholder="Find" spellcheck="false">
+              <button class="fb" id="fCase" title="Match case">Aa</button><button class="fb" id="fWord" title="Match whole word"><u>ab</u></button><button class="fb" id="fRe" title="Regular expression">.*</button>
+              <span id="fCount"></span>
+              <button class="fb" id="fPrev" title="Previous (Shift+Enter, Shift+F3)">↑</button><button class="fb" id="fNext" title="Next (Enter, F3)">↓</button><button class="fb" id="fClose" title="Close (Esc)">✕</button>
+            </div>
+            <div class="frow r">
+              <input id="fRep" placeholder="Replace" spellcheck="false">
+              <button class="fb" id="fRepOne" title="Replace next (Enter)">Replace</button><button class="fb" id="fRepAll" title="Replace all (Ctrl+Enter)">All</button>
+            </div>
+          </div>
+          <div class="hex" id="hex"></div>
+          <div class="welcome" id="welcome">
+            <div class="card">
+              <h1>MicroCS Studio</h1>
+              <p>Manage the files on your MicroCS board, write C# with highlighting and IntelliSense-style completion,
+                 run it on the device and use the REPL - over USB, right from the browser.</p>
+              <div class="acts">
+                <button class="btn" id="wConnect"><svg class="i"><use href="#i-plug"/></svg>Connect a device<small>Web Serial</small></button>
+                <button class="btn" id="wNew"><svg class="i"><use href="#i-code"/></svg>New C# file<small>Alt+N</small></button>
+                <button class="btn" id="wTemplates"><svg class="i"><use href="#i-template"/></svg>Templates and examples<small>Alt+T</small></button>
+                <button class="btn" id="wOpen"><svg class="i"><use href="#i-open"/></svg>Open a file from this computer<small>Ctrl+O</small></button>
+              </div>
+              <div id="noSerial"></div>
+              <div class="keys">
+                <span><kbd>Ctrl</kbd> <kbd>S</kbd></span><span>save to the device</span>
+                <span><kbd>F5</kbd> · <kbd>Ctrl</kbd> <kbd>Enter</kbd></span><span>save and run</span>
+                <span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Enter</kbd></span><span>run the selection</span>
+                <span><kbd>Ctrl</kbd> <kbd>Space</kbd></span><span>completion (with docs)</span>
+                <span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Space</kbd></span><span>parameter info</span>
+                <span><kbd>Ctrl</kbd> <kbd>F</kbd> · <kbd>Ctrl</kbd> <kbd>H</kbd></span><span>find · replace</span>
+                <span><kbd>Shift</kbd> <kbd>Alt</kbd> <kbd>F</kbd></span><span>format document</span>
+                <span><kbd>Ctrl</kbd> <kbd>/</kbd></span><span>toggle comment</span>
+                <span><kbd>Ctrl</kbd> <kbd>`</kbd></span><span>focus the console</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="split-h" id="splitCons"></div>
+      <div class="console-pane">
+        <div class="panel-head">
+          <div class="panel-title"><svg class="i"><use href="#i-term"/></svg>Console - device output and REPL</div>
+          <div class="seg" id="consMode" title="C#: the device REPL · Shell: file/run/jobs commands (help)">
+            <button data-m="repl" class="on">C#</button><button data-m="shell">Shell</button>
+          </div>
+          <div class="seg" id="consView" title="Text output or a live chart of the numbers the device prints">
+            <button data-v="text" class="on">Output</button><button data-v="plot">Plotter</button>
+          </div>
+          <button class="btn ghost sm" id="btnCtrlC" title="Send Ctrl+C: stop the running script" disabled><svg class="i"><use href="#i-stop"/></svg>Ctrl+C</button>
+          <button class="btn ghost sm icon" id="btnClear" title="Clear the console"><svg class="i"><use href="#i-clear"/></svg></button>
+        </div>
+        <div class="term" id="term"></div>
+        <div class="plot" id="plotWrap"><canvas id="plot"></canvas><div class="plothint" id="plotHint">Print numbers from your script - <code>Console.WriteLine($"temp:{t} hum:{h}");</code> or <code>Console.WriteLine(a + " " + b);</code> - and they are charted here live. Click the chart to pause.</div></div>
+        <div class="prompt">
+          <span class="ps" id="ps">&gt;</span>
+          <textarea id="cin" rows="1" spellcheck="false" placeholder="C# statement or expression — Enter runs, Shift+Enter new line, ↑ ↓ history" disabled></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="off">
+    <span id="sbConn">Offline</span>
+    <span id="sbFile"></span>
+    <span class="sp"></span>
+    <span id="sbBusy"></span>
+    <span id="sbPos"></span>
+    <span>C# · UTF-8</span>
+  </footer>
+</div>
+
+<div class="menu" id="menu"></div>
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div class="gallery-bg" id="galleryBg">
+  <div class="gallery" role="dialog" aria-label="Templates and examples">
+    <div class="gh">Add New Item - templates and examples<span class="spacer"></span>
+      <input id="gSearch" placeholder="Search templates (Ctrl+E)" spellcheck="false">
+      <button class="btn icon" id="gClose" title="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div class="gb">
+      <div class="cats" id="gCats"></div>
+      <div class="items" id="gItems"></div>
+      <div class="prev"><div class="pinfo" id="gInfo"></div><pre id="gPrev"></pre></div>
+    </div>
+    <div class="gf"><label for="gName">Name:</label><input id="gName" spellcheck="false"><span class="spacer"></span>
+      <button class="btn boxed" id="gInsert" title="Insert the code at the cursor of the open file">Insert at cursor</button>
+      <button class="btn primary" id="gAdd">Add</button>
+      <button class="btn boxed" id="gCancel">Cancel</button></div>
+  </div>
+</div>
+<div class="toasts" id="toasts"></div>
+<script src="api.js"></script>
+<script src="docs.js"></script>
+<script src="lang.js"></script>
+<script src="templates.js"></script>
+<script src="studio.js"></script>
+</body>
+</html>
