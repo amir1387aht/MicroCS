@@ -68,7 +68,8 @@ when CubeMX does not.
 ## Files on flash
 
 The free top of the chip's own flash holds `/boot.cs`, `/main.cs`, uploads and script files
-(LittleFS by default, YAFFS2 optional) — see [`example_main.c`](example_main.c):
+(LittleFS by default; YAFFS2, or the built-in TinyFS for just a few KB) — see
+[`example_main.c`](example_main.c):
 
 ```c
 static mcs_stm32_flash_t flash;
@@ -87,6 +88,10 @@ if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&                      // top quart
   regions overlapping the firmware are refused.
 * The CPU stalls while its own flash bank erases (up to 1–2 s for a 128 KB F4 sector); uploads
   use the retrying Studio/shell protocol, so this is harmless.
+* **No external flash, small chip** (e.g. 8 KB of a 64/128 KB F103 or G0): TinyFS, built into
+  MicroCS — `-DMICROCS_FS=tinyfs -DMICROCS_FS_SIZE=8192` (CMake), or `MCS_ENABLE_TINYFS 1` and
+  `MCS_INTFLASH_SIZE 8192` in `mcs_user_config.h`. Each flash page is one block; power loss at
+  any moment keeps the last complete write. F2/F4/F7 need two top sectors (2 × 128 KB).
 * CMake (`MICROCS_PORT=stm32`): `-DMICROCS_FS=littlefs` or `-DMICROCS_FS=yaffs2` adds the sources
   from `MICROCS_LITTLEFS_DIR` / `MICROCS_YAFFS2_DIR`, a copy in the project (`Middlewares/Third_Party/littlefs`,
   `third_party/`, `lib/` ...) or, with `-DMICROCS_FS_DOWNLOAD=ON`, a one-time download (without it the example uses a RAM disk). CubeIDE/Makefile projects add `lfs.c lfs_util.c` and `MCS_ENABLE_LFS 1`, `MCS_ENABLE_FLASH 1` (in `mcs_user_config.h` or with `-D`)

@@ -52,8 +52,11 @@ Hal.Has("LedStrip");                                  // also true for the class
 |---|---|---|
 | all drivers | `MCS_ENABLE_DRIVERS` | = `MCS_ENABLE_HAL` (off in the `tiny` / `min` profiles) |
 | `ws2812` (C# `LedStrip`) | `MCS_ENABLE_WS2812` | = `MCS_ENABLE_DRIVERS` |
+| `servo` (C# `Servo`) | `MCS_ENABLE_SERVO` | = `MCS_ENABLE_DRIVERS` |
 
-How to turn `ws2812` off in each build:
+How to turn `ws2812` off in each build (`servo` the same way: `-DMICROCS_SERVO=OFF`,
+`CONFIG_MICROCS_SERVO=n`, `make_arduino.py --no-servo`, `MICROCS_SERVO := 0`,
+`MCS_ENABLE_SERVO 0`):
 
 | Build | |
 |---|---|
@@ -103,6 +106,37 @@ static const mcs_ws2812_ops_t my_ops = { spi_ws2812 };
 static const mcs_driver_t my_ws2812 = MCS_WS2812_DRIVER(&my_ops, &hspi2);
 mcs_driver_register(&my_ws2812);        /* LedStrip.Show() now calls spi_ws2812 */
 ```
+
+## The built-in `servo` driver
+
+Front end: `modules/drivers/mcs_drv_servo.c` (C# API in [HAL.md](HAL.md#servo)). It turns
+angles into pulse widths (`MinPulse`..`MaxPulse` µs over 0..`MaxAngle` degrees), checks
+every argument, runs the eased `MoveTo` sweep and calls the backend's two functions:
+
+```c
+typedef struct {
+    /* output a pulse of pulse_us every period_us (20000 = 50 Hz) on `channel` until told
+     * otherwise; 0 or MCS_HAL_E*. */
+    int (*set_pulse)(void* ctx, int channel, uint32_t pulse_us, uint32_t period_us);
+    int (*stop)(void* ctx, int channel);    /* stop the signal (servo goes limp); may be NULL */
+} mcs_servo_ops_t;
+```
+
+The default backend is the board's **HAL PWM** (`channel` = PWM channel, 50 Hz), so it
+works on every port that has `PWM` — RP2040/RP2350, ESP32 (LEDC), STM32 (TIM), Zephyr
+(`pwms`), Arduino — and in the simulator (`--sim-log` prints the pulses). The HAL library
+registers it with `mcs_servo_use_hal()` unless the firmware registered its own "servo"
+driver, e.g. for a PCA9685 16-channel I²C board or a serial servo bus:
+
+```c
+static int pca_pulse(void* ctx, int ch, uint32_t us, uint32_t period) { return pca9685_set(ctx, ch, us, period); }
+static const mcs_servo_ops_t pca_ops = { pca_pulse, NULL };
+static const mcs_driver_t pca_servo = MCS_SERVO_DRIVER(&pca_ops, &pca);
+mcs_driver_register(&pca_servo);        /* new Servo(5) is now channel 5 of the PCA9685 */
+```
+
+Options: `MCS_SERVO_PERIOD_US` (20000, the frame), `MCS_SERVO_FRAME_MS` (20, `MoveTo` update
+interval), `MCS_SERVO_MOVE_MAX_MS` (600000, longest `MoveTo`).
 
 ## Writing your own driver
 

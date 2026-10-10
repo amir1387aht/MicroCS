@@ -1,0 +1,39 @@
+[sim] pwm0 50 Hz duty 1638/65535
+[sim] pwm0 50 Hz duty 4915/65535
+[sim] pwm0 50 Hz duty 8192/65535
+[sim] pwm0 50 Hz duty 4915/65535
+[sim] pwm0 50 Hz duty 1966/65535
+[sim] pwm0 50 Hz duty 3296/65535
+[sim] pwm2 50 Hz duty 4915/65535
+[sim] pwm2 50 Hz duty 6554/65535
+[sim] pwm0 50 Hz duty 3254/65535
+[sim] pwm0 50 Hz duty 3129/65535
+[sim] pwm0 50 Hz duty 2943/65535
+[sim] pwm0 50 Hz duty 2716/65535
+[sim] pwm0 50 Hz duty 2467/65535
+[sim] pwm0 50 Hz duty 2225/65535
+[sim] pwm0 50 Hz duty 2002/65535
+[sim] pwm0 50 Hz duty 1812/65535
+[sim] pwm0 50 Hz duty 1688/65535
+[sim] pwm0 50 Hz duty 1638/65535
+[sim] pwm0 50 Hz duty 1638/65535
+0 500 2500 180 False 0 0
+0 500 True
+90 1500
+180 2500
+90 1500
+9 600
+46 1006
+1500 90
+2000
+Servo angle outside 0..180
+Servo angle outside 0..180
+Servo pulse outside 1000..2000 us
+Servo pulse range out of range (1..20000 us, min < max)
+Servo channel out of range
+Servo(channel[, minUs, maxUs[, maxAngle]]) expected
+0 500 True
+False
+True 500
+Servo
+True True True ws2812,servo

@@ -9,14 +9,16 @@ include/, src/, modules/*/ and ports/arduino/ into one folder and copies the
 
 Configuration: Arduino libraries cannot take -D flags, so the library ships the
 project config header src/mcs_user_config.h (config/mcs_user_config.h: every
-MCS_* option with its default, all commented out). Edit it in the installed
+MCS_* option with its default value; with --profile, the values of that
+profile, written by tools/gen_config.py). Edit it in the installed
 library (Arduino/libraries/MicroCS/src/), or bake the options in here:
 
     --config FILE           start from your own mcs_user_config.h instead of the template
     --profile NAME          full | auto | embedded | mcu | lowram | tiny | min | linux
     --no-ws2812             leave out the "ws2812" driver (C# LedStrip)
+    --no-servo              leave out the "servo" driver (C# Servo)
     --define NAME[=VALUE]   any MCS_* option, e.g. --define MCS_ENABLE_SCHED=0 (repeatable)
-    --fs littlefs|yaffs2    bundle a flash filesystem so mcs_flashfs_mount() works on any
+    --fs littlefs|yaffs2|tinyfs  bundle a flash filesystem so mcs_flashfs_mount() works on any
                             mcs_flash_t (SPI NOR / NAND chip, internal flash). The board
                             cores' own LittleFS (ESP32, RP2040) needs none of this.
     --fs-dir DIR            its sources (littlefs: lfs.c + lfs.h; yaffs2: the checkout
@@ -30,6 +32,7 @@ import glob
 import os
 import re
 import shutil
+import sys
 import zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,6 +66,8 @@ def find_fs(fs, given):
 
 def bundle_fs(fs, d, src):
     """Copy the filesystem into the flat src/ folder; returns the config defines."""
+    if fs == "tinyfs":
+        return ["MCS_ENABLE_TINYFS=1"]                      # part of MicroCS: nothing to copy
     if fs == "littlefs":
         for f in ("lfs.c", "lfs.h", "lfs_util.c", "lfs_util.h"):
             shutil.copy(os.path.join(d, f), src)
@@ -114,13 +119,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "arduino"))
     ap.add_argument("--no-ws2812", action="store_true", help="leave out the ws2812 driver (C# LedStrip)")
+    ap.add_argument("--no-servo", action="store_true", help="leave out the servo driver (C# Servo)")
     ap.add_argument("--define", action="append", default=[], metavar="NAME[=VALUE]", help="MCS_* build option")
     ap.add_argument("--config", help="your mcs_user_config.h (default: config/mcs_user_config.h)")
     ap.add_argument("--profile", choices=PROFILES, help="build profile (MCS_PROFILE)")
-    ap.add_argument("--fs", choices=["littlefs", "yaffs2"], help="bundle a flash filesystem")
+    ap.add_argument("--fs", choices=["littlefs", "yaffs2", "tinyfs"], help="bundle a flash filesystem")
     ap.add_argument("--fs-dir", help="filesystem sources (default: looked up, never downloaded)")
     a = ap.parse_args()
-    fs_dir = find_fs(a.fs, a.fs_dir) if a.fs else None
+    fs_dir = find_fs(a.fs, a.fs_dir) if a.fs and a.fs != "tinyfs" else None
     lib = os.path.join(a.out, "MicroCS")
     shutil.rmtree(lib, ignore_errors=True)
     src = os.path.join(lib, "src")
@@ -134,19 +140,31 @@ def main():
         shutil.copy(f, src)
     for f in glob.glob(os.path.join(ROOT, "include", "profiles", "*.h")):
         shutil.copy(f, os.path.join(src, "profiles"))
-    defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else [])
+    defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else []) + (["MCS_ENABLE_SERVO=0"] if a.no_servo else [])
     if a.profile:
         defines.append("MCS_PROFILE=MCS_PROFILE_" + a.profile.upper())
     if a.fs:
         defines += bundle_fs(a.fs, fs_dir, src)
-        print(f"bundled {a.fs} from {fs_dir}")
+        print(f"bundled {a.fs}" + (f" from {fs_dir}" if fs_dir else " (built in)"))
     # Arduino has no -D for libraries: the options go into the library's mcs_user_config.h,
     # which mcs_config.h finds next to itself (library and sketch see the same file)
     config = a.config or os.path.join(ROOT, "config", "mcs_user_config.h")
     if not os.path.isfile(config):
         raise SystemExit(f"make_arduino: no config header {config}")
-    with open(config) as f:
-        txt = f.read()
+    if a.config or a.profile in (None, "full"):
+        with open(config) as f:
+            txt = f.read()
+    elif a.profile == "auto":
+        # the board's RAM/flash is only known when the sketch is compiled
+        txt = ("#ifndef MCS_USER_CONFIG_H\n#define MCS_USER_CONFIG_H\n"
+               "/* MCS_PROFILE_AUTO: the defaults follow the board's RAM and flash.\n"
+               " * Every option (with its full-profile default) is listed in MicroCS's\n"
+               " * config/mcs_user_config.h; add the ones you change here. */\n"
+               "#endif /* MCS_USER_CONFIG_H */\n")
+    else:
+        sys.path.insert(0, os.path.join(ROOT, "tools"))
+        import gen_config
+        txt = gen_config.generate(a.profile, 0, 0, [])
     head = ""
     if defines or a.fs == "yaffs2":
         head = "/* make_arduino.py build options (like -D: they win over the settings below) */\n"

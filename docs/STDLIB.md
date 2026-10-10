@@ -111,6 +111,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **Drivers** | static | `List` | `Has(·)` | registered device drivers (`mcs_driver.h`); `List` = names |
 | **LedStrip** | instance | `Count` `Pin` `Brightness` | `get_Item(·)` `set_Item(·, ·)` `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
 | **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
+| **Servo** | instance | `Angle` `Pulse` `Attached` `MinPulse` `MaxPulse` `MaxAngle` `Channel` | `Write(·)` `Read()` `WritePulse(·)` `MoveTo(·, ·)` `Attach()` `Detach()` `Stop()` `Dispose()` | `servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases |
 
 ## Scheduler (modules/sched)
 
@@ -128,4 +129,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_607 members in 66 tables._
+_622 members in 67 tables._

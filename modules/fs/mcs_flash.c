@@ -321,4 +321,54 @@ int mcs_flash_hal_xfer(void* ud, const uint8_t* cmd, size_t ncmd, const uint8_t*
     return e ? MCS_FLASH_EIO : 0;
 }
 #endif
+
+/* ===================================================================== */
+/* internal flash through a port table                                   */
+/* ===================================================================== */
+static int ip_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
+    mcs_intflash_t* d = (mcs_intflash_t*)f->ctx;
+    if (addr > d->port->size || n > d->port->size - addr) return MCS_FLASH_EINVAL;
+    return d->port->read(d->port->ctx, addr, buf, n) ? MCS_FLASH_EIO : 0;
+}
+static int ip_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
+    mcs_intflash_t* d = (mcs_intflash_t*)f->ctx;
+    const mcs_flash_port_t* p = d->port;
+    uint32_t ws = p->write_size ? p->write_size : 1;
+    if (addr > p->size || n > p->size - addr || addr % ws || n % ws) return MCS_FLASH_EINVAL;
+    const uint8_t* src = (const uint8_t*)buf;
+    if (ws > 64) return p->write(p->ctx, addr, src, n) ? MCS_FLASH_EPROG : 0;
+    union { uint32_t w[16]; uint8_t b[64]; } t;       /* aligned bounce buffer for the port */
+    uint32_t piece = 64 - 64 % ws;
+    while (n) {
+        uint32_t k = n < piece ? n : piece;
+        memcpy(t.b, src, k);
+        if (p->write(p->ctx, addr, t.b, k)) return MCS_FLASH_EPROG;
+        addr += k; src += k; n -= k;
+    }
+    return 0;
+}
+static int ip_erase(mcs_flash_t* f, uint32_t block) {
+    mcs_intflash_t* d = (mcs_intflash_t*)f->ctx;
+    if (block >= f->block_count) return MCS_FLASH_EINVAL;
+    return d->port->erase(d->port->ctx, block * f->block_size) ? MCS_FLASH_EPROG : 0;
+}
+int mcs_intflash_init(mcs_intflash_t* d, const mcs_flash_port_t* port) {
+    if (!d || !port || !port->read || !port->write || !port->erase || !port->erase_size ||
+        !port->size || port->size % port->erase_size)
+        return MCS_FLASH_EINVAL;
+    uint32_t ws = port->write_size ? port->write_size : 1;
+    if ((ws & (ws - 1)) || port->erase_size % ws) return MCS_FLASH_EINVAL;
+    memset(d, 0, sizeof *d);
+    d->port = port;
+    d->flash.type = MCS_FLASH_NOR;
+    d->flash.page_size = ws < 256 ? 256 : ws;
+    d->flash.block_size = port->erase_size;
+    d->flash.block_count = port->size / port->erase_size;
+    d->flash.write_size = port->write_size;
+    d->flash.read = ip_read;
+    d->flash.prog = ip_prog;
+    d->flash.erase = ip_erase;
+    d->flash.ctx = d;
+    return 0;
+}
 #endif

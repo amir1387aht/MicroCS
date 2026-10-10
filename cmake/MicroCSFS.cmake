@@ -1,9 +1,11 @@
 # MicroCS - flash filesystems for CMake builds (pico-sdk, STM32CubeMX CMake, ESP-IDF, Zephyr, plain CMake).
 #
-#   set(MICROCS_FS littlefs)      # or yaffs2, or "" (none: RAM disk only)
+#   set(MICROCS_FS littlefs)      # or yaffs2, tinyfs (built in, nothing to fetch), or "" (none: RAM disk only)
 #   add_subdirectory(MicroCS)     # the root CMakeLists.txt includes this file
 #
-# Neither filesystem is bundled. The sources are looked up, in this order:
+# TinyFS (MICROCS_FS tinyfs) is part of MicroCS: no sources to find, MIT licence, the right choice for the
+# MCU's own flash (STM32 without an external chip) - MICROCS_FS_SIZE sets how many bytes of it hold files.
+# LittleFS and YAFFS2 are not bundled. The sources are looked up, in this order:
 #   1. MICROCS_LITTLEFS_DIR / MICROCS_YAFFS2_DIR (CMake variable or environment variable)
 #      - the folder with lfs.c + lfs.h, or the yaffs2 checkout with direct/ and core/
 #   2. a copy next to your project or MicroCS: <project>/{littlefs,lib/littlefs,libs/littlefs,
@@ -193,7 +195,9 @@ function(microcs_add_fs target fs)
         target_compile_definitions(${target} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
         # -w: third-party code; sys/types.h first: mode_t/off_t on newlib
         set_source_files_properties(${MICROCS_YAFFS_SRCS} PROPERTIES COMPILE_OPTIONS "-w;-include;sys/types.h")
+    elseif(fs STREQUAL "tinyfs")
+        target_compile_definitions(${target} PUBLIC MCS_ENABLE_TINYFS=1)
     elseif(fs)
-        message(FATAL_ERROR "MICROCS_FS must be littlefs, yaffs2 or empty (got '${fs}')")
+        message(FATAL_ERROR "MICROCS_FS must be tinyfs, littlefs, yaffs2 or empty (got '${fs}')")
     endif()
 endfunction()

@@ -458,13 +458,15 @@ for (int round = 0; round < 3; round++)
 PWM.Stop(0);
 `);
 T("PWM", "Servo sweep", "servo.cs",
-  "Move a hobby servo from 0 to 180 degrees and back.", String.raw`
-// Servo signal on PWM channel 1 (50 Hz, 500-2500 us by default).
-for (int deg = 0; deg <= 180; deg += 10) { PWM.Servo(1, deg); Thread.Sleep(80); }
-for (int deg = 180; deg >= 0; deg -= 10) { PWM.Servo(1, deg); Thread.Sleep(80); }
-PWM.SetPulse(1, 50, 1500);      // centre, as a raw pulse width
+  "Move a hobby servo from 0 to 180 degrees and back with the Servo class.", String.raw`
+// Hobby servo on PWM channel 1: 50 Hz, 500-2500 us = 0-180 degrees.
+// Servo comes from the firmware's "servo" driver; use new Servo(1, 544, 2400) for your servo's pulse range.
+var servo = new Servo(1);
+for (int deg = 0; deg <= 180; deg += 10) { servo.Angle = deg; Thread.Sleep(80); }
+for (int deg = 180; deg >= 0; deg -= 10) { servo.Angle = deg; Thread.Sleep(80); }
+servo.Pulse = 1500;             // centre, as a raw pulse width in microseconds
 Thread.Sleep(500);
-PWM.Stop(1);
+servo.Detach();                 // stop the signal: the servo goes limp
 `);
 T("PWM", "Buzzer melody", "melody.cs",
   "Play notes on a passive buzzer with PWM.Tone.", String.raw`
@@ -1651,27 +1653,40 @@ try
 finally { Set(false); }
 `);
 T("Motors and actuators", "Servo with smooth motion", "servo_smooth.cs",
-  "Ease a servo between positions instead of jumping.", String.raw`
-// Smooth servo motion: ease-in-out between angles
-const int CH = 0;
-double pos = 90;
-PWM.Servo(CH, pos);
+  "Ease a servo between positions with Servo.MoveTo instead of jumping.", String.raw`
+// Smooth servo motion: MoveTo eases in and out in 20 ms frames and waits until it arrives.
+var servo = new Servo(0);                 // PWM channel 0, 500-2500 us = 0-180 degrees
+servo.Angle = 90;
+Thread.Sleep(500);                        // let it reach the start position
 
-void MoveTo(double target, int ms)
+foreach (int a in new[] { 0, 180, 45, 135, 90 })
 {
-    double start = pos; int steps = ms / 20;
-    for (int i = 1; i <= steps; i++)
-    {
-        double t = (double)i / steps;
-        double e = t < 0.5 ? 2 * t * t : 1 - Math.Pow(-2 * t + 2, 2) / 2;   // ease in-out
-        pos = start + (target - start) * e;
-        PWM.Servo(CH, pos);
-        Thread.Sleep(20);                       // one servo frame
-    }
+    servo.MoveTo(a, 600);                 // 600 ms
+    Console.WriteLine($"at {servo.Angle} deg ({servo.Pulse} us)");
+}
+servo.Detach();
+`);
+T("Motors and actuators", "Pan/tilt with two servos", "pan_tilt.cs",
+  "Aim a pan/tilt bracket: two servos, a sweep and a look-around.", String.raw`
+// Pan/tilt bracket: pan servo on PWM channel 0, tilt servo on channel 1.
+// The tilt servo only travels 0-90 degrees here (new Servo(channel, minUs, maxUs, maxAngle)).
+var pan = new Servo(0);
+var tilt = new Servo(1, 1000, 2000, 90);
+pan.Angle = 90; tilt.Angle = 45;
+Thread.Sleep(500);
+
+void Aim(int p, int t, int ms)
+{
+    // start the tilt first: MoveTo blocks, so for a diagonal move split it in two halves
+    tilt.MoveTo(t, ms / 2);
+    pan.MoveTo(p, ms / 2);
+    Console.WriteLine($"aimed pan={pan.Angle} tilt={tilt.Angle}");
 }
 
-foreach (double a in new double[] { 0, 180, 45, 135, 90 }) { MoveTo(a, 600); Console.WriteLine($"at {a} deg"); }
-PWM.Stop(CH);
+Aim(20, 10, 800);
+Aim(160, 80, 1200);
+Aim(90, 45, 800);                         // back to centre
+pan.Detach(); tilt.Detach();
 `);
 
 /* ---------------------------------------------------------------- Input devices */
@@ -2426,7 +2441,7 @@ const SNIPPETS = [
   { label: "uartrx", detail: "UART.OnReceive", text: "UART.OnReceive(1, (int available) =>\n{\n    string s = UART.ReadString(1, available);\n    $0\n});" },
   { label: "adc", detail: "read millivolts", text: "int mv = ADC.ReadMillivolts($0);" },
   { label: "pwm", detail: "PWM.Set", text: "PWM.Set($0, 1000, 0.5);" },
-  { label: "servo", detail: "PWM.Servo", text: "PWM.Servo($0, 90);" },
+  { label: "servo", detail: "new Servo (hobby servo)", text: "var servo = new Servo($0);\nservo.Angle = 90;" },
   { label: "sw", detail: "Stopwatch", text: "var sw = Stopwatch.StartNew();\n$0\nConsole.WriteLine($\"{sw.ElapsedMilliseconds} ms\");" },
   { label: "wdt", detail: "watchdog", text: "Watchdog.Start(3000);\n// call Watchdog.Feed() regularly$0" },
   { label: "readfile", detail: "read a text file", text: "string text = File.Exists(\"$0\") ? File.ReadAllText(\"\") : \"\";" },

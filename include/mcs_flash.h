@@ -68,6 +68,38 @@ struct mcs_flash {
     uint32_t write_size;
 };
 
+/* ---- internal MCU flash through a port ----
+ * The MCU's own flash is NOR-type but every vendor programs it differently, so
+ * a port is four small functions. MicroCS ships them for STM32 (mcs_stm32_flash_init),
+ * RP2040/RP2350, ESP32 and Zephyr; for any other chip fill in this table:
+ *
+ *   static int my_read(void* c, uint32_t off, void* b, uint32_t n)        { memcpy(b, (void*)(MY_FS_BASE + off), n); return 0; }
+ *   static int my_write(void* c, uint32_t off, const void* b, uint32_t n) { return my_flash_program(MY_FS_BASE + off, b, n); }
+ *   static int my_erase(void* c, uint32_t off)                            { return my_flash_erase_page(MY_FS_BASE + off); }
+ *   static const mcs_flash_port_t port = { 8 * 1024, 1024, 4, my_read, my_write, my_erase, NULL };
+ *   static mcs_intflash_t flash;
+ *   mcs_intflash_init(&flash, &port);                       // 8 KB region = 8 pages of 1 KB
+ *   mcs_flashfs_mount(&fs, &flash.flash, 0, 0, MCS_FLASHFS_TINYFS, MCS_FLASHFS_FORMAT_IF_NEEDED);
+ *
+ * Offsets are relative to the start of the region (0 .. size). Return 0 on
+ * success, negative on failure. write() gets offsets and lengths that are
+ * multiples of write_size and 4-byte aligned data; flash erased to 0xFF is assumed
+ * (invert in read/write if yours erases to 0x00). Each write_size unit is written
+ * once between erases. TinyFS (MCS_ENABLE_TINYFS) needs >= 2 erase units (more
+ * units use the space better); LittleFS / YAFFS2 work on the same adapter. */
+typedef struct {
+    uint32_t size;                 /* bytes in the region                          */
+    uint32_t erase_size;           /* erase unit (page/sector); size is a multiple */
+    uint32_t write_size;           /* program unit in bytes: 1, 2, 4, 8, 16, ...   */
+    int (*read)(void* ctx, uint32_t off, void* buf, uint32_t n);
+    int (*write)(void* ctx, uint32_t off, const void* buf, uint32_t n);
+    int (*erase)(void* ctx, uint32_t off);          /* erase the unit that starts at off */
+    void* ctx;
+} mcs_flash_port_t;
+typedef struct { mcs_flash_t flash; const mcs_flash_port_t* port; } mcs_intflash_t;
+/* Build the mcs_flash_t for a port; `port` must outlive `d`. */
+int mcs_intflash_init(mcs_intflash_t* d, const mcs_flash_port_t* port);
+
 /* A range of erase blocks handed to a filesystem (LittleFS / YAFFS2 adapters).
  * block_count = 0 means "to the end of the chip". Must outlive the mount. */
 typedef struct { mcs_flash_t* flash; uint32_t first_block; uint32_t block_count; } mcs_flash_part_t;

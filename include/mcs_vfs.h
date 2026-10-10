@@ -119,6 +119,9 @@ void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs);
 #ifndef MCS_ENABLE_LFS
 #define MCS_ENABLE_LFS 0
 #endif
+#ifndef MCS_ENABLE_TINYFS
+#define MCS_ENABLE_TINYFS 0
+#endif
 #if MCS_ENABLE_LFS
 extern const mcs_vfs_ops_t mcs_lfs_ops;
 #if MCS_ENABLE_FLASH
@@ -156,7 +159,59 @@ int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const cha
 #endif
 #endif
 
-/* ---- one call: LittleFS or YAFFS2 on any mcs_flash_t (modules/fs/mcs_flashfs.c) ----
+/* ---- TinyFS: built-in flash filesystem (optional, MCS_ENABLE_TINYFS) -------
+ * A small log-structured filesystem for NOR-type flash with no extra sources:
+ * the MCU's own flash (STM32 with no external chip, a few KB of a 128 KB part),
+ * SPI NOR, or any region described by mcs_intflash_init() (mcs_flash.h).
+ * Power-fail safe (CRC'd records, garbage collection with a commit record),
+ * wear-levelled by rotating through the erase blocks, a RAM index of
+ * MCS_TINYFS_MAX_FILES entries. Needs >= 2 erase blocks (more = better use
+ * of the space: with n blocks about (n-1)/n of the region holds data).
+ * Limits: files are written sequentially (create/truncate, then append),
+ * rename moves files and empty directories, paths up to 127 bytes.
+ * ctx = mcs_tinyfs_t* (mcs_tinyfs_mount, or mcs_flashfs_mount with MCS_FLASHFS_TINYFS). */
+#if MCS_ENABLE_TINYFS && MCS_ENABLE_FLASH
+#include "mcs_flash.h"
+#ifndef MCS_FLASHFS_FORMAT_IF_NEEDED
+#define MCS_FLASHFS_FORMAT_IF_NEEDED 1   /* blank or foreign partition: format it          */
+#define MCS_FLASHFS_FORMAT           2   /* erase + format unconditionally (factory reset) */
+#endif
+#define MCS_TINYFS_MAX_BLOCKS 32
+typedef struct {
+    uint32_t id;               /* 0 = free slot                        */
+    uint32_t name_addr;        /* region offset of the live NAME record */
+    uint32_t size;             /* bytes in flash                       */
+    uint32_t rec;              /* flash bytes held by live records     */
+    uint32_t hash;
+    uint8_t nlen, dir;
+} mcs_tinyfs_entry_t;
+typedef struct {
+    uint32_t id, pos;
+    uint16_t len;              /* bytes waiting in buf                 */
+    int16_t err;
+    uint8_t flags, used;
+    uint8_t buf[MCS_TINYFS_CHUNK];
+} mcs_tinyfs_handle_t;
+typedef struct mcs_tinyfs {
+    mcs_flash_part_t part;
+    mcs_flash_t* f;
+    uint32_t base, bsize, nblk, unit, hs, cs, maxrec;
+    uint32_t seq[MCS_TINYFS_MAX_BLOCKS], end[MCS_TINYFS_MAX_BLOCKS];
+    uint8_t valid[MCS_TINYFS_MAX_BLOCKS], sealed[MCS_TINYFS_MAX_BLOCKS];
+    int head;
+    uint32_t off, next_id, max_seq, live, allowed;
+    uint8_t mounted;
+    mcs_tinyfs_entry_t ent[MCS_TINYFS_MAX_FILES];
+    mcs_tinyfs_handle_t h[MCS_TINYFS_HANDLES];
+} mcs_tinyfs_t;
+extern const mcs_vfs_ops_t mcs_tinyfs_ops;
+/* Mount the blocks `part` selects. flags: MCS_FLASHFS_FORMAT_IF_NEEDED (format a blank or
+ * foreign region) or MCS_FLASHFS_FORMAT (erase it first). Returns MCS_VFS_OK or MCS_VFS_E*. */
+int mcs_tinyfs_mount(mcs_tinyfs_t* fs, const mcs_flash_part_t* part, int flags);
+int mcs_tinyfs_unmount(mcs_tinyfs_t* fs);   /* flushes open files */
+#endif
+
+/* ---- one call: LittleFS, YAFFS2 or TinyFS on any mcs_flash_t (modules/fs/mcs_flashfs.c) ----
  * Every port has an internal-flash driver (mcs_rp2_flash_init, mcs_stm32_flash_init,
  * mcs_esp32_partition_flash, mcs_zephyr_flash_area_init) and the SPI NOR/NAND
  * drivers work on any board, so a firmware gets persistent files with:
@@ -166,22 +221,28 @@ int mcs_yaffs_flash_dev(struct yaffs_dev* dev, mcs_flash_part_t* part, const cha
  *       cfg.fs_ops = fs.ops; cfg.fs_ctx = fs.ctx;          // mcs_runtime, or mcs_vfs_mount(...)
  *   }
  *
- * The lfs_t / yaffs_dev live in a small static table (MCS_FLASHFS_MAX). */
-#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+ * The lfs_t / yaffs_dev / mcs_tinyfs_t live in a small static table (MCS_FLASHFS_MAX). */
+#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS || MCS_ENABLE_TINYFS)
+#define MCS_HAVE_FLASHFS 1               /* a flash filesystem is compiled in (for #if in firmware) */
 #include "mcs_flash.h"
 #define MCS_FLASHFS_LITTLEFS 1
 #define MCS_FLASHFS_YAFFS2   2
+#define MCS_FLASHFS_TINYFS   3
 #if MCS_ENABLE_LFS
 #define MCS_FLASHFS_DEFAULT MCS_FLASHFS_LITTLEFS
-#else
+#elif MCS_ENABLE_YAFFS
 #define MCS_FLASHFS_DEFAULT MCS_FLASHFS_YAFFS2
+#else
+#define MCS_FLASHFS_DEFAULT MCS_FLASHFS_TINYFS
 #endif
-#define MCS_FLASHFS_FORMAT_IF_NEEDED 1   /* blank or foreign partition: format it          */
-#define MCS_FLASHFS_FORMAT           2   /* erase + format unconditionally (factory reset) */
+#ifndef MCS_FLASHFS_FORMAT_IF_NEEDED
+#define MCS_FLASHFS_FORMAT_IF_NEEDED 1
+#define MCS_FLASHFS_FORMAT           2
+#endif
 typedef struct {
     const mcs_vfs_ops_t* ops;            /* hand these to mcs_vfs_mount / mcs_runtime_cfg_t */
     void* ctx;
-    int kind;                            /* MCS_FLASHFS_LITTLEFS / _YAFFS2 */
+    int kind;                            /* MCS_FLASHFS_LITTLEFS / _YAFFS2 / _TINYFS */
     int slot;
     mcs_flash_part_t part;
     char name[12];                       /* YAFFS2 device name */
@@ -191,7 +252,7 @@ typedef struct {
 int mcs_flashfs_mount(mcs_flashfs_t* fs, mcs_flash_t* flash, uint32_t first_block, uint32_t block_count,
                       int kind, int flags);
 int mcs_flashfs_unmount(mcs_flashfs_t* fs);
-const char* mcs_flashfs_kind_name(int kind);    /* "littlefs" / "yaffs2" */
+const char* mcs_flashfs_kind_name(int kind);    /* "littlefs" / "yaffs2" / "tinyfs" */
 #endif
 
 /* ---- built-in backends ---- */

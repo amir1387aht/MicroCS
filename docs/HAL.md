@@ -146,6 +146,28 @@ A firmware can replace the backend (e.g. SPI + DMA) with `mcs_driver_register`.
 | Arduino | ESP32 core 3 RMT, Arduino-Pico PIO, otherwise Adafruit_NeoPixel | for the last one `#include <Adafruit_NeoPixel.h>` in the sketch |
 | Simulator | logs `[sim] ledstrip gpio N: …` with `--sim-log` | |
 
+### Servo
+| Member | Description |
+|---|---|
+| `new Servo(channel[, minUs = 500, maxUs = 2500[, maxAngle = 180]])` | hobby servo (SG90, MG90S, MG996R …) or ESC on PWM channel `channel`; Arduino's range is `544, 2400` |
+| `Angle` (get/set) · `Write(deg)` · `Read()` | degrees, int or float, `0..MaxAngle` (`ArgumentOutOfRangeException` outside) |
+| `Pulse` (get/set) · `WritePulse(us)` | pulse width in µs, `MinPulse..MaxPulse` |
+| `MoveTo(deg, ms)` | smooth (ease in/out) sweep to `deg` in `ms`, blocks; ends exactly on the target |
+| `Detach()` / `Stop()` · `Attach()` · `Attached` | stop the 50 Hz signal (servo goes limp) / resume it |
+| `Channel`, `MinPulse`, `MaxPulse`, `MaxAngle` · `Dispose()` | |
+
+`Servo` comes from the built-in **`servo` driver** ([DRIVERS.md](DRIVERS.md#the-built-in-servo-driver)):
+the default backend is the board's PWM at 50 Hz, so it works wherever `PWM` does (and in
+the simulator); a firmware can register another backend (PCA9685, servo bus).
+`Hal.Has("Servo")` / `Drivers.Has("servo")` tell; `MCS_ENABLE_SERVO 0` (CMake
+`-DMICROCS_SERVO=OFF`) leaves it out.
+
+```csharp
+var pan = new Servo(0);            // PWM channel 0
+pan.Angle = 90;                    // centre
+pan.MoveTo(180, 1000);             // sweep in 1 s
+```
+
 ### I²S, QSPI, CAN
 | Member | Description |
 |---|---|

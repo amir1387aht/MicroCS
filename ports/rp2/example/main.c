@@ -12,7 +12,7 @@
 static uint8_t heap[160 * 1024] __attribute__((aligned(8)));
 static mcs_runtime_t rt;
 static mcs_hal_t hal;
-#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#ifdef MCS_HAVE_FLASHFS
 static mcs_rp2_flash_t flash;
 static mcs_flashfs_t flashfs;
 #endif
@@ -30,7 +30,7 @@ int main(void) {
     mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
     cfg.heap = heap;
     cfg.heap_size = sizeof heap;
-#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#ifdef MCS_HAVE_FLASHFS
     if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&
         mcs_flashfs_mount(&flashfs, &flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
         cfg.fs_ops = flashfs.ops;                /* files on flash */

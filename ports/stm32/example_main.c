@@ -7,11 +7,12 @@
  * Then call microcs_main() from main() after the MX_xxx_Init() calls
  * (USER CODE BEGIN 2). That is all.
  *
- * Files: with LittleFS or YAFFS2 compiled in (CubeMX CMake project:
- * set(MICROCS_FS littlefs) before add_subdirectory(MicroCS); other IDEs: add
+ * Files: with TinyFS, LittleFS or YAFFS2 compiled in (CubeMX CMake project:
+ * set(MICROCS_FS tinyfs) - nothing to download - or littlefs, before
+ * add_subdirectory(MicroCS); other IDEs: -DMCS_ENABLE_TINYFS=1, or add
  * lfs.c + lfs_util.c and -DMCS_ENABLE_LFS=1) scripts live in the top part of
- * the chip's own flash (mcs_stm32_flash_init) and survive resets; without
- * one, a RAM disk.
+ * the chip's own flash (mcs_stm32_flash_init, size MCS_INTFLASH_SIZE) and
+ * survive resets; without one, a RAM disk.
  */
 #include "mcs_runtime.h"
 #include "mcs_port_stm32.h"
@@ -37,7 +38,7 @@ static uint8_t heap[MICROCS_HEAP] __attribute__((aligned(8)));
 static mcs_stm32_board_t board;
 static mcs_hal_t hal;
 static mcs_runtime_t rt;
-#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#ifdef MCS_HAVE_FLASHFS
 static mcs_stm32_flash_t flash;
 static mcs_flashfs_t flashfs;
 #endif
@@ -70,7 +71,7 @@ void microcs_main(void) {
     mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
     cfg.heap = heap;
     cfg.heap_size = sizeof heap;
-#if MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS)
+#ifdef MCS_HAVE_FLASHFS
     if (mcs_stm32_flash_init(&flash, 0, 0) == 0 &&
         mcs_flashfs_mount(&flashfs, &flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
         cfg.fs_ops = flashfs.ops;                                /* files in the chip's flash */

@@ -71,7 +71,7 @@ Jobs, timers and interrupt callbacks keep running while the REPL waits for input
 ## 3. The REPL
 
 ```text
-MicroCS 1.8.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.9.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var adc = ADC.ReadMillivolts(0);
 > adc
 1650

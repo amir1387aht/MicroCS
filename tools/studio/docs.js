@@ -596,7 +596,7 @@ WriteMillivolts(int ch, int mV): void | Output voltage
 Set(int ch, int hz, double duty): void | Frequency and duty 0.0-1.0
 SetPermille(int ch, int hz, int permille): void | Duty 0-1000
 SetPulse(int ch, int hz, int pulseUs): void | High time in µs
-Servo(int ch, double degrees): void | 50 Hz servo, 0-180°, 500-2500 µs
+Servo(int ch, double degrees): void | 50 Hz servo, 0-180°, 500-2500 µs (the Servo class does more)
 Servo(int ch, double degrees, int minUs, int maxUs): void | Servo with its pulse range
 Tone(int ch, int hz): void | 50 % square wave (buzzer)
 Stop(int ch): void | Output off
@@ -660,7 +660,7 @@ new(int id, byte[] data, bool extended) | Extended (29-bit) when true
 .Data: byte[] | Payload
 
 @Drivers | Device drivers compiled into the firmware (modules/drivers, mcs_driver.h)
-Has(string name): bool | A driver ("ws2812") or a class it adds ("LedStrip") is available
+Has(string name): bool | A driver ("ws2812", "servo") or a class it adds ("LedStrip", "Servo") is available
 List: string[] | Names of the registered drivers
 
 @LedStrip | WS2812 / WS2812B / SK6812 ("NeoPixel") addressable RGB LEDs on any pin ("ws2812" driver)
@@ -685,6 +685,25 @@ Hsv(int hue, int saturation = 255, int value = 255): int | Colour from hue 0..35
 .Count: int | Number of LEDs
 .Pin: int | GPIO of the strip
 .Dispose(): void | Frees the pixel buffer
+
+@Servo | Hobby servos and ESCs on a PWM channel, 50 Hz ("servo" driver)
+new(int channel) | PWM channel; 500-2500 µs = 0-180°
+new(int channel, int minUs, int maxUs) | Pulse range of your servo (Arduino default: 544, 2400)
+new(int channel, int minUs, int maxUs, int maxAngle) | Pulse range and travel in degrees
+.Angle: int | Degrees 0..MaxAngle; assign an int or double (ArgumentOutOfRangeException outside)
+.Write(double angle): void | Same as assigning Angle
+.Read(): int | Last angle written
+.Pulse: int | Pulse width in µs, MinPulse..MaxPulse; assign to drive the raw width
+.WritePulse(int us): void | Same as assigning Pulse
+.MoveTo(double angle, int ms): void | Eased move in 20 ms frames; blocks (callbacks keep running)
+.Attach(): void | Resumes the last pulse after Detach()
+.Detach(): void | Stops the signal (the servo goes limp); Stop() is the same
+.Attached: bool | The signal is on
+.MinPulse: int | Shortest pulse in µs
+.MaxPulse: int | Longest pulse in µs
+.MaxAngle: int | Travel in degrees
+.Channel: int | PWM channel
+.Dispose(): void | Stops the signal and releases the object
 
 @Exception | Base of every exception
 new() | Without a message

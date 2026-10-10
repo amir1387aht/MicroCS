@@ -570,6 +570,13 @@ static int my_ws(void* ctx, int pin, const uint8_t* d, size_t n, int order) {
     (void)ctx; (void)d; (void)order; ws_frames++; ws_bytes = (int)n; return pin == 7 ? MCS_HAL_EBUSY : 0;
 }
 #endif
+#if MCS_ENABLE_SERVO
+static int sv_calls, sv_ch, sv_us, sv_period, sv_stops;
+static int my_sv(void* ctx, int ch, uint32_t us, uint32_t period) {
+    (void)ctx; sv_calls++; sv_ch = ch; sv_us = (int)us; sv_period = (int)period; return ch == 9 ? MCS_HAL_EBUSY : 0;
+}
+static int my_sv_stop(void* ctx, int ch) { (void)ctx; (void)ch; sv_stops++; return 0; }
+#endif
 static void test_drivers(void) {
     static int step = 1;
     static const beeper_ops_t bops = { my_beep };
@@ -580,6 +587,10 @@ static void test_drivers(void) {
     memset(&sim, 0, sizeof sim);
     mcs_hal_sim_init(&hal, &sim);              /* registers the simulator's "ws2812" */
     CHECK((mcs_driver_find("ws2812") != NULL) == MCS_ENABLE_WS2812);
+#if MCS_ENABLE_SERVO
+    mcs_servo_use_hal(&hal);                   /* what mcs_hal_open_lib does: HAL PWM backend */
+    CHECK(mcs_driver_find("servo") != NULL && mcs_driver_provides("Servo"));
+#endif
     CHECK(mcs_driver_register(&bad) == MCS_HAL_EINVAL);
     CHECK(mcs_driver_register(&beeper) == 0);
     CHECK(mcs_driver_register_default(&beeper2) == 0 && mcs_driver_find("beeper") == &beeper);
@@ -606,6 +617,26 @@ static void test_drivers(void) {
         "try { new LedStrip(7, 1).Show(); } catch (IOException e) { Console.WriteLine(e.Message); }") == MCS_OK);
     CHECK(ws_frames == 2 && ws_bytes == 3);
     CHECK(strstr(outbuf, "LedStrip.Show: busy") != NULL);
+#endif
+#if MCS_ENABLE_SERVO
+    {   /* a user backend (e.g. a PCA9685) replaces the HAL PWM one; front end checks stay */
+        static const mcs_servo_ops_t sops = { my_sv, my_sv_stop };
+        static const mcs_driver_t mysv = MCS_SERVO_DRIVER(&sops, NULL);
+        CHECK(mcs_driver_register(&mysv) == 0 && mcs_driver_count() == n0);
+        mcs_servo_use_hal(&hal);                              /* does not override it */
+        CHECK(mcs_driver_find("servo") == &mysv);
+        outlen = 0; outbuf[0] = 0;
+        CHECK(mcs_exec_source(vm, "sv.cs",
+            "var s = new Servo(3, 1000, 2000); s.Angle = 90; s.Detach(); s.Detach();"
+            "Console.WriteLine($\"{s.Pulse} {s.Attached}\");"
+            "try { new Servo(9).Angle = 1; } catch (IOException e) { Console.WriteLine(e.Message); }"
+            "var t = new Servo(4); t.Angle = 0; t.Dispose();") == MCS_OK);
+        CHECK(sv_calls == 3 && sv_ch == 4 && sv_us == 500 && sv_period == 20000 && sv_stops == 2);
+        CHECK(strstr(outbuf, "1500 False\n") != NULL && strstr(outbuf, "Servo: busy") != NULL);
+        mcs_driver_unregister("servo");
+        CHECK(!mcs_driver_provides("Servo"));
+        mcs_servo_use_hal(&hal);                              /* the default again for the next test */
+    }
 #endif
     mcs_hal_close_lib(vm);
     mcs_free(vm);

@@ -1252,6 +1252,9 @@ void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) {
     if (has(h, "Watchdog")) mcs_register_module(vm, "Watchdog", wdt_fns);
     if (has(h, "RTC")) mcs_register_module(vm, "RTC", rtc_fns);
 #if MCS_ENABLE_DRIVERS
+#if MCS_ENABLE_SERVO
+    mcs_servo_use_hal(h);                         /* default "servo" backend: this board's PWM */
+#endif
     mcs_drivers_open(vm);                         /* Drivers class + every registered driver */
 #endif
 }

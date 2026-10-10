@@ -70,9 +70,10 @@ For 32–64 KB RAM parts see [LOW_RESOURCE.md](LOW_RESOURCE.md).
    component, a Zephyr module, a PlatformIO/Arduino library, or just the `.c` files in your
    IDE. Every variant is in [PORTING.md](PORTING.md).
 2. Optional: configure it. Copy [`config/mcs_user_config.h`](../config/mcs_user_config.h)
-   into your project as `mcs_user_config.h` and uncomment what you change, e.g.
-   `#define MCS_PROFILE MCS_PROFILE_EMBEDDED` (`auto`, `min`, `tiny`, `mcu`, `lowram`,
-   `embedded`, `linux` — see `include/profiles/`). `-D…` options work too and win over
+   into your project as `mcs_user_config.h` — it holds every option with its default
+   value — and edit the values you change. For another profile's defaults generate it:
+   `python3 tools/gen_config.py --profile embedded -o mcs_user_config.h` (`auto`, `min`,
+   `tiny`, `mcu`, `lowram`, `embedded`, `linux` — see `include/profiles/`). `-D…` options work too and win over
    the header. Details: [CONFIGURATION.md](CONFIGURATION.md).
 3. Create a VM on a static pool and run a script (a runnable version is
    [`examples/quickstart_embed.c`](../examples/quickstart_embed.c), `make quickstart`):

@@ -233,14 +233,14 @@ uint32_t mcs_stm32_ticks(void* ud);              /* HAL_GetTick */
 void mcs_stm32_delay(void* ud, uint32_t ms);     /* HAL_Delay (or osDelay with FreeRTOS: wrap it) */
 
 #if MCS_ENABLE_FLASH && defined(HAL_FLASH_MODULE_ENABLED)
-/* The chip's own flash as a mcs_flash_t, for mcs_flashfs_mount() = LittleFS
- * or YAFFS2 for scripts (no external chip needed). addr/size = the region
+/* The chip's own flash as a mcs_flash_t, for mcs_flashfs_mount() = TinyFS,
+ * LittleFS or YAFFS2 for scripts (no external chip needed). addr/size = the region
  * (erase-unit aligned); 0, 0 = the default: the top MCS_STM32_FS_SIZE bytes
- * (default a quarter of the flash, at least 2 erase units), below the
+ * (MCS_INTFLASH_SIZE; default a quarter of the flash, at least 2 erase units), below the
  * wireless stack on STM32WB. Fails with MCS_FLASH_EINVAL if the region
  * overlaps the firmware (linker symbols _sidata/_sdata/_edata).
  *   page families (F0 F1 F3 G0 G4 L0 L1 L4 L5 U5 WB WL C0 U0): 4 KB blocks
- *     (whole pages, 8 KB on U5); F2/F4/F7: 128/256 KB sectors (the region must
+ *     (whole pages, 8 KB on U5; with TinyFS alone one page, MCS_STM32_FS_BLOCK); F2/F4/F7: 128/256 KB sectors (the region must
  *     sit in the uniform top sectors); H5: 8 KB, H7: 128 KB sectors.
  *   program unit (half/double/quad/flash word) is reported in write_size;
  *   L0/L1 flash erases to 0x00: the driver stores inverted bytes.

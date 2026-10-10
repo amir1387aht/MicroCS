@@ -146,34 +146,45 @@ static void register_drivers(void) {
 }
 
 /* ============================================================ internal flash -> files
- * A mcs_flash_t for the chip's own flash (or an external NOR / NAND: mcs_spinor_init /
- * mcs_spinand_init in mcs_flash.h need only a SPI transfer function). LittleFS and
- * YAFFS2 sit on it through mcs_flashfs_mount(); build with -DMICROCS_FS=littlefs or
- * yaffs2 (CMake) or compile the sources yourself with MCS_ENABLE_LFS / MCS_ENABLE_YAFFS.
- * Keep the region away from the firmware image (linker script). Used by Option 2 below. */
-#define TEMPLATE_FLASH_FS (MCS_ENABLE_FLASH && (MCS_ENABLE_LFS || MCS_ENABLE_YAFFS) && MCS_ENABLE_RUNTIME)
+ * The flash port: describe the chip's own flash region and implement read / write /
+ * erase (offsets are relative to the region); mcs_intflash_init() turns it into the
+ * mcs_flash_t that TinyFS, LittleFS and YAFFS2 sit on through mcs_flashfs_mount().
+ * TinyFS is built in (MCS_ENABLE_TINYFS 1, CMake -DMICROCS_FS=tinyfs) and works in a
+ * few KB (>= 2 erase units); LittleFS / YAFFS2: -DMICROCS_FS=littlefs or yaffs2, or
+ * compile their sources with MCS_ENABLE_LFS / MCS_ENABLE_YAFFS. An external NOR / NAND
+ * chip instead: mcs_spinor_init / mcs_spinand_init (mcs_flash.h) need only a SPI
+ * transfer function. Keep the region away from the firmware image (linker script).
+ * Used by Option 2 below. */
+#if defined(MCS_HAVE_FLASHFS) && MCS_ENABLE_RUNTIME
+#define TEMPLATE_FLASH_FS 1
+#else
+#define TEMPLATE_FLASH_FS 0
+#endif
 #if TEMPLATE_FLASH_FS
-#define FS_BASE   0x08080000u            /* TODO: first byte of the files region */
-#define FS_SIZE   (256u * 1024u)         /* TODO: size, a multiple of the erase block */
-#define FS_BLOCK  4096u                  /* TODO: erase unit (page / sector size) */
-static int fl_read(mcs_flash_t* f, uint32_t addr, void* buf, uint32_t n) {
-    memcpy(buf, (const void*)(uintptr_t)(FS_BASE + addr), n);   /* memory-mapped flash */
+#define FS_BASE   0x0801E000u            /* TODO: first byte of the files region (here: last 8 KB of 128 KB) */
+#define FS_SIZE   (8u * 1024u)           /* TODO: size, a multiple of the erase unit (MCS_INTFLASH_SIZE) */
+#define FS_BLOCK  1024u                  /* TODO: erase unit (page / sector size) */
+#define FS_UNIT   8u                     /* TODO: program unit in bytes: 2 on F1, 8 on L4/G4, 16/32 on H7 */
+static int fl_read(void* ctx, uint32_t off, void* buf, uint32_t n) {
+    (void)ctx;
+    memcpy(buf, (const void*)(uintptr_t)(FS_BASE + off), n);    /* memory-mapped flash */
     return 0;
 }
-static int fl_prog(mcs_flash_t* f, uint32_t addr, const void* buf, uint32_t n) {
-    /* TODO: unlock, program n bytes at FS_BASE + addr in the chip's write unit, lock.
-     * Return MCS_FLASH_EPROG on a verify / status error. */
+static int fl_write(void* ctx, uint32_t off, const void* buf, uint32_t n) {
+    /* TODO: unlock, program n bytes (a multiple of FS_UNIT, 4-byte aligned buf) at
+     * FS_BASE + off one unit at a time, lock. Return MCS_FLASH_EPROG on a verify /
+     * status error. */
+    (void)ctx; (void)off; (void)buf; (void)n;
     return MCS_FLASH_EIO;
 }
-static int fl_erase(mcs_flash_t* f, uint32_t block) {
-    /* TODO: erase FS_BASE + block * FS_BLOCK (must read back as 0xFF) */
+static int fl_erase(void* ctx, uint32_t off) {
+    /* TODO: erase the FS_BLOCK unit at FS_BASE + off (must read back as 0xFF; if your
+     * flash erases to 0x00, invert the bytes in fl_read / fl_write) */
+    (void)ctx; (void)off;
     return MCS_FLASH_EIO;
 }
-static mcs_flash_t board_flash = {
-    .type = MCS_FLASH_NOR, .page_size = 256, .block_size = FS_BLOCK, .block_count = FS_SIZE / FS_BLOCK,
-    .read = fl_read, .prog = fl_prog, .erase = fl_erase,
-    .write_size = 8,                     /* smallest program unit (bytes): 8 on STM32L4/G4, 16/32 on H7 */
-};
+static const mcs_flash_port_t board_flash_port = { FS_SIZE, FS_BLOCK, FS_UNIT, fl_read, fl_write, fl_erase, NULL };
+static mcs_intflash_t board_flash;
 #endif
 
 /* ============================================================ your own C# API */
@@ -223,7 +234,8 @@ void app_firmware_main(void) {
     cfg.ramfs_size = 16 * 1024;             /* RAM disk unless the flash filesystem mounts: */
 #if TEMPLATE_FLASH_FS
     static mcs_flashfs_t fs;
-    if (mcs_flashfs_mount(&fs, &board_flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
+    mcs_intflash_init(&board_flash, &board_flash_port);
+    if (mcs_flashfs_mount(&fs, &board_flash.flash, 0, 0, MCS_FLASHFS_DEFAULT, MCS_FLASHFS_FORMAT_IF_NEEDED) == 0) {
         cfg.fs_ops = fs.ops;                /* /boot.cs, /main.cs, uploads survive resets */
         cfg.fs_ctx = fs.ctx;
     }
