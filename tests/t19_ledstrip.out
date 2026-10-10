@@ -6,4 +6,4 @@ LED index 4 outside 0..3
 True
 000000 000000
 FFFFFF
-True True False True ws2812
+True True False True ws2812,servo

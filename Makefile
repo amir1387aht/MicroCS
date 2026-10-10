@@ -21,7 +21,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules build/test_flash test-config
+test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -49,6 +49,19 @@ test-config: | build
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -DMCS_GC_GROW=3 \
 	  $(SRC) $(MOD_SRC) tests/c/test_config.c -o build/test_config $(LDLIBS) && ./build/test_config || { echo "FAIL config: $$f"; exit 1; }; done
 
+# The config template holds every option with the full profile's defaults;
+# tools/gen_config.py writes it for the other profiles (each must build -Werror,
+# and a header for another profile than the build asks for must warn).
+GEN_PROFILES = min lowram tiny mcu embedded linux
+config-check: | build
+	@python3 tools/gen_config.py --check
+	@for p in $(GEN_PROFILES); do mkdir -p build/gencfg/$$p; \
+	python3 tools/gen_config.py --profile $$p -o build/gencfg/$$p/mcs_user_config.h || exit 1; done; \
+	mkdir -p build/gencfg/auto; python3 tools/gen_config.py --profile auto --ram-kb 20 --flash-kb 128 -o build/gencfg/auto/mcs_user_config.h
+	@echo 'int main(void){return 0;}' > build/cfg_warn.c; \
+	$(CC) -Iinclude -Iconfig -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -include mcs.h -c build/cfg_warn.c -o build/cfg_warn.o 2>&1 | grep -q "another profile" \
+	  && echo "OK config template: profile mismatch warns" || { echo "FAIL config template: no profile mismatch warning"; exit 1; }
+
 # Full verification: tests, GC torture, every feature-flag combination
 FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
@@ -67,7 +80,9 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_PROFILE=MCS_PROFILE_AUTO -DSTM32F072xB -DMCS_PORT_HAL=1" \
 	"-DMCS_ENABLE_SUPEROPS=0" "-DMCS_OPTIMIZE_SOURCE=1" "-DMCS_COMPUTED_GOTO=0 -DMCS_ENABLE_SUPEROPS=0" \
 	"-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" \
-	"-Iconfig" "-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN" "-Itests/c/config -DMCS_GC_GROW=3"
+	"-Iconfig" "-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN" "-Itests/c/config -DMCS_GC_GROW=3" \
+	"-Ibuild/gencfg/min" "-Ibuild/gencfg/lowram" "-Ibuild/gencfg/tiny" "-Ibuild/gencfg/mcu" \
+	"-Ibuild/gencfg/embedded" "-Ibuild/gencfg/linux" "-Ibuild/gencfg/auto" "-Iconfig -DMCS_ENABLE_TINYFS=1 -DMCS_ENABLE_SERVO=0"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
 	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
@@ -81,7 +96,7 @@ check: test
 	@echo "== feature flag builds"; for f in $(FLAG_SETS); do \
 	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_flags || { echo "BUILD FAIL $$f"; exit 1; }; \
 	echo "OK $$f"; done
-	@for f in "" "-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" "-DMCS_ENABLE_HAL=0"; do \
+	@for f in "" "-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_SERVO=0" "-DMCS_ENABLE_DRIVERS=0" "-DMCS_ENABLE_HAL=0" "-DMCS_ENABLE_TINYFS=1"; do \
 	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude $$f -c ports/template/mcs_port_template.c -o build/template.o || { echo "BUILD FAIL ports/template $$f"; exit 1; }; done; \
 	echo "OK ports/template (drivers, flash filesystem skeleton)"
 	@echo "== alternate configurations (full script suite)"; for f in $(ALT_CONFIGS); do \
@@ -135,7 +150,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test test-config check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test test-config config-check check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
@@ -149,6 +164,11 @@ lfs-test: $(LFS_DIR)/lfs.c
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Iinclude -I$(LFS_DIR) -DMCS_ENABLE_LFS=1 -DLFS_NO_DEBUG -DLFS_NO_WARN -DLFS_NO_ERROR \
 	  $(SRC) $(MOD_SRC) $(LFS_DIR)/lfs.c $(LFS_DIR)/lfs_util.c tests/c/test_lfs.c -lm -o build/test_lfs
 	./build/test_lfs
+
+# TinyFS (built-in flash filesystem) on a simulated internal flash: physics, model check, power cut at every step
+tinyfs-test: | build
+	$(CC) -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_TINYFS=1 $(SRC) $(MOD_SRC) tests/c/test_tinyfs.c -lm -o build/test_tinyfs
+	./build/test_tinyfs
 
 # YAFFS2 backend test (downloads a pinned yaffs2 revision, GPLv2, into build/third_party; only the
 # test binary links it): YAFFS2 on the simulated SPI NAND (in-band and spare-area tags) and SPI NOR

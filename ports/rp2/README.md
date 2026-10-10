@@ -59,6 +59,8 @@ if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_
   `-DMICROCS_LITTLEFS_DIR=/path/to/littlefs` (a `git clone -b v2.9.3` of littlefs), keep a copy in
   `third_party/littlefs`, or add `-DMICROCS_FS_DOWNLOAD=ON` to fetch v2.9.3 once
   ([FILESYSTEM.md](../../docs/FILESYSTEM.md#where-the-sources-come-from)).
+* **TinyFS instead** (built into MicroCS, nothing to fetch): `cmake ... -DMICROCS_FS=tinyfs`,
+  optionally `-DMICROCS_FS_SIZE=65536` for the region size (default as above).
 * **YAFFS2 instead**: `cmake ... -DMICROCS_FS=yaffs2` (`MICROCS_YAFFS2_DIR` or
   `-DMICROCS_FS_DOWNLOAD=ON`; GPLv2 or commercial licence — linking it puts your firmware under those terms). `-DMICROCS_FS=` (empty) builds
   without flash files (RAM disk only).

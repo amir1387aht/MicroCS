@@ -11,12 +11,41 @@ headers. Do not edit those files: put your choices in your own project instead.
 ## 1. The project config header
 
 Copy the template [`config/mcs_user_config.h`](../config/mcs_user_config.h) into your
-project, keep the name `mcs_user_config.h`, and uncomment the lines you want to change.
-The template lists every option with its default and a one-line description, grouped by
-area: profile and target, numbers, compiler and bytecode, standard library, C library,
+project and keep the name `mcs_user_config.h` — that enables it. It already holds **every
+option set to its default value** (the full profile), with a one-line description, grouped
+by area: profile and target, numbers, compiler and bytecode, standard library, C library,
 VM speed, VM limits, modules, filesystem, HAL and drivers, scheduler and shell, and the
-port options for ESP32, RP2040/RP2350, STM32, Zephyr and Arduino. A line that stays
-commented keeps the default, so an unmodified copy changes nothing.
+port options for ESP32, RP2040/RP2350, STM32, Zephyr and Arduino. An unmodified copy builds
+exactly like no header at all; change the values you need:
+
+```c
+#ifndef MCS_ENABLE_TINYFS
+#define MCS_ENABLE_TINYFS         1    /* was 0 */
+#endif
+```
+
+Each value is wrapped in `#ifndef`, so `-D` options and the build system still win over it
+(section 2). Values that follow another option are written as that option, e.g.
+`#define MCS_ENABLE_FLASH MCS_ENABLE_FS`, and keep following it. The few options whose
+default depends on the compiler, CPU or board (`MCS_COMPACT_VALUES`, `MCS_COMPUTED_GOTO`,
+`MCS_STM32_HAL_HEADER`, `MCS_RP2_FS_SIZE`, …) stay commented out: uncomment them only to
+force a value.
+
+**Another profile's defaults:** the template holds the full profile's values, so a profile
+picked by the build system would not change them (MicroCS warns:
+*"mcs_user_config.h holds the defaults of another profile …"*). Generate the header for
+the profile you want instead:
+
+```sh
+python3 tools/gen_config.py --profile lowram -o mcs_user_config.h
+python3 tools/gen_config.py --profile auto --ram-kb 20 --flash-kb 128 -o mcs_user_config.h
+python3 tools/gen_config.py --profile min -D MCS_ENABLE_TINYFS=1 -o mcs_user_config.h
+```
+
+The generated file is the same template with that profile's values (and
+`MCS_USER_CONFIG_PROFILE` / `MCS_PROFILE` set to it). A short header that sets only a few
+options (like the example below) still works too: everything it leaves out comes from the
+profile and the defaults.
 
 ```c
 /* my_project/mcs_user_config.h */
@@ -122,6 +151,10 @@ changed per VM — see [Embedding](EMBEDDING.md#1-create-a-vm).
   skipped with `MCS_USER_CONFIG=0`, and checks the precedence in
   [`tests/c/test_config.c`](../tests/c/test_config.c); CI repeats it through CMake
   (`cmake -S tests/c/config -B build/cfg`).
-- `make check` also builds with the unmodified template (`-Iconfig`).
+- `make test` runs `tools/gen_config.py --check`: the template lists every option, and its
+  values equal the defaults of `include/mcs_config.h`; it also generates the header for
+  every profile and checks the profile-mismatch warning.
+- `make check` also builds with the unmodified template (`-Iconfig`) and with every
+  generated profile header, `-Werror`.
 - In your own build, a `#if`/`#error` against the option in any source file shows what the
   compiler sees, e.g. `#if MCS_ENABLE_COMPILER` … `#error "compiler on"`.

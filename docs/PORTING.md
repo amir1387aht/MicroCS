@@ -78,7 +78,7 @@ port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephy
 
 ### Arduino IDE
 ```sh
-python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.8.0.zip
+python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.9.0.zip
 ```
 Sketch → Include Library → Add .ZIP Library, then open *File → Examples → MicroCS*.
 The Arduino IDE has no per-library `-D` flags, so options live in the packaged
@@ -94,10 +94,12 @@ ARMCC 6, IAR and MSVC (host) are fine. Recommended: `-Os` (or `-O2` for speed).
 ### Configuration
 All options are `#define`s with defaults in [`include/mcs_config.h`](../include/mcs_config.h).
 Set them in a project header `mcs_user_config.h` — copy the template
-[`config/mcs_user_config.h`](../config/mcs_user_config.h), which lists every option, including
-the port options — or with `-D…`, which wins over the header. Ready-made profiles in
-`include/profiles/`: `auto`, `min`, `tiny`, `mcu`, `lowram`, `embedded`, `linux`. Example:
-`#define MCS_PROFILE MCS_PROFILE_EMBEDDED` in the header, or `-DMCS_PROFILE=MCS_PROFILE_EMBEDDED`.
+[`config/mcs_user_config.h`](../config/mcs_user_config.h), which sets every option, including
+the port options, to its default value, and edit what you change — or with `-D…`, which wins
+over the header. Ready-made profiles in `include/profiles/`: `auto`, `min`, `tiny`, `mcu`,
+`lowram`, `embedded`, `linux`; `python3 tools/gen_config.py --profile embedded -o
+mcs_user_config.h` writes the header with that profile's values (or, without a header,
+`-DMCS_PROFILE=MCS_PROFILE_EMBEDDED`).
 Where the header goes for each build system and the precedence rules:
 [CONFIGURATION.md](CONFIGURATION.md).
 
@@ -142,10 +144,14 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
    has (GPIO first — everything else is optional; see [HAL.md](HAL.md#writing-a-board-table)).
 3. Post interrupts with `mcs_hal_post(MCS_HAL_EV_GPIO, pin, level)` and timer ticks with
    `MCS_HAL_EV_TIMER`.
-4. Optional: persistent files — fill the template's `mcs_flash_t` (`read` / `prog` / `erase` of
-   the chip's flash) and build with `MICROCS_FS=littlefs` or `yaffs2`
-   ([FILESYSTEM.md](FILESYSTEM.md#every-port-and-new-mcus)); drivers — fill the template's
-   `ws2812_write` backend for `LedStrip`, or add your own driver ([DRIVERS.md](DRIVERS.md)).
+4. Optional: persistent files — fill the template's **flash port** (`mcs_flash_port_t`: region
+   size, erase unit, program unit and `read` / `write` / `erase` of the chip's flash;
+   `mcs_intflash_init()` makes the `mcs_flash_t`) and build with `MICROCS_FS=tinyfs` (built in,
+   a few KB of internal flash is enough), `littlefs` or `yaffs2`
+   ([FILESYSTEM.md](FILESYSTEM.md#every-port-and-new-mcus)). STM32, RP2040/RP2350, ESP32 and
+   Zephyr already have theirs. Drivers — fill the template's `ws2812_write` backend for
+   `LedStrip` (`Servo` uses the HAL PWM, nothing to add), or add your own driver
+   ([DRIVERS.md](DRIVERS.md)).
 5. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
 6. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
    freely downloadable.
@@ -171,5 +177,9 @@ tools/check_ports.sh stm32 f4 STM32F446xx cortex-m4     # downloads the Cube HAL
 tools/check_ports.sh stm32 h7 STM32H743xx cortex-m7
 ```
 
-CI runs it for 12 STM32 families, builds the RP2 example for `pico` and `pico2`, and builds
+Each run compiles the port in 8 configurations in parallel (default, without the ws2812 /
+servo drivers, without drivers, the auto profile, and the internal flash with LittleFS, YAFFS2
+and TinyFS). CI runs it for 18 popular STM32 boards across 12 families (Blue Pill, Black Pill
+F401/F411, F4 Discovery, Nucleo F0/F4/F7/G0/G4/H5/H7/L0/L4/U5/WB) as parallel jobs with the ST
+headers cached, builds the RP2 example for `pico` and `pico2`, and builds
 the ESP-IDF example for ESP32, S3, C3 and C6 (`.github/workflows/ci.yml`).

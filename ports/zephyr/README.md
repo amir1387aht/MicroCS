@@ -53,7 +53,8 @@ west build -b native_sim/native/64 microcs/ports/zephyr/example
 `mcs_zephyr_fs_mount()` mounts LittleFS on the board's `storage_partition` at `/lfs` (formats
 it the first time, or reuses an `fstab` automount) and C# sees it as `/`. Boards without a
 storage partition fall back to a RAM filesystem — add one in `boards/<board>.overlay` (see
-[`boards/rpi_pico.overlay`](example/boards/rpi_pico.overlay)). **YAFFS2** on the same partition: build with
+[`boards/rpi_pico.overlay`](example/boards/rpi_pico.overlay)). **TinyFS** (built into MicroCS) on the same partition:
+`-DEXTRA_CONF_FILE=overlay-tinyfs.conf` (`CONFIG_MICROCS_TINYFS=y`). **YAFFS2** on the same partition: build with
 `-DEXTRA_CONF_FILE=overlay-yaffs2.conf` (`CONFIG_MICROCS_YAFFS2=y`; yaffs2 from `-DMICROCS_YAFFS2_DIR=...`, the west workspace
 `modules/fs/yaffs2`, or a one-time download with `-DMICROCS_FS_DOWNLOAD=ON` — GPLv2 or commercial licence); `mcs_zephyr_flash_area_init()` wraps any flash area as an
 `mcs_flash_t` and `mcs_flashfs_mount()` formats/mounts it (YAFFS2 needs ≥6 erase blocks:

@@ -77,6 +77,7 @@ MAP = {
     "drivers_fns": ("Drivers (modules/drivers)", "Drivers", "static", "registered device drivers (`mcs_driver.h`); `List` = names"),
     "ledstrip_members": ("Drivers (modules/drivers)", "LedStrip", "instance", "`ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]`"),
     "ledstrip_statics": ("Drivers (modules/drivers)", "LedStrip", "static", "consts `GRB RGB GRBW`; colours `0xRRGGBB`"),
+    "servo_members": ("Drivers (modules/drivers)", "Servo", "instance", "`servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases"),
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}

@@ -911,11 +911,12 @@ bool mcs_esp32_partition_flash(mcs_esp32_flash_t* d, const char* label) {
 #endif
 
 bool mcs_esp32_flash_fs(const char* label, const mcs_vfs_ops_t** ops, void** ctx) {
-#if MCS_ENABLE_FLASH && MCS_ENABLE_YAFFS
+#if MCS_ENABLE_FLASH && (MCS_ENABLE_YAFFS || MCS_ENABLE_TINYFS)
     static mcs_esp32_flash_t fl;
     static mcs_flashfs_t fs;
     if (!mcs_esp32_partition_flash(&fl, label) ||
-        mcs_flashfs_mount(&fs, &fl.flash, 0, 0, MCS_FLASHFS_YAFFS2, MCS_FLASHFS_FORMAT_IF_NEEDED) != 0)
+        mcs_flashfs_mount(&fs, &fl.flash, 0, 0, MCS_ENABLE_YAFFS ? MCS_FLASHFS_YAFFS2 : MCS_FLASHFS_TINYFS,
+                          MCS_FLASHFS_FORMAT_IF_NEEDED) != 0)
         return false;
     *ops = fs.ops; *ctx = fs.ctx;
     return true;
