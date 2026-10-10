@@ -210,7 +210,7 @@ static void test_basics(uint32_t size, uint32_t erase, uint32_t ws) {
     CHECK(O->remove(fs, "/gone") == 0 && O->read(fs, fh, buf, 3) == MCS_VFS_ENOENT);
     O->close(fs, fh);
     /* writing through two handles, reading while writing */
-    void *h1, *h2;
+    void *h1 = NULL, *h2 = NULL;
     CHECK(O->open(fs, "/w1", MCS_VFS_WRITE | MCS_VFS_READ, &h1) == 0 && O->open(fs, "/w2", MCS_VFS_WRITE, &h2) == 0);
     CHECK(O->open(fs, "/w3", MCS_VFS_WRITE, &fh) == MCS_VFS_ENOMEM);
     CHECK(O->write(fs, h1, "hello ", 6) == 6 && O->write(fs, h2, "other", 5) == 5 && O->write(fs, h1, "world", 5) == 5);
