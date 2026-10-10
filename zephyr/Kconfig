@@ -141,4 +141,44 @@ config MICROCS_CONSOLE_ECHO
 	bool "Echo console input (raw UART terminals)"
 	default y
 
+config MICROCS_U8G2
+	bool "U8g2 displays (C# U8g2 / U8x8 on olikraus' u8g2 library)"
+	help
+	  C# U8g2 and U8x8 for OLED / LCD / e-paper displays (SSD1306, SH1106,
+	  ST7920, ...) on the MicroCS I2C / SPI buses or GPIO pins
+	  (docs/U8G2.md). u8g2 is not bundled: its sources come from
+	  MICROCS_U8G2_DIR, a copy next to the application (u8g2/,
+	  third_party/u8g2, ...) or a one-time download of u8g2 2.37.1 with
+	  MICROCS_U8G2_DOWNLOAD. Only the displays and fonts listed are linked.
+
+config MICROCS_U8G2_DIR
+	string "u8g2 sources (folder with csrc/ or src/clib/)"
+	depends on MICROCS_U8G2
+	default ""
+
+config MICROCS_U8G2_DOWNLOAD
+	bool "Download u8g2 2.37.1 when no local copy is found"
+	depends on MICROCS_U8G2
+
+config MICROCS_U8G2_DISPLAYS
+	string "Displays compiled in (space separated, empty = defaults)"
+	depends on MICROCS_U8G2
+	default ""
+	help
+	  e.g. "ssd1306_i2c_128x64_noname sh1106_i2c_128x64_noname"
+	  (python3 tools/u8g2.py displays).
+
+config MICROCS_U8G2_FONTS
+	string "U8g2 fonts in flash (space separated, the first is the default)"
+	depends on MICROCS_U8G2
+	default ""
+	help
+	  e.g. "6x10_tf helvB10_tr" (python3 tools/u8g2.py fonts); other fonts
+	  load from /fonts/u8g2_font_<name>.bin (python3 tools/u8g2.py extract).
+
+config MICROCS_U8X8_FONTS
+	string "U8x8 fonts in flash (space separated)"
+	depends on MICROCS_U8G2
+	default ""
+
 endif

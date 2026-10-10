@@ -53,6 +53,7 @@ Hal.Has("LedStrip");                                  // also true for the class
 | all drivers | `MCS_ENABLE_DRIVERS` | = `MCS_ENABLE_HAL` (off in the `tiny` / `min` profiles) |
 | `ws2812` (C# `LedStrip`) | `MCS_ENABLE_WS2812` | = `MCS_ENABLE_DRIVERS` |
 | `servo` (C# `Servo`) | `MCS_ENABLE_SERVO` | = `MCS_ENABLE_DRIVERS` |
+| `u8g2` (C# `U8g2`, `U8x8`) | `MCS_ENABLE_U8G2` | 0 — needs the u8g2 library, see [U8G2.md](U8G2.md) |
 
 How to turn `ws2812` off in each build (`servo` the same way: `-DMICROCS_SERVO=OFF`,
 `CONFIG_MICROCS_SERVO=n`, `make_arduino.py --no-servo`, `MICROCS_SERVO := 0`,
@@ -137,6 +138,15 @@ mcs_driver_register(&pca_servo);        /* new Servo(5) is now channel 5 of the 
 
 Options: `MCS_SERVO_PERIOD_US` (20000, the frame), `MCS_SERVO_FRAME_MS` (20, `MoveTo` update
 interval), `MCS_SERVO_MOVE_MAX_MS` (600000, longest `MoveTo`).
+
+## The optional `u8g2` driver
+
+`modules/drivers/mcs_drv_u8g2.c` wraps olikraus' u8g2 and u8x8 APIs as C# `U8g2` and `U8x8`
+for 360+ monochrome displays. It has no backend table: it talks to the display through the
+board's HAL I²C, SPI and GPIO (or u8g2's own bit-banged buses on GPIO pins), so it works on
+every port and in the simulator (`--oled`). It is off by default because the u8g2 library is
+not bundled; [U8G2.md](U8G2.md) shows how each build finds it, chooses displays and fonts and
+loads further fonts from files.
 
 ## Writing your own driver
 

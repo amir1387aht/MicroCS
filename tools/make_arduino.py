@@ -17,6 +17,11 @@ library (Arduino/libraries/MicroCS/src/), or bake the options in here:
     --profile NAME          full | auto | embedded | mcu | lowram | tiny | min | linux
     --no-ws2812             leave out the "ws2812" driver (C# LedStrip)
     --no-servo              leave out the "servo" driver (C# Servo)
+    --u8g2                  C# U8g2 / U8x8 displays (docs/U8G2.md): needs the U8g2 library
+                            (Library Manager: "U8g2"), which then is a dependency
+    --u8g2-displays A,B     displays compiled in (python3 tools/u8g2.py displays)
+    --u8g2-fonts A,B        U8g2 fonts in flash, the first is the default (tools/u8g2.py fonts)
+    --u8x8-fonts A,B        U8x8 fonts in flash
     --define NAME[=VALUE]   any MCS_* option, e.g. --define MCS_ENABLE_SCHED=0 (repeatable)
     --fs littlefs|yaffs2|tinyfs  bundle a flash filesystem so mcs_flashfs_mount() works on any
                             mcs_flash_t (SPI NOR / NAND chip, internal flash). The board
@@ -115,11 +120,31 @@ def version():
     return m.group(1) if m else "0.0.0"
 
 
+def u8g2_defines(displays, fonts, xfonts):
+    """MCS_ENABLE_U8G2 + the X-macro lists (names checked when the u8g2 sources are around)"""
+    split = lambda v: [x for x in (v or "").replace(" ", ",").split(",") if x]
+    ds = split(displays)
+    fs = ["u8g2_font_" + f[10:] if f.startswith("u8g2_font_") else "u8g2_font_" + f for f in split(fonts)]
+    xs = ["u8x8_font_" + f[10:] if f.startswith("u8x8_font_") else "u8x8_font_" + f for f in split(xfonts)]
+    out = ["MCS_ENABLE_U8G2=1"]
+    if ds:
+        out.append("MCS_U8G2_DISPLAYS=" + " ".join(f"U8G2_DISPLAY({d})" for d in ds))
+    if fs:
+        out.append("MCS_U8G2_FONTS=" + " ".join(f"U8G2_FONT({f})" for f in fs))
+    if xs:
+        out.append("MCS_U8X8_FONTS=" + " ".join(f"U8X8_FONT({f})" for f in xs))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "arduino"))
     ap.add_argument("--no-ws2812", action="store_true", help="leave out the ws2812 driver (C# LedStrip)")
     ap.add_argument("--no-servo", action="store_true", help="leave out the servo driver (C# Servo)")
+    ap.add_argument("--u8g2", action="store_true", help="C# U8g2 / U8x8 (needs the U8g2 library)")
+    ap.add_argument("--u8g2-displays", help="comma list of u8g2 displays to compile in")
+    ap.add_argument("--u8g2-fonts", help="comma list of U8g2 fonts in flash")
+    ap.add_argument("--u8x8-fonts", help="comma list of U8x8 fonts in flash")
     ap.add_argument("--define", action="append", default=[], metavar="NAME[=VALUE]", help="MCS_* build option")
     ap.add_argument("--config", help="your mcs_user_config.h (default: config/mcs_user_config.h)")
     ap.add_argument("--profile", choices=PROFILES, help="build profile (MCS_PROFILE)")
@@ -143,6 +168,9 @@ def main():
     defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else []) + (["MCS_ENABLE_SERVO=0"] if a.no_servo else [])
     if a.profile:
         defines.append("MCS_PROFILE=MCS_PROFILE_" + a.profile.upper())
+    if a.u8g2 or a.u8g2_displays or a.u8g2_fonts or a.u8x8_fonts:
+        a.u8g2 = True
+        defines += u8g2_defines(a.u8g2_displays, a.u8g2_fonts, a.u8x8_fonts)
     if a.fs:
         defines += bundle_fs(a.fs, fs_dir, src)
         print(f"bundled {a.fs}" + (f" from {fs_dir}" if fs_dir else " (built in)"))
@@ -193,7 +221,7 @@ category=Other
 url=https://github.com/amir1387aht/MicroCS
 architectures=*
 includes=MicroCS.h
-""")
+""" + ("depends=U8g2\n" if a.u8g2 else ""))
     zpath = os.path.join(a.out, f"MicroCS-{v}.zip")
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for base, _, names in os.walk(lib):

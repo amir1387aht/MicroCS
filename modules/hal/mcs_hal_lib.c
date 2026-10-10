@@ -622,6 +622,10 @@ static int spi_apply(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* c) {
     if (rc >= 0 && bus >= 0 && bus < MCS_HAL_MAX_BUSES) { s->spi_cur[bus] = *c; s->spi_valid[bus] = 1; }
     return rc;
 }
+int mcs_hal_spi_config(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* cfg) {
+    if (!vm || !cfg || !ST() || !HAL()) return MCS_HAL_ENOTSUP;
+    return spi_apply(vm, bus, cfg);
+}
 /* mode: 0 transfer, 1 write only, 2 read only (count in `data`) */
 static mcs_value_t spi_xfer(mcs_vm_t* vm, int bus, mcs_value_t data, int cs, int mode) {
     uint8_t tx[MCS_HAL_MAX_XFER], rx[MCS_HAL_MAX_XFER]; size_t n;
@@ -1266,6 +1270,9 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     if (has(h, "Watchdog")) mcs_register_module(vm, "Watchdog", wdt_fns);
     if (has(h, "RTC")) mcs_register_module(vm, "RTC", rtc_fns);
 #if MCS_ENABLE_DRIVERS
+#if MCS_ENABLE_U8G2
+    mcs_u8g2_use_hal(h);                          /* "u8g2" driver: C# U8g2 / U8x8 displays */
+#endif
 #if MCS_ENABLE_SERVO
     mcs_servo_use_hal(h);                         /* default "servo" backend: this board's PWM */
 #endif

@@ -213,6 +213,8 @@ static void usage(void) {
         "  --ro         mount the filesystem read-only\n"
         "  --sim        simulated board with every peripheral (--sim-log traces it,\n"
         "               --sim-virtual uses a deterministic virtual clock for timers)\n"
+        "  --oled[=SPEC] with --sim: an SSD1306 128x64 OLED at I2C 0x3C whose frames are\n"
+        "               drawn on stderr; SPEC: comma list of sh1106, 128x32, 0x3D (U8g2 etc.)\n"
         "  --time-limit MS, --step-limit N   abort a run that exceeds the budget\n"
         "  --run-for MS stop the job scheduler after MS (default: until no jobs or Ctrl-C)\n"
         "  --shell      standalone runtime: boot scripts, jobs, script upload protocol\n"
@@ -233,6 +235,9 @@ static void print_features(void) {
     uint32_t m = mcs_features();
     printf("MicroCS %s, %d-bit values:", MCS_VERSION_STRING, (int)(sizeof(mcs_value_t) * 8));
     for (size_t i = 0; i < sizeof f / sizeof f[0]; i++) if (m & f[i].bit) printf(" %s", f[i].name);
+#if MCS_ENABLE_U8G2
+    printf(" u8g2");
+#endif
     putchar('\n');
 }
 
@@ -263,6 +268,30 @@ static mcs_ramfs_t g_ramfs;
 static mcs_hal_t g_hal;
 static mcs_hal_sim_t g_sim;
 static void sim_log(void* ud, const char* s, size_t n) { (void)ud; fwrite(s, 1, n, stderr); }
+static mcs_sim_oled_t g_oled;
+static uint32_t g_oled_shown = (uint32_t)-1;
+static void oled_show(void* ud, const mcs_sim_oled_t* o) {
+    (void)ud;
+    static char buf[(128 + 3) * 3 * 34 + 64];
+    size_t n = mcs_sim_oled_render(o, buf, sizeof buf);
+    fflush(stdout);
+    fprintf(stderr, "[oled 0x%02X frame %u]\n", o->addr, (unsigned)o->frames);
+    fwrite(buf, 1, n, stderr);
+    g_oled_shown = o->bytes;
+}
+static void oled_spec(const char* spec) {
+    g_oled.addr = 0x3C; g_oled.width = 128; g_oled.height = 64;
+    while (spec && *spec) {
+        if (!strncmp(spec, "sh1106", 6)) g_oled.sh1106 = 1;
+        else if (!strncmp(spec, "ssd1306", 7)) g_oled.sh1106 = 0;
+        else if (!strncmp(spec, "128x32", 6)) g_oled.height = 32;
+        else if (!strncmp(spec, "128x64", 6)) g_oled.height = 64;
+        else if (!strncmp(spec, "0x", 2)) g_oled.addr = (uint8_t)strtol(spec, NULL, 16);
+        else fprintf(stderr, "mcs: unknown --oled option '%s'\n", spec);
+        spec = strchr(spec, ',');
+        if (spec) spec++;
+    }
+}
 static uint32_t sim_clock_us(void* ud) {
     (void)ud;
     struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -289,6 +318,7 @@ int main(int argc, char** argv) {
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
     size_t ramfs = 0;
+    bool oled = false;
     bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true, echo = false;
     mcs_limits_t limits = { 0, 0 };
     uint32_t run_for = 0;
@@ -313,6 +343,9 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "--sim")) sim = true;
         else if (!strcmp(a, "--sim-log")) sim = sim_log_on = true;
         else if (!strcmp(a, "--sim-virtual")) sim = sim_virtual = true;
+#if MCS_ENABLE_HAL
+        else if (!strcmp(a, "--oled") || !strncmp(a, "--oled=", 7)) { sim = true; oled = true; oled_spec(a[6] == '=' ? a + 7 : NULL); }
+#endif
         else if (!strcmp(a, "--time-limit") && i + 1 < argc) limits.time_ms = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--step-limit") && i + 1 < argc) limits.steps = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--run-for") && i + 1 < argc) run_for = (uint32_t)strtoul(argv[++i], NULL, 0);
@@ -368,10 +401,11 @@ int main(int argc, char** argv) {
         g_sim.log = sim_log_on ? sim_log : NULL;
         g_sim.clock_us = sim_virtual ? NULL : sim_clock_us;   /* virtual: 1 ms per event poll, deterministic */
         mcs_hal_sim_init(&g_hal, &g_sim);
+        if (oled) { g_oled.on_frame = oled_show; mcs_hal_sim_attach_oled(&g_sim, &g_oled); }
         mcs_hal_open_lib(vm, &g_hal);
     }
 #else
-    (void)sim; (void)sim_log_on; (void)sim_virtual;
+    (void)sim; (void)sim_log_on; (void)sim_virtual; (void)oled;
 #endif
 #if MCS_ENABLE_SCHED
 #if MCS_ENABLE_FS
@@ -486,6 +520,12 @@ int main(int argc, char** argv) {
         }
     }
     mcs_threads_shutdown(2000);
+#endif
+#if MCS_ENABLE_HAL
+    if (oled && g_oled.bytes != g_oled_shown) {        /* the screen as it was left (partial updates, U8x8 text) */
+        g_oled.frames++;
+        oled_show(NULL, &g_oled);
+    }
 #endif
     if (stats) {
         mcs_mem_stats_t st; mcs_mem_stats(vm, &st);

@@ -30,6 +30,8 @@
  *   ws2812  C# LedStrip - WS2812 / WS2812B / SK6812 / WS2811 strips (MCS_ENABLE_WS2812).
  *           Backends: RP2040/RP2350 PIO, ESP32 RMT, STM32 bit-bang, Zephyr
  *           led_strip, Arduino (RMT / PIO / Adafruit_NeoPixel), simulator.
+ *   u8g2    C# U8g2 / U8x8 - OLED / LCD displays via the u8g2 library (MCS_ENABLE_U8G2,
+ *           optional, off by default: the library is not bundled; docs/U8G2.md).
  * See docs/DRIVERS.md for a complete example of writing your own.
  */
 #ifndef MCS_DRIVER_H
@@ -120,6 +122,30 @@ void mcs_servo_open(mcs_vm_t* vm, const mcs_driver_t* drv);
 /* Register the default backend (HAL PWM of `hal`) unless a "servo" driver exists.
  * Called by mcs_hal_open_lib, so every port and the simulator get it. */
 void mcs_servo_use_hal(const mcs_hal_t* hal);
+#endif
+
+/* ------------------------------------------------------------ u8g2 driver
+ * C# U8g2 / U8x8 - monochrome displays with olikraus' u8g2 library (MCS_ENABLE_U8G2,
+ * off by default; docs/U8G2.md). Displays and fonts are chosen at build time
+ * (MCS_U8G2_DISPLAYS / MCS_U8G2_FONTS / MCS_U8X8_FONTS); a firmware can add more
+ * before the VM starts - e.g. a font made with bdfconv or a display not in the list:
+ *
+ *   extern const uint8_t my_font[];                      // bdfconv -f 1 -n my_font ...
+ *   mcs_u8g2_add_font("my_font", my_font);              // C#: d.SetFont("my_font")
+ *   mcs_u8x8_add_font("u8x8_font_pxplusibmcga_f", u8x8_font_pxplusibmcga_f);
+ *   MCS_U8G2_ADD_DISPLAY(st7920_s_128x64);               // needs <u8g2.h>
+ *
+ * Each returns 0, MCS_HAL_EBUSY when MCS_U8G2_EXTRA entries are used, MCS_HAL_EINVAL.
+ * The name and data must stay valid (static / const). The buses are the HAL's I2C,
+ * SPI and GPIO (or u8g2's bit-banged ones on GPIO pins), so the driver has no backend. */
+#if MCS_ENABLE_U8G2
+typedef void (*mcs_u8g2_setup_fn)(void);  /* a u8g2_Setup_<name>_1 function, cast */
+int mcs_u8g2_add_font(const char* name, const uint8_t* font);
+int mcs_u8x8_add_font(const char* name, const uint8_t* font);
+int mcs_u8g2_add_display(const char* name, mcs_u8g2_setup_fn setup);
+#define MCS_U8G2_ADD_DISPLAY(name) mcs_u8g2_add_display(#name, (mcs_u8g2_setup_fn)u8g2_Setup_##name##_1)
+/* Register the "u8g2" driver (called by mcs_hal_open_lib). */
+void mcs_u8g2_use_hal(const mcs_hal_t* hal);
 #endif
 
 #ifdef __cplusplus

@@ -228,6 +228,10 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags);
 void mcs_hal_close_lib(mcs_vm_t* vm);
 /* The board table opened on this VM (NULL if none). */
 const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm);
+/* Configure SPI `bus` for a driver: calls spi_open only when the settings differ from
+ * the last ones used on that bus by this VM (C# SPI / SpiDevice share the cache).
+ * Returns 0, the spi_open result, or MCS_HAL_ENOTSUP without a HAL. */
+int mcs_hal_spi_config(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* cfg);
 
 /* Queue a driver event. Safe from interrupt handlers (lock-free single
  * producer ring; define MCS_HAL_CRITICAL_ENTER/EXIT when ISRs of different
@@ -255,6 +259,7 @@ int mcs_hal_parse_pin(const char* name);
  * UART: per-port loopback, i.e. a TX-RX jumper.
  * I2C:  0x48 temperature sensor (pointer reg 0 = 25.0 C), 0x50 256-byte EEPROM,
  *       0x68 register file (WHO_AM_I at 0x75 = 0x68, like an MPU-6050).
+ *       Optional: an SSD1306 / SH1106 OLED (mcs_hal_sim_attach_oled, CLI --oled).
  * SPI:  MOSI-MISO loopback.   ADC: 12-bit, returns adc[ch].   PWM: stored.
  * DAC:  12-bit, stored.       I2S: loopback FIFO.          CAN: loopback.
  * QSPI: 4 KB NOR flash (JEDEC ID EF 40 16; 03/0B/6B/EB read, 02/32 program,
@@ -297,8 +302,34 @@ typedef struct {
     void* log_ud;
     uint32_t (*clock_us)(void* ud); /* optional real clock for timers / Hal.Micros */
     void* clock_ud;
+    struct mcs_sim_oled* oled;      /* optional I2C OLED (mcs_hal_sim_attach_oled) */
 } mcs_hal_sim_t;
 void mcs_hal_sim_init(mcs_hal_t* hal, mcs_hal_sim_t* sim);
+
+/* Optional simulated OLED on the I2C bus - an SSD1306 (128x64 / 128x32) or SH1106
+ * (132-column RAM) controller as u8g2 / Adafruit / MicroPython drivers drive it:
+ * command and data streams (control byte 0x00 / 0x40, Co bit), page, horizontal and
+ * vertical addressing, A0/A1 C0/C8 flips, A6/A7 invert, AE/AF on/off. The host CLI
+ * attaches one with --oled. Set addr / sh1106 / width / height (and on_frame), then
+ * attach it after mcs_hal_sim_init(). on_frame runs when the last column of the last
+ * page was written (one full screen update). */
+typedef struct mcs_sim_oled {
+    uint8_t addr;                   /* 7-bit I2C address, e.g. 0x3C */
+    uint8_t sh1106;                 /* 1 = SH1106 (132 columns, the panel shows 2..129) */
+    uint8_t width, height;          /* visible pixels: 128 x 64 or 128 x 32 */
+    uint8_t ram[8][132];
+    uint8_t col, page, col_lo, col_hi, page_lo, page_hi, mode;
+    uint8_t on, invert, all_on, seg_remap, com_rev, contrast;
+    uint8_t cmd[8], cmd_n, cmd_need;
+    uint32_t frames, bytes;
+    void (*on_frame)(void* ud, const struct mcs_sim_oled* oled);
+    void* ud;
+} mcs_sim_oled_t;
+void mcs_hal_sim_attach_oled(mcs_hal_sim_t* sim, mcs_sim_oled_t* oled);
+int mcs_sim_oled_pixel(const mcs_sim_oled_t* oled, int x, int y);   /* lit (1) or dark (0) */
+/* The screen as text, two pixel rows per line (UTF-8 half blocks) in a frame;
+ * returns the length (cap >= (width + 3) * 3 * (height / 2 + 2) + 64 always fits). */
+size_t mcs_sim_oled_render(const mcs_sim_oled_t* oled, char* buf, size_t cap);
 /* Drive a simulated input pin (posts a GPIO event when its interrupt is armed). */
 void mcs_hal_sim_set_input(mcs_hal_sim_t* sim, int pin, int level);
 

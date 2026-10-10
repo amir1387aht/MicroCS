@@ -69,8 +69,8 @@ def differing(text, defs):
     for n, v in options(text):
         if n not in vals or n == "MCS_PROFILE":
             continue
-        if v.startswith('"') or vals[n].startswith('"'):
-            if v != vals[n]:
+        if v.startswith('"') or vals[n].startswith('"') or re.match(r"U8(G2|X8)_", v):   # strings, X-macro lists
+            if " ".join(v.split()) != " ".join(vals[n].split()):
                 strings.append(n)
             continue
         probe += [f"#if ({n}) != ({v})", f'@DIFF "{n}"', "#endif"]

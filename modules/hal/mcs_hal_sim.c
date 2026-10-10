@@ -109,11 +109,108 @@ static int u_read(void* ctx, int port, uint8_t* b, size_t n, uint32_t timeout) {
     return (int)k;
 }
 
+/* ---------------------------------------------------------------- I2C OLED (SSD1306 / SH1106) */
+static int oled_args(uint8_t c) {          /* argument bytes after command c */
+    switch (c) {
+    case 0x20: case 0x81: case 0x8D: case 0xA8: case 0xD3: case 0xD5: case 0xD9: case 0xDA: case 0xDB: case 0xAD: case 0xD6: return 1;
+    case 0x21: case 0x22: case 0xA3: return 2;
+    case 0x29: case 0x2A: return 5;
+    case 0x26: case 0x27: return 6;
+    default: return 0;
+    }
+}
+static int oled_ramw(const mcs_sim_oled_t* o) { return o->sh1106 ? 132 : 128; }
+static void oled_cmd(mcs_sim_oled_t* o) {
+    uint8_t c = o->cmd[0];
+    if (c <= 0x0F) { o->col = (uint8_t)((o->col & 0xF0) | c); return; }
+    if (c >= 0x10 && c <= 0x1F) { o->col = (uint8_t)((o->col & 0x0F) | (c & 0x0F) << 4); return; }
+    if (c >= 0xB0 && c <= 0xB7) { o->page = c & 7; return; }
+    switch (c) {
+    case 0x20: o->mode = o->cmd[1] & 3; break;
+    case 0x21: o->col_lo = o->cmd[1] & 0x7F; o->col_hi = o->cmd[2] & 0x7F; o->col = o->col_lo; break;
+    case 0x22: o->page_lo = o->cmd[1] & 7; o->page_hi = o->cmd[2] & 7; o->page = o->page_lo; break;
+    case 0x81: o->contrast = o->cmd[1]; break;
+    case 0xA0: case 0xA1: o->seg_remap = c & 1; break;
+    case 0xA4: case 0xA5: o->all_on = c & 1; break;
+    case 0xA6: case 0xA7: o->invert = c & 1; break;
+    case 0xAE: case 0xAF: o->on = c & 1; break;
+    case 0xC0: case 0xC8: o->com_rev = c == 0xC8; break;
+    default: break;                         /* timing, charge pump, scrolling, ...: accepted, not modelled */
+    }
+}
+static void oled_data(mcs_sim_oled_t* s, uint8_t b) {
+    int ramw = oled_ramw(s);
+    if (s->col < ramw && s->page < 8) s->ram[s->page][s->col] = b;
+    s->bytes++;
+    int last_col = (ramw - s->width) / 2 + s->width - 1, last_page = (s->height + 7) / 8 - 1;
+    int frame = s->col == last_col && s->page == last_page;
+    if (s->sh1106 || s->mode == 2) { if (s->col < ramw - 1) s->col++; }
+    else if (s->mode == 0) {                /* horizontal: column, then page */
+        if (s->col >= s->col_hi) { s->col = s->col_lo; s->page = s->page >= s->page_hi ? s->page_lo : (uint8_t)(s->page + 1); }
+        else s->col++;
+    } else {                                /* vertical: page, then column */
+        if (s->page >= s->page_hi) { s->page = s->page_lo; s->col = s->col >= s->col_hi ? s->col_lo : (uint8_t)(s->col + 1); }
+        else s->page++;
+    }
+    if (frame) { s->frames++; if (s->on_frame) s->on_frame(s->ud, s); }
+}
+static void oled_write(mcs_sim_oled_t* o, const uint8_t* d, size_t n) {
+    size_t i = 0;
+    while (i < n) {
+        uint8_t ctrl = d[i++];
+        int single = ctrl & 0x80, data = ctrl & 0x40;
+        size_t end = single ? (i + 1 < n ? i + 1 : n) : n;
+        for (; i < end; i++) {
+            if (data) { oled_data(o, d[i]); continue; }
+            if (o->cmd_need) { o->cmd[o->cmd_n++] = d[i]; if (--o->cmd_need == 0) oled_cmd(o); continue; }
+            o->cmd[0] = d[i]; o->cmd_n = 1;
+            o->cmd_need = (uint8_t)oled_args(d[i]);
+            if (!o->cmd_need) oled_cmd(o);
+        }
+        if (!single) break;
+    }
+}
+void mcs_hal_sim_attach_oled(mcs_hal_sim_t* sim, mcs_sim_oled_t* o) {
+    if (!o->addr) o->addr = 0x3C;
+    if (!o->width) o->width = 128;
+    if (!o->height) o->height = 64;
+    memset(o->ram, 0, sizeof o->ram);
+    o->col = o->page = o->col_lo = o->page_lo = 0;
+    o->col_hi = (uint8_t)(oled_ramw(o) - 1 > 127 ? 127 : oled_ramw(o) - 1); o->page_hi = 7;
+    o->mode = 2; o->on = 0; o->invert = 0; o->all_on = 0; o->seg_remap = 0; o->com_rev = 0; o->contrast = 0x7F;
+    o->cmd_n = o->cmd_need = 0; o->frames = o->bytes = 0;
+    sim->oled = o;
+}
+int mcs_sim_oled_pixel(const mcs_sim_oled_t* o, int x, int y) {
+    if (x < 0 || y < 0 || x >= o->width || y >= o->height || !o->on) return 0;
+    int ramw = oled_ramw(o), off = (ramw - o->width) / 2;
+    int col = o->seg_remap ? off + x : ramw - 1 - off - x;
+    int row = o->com_rev ? y : o->height - 1 - y;
+    int v = o->all_on ? 1 : o->ram[row / 8][col] >> (row & 7) & 1;
+    return v ^ o->invert;
+}
+size_t mcs_sim_oled_render(const mcs_sim_oled_t* o, char* buf, size_t cap) {
+    static const char* const blk[4] = { " ", "\xE2\x96\x80", "\xE2\x96\x84", "\xE2\x96\x88" };
+    size_t k = 0;
+#define PUT(str) do { size_t _l = strlen(str); if (k + _l < cap) { memcpy(buf + k, str, _l); k += _l; } } while (0)
+    PUT("+"); for (int x = 0; x < o->width; x++) PUT("-"); PUT("+\n");
+    for (int y = 0; y < o->height; y += 2) {
+        PUT("|");
+        for (int x = 0; x < o->width; x++) PUT(blk[mcs_sim_oled_pixel(o, x, y) | mcs_sim_oled_pixel(o, x, y + 1) << 1]);
+        PUT("|\n");
+    }
+    PUT("+"); for (int x = 0; x < o->width; x++) PUT("-"); PUT("+\n");
+#undef PUT
+    if (k < cap) buf[k] = 0;
+    return k;
+}
+
 /* ---------------------------------------------------------------- I2C */
 static int i_open(void* ctx, int bus, uint32_t f) { if (bus != 0) return MCS_HAL_ENOTSUP; SIM->i2c_freq = f; return 0; }
 static int i_write(void* ctx, int bus, int addr, const uint8_t* d, size_t n) {
     if (bus != 0) return MCS_HAL_ENOTSUP;
     logf_(SIM, "[sim] i2c 0x%02x write %d bytes\n", addr, (int)n, 0);
+    if (SIM->oled && addr == SIM->oled->addr) { oled_write(SIM->oled, d, n); return 0; }
     if (addr == 0x48) { if (n) SIM->temp_ptr = d[0]; return 0; }
     if (addr == 0x50) {
         if (!n) return 0;
@@ -138,12 +235,14 @@ static int i_read(void* ctx, int bus, int addr, uint8_t* b, size_t n) {
         for (size_t i = 0; i < n; i++) b[i] = SIM->temp_ptr == 0 && i < 2 ? r[i] : 0;
         return 0;
     }
+    if (SIM->oled && addr == SIM->oled->addr) { for (size_t i = 0; i < n; i++) b[i] = SIM->oled->on ? 0x03 : 0x43; return 0; }   /* status byte */
     if (addr == 0x50) { for (size_t i = 0; i < n; i++) b[i] = SIM->eeprom[SIM->eeprom_ptr++]; return 0; }
     if (addr == 0x68) { for (size_t i = 0; i < n; i++) { b[i] = SIM->regs[SIM->reg_ptr]; SIM->reg_ptr = (SIM->reg_ptr + 1) & 0x7F; } return 0; }
     return MCS_HAL_ENODEV;
 }
 static int i_probe(void* ctx, int bus, int addr) {
     if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (SIM->oled && addr == SIM->oled->addr) return 0;
     return addr == 0x48 || addr == 0x50 || addr == 0x68 ? 0 : MCS_HAL_ENODEV;
 }
 
@@ -156,7 +255,8 @@ static int s_open(void* ctx, int bus, const mcs_spi_cfg_t* c) {
 }
 static int s_xfer(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n) {
     if (bus != 0) return MCS_HAL_ENOTSUP;
-    memcpy(rx, tx, n);
+    if (rx && tx) memcpy(rx, tx, n);
+    else if (rx) memset(rx, 0xFF, n);
     logf_(SIM, "[sim] spi%d %d bytes\n", bus, (int)n, 0);
     return 0;
 }

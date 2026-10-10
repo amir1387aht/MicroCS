@@ -2,6 +2,37 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.11.0 — U8g2 displays (optional)
+
+* **C# `U8g2` and `U8x8` on olikraus' u8g2 (2.37.1, the latest release)** for 365 monochrome
+  OLED / LCD / e-paper displays (SSD1306, SH1106, SSD1309, ST7920, ST7565, PCD8544, KS0108, …)
+  on hardware I²C / SPI, bit-banged I²C / SPI / 3-wire SPI, 8080 / 6800 parallel and KS0108 pins.
+  The wrapper covers both APIs: full-buffer and page mode (`Draw(() => …)`,
+  `FirstPage`/`NextPage`), every drawing call, text and UTF-8 in any font, metrics, rotation,
+  clipping, bitmaps, buttons, the three u8g2 menus (buttons on pins or `SetMenuInput(() => …)`),
+  u8log terminals, Arduino-style `Print`, buffer export (`GetBuffer`, PBM, XBM, `Dump`), and the
+  U8x8 tile API. Display names work as u8g2 writes them, including Arduino class names.
+  Errors say what is wrong (`no display answers at I2C address 0x3C on bus 0`, the list of
+  compiled-in displays / fonts).
+* **Optional, never in the release firmware.** u8g2 is not bundled. CMake (`-DMICROCS_U8G2=ON`, or
+  `MCS_ENABLE_U8G2 1` in `mcs_user_config.h`), ESP-IDF and Zephyr (`CONFIG_MICROCS_U8G2`), Arduino
+  (`make_arduino.py --u8g2` + the U8g2 library), PlatformIO and make (`make mcs-u8g2`) find the
+  sources in `MICROCS_U8G2_DIR` or the usual places. Otherwise they stop with instructions, or
+  download 2.37.1 once with `MICROCS_U8G2_DOWNLOAD=ON` / `make fetch-u8g2`.
+* **Displays and fonts are chosen before the build** (`MCS_U8G2_DISPLAYS`, `MCS_U8G2_FONTS`,
+  `MCS_U8X8_FONTS`, or `MICROCS_U8G2_DISPLAYS` / `_FONTS` lists that are checked at configure
+  time). Only those are linked; the defaults are four common OLEDs and six small fonts (≈ 7 KB).
+  **Every other font still works**: `tools/u8g2.py extract` writes it as a file, and
+  `SetFont("name")` loads `/fonts/u8g2_font_name.bin` at run time (or a path / `byte[]`).
+* `tools/u8g2.py`: `where`, `fetch`, `displays`, `fonts` (with sizes), `extract`, and `config`
+  (prints the lines for `mcs_user_config.h`, CMake, make and PlatformIO).
+* **Simulator OLED:** `mcs --oled[=sh1106,128x32,0x3D]` emulates an SSD1306 / SH1106 on the
+  simulated I²C bus and draws each frame in the terminal. `make u8g2-test` compares the frames of
+  the test scripts and smoke-runs `examples/u8g2/` (7 examples). CI runs it, builds with CMake,
+  and builds a Pico firmware and the Arduino library with u8g2.
+* HAL: `mcs_hal_spi_config(vm, bus, cfg)` reconfigures an open SPI bus (mode, clock) for drivers.
+* Docs: [docs/U8G2.md](docs/U8G2.md).
+
 ## 1.10.0 — real OS threads (optional): FreeRTOS, Zephyr, POSIX, second core
 
 * **C# on real OS threads, opt-in.** Choose an OS (ESP-IDF menuconfig *Real threads*,

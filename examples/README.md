@@ -28,6 +28,22 @@ On a board, upload any of them with
 `python3 tools/mcs_remote.py --port /dev/ttyACM0 put examples/hardware/05_i2c_temperature.cs /main.cs + run /main.cs`,
 or paste it into the REPL (Ctrl-E, paste, Ctrl-D). Adjust pin and bus numbers to your wiring.
 
+## Displays with u8g2 (`examples/u8g2/`, optional)
+
+These need a firmware built with u8g2 ([docs/U8G2.md](../docs/U8G2.md)); on the PC:
+`make fetch-u8g2 mcs-u8g2`, then run them with `./build/mcs_u8g2 --oled …` — a simulated
+SSD1306 draws every frame in the terminal.
+
+| File | What it shows | Run on the host |
+|---|---|---|
+| [`hello.cs`](u8g2/hello.cs) | an I²C SSD1306: fonts, text, a frame | `./build/mcs_u8g2 --oled examples/u8g2/hello.cs` |
+| [`graphics.cs`](u8g2/graphics.cs) | shapes, XOR, lines, arcs, polygon, XBM bitmap, an animation | `./build/mcs_u8g2 --oled examples/u8g2/graphics.cs` |
+| [`page_mode.cs`](u8g2/page_mode.cs) | a 128-byte page buffer with `Draw(...)` / `FirstPage`/`NextPage`, rotation | `./build/mcs_u8g2 --oled examples/u8g2/page_mode.cs` |
+| [`fonts.cs`](u8g2/fonts.cs) | built-in fonts and fonts loaded from `/fonts` files, UTF-8 symbols, icons | `./build/mcs_u8g2 --oled --fs build/u8g2fs examples/u8g2/fonts.cs` (after `make u8g2-test`) |
+| [`u8x8_text.cs`](u8g2/u8x8_text.cs) | U8x8: text without a frame buffer, 2x2 text, inverse | `./build/mcs_u8g2 --oled examples/u8g2/u8x8_text.cs` |
+| [`menu.cs`](u8g2/menu.cs) | u8g2 menus, message box and number input on three buttons | `./build/mcs_u8g2 --oled --time-limit 2000 examples/u8g2/menu.cs` |
+| [`sensor_log.cs`](u8g2/sensor_log.cs) | a scrolling text log (u8log) with ADC readings | `./build/mcs_u8g2 --oled examples/u8g2/sensor_log.cs` |
+
 ## Language and applications
 
 | File | What it shows | Run on the host |

@@ -61,6 +61,46 @@ build/test_modules: tests/c/test_modules.c $(OBJ)
 build/test_flash: tests/c/test_flash.c tests/c/flash_sim.h $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_flash.c -o $@ $(LDLIBS)
 
+# Optional u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8 on olikraus' u8g2 library, which is not
+# bundled. `make fetch-u8g2` downloads u8g2 2.37.1 into build/third_party, or point U8G2_DIR at a
+# clone / the Arduino library. The default `mcs` stays without it (like the release builds).
+#   make mcs-u8g2 [U8G2_DIR=..] [U8G2_DISPLAYS="ssd1306_i2c_128x64_noname sh1106_i2c_128x64_noname"]
+#                 [U8G2_FONTS="helvB10_tr 6x10_tf"] [U8X8_FONTS="chroma48medium8_r"]   -> build/mcs_u8g2
+#   ./build/mcs_u8g2 --oled examples/u8g2/hello.cs          (a simulated SSD1306 drawn on the terminal)
+U8G2_VERSION = 2.37.1
+U8G2_CSRC = $(shell python3 tools/u8g2.py $(if $(U8G2_DIR),--u8g2 "$(U8G2_DIR)") where 2>/dev/null | tail -n 1)
+U8G2_DEFS = -DMCS_ENABLE_U8G2=1 -DU8G2_USE_DYNAMIC_ALLOC \
+	$(if $(U8G2_DISPLAYS),"-DMCS_U8G2_DISPLAYS=$(foreach d,$(U8G2_DISPLAYS),U8G2_DISPLAY($(d)))") \
+	$(if $(U8G2_FONTS),"-DMCS_U8G2_FONTS=$(foreach f,$(U8G2_FONTS),U8G2_FONT(u8g2_font_$(patsubst u8g2_font_%,%,$(f))))") \
+	$(if $(U8X8_FONTS),"-DMCS_U8X8_FONTS=$(foreach f,$(U8X8_FONTS),U8X8_FONT(u8x8_font_$(patsubst u8x8_font_%,%,$(f))))")
+fetch-u8g2:
+	@python3 tools/u8g2.py fetch --version $(U8G2_VERSION)
+print-u8g2-dir:
+	@python3 tools/u8g2.py $(if $(U8G2_DIR),--u8g2 "$(U8G2_DIR)") where
+mcs-u8g2: | build
+	@c="$(U8G2_CSRC)"; if [ -z "$$c" ]; then python3 tools/u8g2.py $(if $(U8G2_DIR),--u8g2 "$(U8G2_DIR)") where; \
+	  echo "make: u8g2 not found - run 'make fetch-u8g2' or pass U8G2_DIR=<u8g2 checkout or Arduino library>"; exit 1; fi; \
+	mkdir -p build/u8g2lib && cd build/u8g2lib && for f in "$$c"/*.c; do o=$$(basename $$f .c).o; \
+	  [ "$$o" -nt "$$f" ] || $(CC) -O2 -w -ffunction-sections -fdata-sections -DU8G2_USE_DYNAMIC_ALLOC -c "$$f" -o $$o || exit 1; done; \
+	cd ../.. && rm -f build/u8g2lib/libu8g2.a && ar rcs build/u8g2lib/libu8g2.a build/u8g2lib/*.o && \
+	$(CC) -std=gnu99 -O2 -g -Wall -Wextra -Werror -Iinclude -I"$$c" $(U8G2_DEFS) $(SRC) $(MOD_SRC) ports/unix/main.c \
+	  build/u8g2lib/libu8g2.a -lm -Wl,--gc-sections -o build/mcs_u8g2 && echo "built build/mcs_u8g2 (u8g2 from $$c)"
+# tests/u8g2/*.cs against their .out (text + the simulated OLED's frames), font files made by
+# tools/u8g2.py extract, the examples as smoke tests, the missing-library build error
+U8G2_TEST_FONTS = profont12_tr unifont_t_symbols open_iconic_weather_2x_t
+u8g2-test: mcs-u8g2
+	@rm -rf build/u8g2fs && python3 tools/u8g2.py $(if $(U8G2_DIR),--u8g2 "$(U8G2_DIR)") extract $(U8G2_TEST_FONTS) -o build/u8g2fs/fonts > /dev/null 2>&1 && \
+	python3 tools/u8g2.py $(if $(U8G2_DIR),--u8g2 "$(U8G2_DIR)") extract --u8x8 pxplusibmcga_f -o build/u8g2fs/fonts > /dev/null 2>&1 || exit 1
+	@for t in tests/u8g2/*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
+	  ./build/mcs_u8g2 --fs build/u8g2fs $$o $$t > build/u8g2.txt 2>&1; \
+	  cmp -s build/u8g2.txt $${t%.cs}.out && echo "PASS $$t" || { echo "FAIL $$t"; diff build/u8g2.txt $${t%.cs}.out | head -40; exit 1; }; done
+	@for f in examples/u8g2/*.cs; do ./build/mcs_u8g2 --oled --sim-virtual --fs build/u8g2fs --time-limit 3000 $$f > /dev/null 2>build/u8g2.err; rc=$$?; \
+	  if grep -q "Unhandled" build/u8g2.err || { [ $$rc -ne 0 ] && ! grep -q "time limit exceeded" build/u8g2.err; }; then \
+	  echo "FAIL $$f"; grep -v "^[|+]" build/u8g2.err; exit 1; fi; done; echo "PASS examples/u8g2/*.cs (smoke, $$(ls examples/u8g2/*.cs | wc -l) scripts)"
+	@$(CC) -std=gnu99 -Iinclude -DMCS_ENABLE_U8G2=1 -c modules/drivers/mcs_drv_u8g2.c -o build/x.o 2>&1 | grep -q "tools/u8g2.py fetch" \
+	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
+	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
+
 # Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
 # the CLI and the firmware runtime (pool heap, RAM filesystem, jobs.cfg `thread` jobs, C API).
 # Built separately: the default `mcs` stays OS-free.
@@ -209,7 +249,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test threads-test tsan-test freertos-test test-config config-check check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
