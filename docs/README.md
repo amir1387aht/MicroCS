@@ -5,6 +5,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 
 | | Guide | What you will find |
 |---|---|---|
+| 🧭 | [Step-by-step guides](guides/README.md) | from nothing to C# on your board: PC, ESP32, ESP32-C3 + OLED, Raspberry Pi Pico, STM32, Arduino, Zephyr |
 | 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
 | 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
 | 🖥️ | [U8g2 displays](U8G2.md) | optional C# `U8g2` / `U8x8` on olikraus' u8g2: turning it on in each build, choosing displays and fonts, fonts from files, the whole API, the `--oled` simulator |
@@ -28,5 +29,8 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 Port guides: [STM32](../ports/stm32/README.md) · [ESP32](../ports/esp32/README.md) ·
 [RP2040/RP2350](../ports/rp2/README.md) · [Zephyr](../ports/zephyr/README.md) ·
 [Arduino](../ports/arduino/README.md) · examples: [examples/](../examples/README.md)
+
+The same pages are on the [wiki](https://github.com/amir1387aht/MicroCS/wiki) (published from
+this folder on every push to `main` by `tools/wiki_sync.py`; edit them here).
 
 Project history: [CHANGELOG](../CHANGELOG.md) · [Contributing](../CONTRIBUTING.md)

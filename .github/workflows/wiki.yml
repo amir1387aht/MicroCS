@@ -1,0 +1,48 @@
+# Publishes the documentation to the GitHub wiki (https://github.com/<repo>/wiki).
+# The Markdown in the repository (docs/, docs/guides/, ports/*/README.md, ...) is the
+# source; tools/wiki_sync.py turns it into wiki pages and this job pushes them.
+name: Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**.md"
+      - "tools/wiki_sync.py"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the pages
+        run: python3 tools/wiki_sync.py --out build/wiki
+      - name: Push to the wiki
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          url="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          if ! git clone --depth 1 "$url" wiki-repo; then
+            echo "::error::The wiki has no pages yet. Open the Wiki tab of the repository, create any first page once, then re-run this workflow."
+            exit 1
+          fi
+          find wiki-repo -maxdepth 1 -name '*.md' -delete
+          cp build/wiki/*.md wiki-repo/
+          cd wiki-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "wiki is up to date"; exit 0; fi
+          git commit -q -m "Docs from ${GITHUB_SHA::7}"
+          git push -q origin HEAD
+          echo "wiki updated: https://github.com/${GITHUB_REPOSITORY}/wiki"
