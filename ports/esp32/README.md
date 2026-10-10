@@ -131,6 +131,12 @@ mcs_esp32_hal_init(&hal, &pins);
 Console: `mcs_esp32_console()` (UART0 + USB-Serial-JTAG where the chip has it, input from
 either), `mcs_esp32_console_usb()` (USB-Serial-JTAG only) or `mcs_esp32_console_uart(0, 115200)`.
 
+## Displays (U8g2)
+
+Optional C# `U8g2` / `U8x8` for OLED and LCD panels: menuconfig → *MicroCS* → *U8g2 displays*
+(`CONFIG_MICROCS_U8G2=y`, plus the displays and fonts to build in). Step by step:
+[ESP32-C3 + OLED](../../docs/guides/ESP32_C3_OLED.md); reference: [U8G2.md](../../docs/U8G2.md).
+
 ## Memory
 
 The example allocates up to 192 KB for the VM with `heap_caps_malloc`, clamped to the largest

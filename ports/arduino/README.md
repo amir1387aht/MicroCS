@@ -10,7 +10,7 @@ ESP32-S3, ESP32-C3, Raspberry Pi Pico, Pico 2 and the Nano 33 BLE (nRF52840, Mbe
 ## Install
 
 ```sh
-python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.10.0.zip
+python3 tools/make_arduino.py      # → dist/arduino/MicroCS-1.11.0.zip
 ```
 
 Arduino IDE: *Sketch → Include Library → Add .ZIP Library…*. PlatformIO:

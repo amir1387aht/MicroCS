@@ -10,19 +10,21 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.10.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.11.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
 
 [**Getting started**](docs/GETTING_STARTED.md) ·
+[**Step-by-step guides**](docs/guides/README.md) ·
 [**Hardware API**](docs/HAL.md) ·
 [**Drivers**](docs/DRIVERS.md) ·
 [**Examples**](examples/README.md) ·
 [**Porting**](docs/PORTING.md) ·
 [**Language**](docs/LANGUAGE.md) ·
 [**Library**](docs/STDLIB.md) ·
-[**All docs**](docs/README.md)
+[**All docs**](docs/README.md) ·
+[**Wiki**](https://github.com/amir1387aht/MicroCS/wiki)
 
 <br>
 
@@ -252,7 +254,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.10.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.11.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -389,7 +391,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.10.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.11.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -478,7 +480,7 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
 | Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
-| Wi-Fi / BLE / networking | ❌ not yet ([roadmap](#-roadmap)) | ✅ | ✅ |
+| Wi-Fi / BLE / networking | ❌ not yet ([roadmap](#%EF%B8%8F-roadmap)) | ✅ | ✅ |
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
@@ -580,7 +582,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |
-| Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#-roadmap) |
+| Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#%EF%B8%8F-roadmap) |
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 

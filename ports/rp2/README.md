@@ -6,7 +6,8 @@ Raspberry Pi Pico, Pico W, Pico 2 (Arm or RISC-V cores) and any RP2040/RP2350 bo
 
 ```sh
 export PICO_SDK_PATH=/path/to/pico-sdk
-cmake -S ports/rp2/example -B build/pico -DPICO_BOARD=pico      # or pico2, pico_w
+cmake -S ports/rp2/example -B build/pico -DPICO_BOARD=pico \
+      -DMICROCS_FS_DOWNLOAD=ON        # or pico2, pico_w; fetches LittleFS once (or -DMICROCS_FS=tinyfs)
 cmake --build build/pico
 # copy build/pico/microcs_pico.uf2 to the board (hold BOOTSEL while plugging in)
 ```
