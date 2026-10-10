@@ -120,6 +120,7 @@ config MICROCS_THREADS
 	default n
 	select DYNAMIC_THREAD
 	select DYNAMIC_THREAD_ALLOC
+	select THREAD_STACK_INFO
 	imply SCHED_CPU_MASK if SMP
 	imply THREAD_NAME
 	help
