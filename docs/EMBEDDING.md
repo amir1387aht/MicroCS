@@ -68,10 +68,15 @@ mcs_register_module(vm, "Board", board);           /* C#: Board.Led(1); */
 temporaries with `mcs_push_root/mcs_pop_root` if you call back into the VM; keep script
 values in C with `mcs_pin/mcs_unpin`. Register tables must be `static const`.
 
-## 6. Build profiles
-`-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_mcu.h"'` (or `lowram`, `tiny`, `embedded`,
-`linux`) selects a coherent set of `MCS_ENABLE_*` flags; any flag can still be overridden
-with `-D`. All five profiles are built with `-Werror` by `make check`.
+## 6. Configuration and build profiles
+Compile-time options go into your project's `mcs_user_config.h` (copy
+[`config/mcs_user_config.h`](../config/mcs_user_config.h), which lists every option with its
+default) or onto the command line with `-D…`, which wins over the header. A profile selects
+a coherent set of `MCS_ENABLE_*` flags: `#define MCS_PROFILE MCS_PROFILE_MCU` in the header
+(or `lowram`, `tiny`, `min`, `embedded`, `linux`, `auto`), `-DMCS_PROFILE=MCS_PROFILE_MCU`, or
+CMake `MICROCS_PROFILE=mcu`; any flag can still be overridden in the header or with `-D`.
+Every profile is built with `-Werror` by `make check`. Where the header goes for each build
+system and the exact precedence: [CONFIGURATION.md](CONFIGURATION.md).
 
 | Profile | For | Compiler | Notes |
 |---|---|:---:|---|

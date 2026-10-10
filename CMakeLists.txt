@@ -7,12 +7,18 @@
 #   * Zephyr:                       see zephyr/ (module.yml points there)
 #   * host:                         cmake -B build && cmake --build build   -> build/mcs (CLI + REPL)
 #
+# Configuration: put a mcs_user_config.h (template: config/mcs_user_config.h) next to the top-level
+# CMakeLists.txt or in its include/, src/ or main/ folder - it is found automatically and every
+# MCS_* option can be set there. The options below still work and win over the header.
+#
 # Options:
-#   MICROCS_PROFILE   "" | auto | min | tiny | lowram | mcu | embedded | linux   (include/profiles/mcs_profile_<name>.h)
+#   MICROCS_CONFIG    path of the project config header (default: the mcs_user_config.h found as
+#                     above; relative paths start at the top-level source dir; NONE = do not use one)
+#   MICROCS_PROFILE   "" | full | auto | min | tiny | lowram | mcu | embedded | linux   (include/profiles/)
 #                     auto = pick from MICROCS_RAM_KB / MICROCS_FLASH_KB or the target's device macros
-#                     (default for MICROCS_PORT=stm32: the STM32 device macro selects it)
+#                     (default for MICROCS_PORT=stm32: the STM32 device macro selects it).
+#                     MCS_PROFILE in mcs_user_config.h wins over it.
 #   MICROCS_RAM_KB / MICROCS_FLASH_KB   target memory sizes for the auto profile (optional)
-#   MICROCS_CONFIG    path of your own config header (overrides MICROCS_PROFILE)
 #   MICROCS_PORT      "" | stm32 | rp2 | esp32 | template          (adds ports/<port>/mcs_port_<port>.c)
 #   MICROCS_MODULES   ON: filesystem, HAL, scheduler, shell/REPL, runtime (default ON)
 #   MICROCS_FS        "" | littlefs | yaffs2: compile a flash filesystem in -> mcs_flashfs_mount() on the
@@ -24,6 +30,48 @@ cmake_minimum_required(VERSION 3.13)
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
 file(GLOB MICROCS_CORE_SRCS ${MICROCS_DIR}/src/*.c)
 file(GLOB MICROCS_MODULE_SRCS ${MICROCS_DIR}/modules/*/*.c)
+
+# The project config header -> MICROCS_CONFIG_DEFS (MCS_USER_CONFIG_FILE="<abs path>").
+# config: MICROCS_CONFIG ("" = search, NONE = none); root: the project folder to search
+function(microcs_config_defs config root)
+    set(_cfg "")
+    set(_defs "")
+    if(config STREQUAL "NONE")
+        set(_defs "MCS_USER_CONFIG=0")
+    elseif(config)
+        if(IS_ABSOLUTE "${config}")
+            set(_cfg "${config}")
+        elseif(EXISTS "${root}/${config}")
+            get_filename_component(_cfg "${root}/${config}" ABSOLUTE)
+        else()
+            set(_cfg "${config}")                     # found on the include path
+        endif()
+    else()
+        foreach(d "" "include/" "src/" "main/")
+            if(NOT _cfg AND EXISTS "${root}/${d}mcs_user_config.h")
+                set(_cfg "${root}/${d}mcs_user_config.h")
+            endif()
+        endforeach()
+    endif()
+    if(_cfg)
+        set(_defs "MCS_USER_CONFIG_FILE=\"${_cfg}\"")
+        message(STATUS "MicroCS: config header ${_cfg}")
+    endif()
+    set(MICROCS_CONFIG_DEFS ${_defs} PARENT_SCOPE)
+endfunction()
+
+# MICROCS_PROFILE name -> MICROCS_PROFILE_DEFS (MCS_DEFAULT_PROFILE=MCS_PROFILE_<NAME>)
+function(microcs_profile_defs name)
+    set(_defs "")
+    if(name)
+        string(TOUPPER "${name}" _p)
+        if(NOT _p MATCHES "^(FULL|AUTO|EMBEDDED|MCU|LOWRAM|TINY|MIN|LINUX)$")
+            message(FATAL_ERROR "MicroCS: unknown MICROCS_PROFILE '${name}' (full, auto, embedded, mcu, lowram, tiny, min, linux)")
+        endif()
+        set(_defs "MCS_DEFAULT_PROFILE=MCS_PROFILE_${_p}")
+    endif()
+    set(MICROCS_PROFILE_DEFS ${_defs} PARENT_SCOPE)
+endfunction()
 
 # ------------------------------------------------------------------ ESP-IDF component
 if(ESP_PLATFORM)
@@ -48,13 +96,23 @@ if(ESP_PLATFORM)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
         set_source_files_properties(${_mcs_fs_srcs} PROPERTIES COMPILE_OPTIONS "-w;-include;sys/types.h")
     endif()
-    # menuconfig > Component config > MicroCS (Kconfig); the ESP32-C2 defaults to "embedded"
+    # menuconfig > Component config > MicroCS (Kconfig); the ESP32-C2 defaults to "embedded".
+    # MCS_PROFILE in mcs_user_config.h wins over it.
     foreach(p EMBEDDED MCU LOWRAM MIN)
         if(CONFIG_MICROCS_PROFILE_${p})
-            string(TOLOWER ${p} pl)
-            target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_USER_CONFIG_FILE="profiles/mcs_profile_${pl}.h")
+            target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_DEFAULT_PROFILE=MCS_PROFILE_${p})
         endif()
     endforeach()
+    # project config header: MICROCS_CONFIG (CMake), menuconfig > MicroCS > Project config header,
+    # or mcs_user_config.h in the project folder, its main/ or include/
+    idf_build_get_property(_mcs_project_dir PROJECT_DIR)
+    if(NOT DEFINED MICROCS_CONFIG)
+        set(MICROCS_CONFIG "${CONFIG_MICROCS_USER_CONFIG_FILE}")
+    endif()
+    microcs_config_defs("${MICROCS_CONFIG}" "${_mcs_project_dir}")
+    if(MICROCS_CONFIG_DEFS)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC ${MICROCS_CONFIG_DEFS})
+    endif()
     # the port is the HAL: keep it in every profile (all ESP32 parts have >= 1 MB of flash)
     target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_HAL=1 MCS_PORT_HAL=1)
     return()
@@ -63,13 +121,13 @@ endif()
 # (a plain set() before add_subdirectory() wins over these cache defaults)
 if(NOT DEFINED MICROCS_PROFILE)
     if(MICROCS_PORT STREQUAL "stm32")
-        set(MICROCS_PROFILE "auto" CACHE STRING "MicroCS configuration profile (auto, min, tiny, lowram, mcu, embedded, linux)")
+        set(MICROCS_PROFILE "auto" CACHE STRING "MicroCS configuration profile (full, auto, min, tiny, lowram, mcu, embedded, linux)")
     else()
-        set(MICROCS_PROFILE "" CACHE STRING "MicroCS configuration profile (auto, min, tiny, lowram, mcu, embedded, linux)")
+        set(MICROCS_PROFILE "" CACHE STRING "MicroCS configuration profile (full, auto, min, tiny, lowram, mcu, embedded, linux)")
     endif()
 endif()
 if(NOT DEFINED MICROCS_CONFIG)
-    set(MICROCS_CONFIG "" CACHE STRING "Path of a user config header (MCS_USER_CONFIG_FILE)")
+    set(MICROCS_CONFIG "" CACHE STRING "Project config header (empty: find mcs_user_config.h in the project, NONE: none)")
 endif()
 if(NOT DEFINED MICROCS_PORT)
     set(MICROCS_PORT "" CACHE STRING "Board port to compile in (stm32, rp2, esp32, template)")
@@ -85,7 +143,7 @@ if(NOT DEFINED MICROCS_WS2812)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.7.0 LANGUAGES C)
+    project(MicroCS VERSION 1.8.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})
@@ -104,10 +162,10 @@ if(MICROCS_PORT)
 endif()
 set_target_properties(microcs PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)   # gnu99 is enough for MicroCS; vendor SDK headers need C11
 
-if(MICROCS_CONFIG)
-    target_compile_definitions(microcs PUBLIC MCS_USER_CONFIG_FILE="${MICROCS_CONFIG}")
-elseif(MICROCS_PROFILE)
-    target_compile_definitions(microcs PUBLIC MCS_USER_CONFIG_FILE="profiles/mcs_profile_${MICROCS_PROFILE}.h")
+microcs_config_defs("${MICROCS_CONFIG}" "${CMAKE_SOURCE_DIR}")
+microcs_profile_defs("${MICROCS_PROFILE}")
+if(MICROCS_CONFIG_DEFS OR MICROCS_PROFILE_DEFS)
+    target_compile_definitions(microcs PUBLIC ${MICROCS_CONFIG_DEFS} ${MICROCS_PROFILE_DEFS})
 endif()
 if(MICROCS_PORT)
     target_compile_definitions(microcs PUBLIC MCS_PORT_HAL=1)

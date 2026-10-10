@@ -1,8 +1,8 @@
 /*
  * MicroCS VFS backend for LittleFS (https://github.com/littlefs-project/littlefs).
  *
- * LittleFS is not bundled. Build with -DMCS_ENABLE_LFS=1 and add lfs.c/lfs_util.c
- * plus their include path (`make lfs-test` downloads v2.9.3 into build/third_party).
+ * LittleFS is not bundled. Build with MCS_ENABLE_LFS 1 (mcs_user_config.h or -D)
+ * and add lfs.c/lfs_util.c plus their include path (`make lfs-test` downloads v2.9.3 into build/third_party).
  *
  * The caller owns the lfs_t: configure the block device, lfs_mount() (or format),
  * then  mcs_vfs_mount(&vfs, "/flash", &mcs_lfs_ops, &lfs, 0).

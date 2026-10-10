@@ -32,6 +32,7 @@
 extern "C" {
 #endif
 
+/* Port options: set them in mcs_user_config.h (template: config/mcs_user_config.h) or with -D. */
 #ifndef MCS_ESP32_UARTS
 #define MCS_ESP32_UARTS 3
 #endif

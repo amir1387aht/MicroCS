@@ -1,6 +1,18 @@
 # MicroCS - ESP-IDF component configuration (idf.py menuconfig > Component config > MicroCS).
 # (Zephyr uses zephyr/Kconfig; plain CMake uses MICROCS_PROFILE.)
+# Every other option goes into the project config header mcs_user_config.h.
 menu "MicroCS"
+
+    config MICROCS_USER_CONFIG_FILE
+        string "Project config header (mcs_user_config.h)"
+        default ""
+        help
+            Path of the header with your MCS_* options (template:
+            config/mcs_user_config.h in MicroCS), absolute or relative to the
+            project folder. Empty: mcs_user_config.h in the project folder,
+            its main/ or include/ folder is used when it exists. NONE: no
+            config header. The choices in this menu win over the header,
+            except the build profile: MCS_PROFILE in the header wins.
 
     choice MICROCS_PROFILE
         prompt "Build profile"
@@ -10,6 +22,7 @@ menu "MicroCS"
             Feature set of the C# runtime (include/profiles/mcs_profile_<name>.h).
             The default follows the chip's RAM: the ESP32-C2 (272 KB SRAM) gets
             the embedded profile, every other ESP32 the full build.
+            MCS_PROFILE in mcs_user_config.h overrides this choice.
 
         config MICROCS_PROFILE_FULL
             bool "Full (default configuration: compiler, REPL, disassembler, 64-bit ints)"

@@ -4,7 +4,7 @@ Thanks for helping! MicroCS runs on devices where a crash means a bricked field 
 the bar is "tested and honest" rather than "big".
 
 ## Ground rules
-1. **`make check` stays green** — tests, GC-stress run and all 17 feature-flag builds with `-Werror`.
+1. **`make check` stays green** — tests, GC-stress run and all feature-flag builds with `-Werror`.
 2. **Behaviour is defined by `.out` files.** A new language feature needs a test; if it is
    plain C#, its output must be byte-identical to .NET (`tools/verify_dotnet.sh`).
 3. **Docs describe the code, not the plan.** Label anything unfinished as 🧪 experimental or

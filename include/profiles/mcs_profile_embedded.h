@@ -2,7 +2,8 @@
  * filesystem, HAL, scheduler, script-manager shell). Intended for
  * parts with 96 KB+ SRAM (STM32F4/G4/L4, ESP32-C2/C3, RP2040; the auto profile
  * picks it for 96-256 KB).
- * Use: -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'
+ * Use: #define MCS_PROFILE MCS_PROFILE_EMBEDDED in mcs_user_config.h, or
+ *      -DMCS_PROFILE=MCS_PROFILE_EMBEDDED (CMake: MICROCS_PROFILE=embedded)
  * Measured (arm-none-eabi-gcc 13.2, -Os, Cortex-M0 object totals): ~169 KB flash for
  * MicroCS + modules (+ newlib/libm); compiling + running the 2.5 KB ports/cortex-m
  * demo from source peaks at ~72 KB of pool on the emulated M33 target. */

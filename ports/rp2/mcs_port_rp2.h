@@ -22,6 +22,7 @@
 extern "C" {
 #endif
 
+/* Port options: set them in mcs_user_config.h (template: config/mcs_user_config.h) or with -D. */
 #ifndef MCS_RP2_UART_RXBUF
 #define MCS_RP2_UART_RXBUF 256     /* interrupt-driven receive ring (power of two) */
 #endif

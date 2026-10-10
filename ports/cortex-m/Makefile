@@ -22,8 +22,8 @@ RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -D
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
 m0-runtime_F := $(M0)  $(RUNTIME) -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
 m0-runtime_M := FLASH_SIZE=256K RAM_SIZE=128K
-# m0-lowram: profiles/mcs_profile_lowram.h on a 64 KB-RAM part, 40 KB pool (VM heap + RAM filesystem)
-m0-lowram_F  := $(M0)  -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DCM_HEAP_SIZE=40960 -DCM_RAMFS_SIZE=1024 -DCM_STACK_SLOTS=192 -DCM_FRAMES=32
+# m0-lowram: the lowram profile on a 64 KB-RAM part, 40 KB pool (VM heap + RAM filesystem)
+m0-lowram_F  := $(M0)  -DMCS_PROFILE=MCS_PROFILE_LOWRAM -DCM_HEAP_SIZE=40960 -DCM_RAMFS_SIZE=1024 -DCM_STACK_SLOTS=192 -DCM_FRAMES=32
 m0-lowram_M  := FLASH_SIZE=256K RAM_SIZE=64K
 m4-full_F    := $(M4)  -DCM_HEAP_SIZE=163840
 m4-full_M    := FLASH_SIZE=512K RAM_SIZE=192K
@@ -60,7 +60,8 @@ endef
 $(foreach t,$(TARGETS),$(eval $(call target_rule,$(t))))
 
 # examples/lowram/lowram_firmware.c on a Cortex-M0 with 48 KB RAM (32 KB pool), lowram profile
-NODE_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"' -DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+# (profile and options: examples/lowram/mcs_user_config.h, found via -I$(ROOT)/examples/lowram)
+NODE_F := $(M0) -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 NODE_SRC := $(wildcard $(ROOT)/src/*.c) startup.c board.c $(ROOT)/examples/lowram/lowram_firmware.c
 all: $(OUT)/m0-node.elf
 $(ROOT)/examples/lowram/node_image.h: $(ROOT)/examples/lowram/node.cs $(MCS)
@@ -79,9 +80,9 @@ $(OUT)/m0-16k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefi
 	  -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ $(LDFLAGS) \
 	  -Wl,--defsym=FLASH_SIZE=256K -Wl,--defsym=RAM_SIZE=16K -Wl,--defsym=STACK_SIZE=2K -Wl,--defsym=SBRK_SIZE=512 -Wl,-Map=$(OUT)/m0-16k.map
 	@$(SIZE) $@
-# ...and with profiles/mcs_profile_min.h on a 64 KB-flash / 16 KB-RAM part
+# ...and with the min profile (overrides the example header's lowram) on a 64 KB-flash / 16 KB-RAM part
 # (the linker fails if the firmware does not fit in 64 KB). No -u _printf_float.
-MIN_F := $(M0) -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_min.h"' -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+MIN_F := $(M0) -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 all: $(OUT)/m0-64k.elf
 $(OUT)/m0-64k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
 	@mkdir -p $(OUT)

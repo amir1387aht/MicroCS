@@ -1,9 +1,10 @@
 /*
  * MicroCS - firmware skeleton for a small MCU (~64 KB RAM).
  *
- * Build MicroCS with the low-RAM profile:
- *     -DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_lowram.h"'
- * (no on-device compiler, single-precision floats, small VM limits) and link
+ * Build MicroCS with the low-RAM profile (no on-device compiler,
+ * single-precision floats, small VM limits): mcs_user_config.h next to this
+ * file selects it - put this folder on the include path of the whole build,
+ * or use -DMCS_PROFILE=MCS_PROFILE_LOWRAM - and link
  * a script precompiled on the host:
  *     mcs -C node.cs -n node_image -o node_image.h
  *
@@ -20,7 +21,7 @@
  * 4-byte pointers), so the default pool size below depends on the pointer size.
  * The Cortex-M builds (ports/cortex-m, tools/cm_check.sh) run it on a 48 KB
  * and on a 16 KB RAM part (NODE_HEAP_SIZE=12288), and in 64 KB of flash with
- * profiles/mcs_profile_min.h.
+ * the min profile (-DMCS_PROFILE=MCS_PROFILE_MIN overrides the header's).
  *
  * No printf: the firmware prints through NODE_PUTS (a "write a C string"
  * function, default fputs to stdout), so a build without the C library's

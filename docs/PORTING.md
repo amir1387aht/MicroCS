@@ -31,25 +31,30 @@ C_SOURCES    += $(MICROCS_SRCS)
 C_INCLUDES   += $(MICROCS_INCS)
 C_DEFS       += $(MICROCS_DEFS)       # set MICROCS_PROFILE := lowram to use a profile
 ```
-`MICROCS_CORE_ONLY := 1` builds only the language core.
+Put `mcs_user_config.h` in one of your `C_INCLUDES` folders (it is found automatically), or
+name it with `MICROCS_CONFIG := app/my_config.h`. `MICROCS_CORE_ONLY := 1` builds only the
+language core.
 
 ### CMake (any CMake project, incl. CubeMX/CubeIDE CMake, pico-sdk)
 ```cmake
 set(MICROCS_PORT stm32)               # stm32 | rp2 | esp32 | template | "" (none)
-set(MICROCS_PROFILE embedded)         # tiny | mcu | embedded | lowram | linux | "" (default)
+set(MICROCS_PROFILE embedded)         # auto | min | tiny | mcu | embedded | lowram | linux | full | "" (default)
 add_subdirectory(third_party/MicroCS)
 target_link_libraries(${PROJECT_NAME} microcs)
 ```
 With `MICROCS_PORT stm32` the library links the generated `stm32cubemx` target, so it sees
 your HAL configuration; with `rp2` it links the `hardware_*` libraries of the pico-sdk.
-`MICROCS_CONFIG=path/to/my_config.h` uses your own config header; `MICROCS_MODULES=OFF`
-builds only the core. On the host it also builds the `mcs` CLI.
+A `mcs_user_config.h` next to your top-level `CMakeLists.txt` (or in its `include/`, `src/` or
+`main/` folder) is found automatically; `MICROCS_CONFIG=path/to/my_config.h` names another
+file, `MICROCS_CONFIG=NONE` ignores it. `MICROCS_MODULES=OFF` builds only the core. On the host it also builds the `mcs` CLI.
 
 ### ESP-IDF
 Clone into `components/MicroCS` (or add it with the IDF component manager — `idf_component.yml`
 is included). The same `CMakeLists.txt` detects ESP-IDF and registers a component with the
 ESP32 port. In your `main/CMakeLists.txt` nothing is needed (IDF links all components) — see
-[ports/esp32/example](../ports/esp32/example).
+[ports/esp32/example](../ports/esp32/example). Options: `idf.py menuconfig` → *MicroCS*
+(profile, filesystem, ws2812) and a `mcs_user_config.h` in the project folder or `main/`
+(or *Project config header* in menuconfig) for everything else.
 
 ### Zephyr
 Add the repo as a module (`west.yml` project or `-DZEPHYR_EXTRA_MODULES=path/to/MicroCS`)
@@ -58,7 +63,9 @@ and enable it in `prj.conf`:
 CONFIG_MICROCS=y
 ```
 `zephyr/module.yml`, `zephyr/CMakeLists.txt` and `zephyr/Kconfig` do the rest. See
-[ports/zephyr/example](../ports/zephyr/example).
+[ports/zephyr/example](../ports/zephyr/example). A `mcs_user_config.h` in the application
+folder (or its `include/` / `src/`) is used automatically; `CONFIG_MICROCS_USER_CONFIG_FILE`
+names another one.
 
 ### PlatformIO
 ```ini
@@ -66,24 +73,33 @@ CONFIG_MICROCS=y
 lib_deps = https://github.com/amir1387aht/MicroCS
 ```
 `library.json` + `tools/pio_build.py` select the port from the framework: `espidf` → ESP32
-port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephyr port.
+port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephyr port. Put
+`mcs_user_config.h` in the project's `include/` folder; `build_flags = -D…` still work.
 
 ### Arduino IDE
 ```sh
-python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.7.0.zip
+python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.8.0.zip
 ```
 Sketch → Include Library → Add .ZIP Library, then open *File → Examples → MicroCS*.
+The Arduino IDE has no per-library `-D` flags, so options live in the packaged
+`src/mcs_user_config.h`: edit it there, or build the package with
+`--config my_config.h`, `--profile lowram`, `--define MCS_ENABLE_LINQ=0`.
 
 ### STM32CubeIDE, Keil MDK, IAR, SEGGER Embedded Studio, MPLAB, CCS…
 Add the folders `src`, `modules`, `ports/<port>` as source folders and `include`,
-`ports/<port>` as include paths. No special compiler flags, no extensions; GCC, Clang,
+`ports/<port>` as include paths, plus the folder with your `mcs_user_config.h`. No special
+compiler flags, no extensions; GCC, Clang,
 ARMCC 6, IAR and MSVC (host) are fine. Recommended: `-Os` (or `-O2` for speed).
 
 ### Configuration
 All options are `#define`s with defaults in [`include/mcs_config.h`](../include/mcs_config.h).
-Override with `-D…` or point `MCS_USER_CONFIG_FILE` at a header. Ready-made profiles in
-`include/profiles/`: `tiny`, `mcu`, `lowram`, `embedded`, `linux`. Example:
-`-DMCS_USER_CONFIG_FILE='"profiles/mcs_profile_embedded.h"'`.
+Set them in a project header `mcs_user_config.h` — copy the template
+[`config/mcs_user_config.h`](../config/mcs_user_config.h), which lists every option, including
+the port options — or with `-D…`, which wins over the header. Ready-made profiles in
+`include/profiles/`: `auto`, `min`, `tiny`, `mcu`, `lowram`, `embedded`, `linux`. Example:
+`#define MCS_PROFILE MCS_PROFILE_EMBEDDED` in the header, or `-DMCS_PROFILE=MCS_PROFILE_EMBEDDED`.
+Where the header goes for each build system and the precedence rules:
+[CONFIGURATION.md](CONFIGURATION.md).
 
 ## 2. Use a port (vendor SDK)
 

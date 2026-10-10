@@ -60,9 +60,9 @@ How to turn `ws2812` off in each build:
 | CMake (pico-sdk, STM32CubeMX, host) | `-DMICROCS_WS2812=OFF` (on RP2 it also drops the `hardware_pio` link) |
 | ESP-IDF | menuconfig → MicroCS → *WS2812 / NeoPixel driver* (`CONFIG_MICROCS_WS2812=n`) |
 | Zephyr | `CONFIG_MICROCS_WS2812=n` (it is only registered when `CONFIG_LED_STRIP=y` and the `led-strip` alias exists) |
-| Arduino IDE | `python3 tools/make_arduino.py --no-ws2812` (Arduino has no `-D` for libraries; the option is written into the packaged `mcs_config.h`) |
-| PlatformIO | `build_flags = -DMCS_ENABLE_WS2812=0` |
-| Make (`microcs.mk`) / anything else | `MICROCS_WS2812 := 0` (+ `C_DEFS += $(MICROCS_DEFS)`), or `-DMCS_ENABLE_WS2812=0` |
+| Arduino IDE | `python3 tools/make_arduino.py --no-ws2812` (Arduino has no `-D` for libraries; the option is written into the packaged `src/mcs_user_config.h`, where you can also set it by hand) |
+| PlatformIO | `build_flags = -DMCS_ENABLE_WS2812=0`, or `#define MCS_ENABLE_WS2812 0` in `include/mcs_user_config.h` |
+| Make (`microcs.mk`) / anything else | `#define MCS_ENABLE_WS2812 0` in your `mcs_user_config.h` ([CONFIGURATION.md](CONFIGURATION.md)), `MICROCS_WS2812 := 0` (+ `C_DEFS += $(MICROCS_DEFS)`), or `-DMCS_ENABLE_WS2812=0` |
 
 Without it, `LedStrip` is not registered and `Hal.Has("LedStrip")` / `Drivers.Has("ws2812")`
 are false; the rest of the firmware is unchanged (3–5 KB of flash saved with the backend).
@@ -144,7 +144,8 @@ Keep descriptors `static const` (they must outlive every VM), allocate per-objec
 with `mcs_mem_realloc(vm, ...)` and free it in the class finalizer.
 
 To ship a driver inside MicroCS, put the front end in `modules/drivers/mcs_drv_<name>.c`
-behind its own `MCS_ENABLE_<NAME>` switch (default it in `include/mcs_config.h`), the
+behind its own `MCS_ENABLE_<NAME>` switch (default it in `include/mcs_config.h` and list it in
+the template `config/mcs_user_config.h`), the
 backends in the ports, a test in `tests/` (simulator backend) and a row in this file.
 `modules/*/*.c` is picked up by every build system (Make, CMake, ESP-IDF, Zephyr,
 PlatformIO, Arduino packaging).

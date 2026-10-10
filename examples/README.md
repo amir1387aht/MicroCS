@@ -42,7 +42,7 @@ or paste it into the REPL (Ctrl-E, paste, Ctrl-D). Adjust pin and bus numbers to
 |---|---|---|
 | [`quickstart_embed.c`](quickstart_embed.c) | Option 1 in 60 lines: pool heap, HAL, a C function called from C#, a C# function called from C | `make quickstart` |
 | [`firmware_example.c`](firmware_example.c) | limits, a custom HAL table, C bindings, events, running a flash image (`app.cs` → `app_image.h`) | `make example` |
-| [`lowram/`](lowram/) | firmware for a ~48 KB-RAM MCU: lowram profile, image executed in place from flash, 32 KB pool | `make example-lowram` |
+| [`lowram/`](lowram/) | firmware for a ~48 KB-RAM MCU: lowram profile from its `mcs_user_config.h`, image executed in place from flash, 32 KB pool | `make example-lowram` |
 
 Complete firmware projects (Option 2, the REPL) live with the ports:
 [rp2](../ports/rp2/example) · [esp32](../ports/esp32/example) · [stm32](../ports/stm32/example_main.c) ·

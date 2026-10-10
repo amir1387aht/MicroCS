@@ -26,6 +26,10 @@
  * Files: LittleFS on the `storage_partition` flash partition (mcs_zephyr_fs_mount)
  * or any filesystem Zephyr has mounted - FAT on an SD card ("/SD:"), fstab ... -
  * through mcs_zephyr_fs_ops (needs CONFIG_FILE_SYSTEM=y).
+ *
+ * Port options (MCS_ZEPHYR_UART_RXBUF, _TIMERS, _DAC_BITS, _I2S_BLOCK(S),
+ * _FS_FILES, _FS_MOUNT) and every MCS_* option: mcs_user_config.h in the
+ * application folder (template: config/mcs_user_config.h), or -D.
  */
 #ifndef MCS_PORT_ZEPHYR_H
 #define MCS_PORT_ZEPHYR_H

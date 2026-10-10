@@ -144,6 +144,12 @@ modules, 32-bit `long`, no disassembler). *MCU*, *Low-RAM* and *Minimal* are for
 application running precompiled images (the example's REPL needs the compiler). The HAL is
 compiled in every profile.
 
+Every other option (VM limits, stdlib switches, `MCS_ESP32_FS_PATH`, …) goes into a
+`mcs_user_config.h` in the project folder or `main/` (template:
+[`config/mcs_user_config.h`](../../config/mcs_user_config.h)), found automatically; *Project config
+header* in the same menu names another file. The menuconfig choices win over the header,
+except the profile: `MCS_PROFILE` in the header wins. See [CONFIGURATION.md](../../docs/CONFIGURATION.md).
+
 ## ESP32-C2 (ESP8684)
 
 ```sh

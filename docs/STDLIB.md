@@ -7,8 +7,8 @@
 
 Behaviour follows .NET wherever the member exists there. Deliberate differences are listed
 in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Library groups can
-be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags in
-`include/mcs_config.h`.
+be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
+`include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
 **Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Scheduler (modules/sched)](#scheduler-modulessched)
 

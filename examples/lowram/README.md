@@ -1,8 +1,9 @@
 # Small-MCU firmware example
 
 A complete firmware skeleton for small parts — down to **16 KB of RAM and 64 KB of flash**:
-the MicroCS library is built with [`profiles/mcs_profile_lowram.h`](../../include/profiles/mcs_profile_lowram.h)
-(or [`mcs_profile_min.h`](../../include/profiles/mcs_profile_min.h) for 64 KB of flash), the
+the MicroCS library is built with the [lowram profile](../../include/profiles/mcs_profile_lowram.h)
+(or the [min profile](../../include/profiles/mcs_profile_min.h) for 64 KB of flash), selected
+by the project config header [`mcs_user_config.h`](mcs_user_config.h) in this folder, the
 script is precompiled on the host and executed in place from flash, and the VM gets a
 single static pool (32 KB on a 48 KB part, 12 KB on a 16 KB part). The C side uses no
 `printf` (`NODE_PUTS` = your console write), so it links without libc's formatter.
@@ -11,6 +12,7 @@ single static pool (32 KB on a 48 KB part, 12 KB on a 16 KB part). The C side us
 |---|---|
 | [`node.cs`](node.cs) | the script: ring buffer, state machine, custom exception, `switch` expression |
 | [`node_image.h`](node_image.h) | `node.cs` precompiled: `./mcs -C node.cs -n node_image -o node_image.h` |
+| [`mcs_user_config.h`](mcs_user_config.h) | the build configuration: lowram profile, no filesystem / HAL / scheduler (found because this folder is on the include path; `-DMCS_PROFILE=MCS_PROFILE_MIN` overrides it for `m0-64k`) |
 | [`lowram_firmware.c`](lowram_firmware.c) | the C side: pool heap, reduced stdlib, `mcs_exec_image_xip`, step budget, heap stats, optional C-stack high-water mark (`NODE_STACK_HIGH_WATER`) |
 | [`node.expected`](node.expected) | expected output, checked by `make test` (host) and `make cm-check` (Cortex-M0) |
 

@@ -24,11 +24,14 @@
  * GPIO.Pin("PA5") == 5, "PC13" == 45. Interrupts: GPIO.OnChange() uses EXTI
  * (enable the EXTI IRQs in CubeMX NVIC, or set MCS_STM32_EXTI_HANDLERS 1).
  * Family header: detected automatically (stm32f4xx_hal.h, stm32h7xx_hal.h,
- * ...) or forced with -DMCS_STM32_HAL_HEADER="\"stm32g4xx_hal.h\"".
+ * ...) or forced with #define MCS_STM32_HAL_HEADER "stm32g4xx_hal.h" in
+ * mcs_user_config.h (or -DMCS_STM32_HAL_HEADER="\"stm32g4xx_hal.h\"").
+ * The MCS_STM32_* options below can be set there too (config/mcs_user_config.h).
  */
 #ifndef MCS_PORT_STM32_H
 #define MCS_PORT_STM32_H
 
+#include "mcs_config.h"              /* mcs_user_config.h may pick the HAL header */
 #if defined(MCS_STM32_HAL_HEADER)
 #include MCS_STM32_HAL_HEADER
 #elif defined(__has_include)
@@ -108,6 +111,7 @@ extern "C" {
 #define MCS_STM32_HAS_I2S 1
 #endif
 
+/* Port options: set them in mcs_user_config.h (template: config/mcs_user_config.h) or with -D. */
 #ifndef MCS_STM32_UARTS
 #define MCS_STM32_UARTS 9          /* UART.Open(n): index = USARTn / UARTn / LPUART (your choice) */
 #endif
