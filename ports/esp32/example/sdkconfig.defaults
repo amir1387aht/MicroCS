@@ -1,8 +1,9 @@
 # MicroCS runs in the main task: give it room
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
-# MicroCS feeds the task watchdog only when a script calls Watchdog.Start()
+# MicroCS feeds the task watchdog only when a script calls Watchdog.Start() (and threads may keep core 1 busy)
 CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=n
 # flash layout: app + LittleFS "storage" partition for scripts (partitions.csv)
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n

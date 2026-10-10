@@ -15,6 +15,7 @@ import time
 
 EXE = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else "build/zephyr/zephyr.exe")
 FS = sys.argv[2] if len(sys.argv) > 2 else "littlefs"   # expected filesystem: littlefs | yaffs2
+THREADS = len(sys.argv) > 3 and sys.argv[3] == "threads"  # built with overlay-threads.conf
 WORK = tempfile.mkdtemp(prefix="mcs_zephyr_")
 fails = 0
 
@@ -121,6 +122,18 @@ try:
     time.sleep(0.5)
     st, out = b.cmd("info")
     check("CAN.OnReceive callback ran", "can 291 len 3" in out, out)
+    if THREADS:                                       # CONFIG_MICROCS_THREADS=y
+        lib = b'int Sq(int x) { return x * x; }\n'
+        b.send(f"put /sq.cs {len(lib)}\n")
+        b.wait_for(b"\x04READY\n")
+        b.send(lib)
+        b.wait_for(b"\n")
+        st, out = b.cmd('exec var w = Thread.Run("/sq.cs", "Sq", 9); '
+                        'Console.WriteLine("thr " + w.Result + " " + Thread.Os + " " + w.State);')
+        check("Thread.Run on a Zephyr thread", st == "OK" and "thr 81 Zephyr done" in out, (st, out))
+    else:
+        st, out = b.cmd('exec Console.WriteLine("os " + Thread.Os + " " + Thread.Cores);')
+        check("no OS chosen: single-threaded", "os None 1" in out, (st, out))
     put = b'Console.WriteLine("boot ok");\n'
     b.send(f"put /main.cs {len(put)}\n")
     b.wait_for(b"\x04READY\n")

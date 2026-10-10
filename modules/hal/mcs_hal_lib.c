@@ -40,6 +40,7 @@ typedef struct {
     uint8_t spi_valid[MCS_HAL_MAX_BUSES];
     uint8_t i2s_bits[MCS_HAL_MAX_BUSES];
     uint8_t polling;
+    uint8_t no_events;              /* MCS_HAL_NO_EVENTS: OS-thread VM, callbacks belong to the main VM */
 } hal_state_t;
 
 static mcs_value_t hal_fail(mcs_vm_t* vm, const char* op, int rc) {
@@ -162,6 +163,12 @@ int mcs_hal_parse_pin(const char* s) {
 }
 
 /* ------------------------------------------------------------ event queue (ISR -> VM) */
+#if !defined(MCS_HAL_CRITICAL_ENTER) && MCS_ENABLE_THREADS
+/* OS threads: posts may come from both cores and from tasks as well as ISRs */
+#include "mcs_os.h"
+#define MCS_HAL_CRITICAL_ENTER() unsigned mcs__key = mcs_os_irq_lock()
+#define MCS_HAL_CRITICAL_EXIT()  mcs_os_irq_unlock(mcs__key)
+#endif
 #if !defined(MCS_HAL_CRITICAL_ENTER)
 #if defined(__GNUC__) && (defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7EM__) || \
     defined(__ARM_ARCH_8M_BASE__) || defined(__ARM_ARCH_8M_MAIN__) || defined(__ARM_ARCH_8_1M_MAIN__))
@@ -238,6 +245,10 @@ static bool check_callable(mcs_vm_t* vm, mcs_value_t fn) {
 }
 static mcs_value_t set_callback(mcs_vm_t* vm, int kind, int source, mcs_value_t fn) {
     if (!check_callable(vm, fn)) return mcs_null();
+    if (ST()->no_events && !mcs_is_null(fn)) {
+        mcs_raise(vm, "InvalidOperationException", "interrupt and timer callbacks run in the main script, not in a thread (send data to it with a Channel or Hal.Post)");
+        return mcs_null();
+    }
     if (!cb_set(vm, ST(), kind, source, fn))
         mcs_raise(vm, "InvalidOperationException", "too many callbacks (MCS_HAL_MAX_CALLBACKS = %d)", MCS_HAL_MAX_CALLBACKS);
     return mcs_null();
@@ -268,7 +279,7 @@ static int dispatch(mcs_vm_t* vm, hal_state_t* s, const mcs_hal_event_t* ev) {
 
 int mcs_hal_poll(mcs_vm_t* vm) {
     hal_state_t* s = ST();
-    if (!s || s->polling) return 0;
+    if (!s || s->polling || s->no_events) return 0;
     s->polling = 1;
     const mcs_hal_t* h = s->hal;
     int ran = 0, err = 0;
@@ -1199,7 +1210,9 @@ static const mcs_const_t i2s_consts[] = {
     MCS_CONST("Philips", MCS_I2S_PHILIPS), MCS_CONST("Msb", MCS_I2S_MSB), MCS_CONST("Pcm", MCS_I2S_PCM), MCS_CONST_END
 };
 
-void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) {
+void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) { mcs_hal_open_lib_ex(vm, h, 0); }
+
+void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     hal_state_t* s = ST();
     if (!s) {
         mcs_register_class(vm, &state_def);
@@ -1223,7 +1236,8 @@ void mcs_hal_open_lib(mcs_vm_t* vm, const mcs_hal_t* h) {
     }
     s->hal = h;
     memset(s->spi_valid, 0, sizeof s->spi_valid);
-    mcs_set_idle(vm, idle_poll, NULL);
+    s->no_events = (flags & MCS_HAL_NO_EVENTS) != 0;
+    if (!s->no_events) mcs_set_idle(vm, idle_poll, NULL);
 
     mcs_register_module(vm, "Hal", hal_fns);
     mcs_register_consts(vm, "Hal", hal_consts);

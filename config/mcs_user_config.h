@@ -332,6 +332,39 @@
 #define MCS_SERVO_MOVE_MAX_MS     600000    /* longest Servo.MoveTo time */
 #endif
 
+/* ---- OS threads (docs/THREADS.md). Off unless you choose an OS: MCS_OS_FREERTOS (headers on the
+ * include path; CMake MICROCS_OS=freertos, ESP-IDF menuconfig), MCS_OS_ZEPHYR (CONFIG_MICROCS_THREADS),
+ * MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect). MCS_OS_NONE: single-threaded, as always. */
+#ifndef MCS_OS
+#define MCS_OS                    MCS_OS_NONE
+#endif
+#ifndef MCS_ENABLE_THREADS
+#define MCS_ENABLE_THREADS        (MCS_OS != MCS_OS_NONE)    /* Thread.Start/Run/RunOn/Every, Worker, Channel */
+#endif
+#ifndef MCS_THREADS_MAX
+#define MCS_THREADS_MAX           8    /* threads running C# at the same time */
+#endif
+//#define MCS_THREAD_HEAP         (32 * 1024)    /* C# heap per thread (default 256 KB with POSIX threads, 64 KB on other 64-bit builds) */
+//#define MCS_THREAD_STACK        8192    /* OS stack per thread in bytes (default 12288 on ESP32) */
+#ifndef MCS_THREAD_SLOTS
+#define MCS_THREAD_SLOTS          256    /* value-stack slots of a thread's VM */
+#endif
+#ifndef MCS_THREAD_FRAMES
+#define MCS_THREAD_FRAMES         48    /* call depth of a thread's VM */
+#endif
+#ifndef MCS_THREAD_PRIORITY
+#define MCS_THREAD_PRIORITY       0    /* relative to the starting thread: > 0 higher, < 0 lower */
+#endif
+#ifndef MCS_SCHED_THREADS
+#define MCS_SCHED_THREADS         MCS_ENABLE_THREADS    /* file jobs (jobs.cfg, shell every/after) on OS threads; `main` opts out */
+#endif
+#ifndef MCS_CHANNELS_MAX
+#define MCS_CHANNELS_MAX          8    /* named Channels shared between threads */
+#endif
+#ifndef MCS_CHANNEL_MSG_MAX
+#define MCS_CHANNEL_MSG_MAX       1024    /* largest Channel message / Thread.Run argument list (bytes) */
+#endif
+
 /* ---- scheduler and shell */
 #ifndef MCS_SCHED_MAX_JOBS
 #define MCS_SCHED_MAX_JOBS        8

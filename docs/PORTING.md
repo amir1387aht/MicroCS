@@ -78,7 +78,7 @@ port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephy
 
 ### Arduino IDE
 ```sh
-python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.9.1.zip
+python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.10.0.zip
 ```
 Sketch → Include Library → Add .ZIP Library, then open *File → Examples → MicroCS*.
 The Arduino IDE has no per-library `-D` flags, so options live in the packaged

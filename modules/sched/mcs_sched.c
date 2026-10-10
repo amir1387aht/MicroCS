@@ -9,6 +9,9 @@
 #if MCS_ENABLE_HAL
 #include "mcs_hal.h"
 #endif
+#if MCS_ENABLE_THREADS
+#include "mcs_threads.h"
+#endif
 
 static uint32_t now(mcs_sched_t* s) { return s->ticks ? s->ticks(s->ticks_ud) : 0; }
 
@@ -30,6 +33,10 @@ void mcs_sched_free(mcs_sched_t* s) {
         s->idle_on = false;
     }
 #endif
+#if MCS_ENABLE_THREADS
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++)
+        if (s->jobs[i].worker) { mcs_thread_stop(s->jobs[i].worker); mcs_thread_release(s->jobs[i].worker); s->jobs[i].worker = 0; }
+#endif
     if (s->pin >= 0) mcs_unpin(s->vm, s->pin);
     s->pin = -1;
     if (mcs_get_ext(s->vm, MCS_EXT_SCHED) == s) mcs_set_ext(s->vm, MCS_EXT_SCHED, NULL);
@@ -42,6 +49,7 @@ static mcs_job_t* alloc_job(mcs_sched_t* s) {
             memset(j, 0, sizeof *j);
             j->id = s->next_id++;
             j->fn_slot = -1;
+            j->core = -1;
             return j;
         }
     return NULL;
@@ -63,6 +71,9 @@ int mcs_sched_add_file(mcs_sched_t* s, const char* path, uint32_t delay, uint32_
     j->max_failures = max_failures;
     j->next_due = now(s) + delay;
     j->state = MCS_JOB_ACTIVE;
+#if MCS_ENABLE_THREADS && MCS_SCHED_THREADS
+    j->thread = true;                   /* an OS was chosen: file jobs run on OS threads */
+#endif
     return j->id;
 }
 
@@ -81,10 +92,19 @@ int mcs_sched_add_fn(mcs_sched_t* s, mcs_value_t fn, uint32_t delay, uint32_t pe
     return j->id;
 }
 
+mcs_job_t* mcs_sched_job(mcs_sched_t* s, int id) {
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++)
+        if (s->jobs[i].id == id && s->jobs[i].state != MCS_JOB_FREE) return &s->jobs[i];
+    return NULL;
+}
+
 bool mcs_sched_cancel(mcs_sched_t* s, int id) {
     for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++)
         if (s->jobs[i].id == id && s->jobs[i].state == MCS_JOB_ACTIVE) {
             s->jobs[i].state = MCS_JOB_CANCELLED;
+#if MCS_ENABLE_THREADS
+            if (s->jobs[i].worker) { mcs_thread_stop(s->jobs[i].worker); mcs_thread_release(s->jobs[i].worker); s->jobs[i].worker = 0; }
+#endif
             release_fn(s, &s->jobs[i]);
             return true;
         }
@@ -127,11 +147,53 @@ static mcs_result_t run_job(mcs_sched_t* s, mcs_job_t* j) {
     return mcs_call_value(s->vm, fn, 0, NULL, NULL);
 }
 
+#if MCS_ENABLE_THREADS
+static void thread_start(mcs_sched_t* s, mcs_job_t* j) {
+    mcs_thread_spec_t sp = MCS_THREAD_SPEC_DEFAULTS;
+    sp.path = j->path;
+    sp.period_ms = j->periodic ? j->period_ms : 0;
+    sp.max_failures = j->max_failures;
+    sp.core = j->core;
+    sp.priority = j->prio;
+    sp.stack_size = (uint32_t)j->stack_kb * 1024u;
+    sp.heap_size = (uint32_t)j->heap_kb * 1024u;
+    int id = mcs_thread_start(&sp);
+    if (id == -1 || id == -2) {         /* all threads busy / no heap left: run it on the main VM */
+        j->thread = false;
+        return;
+    }
+    if (id < 0) {
+        j->state = MCS_JOB_FAILED;
+        mcs_fail(s->vm, MCS_ERR_RUNTIME, "job %d: cannot start a thread for '%s': %s", j->id, j->path, mcs_thread_strerror(id));
+        return;
+    }
+    j->worker = id;
+}
+static void thread_status(mcs_sched_t* s, mcs_job_t* j) {
+    mcs_thread_info_t in;
+    if (!mcs_thread_info(j->worker, &in)) { j->state = MCS_JOB_DONE; j->worker = 0; return; }
+    j->runs = in.runs;
+    j->failures = (uint16_t)(in.failures > 65535 ? 65535 : in.failures);
+    if (in.state <= MCS_THREAD_RUNNING) return;
+    j->state = in.state == MCS_THREAD_DONE ? MCS_JOB_DONE : in.state == MCS_THREAD_FAILED ? MCS_JOB_FAILED : MCS_JOB_CANCELLED;
+    mcs_thread_release(j->worker);
+    j->worker = 0;
+    (void)s;
+}
+#endif
+
 int32_t mcs_sched_poll(mcs_sched_t* s) {
     bool outer = !s->busy;              /* a job that sleeps does not start other jobs */
     s->busy = true;
     for (int i = 0; outer && i < MCS_SCHED_MAX_JOBS; i++) {
         mcs_job_t* j = &s->jobs[i];
+#if MCS_ENABLE_THREADS
+        if (j->state == MCS_JOB_ACTIVE && j->thread && j->is_file) {   /* the OS thread runs and times it */
+            if (j->worker) thread_status(s, j);
+            else if ((int32_t)(now(s) - j->next_due) >= 0) thread_start(s, j);
+            if (j->thread) continue;    /* else it fell back to the main VM: run it below */
+        }
+#endif
         if (j->state != MCS_JOB_ACTIVE || (int32_t)(now(s) - j->next_due) < 0) continue;
         int id = j->id;
         mcs_result_t r = run_job(s, j);
@@ -151,6 +213,9 @@ int32_t mcs_sched_poll(mcs_sched_t* s) {
         mcs_job_t* j = &s->jobs[i];
         if (j->state != MCS_JOB_ACTIVE) continue;
         int32_t d = (int32_t)(j->next_due - t);
+#if MCS_ENABLE_THREADS
+        if (j->worker) d = 100;             /* only its status to check */
+#endif
         if (d < 0) d = 0;
         if (best < 0 || d < best) best = d;
     }
@@ -192,6 +257,26 @@ static bool parse_time(const char* p, size_t n, uint32_t* out) {
     return true;
 }
 
+static bool parse_int(const char* p, size_t n, int32_t* out) {
+    bool neg = n && *p == '-';
+    size_t i = neg ? 1 : 0;
+    if (i >= n) return false;
+    int32_t v = 0;
+    for (; i < n; i++) { if (p[i] < '0' || p[i] > '9' || v > 100000) return false; v = v * 10 + (p[i] - '0'); }
+    *out = neg ? -v : v;
+    return true;
+}
+/* 4096, 8k, 1m (bytes), at most 32 MB (kept in KB in 16 bits) */
+static bool parse_size(const char* p, size_t n, uint32_t* out) {
+    uint32_t mul = 1;
+    if (n && (p[n - 1] == 'k' || p[n - 1] == 'K')) { mul = 1024; n--; }
+    else if (n && (p[n - 1] == 'm' || p[n - 1] == 'M')) { mul = 1024 * 1024; n--; }
+    int32_t v;
+    if (!parse_int(p, n, &v) || v <= 0 || (uint64_t)v * mul > 32u * 1024 * 1024) return false;
+    *out = (uint32_t)v * mul;
+    return true;
+}
+
 int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
     int added = 0, line_no = 0;
     const char* p = text;
@@ -220,17 +305,38 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
             memcpy(path, q, pn); path[pn] = 0;
             q = skip_ws(q + pn);
             uint16_t maxf = 1;
-            size_t on = word(q);
-            if (on) {
+            bool thread = MCS_SCHED_THREADS && !startup;   /* startup scripts stay on the main VM */
+            int32_t core = -1, prio = 0;
+            uint32_t stack = 0, heap = 0;
+            size_t on;
+            while ((on = word(q)) != 0) {
                 if (on > 8 && !strncmp(q, "restart=", 8)) {
                     const char* v = q + 8; size_t vn = on - 8;
                     if (vn == 5 && !strncmp(v, "never", 5)) maxf = 1;
                     else if (vn == 6 && !strncmp(v, "always", 6)) maxf = 0;
                     else { uint32_t n; if (!parse_time(v, vn, &n) || n > 65535) return -line_no; maxf = (uint16_t)n; }
-                } else return -line_no;
+                } else if (on == 6 && !strncmp(q, "thread", 6)) thread = true;
+                else if (on == 4 && !strncmp(q, "main", 4)) thread = false;
+                else if (on > 5 && !strncmp(q, "core=", 5)) { if (!parse_int(q + 5, on - 5, &core) || core > 127) return -line_no; thread = true; }
+                else if (on > 5 && !strncmp(q, "prio=", 5)) { if (!parse_int(q + 5, on - 5, &prio) || prio < -64 || prio > 64) return -line_no; thread = true; }
+                else if (on > 6 && !strncmp(q, "stack=", 6)) { if (!parse_size(q + 6, on - 6, &stack)) return -line_no; thread = true; }
+                else if (on > 5 && !strncmp(q, "heap=", 5)) { if (!parse_size(q + 5, on - 5, &heap)) return -line_no; thread = true; }
+                else return -line_no;
+                q = skip_ws(q + on);
             }
             (void)once;
-            if (mcs_sched_add_file(s, path, startup ? 0 : (periodic ? 0 : t), periodic ? t : 0, maxf) < 0) return -line_no;
+            int id = mcs_sched_add_file(s, path, startup ? 0 : (periodic ? 0 : t), periodic ? t : 0, maxf);
+            if (id < 0) return -line_no;
+            {
+                mcs_job_t* j = mcs_sched_job(s, id);
+#if MCS_ENABLE_THREADS
+                j->thread = thread;
+#else
+                (void)thread;           /* no OS: polled on the main VM as always */
+#endif
+                j->core = (int8_t)core; j->prio = (int8_t)prio;
+                j->stack_kb = (uint16_t)((stack + 1023) / 1024); j->heap_kb = (uint16_t)((heap + 1023) / 1024);
+            }
             added++;
         }
         p = *eol ? eol + 1 : eol;

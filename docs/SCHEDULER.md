@@ -36,7 +36,7 @@ Scheduler.Cancel(id); Scheduler.CancelAll(); int n = Scheduler.Count;
 Delegates are kept alive by one pinned list per scheduler.
 
 ## Jobs while a script runs
-The VM is single-threaded, but due jobs also run while a script waits in `Thread.Sleep`
+The VM is single-threaded (with an OS chosen, file jobs run on their own OS threads unless marked `main` — [THREADS.md](THREADS.md)), but due jobs also run while a script waits in `Thread.Sleep`
 (`MCS_SCHED_DURING_SLEEP`, default 1), so a main loop and jobs work together:
 
 ```csharp

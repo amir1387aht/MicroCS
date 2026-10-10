@@ -70,6 +70,19 @@ menu "MicroCS"
             channel per strip. Turn it off to save ~3 KB of flash when no
             addressable LEDs are used (Hal.Has("LedStrip") is then false).
 
+    config MICROCS_THREADS
+        bool "Real threads on FreeRTOS tasks (C# Thread.Run / RunOn, both cores)"
+        default n
+        help
+            C# scripts and functions on their own FreeRTOS tasks: Thread.Start,
+            Thread.Run, Thread.RunOn(core, ...) pins work to a core (core 1 of
+            the ESP32 / ESP32-S3 runs in parallel with the REPL on core 0),
+            Thread.Every for OS-timed periodic tasks, Channels between them,
+            and `thread core=1` jobs in jobs.cfg. Every thread has its own VM
+            and heap (MCS_THREAD_HEAP, default 32 KB) and task stack
+            (MCS_THREAD_STACK, default 12 KB). Off: MicroCS stays the
+            single-threaded runtime (Thread.Os == "None"). See docs/THREADS.md.
+
     config MICROCS_SERVO
         bool "Servo driver (C# Servo on a LEDC PWM channel)"
         default y

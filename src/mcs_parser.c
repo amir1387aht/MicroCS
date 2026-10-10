@@ -23,6 +23,7 @@ typedef struct {
        by a token pre-scan so `obj.P = (1, 2)` works before the class is parsed */
     struct { const char* name; uint32_t len; typeref_t* ty; } tmems[32];
     int ntmems;
+    char tokbuf[48];            /* tokname() text (per parser: VMs may compile on several threads) */
 } parser_t;
 
 uint32_t mcs_decode_escape(const char** pp, const char* end);
@@ -41,13 +42,13 @@ static void perr(parser_t* P, token_t* t, const char* fmt, ...) {
 static token_t* adv(parser_t* P) { token_t* t = CUR; if (P->pos < P->n - 1) P->pos++; return t; }
 static bool check(parser_t* P, int type) { return TT == type; }
 static bool match(parser_t* P, int type) { if (TT == type) { adv(P); return true; } return false; }
-static const char* tokname(token_t* t) {
-    static char buf[48];
+static const char* tokname_(char* buf, token_t* t) {
     if (t->type == TK_EOF) return "end of file";
     size_t n = t->len < 40 ? t->len : 40;
     buf[0] = '\''; memcpy(buf + 1, t->start, n); buf[n + 1] = '\''; buf[n + 2] = 0;
     return buf;
 }
+#define tokname(t) tokname_(P->tokbuf, (t))
 static token_t* expect(parser_t* P, int type, const char* what) {
     if (TT != type) perr(P, CUR, "expected %s but found %s", what, tokname(CUR));
     return adv(P);

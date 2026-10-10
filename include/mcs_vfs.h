@@ -65,15 +65,24 @@ typedef struct {
     uint8_t flags;
 } mcs_vfs_mount_t;
 
+/* Optional lock around every backend call, for VFSs used from several OS threads
+ * (set by the thread module, mcs_threads.h; NULL = no locking, single thread). */
+typedef struct mcs_vfs_lock {
+    void (*enter)(void* ud);
+    void (*leave)(void* ud);
+    void* ud;
+} mcs_vfs_lock_t;
+
 typedef struct mcs_vfs {
     mcs_vfs_mount_t mounts[MCS_VFS_MAX_MOUNTS];
     int count;
     /* scratch allocator for whole-file reads; NULL = realloc/free */
     mcs_realloc_fn realloc_fn;
     void* alloc_ud;
+    const mcs_vfs_lock_t* lock;  /* NULL = single-threaded */
 } mcs_vfs_t;
 
-typedef struct { mcs_vfs_mount_t* m; void* fh; } mcs_vfs_file_t;
+typedef struct { mcs_vfs_mount_t* m; void* fh; const mcs_vfs_lock_t* lock; } mcs_vfs_file_t;
 
 void mcs_vfs_init(mcs_vfs_t* vfs);
 int mcs_vfs_mount(mcs_vfs_t* vfs, const char* prefix, const mcs_vfs_ops_t* ops, void* ctx, uint8_t flags);

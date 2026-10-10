@@ -842,7 +842,20 @@ NATIVE(th_sleep) {
     mcs_sleep(vm, (uint32_t)ms);
     return mcs_null();
 }
-static const mcs_reg_t thread_fns[] = { MCS_FN("Sleep", th_sleep, 1), MCS_REG_END };
+#if !MCS_ENABLE_THREADS
+/* no OS chosen (MCS_OS_NONE): one core, no threads; the real members live in
+ * modules/threads/mcs_threads.c. Lets scripts test Thread.Os == "None". */
+NATIVE(th_cores) { return mcs_int(1); }
+NATIVE(th_core) { return mcs_int(0); }
+NATIVE(th_os) { return mcs_string(vm, "None"); }
+#endif
+static const mcs_reg_t thread_fns[] = {
+    MCS_FN("Sleep", th_sleep, 1),
+#if !MCS_ENABLE_THREADS
+    MCS_GET("Cores", th_cores), MCS_GET("CurrentCore", th_core), MCS_GET("Os", th_os),
+#endif
+    MCS_REG_END
+};
 
 NATIVE(gc_collect) { mcs_collect(vm); return mcs_null(); }
 NATIVE(gc_total) {

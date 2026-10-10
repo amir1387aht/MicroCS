@@ -21,7 +21,7 @@ body:
     id: version
     attributes:
       label: MicroCS version
-      placeholder: "output of `mcs --version` or the REPL banner, e.g. 1.9.1"
+      placeholder: "output of `mcs --version` or the REPL banner, e.g. 1.10.0"
     validations: { required: true }
   - type: dropdown
     id: where

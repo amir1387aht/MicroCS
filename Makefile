@@ -4,6 +4,29 @@ CC      ?= cc
 CFLAGS  ?= -O2 -g
 override CFLAGS += -std=gnu99 -Wall -Wextra -Iinclude
 LDLIBS  += -lm
+# Optional OS for real threads (docs/THREADS.md). Default: none - single-threaded, as always.
+#   make OS=posix                         pthreads (host)
+#   make OS=freertos FREERTOS_PATH=<FreeRTOS-Kernel> FREERTOS_PORT=<portable/GCC/ARM_CM4F> \
+#        FREERTOS_CONFIG_DIR=<folder of FreeRTOSConfig.h>     (library objects; `make clean` when switching)
+OS ?= none
+ifeq ($(OS),posix)
+override CFLAGS += -DMCS_OS=MCS_OS_POSIX -pthread
+LDLIBS += -pthread
+else ifeq ($(OS),freertos)
+ifeq ($(FREERTOS_PATH),)
+$(error OS=freertos: tell make where FreeRTOS is: FREERTOS_PATH=<FreeRTOS-Kernel folder> FREERTOS_PORT=<port folder, relative to it or absolute> FREERTOS_CONFIG_DIR=<folder of your FreeRTOSConfig.h> (see docs/THREADS.md))
+endif
+ifeq ($(wildcard $(FREERTOS_PATH)/include/FreeRTOS.h),)
+$(error OS=freertos: $(FREERTOS_PATH)/include/FreeRTOS.h not found - FREERTOS_PATH must be the FreeRTOS-Kernel folder (see docs/THREADS.md))
+endif
+ifeq ($(wildcard $(FREERTOS_CONFIG_DIR)/FreeRTOSConfig.h),)
+$(error OS=freertos: FreeRTOSConfig.h not found - set FREERTOS_CONFIG_DIR=<folder of your FreeRTOSConfig.h> (see docs/THREADS.md))
+endif
+FREERTOS_PORT_DIR = $(if $(wildcard $(FREERTOS_PATH)/$(FREERTOS_PORT)),$(FREERTOS_PATH)/$(FREERTOS_PORT),$(FREERTOS_PORT))
+override CFLAGS += -DMCS_OS=MCS_OS_FREERTOS -I$(FREERTOS_PATH)/include -I$(FREERTOS_PORT_DIR) -I$(FREERTOS_CONFIG_DIR)
+else ifneq ($(OS),none)
+$(error OS=$(OS): choose none (default), posix or freertos; Zephyr builds go through west (ports/zephyr))
+endif
 SRC      = $(wildcard src/*.c)
 MOD_SRC  = $(wildcard modules/*/*.c)
 OBJ      = $(patsubst src/%.c,build/%.o,$(SRC)) $(patsubst modules/%.c,build/mod/%.o,$(MOD_SRC))
@@ -21,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test
+test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -37,6 +60,41 @@ build/test_modules: tests/c/test_modules.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_modules.c -o $@ $(LDLIBS)
 build/test_flash: tests/c/test_flash.c tests/c/flash_sim.h $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_flash.c -o $@ $(LDLIBS)
+
+# Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
+# the CLI and the firmware runtime (pool heap, RAM filesystem, jobs.cfg `thread` jobs, C API).
+# Built separately: the default `mcs` stays OS-free.
+THREADS_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_OS=MCS_OS_POSIX -pthread
+threads-test: | build
+	@$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_threads
+	@./build/mcs_threads --fs tests/threads tests/threads/t_threads.cs > build/threads.txt 2>&1; \
+	cmp -s build/threads.txt tests/threads/t_threads.out && echo "PASS tests/threads/t_threads.cs (POSIX threads)" || { echo "FAIL tests/threads/t_threads.cs"; diff build/threads.txt tests/threads/t_threads.out; exit 1; }
+	@$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads
+	@./build/test_threads | tail -n 1
+	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_nothreads && ./build/test_nothreads | head -n 1
+# the same under ThreadSanitizer (data races between thread VMs, the console, the pool, the filesystem)
+tsan-test: | build
+	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_tsan
+	TSAN_OPTIONS=halt_on_error=1 ./build/mcs_tsan --fs tests/threads tests/threads/t_threads.cs > build/tsan.txt && cmp build/tsan.txt tests/threads/t_threads.out
+	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads_tsan
+	TSAN_OPTIONS=halt_on_error=1 ./build/test_threads_tsan
+
+# FreeRTOS backend on the FreeRTOS POSIX (Linux simulator) port: downloads FreeRTOS-Kernel
+# V11.1.0 (MIT) into build/third_party; tests/c/test_threads.c runs as a FreeRTOS task
+FREERTOS_TEST_DIR = build/third_party/FreeRTOS-Kernel-11.1.0
+FREERTOS_SIM = $(FREERTOS_TEST_DIR)/portable/ThirdParty/GCC/Posix
+$(FREERTOS_TEST_DIR)/tasks.c:
+	mkdir -p build/third_party && curl -sSL https://github.com/FreeRTOS/FreeRTOS-Kernel/archive/refs/tags/V11.1.0.tar.gz | tar xz -C build/third_party
+freertos-test: $(FREERTOS_TEST_DIR)/tasks.c
+	$(CC) -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -Itests/c/freertos -I$(FREERTOS_TEST_DIR)/include -I$(FREERTOS_SIM) \
+	  -DMCS_OS=MCS_OS_FREERTOS -DMCS_THREAD_STACK=262144 -c modules/os/mcs_os.c -o build/mcs_os_freertos.o
+	$(CC) -std=gnu99 -O1 -g -Iinclude -Itests/c/freertos -I$(FREERTOS_TEST_DIR)/include -I$(FREERTOS_SIM) -I$(FREERTOS_SIM)/utils \
+	  -DMCS_OS=MCS_OS_FREERTOS -DMCS_THREAD_STACK=262144 $(SRC) $(MOD_SRC) tests/c/test_threads.c \
+	  $(addprefix $(FREERTOS_TEST_DIR)/,tasks.c queue.c list.c portable/MemMang/heap_3.c) $(FREERTOS_SIM)/port.c \
+	  $(FREERTOS_SIM)/utils/wait_for_event.c -lm -pthread -o build/test_threads_freertos
+	./build/test_threads_freertos
+	@$(CC) -std=gnu99 -Iinclude -DMCS_OS=MCS_OS_FREERTOS -c modules/os/mcs_os.c -o build/x.o 2>&1 | grep -q "FreeRTOS.h is not on the include path" \
+	  && echo "OK missing FreeRTOS headers: build error says where to set the path" || { echo "FAIL no FreeRTOS path message"; exit 1; }
 
 # Project config header (include/mcs_config.h + tests/c/config/mcs_user_config.h):
 # found on the include path, named with MCS_USER_CONFIG_FILE, forced with
@@ -82,7 +140,8 @@ FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER
 	"-DMCS_ENABLE_WS2812=0" "-DMCS_ENABLE_DRIVERS=0" \
 	"-Iconfig" "-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN" "-Itests/c/config -DMCS_GC_GROW=3" \
 	"-Ibuild/gencfg/min" "-Ibuild/gencfg/lowram" "-Ibuild/gencfg/tiny" "-Ibuild/gencfg/mcu" \
-	"-Ibuild/gencfg/embedded" "-Ibuild/gencfg/linux" "-Ibuild/gencfg/auto" "-Iconfig -DMCS_ENABLE_TINYFS=1 -DMCS_ENABLE_SERVO=0"
+	"-Ibuild/gencfg/embedded" "-Ibuild/gencfg/linux" "-Ibuild/gencfg/auto" "-Iconfig -DMCS_ENABLE_TINYFS=1 -DMCS_ENABLE_SERVO=0" \
+	"-DMCS_OS=MCS_OS_POSIX -pthread" "-DMCS_OS=MCS_OS_AUTO" "-DMCS_OS=MCS_OS_POSIX -pthread -DMCS_PROFILE=MCS_PROFILE_MCU"
 # configurations whose whole script suite must still pass (not just build)
 ALT_CONFIGS = "-DMCS_COMPACT_VALUES=1" "-DMCS_ENABLE_XIP=0" "-DMCS_TABLE_MIN_CAP=16" \
 	"-DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0" "-DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16" \
@@ -150,7 +209,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test test-config config-check check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test threads-test tsan-test freertos-test test-config config-check check asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

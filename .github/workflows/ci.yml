@@ -36,6 +36,26 @@ jobs:
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER --image
 
+  threads:
+    name: OS threads (POSIX + ThreadSanitizer, FreeRTOS simulator, CMake)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: C# threads, channels, thread jobs under ThreadSanitizer
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: make tsan-test
+      - name: FreeRTOS backend on the FreeRTOS POSIX port (FreeRTOS-Kernel V11.1.0)
+        run: make freertos-test
+      - name: CMake MICROCS_OS=posix / freertos, and the hint when FreeRTOS is not found
+        run: |
+          cmake -S . -B build/cm-posix -DMICROCS_OS=posix && cmake --build build/cm-posix -j
+          build/cm-posix/mcs --fs tests/threads tests/threads/t_threads.cs | cmp - tests/threads/t_threads.out
+          cmake -S . -B build/cm-frt -DMICROCS_OS=freertos -DMICROCS_FREERTOS_PATH=build/third_party/FreeRTOS-Kernel-11.1.0 \
+            -DMICROCS_FREERTOS_CONFIG_DIR=tests/c/freertos && cmake --build build/cm-frt -j
+          if cmake -S . -B build/cm-none -DMICROCS_OS=freertos > build/cm-none.txt 2>&1; then echo "configure succeeded without FreeRTOS"; exit 1; fi
+          grep -q "MICROCS_FREERTOS_PATH" build/cm-none.txt
+
   flash-fs:
     name: Flash filesystems (LittleFS, YAFFS2, TinyFS on simulated flash)
     runs-on: ubuntu-24.04
@@ -109,7 +129,9 @@ jobs:
           - { board: pico2, fs: yaffs2 }
           - { board: pico, fs: tinyfs, args: "-DMICROCS_FS_SIZE=65536" }
           - { board: waveshare_rp2040_zero, fs: littlefs }
-          - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812" }
+          - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812", tag: "-no-ws2812" }
+          - { board: waveshare_rp2040_zero, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
+          - { board: pico2, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -118,6 +140,9 @@ jobs:
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
+      - name: FreeRTOS-Kernel (Raspberry Pi's fork, as in the release images; RP2040 + RP2350 SMP ports)
+        if: ${{ matrix.freertos }}
+        run: mkdir -p $HOME/FreeRTOS-Kernel && curl -sSL https://github.com/raspberrypi/FreeRTOS-Kernel/archive/4f7299d6ea746b27a9dd19e87af568e34bd65b15.tar.gz | tar xz --strip-components=1 -C $HOME/FreeRTOS-Kernel
       - name: Filesystem sources (LittleFS from a local clone; YAFFS2 through the opt-in download)
         run: |
           if [ "${{ matrix.fs }}" = littlefs ]; then
@@ -136,7 +161,7 @@ jobs:
       - name: Keep the firmware (download it from the run's Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: "firmware-${{ matrix.board }}-${{ matrix.fs }}${{ matrix.args && '-no-ws2812' || '' }}"
+          name: "firmware-${{ matrix.board }}-${{ matrix.fs }}${{ matrix.tag }}"
           path: build/${{ matrix.board }}/microcs_pico.uf2
           retention-days: 14
       - name: Without sources or MICROCS_FS_DOWNLOAD the configure stops with a hint
@@ -159,6 +184,9 @@ jobs:
         include:
           - { target: esp32s3, fs: yaffs2 }
           - { target: esp32c3, fs: tinyfs }
+          - { target: esp32, fs: threads }
+          - { target: esp32s3, fs: threads }
+          - { target: esp32c3, fs: threads }
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -173,6 +201,8 @@ jobs:
           # YAFFS2 sources are not bundled: allow the pinned download (or set MICROCS_YAFFS2_DIR)
           if [ "${{ matrix.fs }}" = yaffs2 ]; then echo CONFIG_MICROCS_FS_YAFFS2=y >> sdkconfig.defaults; export MICROCS_FS_DOWNLOAD=1; fi
           if [ "${{ matrix.fs }}" = tinyfs ]; then echo CONFIG_MICROCS_FS_TINYFS=y >> sdkconfig.defaults; fi
+          # "threads": LittleFS + real C# threads on FreeRTOS tasks (both cores on ESP32 / S3)
+          if [ "${{ matrix.fs }}" = threads ]; then echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
           # one image for `esptool.py write_flash 0 ...` (bootloader + partition table + app)
@@ -197,6 +227,8 @@ jobs:
           - { name: native_sim TinyFS (run), board: native_sim/native/64, fs: tinyfs, args: "-DEXTRA_CONF_FILE=overlay-tinyfs.conf" }
           - { name: nRF52840 DK, board: nrf52840dk/nrf52840 }
           - { name: nRF52840 DK USB console, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay" }
+          - { name: native_sim threads (run), board: native_sim/native/64, threads: threads, args: "-DEXTRA_CONF_FILE=overlay-threads.conf" }
+          - { name: nRF52840 DK threads, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-threads.conf" }
           - { name: Raspberry Pi Pico, board: rpi_pico }
           - { name: STM32 Nucleo-F429ZI, board: nucleo_f429zi }
     steps:
@@ -224,7 +256,7 @@ jobs:
         run: west build -b ${{ matrix.board }} -d build microcs/ports/zephyr/example -- ${{ matrix.args }}
       - name: Smoke test on native_sim (REPL, Studio protocol, LittleFS, jobs)
         if: ${{ startsWith(matrix.board, 'native') }}
-        run: python3 microcs/tests/zephyr/smoke.py build/zephyr/zephyr.exe ${{ matrix.fs || 'littlefs' }}
+        run: python3 microcs/tests/zephyr/smoke.py build/zephyr/zephyr.exe ${{ matrix.fs || 'littlefs' }} ${{ matrix.threads }}
 
   arduino:
     name: Arduino · ${{ matrix.name }}

@@ -26,6 +26,10 @@
 #                     a copy found next to the project, or -DMICROCS_FS_DOWNLOAD=ON (cmake/MicroCSFS.cmake)
 #   MICROCS_WS2812    ON: the built-in "ws2812" driver (C# LedStrip; RP2: links hardware_pio) (default ON)
 #   MICROCS_SERVO     ON: the built-in "servo" driver (C# Servo on a PWM channel) (default ON)
+#   MICROCS_OS        none (default: single-threaded) | freertos | posix | auto: real C# threads and
+#                     second-core jobs on the OS's tasks (docs/THREADS.md, cmake/MicroCSOS.cmake).
+#                     FreeRTOS: a freertos_kernel / FreeRTOS-Kernel target, or MICROCS_FREERTOS_PATH
+#                     + MICROCS_FREERTOS_PORT + MICROCS_FREERTOS_CONFIG_DIR
 cmake_minimum_required(VERSION 3.13)
 
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -99,6 +103,9 @@ if(ESP_PLATFORM)
     if(CONFIG_MICROCS_FS_TINYFS)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_TINYFS=1)
     endif()
+    if(CONFIG_MICROCS_THREADS)          # menuconfig > MicroCS > Real threads (FreeRTOS is part of ESP-IDF)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_OS=MCS_OS_FREERTOS)
+    endif()
     if(CONFIG_MICROCS_FS_YAFFS2)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
         set_source_files_properties(${_mcs_fs_srcs} PROPERTIES COMPILE_OPTIONS "-w;-include;sys/types.h")
@@ -154,9 +161,12 @@ endif()
 if(NOT DEFINED MICROCS_SERVO)
     option(MICROCS_SERVO "Built-in servo driver: C# Servo (hobby servos on a PWM channel)" ON)
 endif()
+if(NOT DEFINED MICROCS_OS)
+    set(MICROCS_OS "none" CACHE STRING "OS for real C# threads: none (default, single-threaded), freertos, posix, auto")
+endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.9.1 LANGUAGES C)
+    project(MicroCS VERSION 1.10.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})
@@ -204,6 +214,10 @@ endif()
 if(NOT MICROCS_SERVO)
     target_compile_definitions(microcs PUBLIC MCS_ENABLE_SERVO=0)
 endif()
+if(MICROCS_OS AND NOT MICROCS_OS STREQUAL "none")
+    include(${MICROCS_DIR}/cmake/MicroCSOS.cmake)
+    microcs_add_os(microcs "${MICROCS_OS}")
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(microcs PRIVATE -Wall -Wextra)
 endif()
@@ -235,7 +249,9 @@ elseif(MICROCS_PORT STREQUAL "stm32")
 endif()
 
 # ------------------------------------------------------------------ host CLI
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILING AND NOT MICROCS_PORT)
+string(TOLOWER "${MICROCS_OS}" _mcs_os_lc)
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILING AND NOT MICROCS_PORT
+   AND NOT _mcs_os_lc STREQUAL "freertos")      # a FreeRTOS host build is a library for your own app
     add_executable(mcs ${MICROCS_DIR}/ports/unix/main.c)
     target_link_libraries(mcs PRIVATE microcs)
 endif()

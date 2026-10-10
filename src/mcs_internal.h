@@ -291,6 +291,7 @@ struct mcs_vm {
     mcs_value_t exc_value;
     int run_depth;
     volatile bool abort_req;
+    mcs_list_t* sort_spec;      /* ThenBy key spec during a multi-key sort (mcs_lib_coll.c) */
     uint32_t hook_counter;
     uint32_t hook_reload;       /* value hook_counter was last set to */
     uint32_t steps_used;
