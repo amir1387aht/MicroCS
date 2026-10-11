@@ -1,0 +1,27 @@
+configure gpio=True spi=True adc=True
+SpiConfig { } f=1000000 mode=0 bits=8 sck=-1 dma=default
+SpiConfig { Frequency = 20000000, Sck = 6, Mosi = 7, Miso = 2, Dma = true, MaxTransfer = 4096 }
+SpiConfig { Frequency = 20000000, Mode = 3, Sck = 6, Mosi = 7, Miso = 2, MaxTransfer = 4096, queue_size = 4 } q=4 mode=3
+SpiConfig.Mode must be 0..3
+SpiConfig option queue_size must be 1..16
+SpiConfig: unknown setting 'speed' (Hal.Options("SPI") lists this board's options)
+SpiConfig { }
+SpiConfig { Frequency = 8000000, Sck = 18, Mosi = 23, Miso = 19, Cs = 5 }
+1,2,3
+SPI.Open: invalid argument - Bits: 8 or 16
+dev bus=0 cs=4 9
+GpioConfig { Pull = 2, Schmitt = true, FilterNs = 100 }
+pull-up reads True
+led 13 = True
+GPIO.Configure: invalid argument - DriveMilliamps: 2, 4, 8 or 12
+Pin.Configure: not supported - Pull = Both
+uart hi
+I2cConfig { Frequency = 400000, Sda = 21, Scl = 22, PullUps = false, TimeoutMs = 50, GlitchFilter = 7, timing = 277912812 }
+scan 72,80,104
+I2C.Open: invalid argument - Frequency: up to 1 MHz
+QSPI.Open: invalid argument - Mode: 0 or 3
+jedec 239,64,22
+AdcConfig { Attenuation = 4, Oversample = 4 } raw=100
+ADC.Configure: not supported - ResolutionBits: 12 only
+SPI.queue_size (1..16): transactions queued in the driver
+7 options

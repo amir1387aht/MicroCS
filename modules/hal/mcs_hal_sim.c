@@ -311,8 +311,10 @@ static int t_stop(void* ctx, int id) {
     return 0;
 }
 /* timers are evaluated whenever the VM polls for events */
+static void uart_rx_check(mcs_hal_sim_t* s);
 static int sim_poll(void* ctx, mcs_hal_event_t* ev) {
     (void)ev;
+    uart_rx_check(SIM);
     if (!SIM->clock_us) SIM->virt_us += 1000;
     uint32_t t = now_us(SIM);
     for (int i = 0; i < 4; i++) {
@@ -405,6 +407,139 @@ static int c_recv(void* ctx, int bus, mcs_can_frame_t* f, uint32_t to) {
     return 0;
 }
 
+/* ---------------------------------------------------------------- v3: configuration */
+static const mcs_hal_option_t sim_options[] = {
+    { "GPIO", "slew_boost", 0, 1, "faster edges (simulated)" },
+    { "UART", "fifo_threshold", 1, 127, "RX interrupt level in bytes" },
+    { "I2C", "timing", 0, 0x7FFFFFFF, "raw timing register value (like STM32 TIMINGR)" },
+    { "SPI", "queue_size", 1, 16, "transactions queued in the driver" },
+    { "QSPI", "prescaler", 0, 255, "clock divider instead of Frequency" },
+    { "PWM", "timer", 0, 3, "hardware timer feeding the channel" },
+    { "ADC", "channel_gain", 1, 8, "programmable gain" },
+    { NULL, NULL, 0, 0, NULL }
+};
+static int bad(const char* why) { mcs_hal_error(why); return MCS_HAL_EINVAL; }
+static int gc_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
+    if (pin < 0 || pin >= 64 || c->mode > MCS_GPIO_ANALOG) return MCS_HAL_ENOTSUP;
+    if (c->drive_ma && c->drive_ma != 2 && c->drive_ma != 4 && c->drive_ma != 8 && c->drive_ma != 12) return bad("DriveMilliamps: 2, 4, 8 or 12");
+    if (c->alternate > 15) return bad("Alternate: 0..15");
+    if (c->pull == MCS_PULL_BOTH) { mcs_hal_error("Pull = Both"); return MCS_HAL_ENOTSUP; }
+    int mode = c->mode;
+    if (mode == MCS_GPIO_INPUT && c->pull == MCS_PULL_UP) mode = MCS_GPIO_INPUT_PULLUP;
+    if (mode == MCS_GPIO_INPUT && c->pull == MCS_PULL_DOWN) mode = MCS_GPIO_INPUT_PULLDOWN;
+    if ((mode == MCS_GPIO_INPUT_PULLUP || mode == MCS_GPIO_INPUT_PULLDOWN) && c->pull == MCS_PULL_NONE) mode = MCS_GPIO_INPUT;
+    SIM->gpio_cfg = *c; SIM->gpio_cfg_pin = pin;
+    if (c->initial >= 0) SIM->out[pin] = (uint8_t)c->initial;
+    SIM->mode[pin] = (uint8_t)mode;
+    logf_(SIM, "[sim] gpio %d configure mode %d drive %d\n", pin, mode, c->drive_ma);
+    return 0;
+}
+static int uc_configure(void* ctx, int port, const mcs_uart_config_t* c) {
+    if (port < 0 || port >= 4) return MCS_HAL_ENOTSUP;
+    if (c->frame.data_bits < 7) return bad("DataBits: 7, 8 or 9");
+    SIM->uart_full[port] = *c;
+    SIM->uart_cfg[port] = c->frame;
+    SIM->uart_baud[port] = c->frame.baud;
+    logf_(SIM, "[sim] uart%d configure %d baud tx %d\n", port, (int)c->frame.baud, c->tx);
+    return 0;
+}
+static int ic_configure(void* ctx, int bus, const mcs_i2c_config_t* c) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (c->freq_hz > 1000000) return bad("Frequency: up to 1 MHz");
+    SIM->i2c_cfg = *c;
+    SIM->i2c_freq = c->freq_hz;
+    logf_(SIM, "[sim] i2c%d configure %d Hz sda %d\n", bus, (int)c->freq_hz, c->sda);
+    return 0;
+}
+static int sc_configure(void* ctx, int bus, const mcs_spi_config_t* c) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (c->bus.bits != 8 && c->bus.bits != 16) return bad("Bits: 8 or 16");
+    SIM->spi_full = *c;
+    SIM->spi_cfg = c->bus;
+    logf_(SIM, "[sim] spi%d configure %d Hz sck %d\n", bus, (int)c->bus.freq_hz, c->sck);
+    return 0;
+}
+static int qc_configure(void* ctx, int bus, const mcs_qspi_config_t* c) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (c->mode != 0 && c->mode != 3) return bad("Mode: 0 or 3");
+    SIM->qspi_cfg = *c;
+    return 0;
+}
+static int pc_configure(void* ctx, int ch, const mcs_pwm_config_t* c) {
+    if (ch < 0 || ch >= 8) return MCS_HAL_ENOTSUP;
+    if (c->resolution_bits > 16) return bad("ResolutionBits: up to 16");
+    SIM->pwm_cfg = *c;
+    if (c->freq_hz) SIM->pwm_freq[ch] = c->freq_hz;
+    return 0;
+}
+static int ac_configure(void* ctx, int ch, const mcs_adc_config_t* c) {
+    if (ch < 0 || ch >= 16) return MCS_HAL_ENOTSUP;
+    if (c->resolution_bits && c->resolution_bits != 12) { mcs_hal_error("ResolutionBits: 12 only"); return MCS_HAL_ENOTSUP; }
+    SIM->adc_cfg = *c;
+    return 0;
+}
+
+/* ---------------------------------------------------------------- v3: DMA (completes at the next event poll) */
+static void dma_done(mcs_hal_sim_t* s, int id, int rc) {
+    s->dma_started++;
+    if (rc > 0) s->dma_bytes += (uint32_t)rc;
+    logf_(s, "[sim] dma %d done %d\n", id, rc, 0);
+    mcs_hal_post(MCS_HAL_EV_DMA, id, rc);
+}
+static int sa_xfer(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n, int id) {
+    int rc = s_xfer(ctx, bus, tx, rx, n);
+    if (rc < 0) return rc;
+    dma_done(SIM, id, (int)n);
+    return 0;
+}
+static int ia_xfer(void* ctx, int bus, int addr, const uint8_t* tx, size_t tn, uint8_t* rx, size_t rn, int id) {
+    int rc = 0;
+    if (tn || !rn) rc = i_write(ctx, bus, addr, tx, tn);
+    if (rc >= 0 && rn) rc = i_read(ctx, bus, addr, rx, rn);
+    if (rc == MCS_HAL_ENOTSUP) return rc;
+    dma_done(SIM, id, rc < 0 ? rc : (int)(tn + rn));   /* a NACK arrives with the completion, like hardware */
+    return 0;
+}
+static int ua_write(void* ctx, int port, const uint8_t* d, size_t n, int id) {
+    int rc = u_write(ctx, port, d, n);
+    if (rc < 0) return rc;
+    dma_done(SIM, id, rc);
+    return 0;
+}
+static void uart_rx_check(mcs_hal_sim_t* s) {
+    if (!s->uart_rx_buf) return;
+    while (s->uart_rx_got < s->uart_rx_len && s->uart_tail[s->uart_rx_port] != s->uart_head[s->uart_rx_port]) {
+        int p = s->uart_rx_port;
+        s->uart_rx_buf[s->uart_rx_got++] = s->uart_buf[p][s->uart_tail[p]];
+        s->uart_tail[p] = (uint16_t)((s->uart_tail[p] + 1) % 256);
+    }
+    if (s->uart_rx_got == s->uart_rx_len) { s->uart_rx_buf = NULL; dma_done(s, s->uart_rx_id, (int)s->uart_rx_len); }
+}
+static int ua_read(void* ctx, int port, uint8_t* b, size_t n, int id) {
+    if (port < 0 || port >= 4) return MCS_HAL_ENOTSUP;
+    if (SIM->uart_rx_buf) return MCS_HAL_EBUSY;
+    SIM->uart_rx_buf = b; SIM->uart_rx_len = (uint32_t)n; SIM->uart_rx_got = 0;
+    SIM->uart_rx_port = port; SIM->uart_rx_id = id;
+    uart_rx_check(SIM);
+    return 0;
+}
+static int qa_cmd(void* ctx, int bus, const mcs_qspi_cmd_t* c, const uint8_t* tx, uint8_t* rx, size_t n, int id) {
+    int rc = q_cmd(ctx, bus, c, tx, rx, n);
+    if (rc < 0) return rc;
+    dma_done(SIM, id, (int)n);
+    return 0;
+}
+static int dm_copy(void* ctx, void* dst, const void* src, size_t n, unsigned flags, int id) {
+    if (flags & MCS_DMA_SRC_FIXED) memset(dst, *(const uint8_t*)src, n);
+    else memmove(dst, src, n);
+    dma_done(SIM, id, (int)n);
+    return 0;
+}
+static int dm_abort(void* ctx, int id) {
+    if (SIM->uart_rx_buf && SIM->uart_rx_id == id) { SIM->uart_rx_buf = NULL; return 0; }
+    return MCS_HAL_ERR;          /* everything else has already finished */
+}
+
 /* ---------------------------------------------------------------- system */
 static int w_start(void* ctx, uint32_t ms) { SIM->wdt_timeout = ms; return 0; }
 static int w_feed(void* ctx) { SIM->wdt_feeds++; return 0; }
@@ -452,5 +587,13 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->micros = sim_micros; h->delay_us = sim_delay_us; h->reset = sys_reset; h->unique_id = sys_uid;
     h->cpu_hz = 160000000u;
     h->poll_event = sim_poll;
+    /* v3 */
+    h->gpio_configure = gc_configure; h->uart_configure = uc_configure; h->i2c_configure = ic_configure;
+    h->spi_configure = sc_configure; h->qspi_configure = qc_configure; h->pwm_configure = pc_configure;
+    h->adc_configure = ac_configure; h->options = sim_options;
+    h->dma_channels = 4; h->dma_align = 4;
+    h->dma_copy = dm_copy; h->dma_abort = dm_abort;
+    h->spi_transfer_async = sa_xfer; h->i2c_transfer_async = ia_xfer; h->uart_write_async = ua_write;
+    h->uart_read_async = ua_read; h->qspi_command_async = qa_cmd;
 }
 #endif
