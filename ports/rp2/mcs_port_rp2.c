@@ -14,6 +14,7 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
+#include "hardware/dma.h"
 #if MCS_ENABLE_FLASH
 #include "hardware/flash.h"
 #include "hardware/sync.h"
@@ -35,6 +36,8 @@
 
 static mcs_rp2_cfg_t g_cfg;
 static uint64_t g_od_mask;           /* open-drain pins (emulated with direction) */
+static uint64_t g_inv_mask;          /* GpioConfig.Invert on a plain GPIO (done here: SIO reads the pad) */
+#define R_INV(pin) ((int)((g_inv_mask >> (pin)) & 1u))
 
 /* ------------------------------------------------------------------ GPIO */
 static int r_gpio_mode(void* ctx, int pin, int mode) {
@@ -42,7 +45,10 @@ static int r_gpio_mode(void* ctx, int pin, int mode) {
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     uint p = (uint)pin;
     gpio_init(p);
+    gpio_set_outover(p, GPIO_OVERRIDE_NORMAL);
+    gpio_set_inover(p, GPIO_OVERRIDE_NORMAL);
     g_od_mask &= ~(1ull << pin);
+    g_inv_mask &= ~(1ull << pin);
     switch (mode) {
     case MCS_GPIO_INPUT: gpio_set_dir(p, GPIO_IN); gpio_disable_pulls(p); break;
     case MCS_GPIO_INPUT_PULLUP: gpio_set_dir(p, GPIO_IN); gpio_pull_up(p); break;
@@ -59,6 +65,7 @@ static int r_gpio_mode(void* ctx, int pin, int mode) {
 static int r_gpio_write(void* ctx, int pin, int v) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    v = (v != 0) ^ R_INV(pin);
     if (g_od_mask & (1ull << pin)) gpio_set_dir((uint)pin, v ? GPIO_IN : GPIO_OUT);
     else gpio_put((uint)pin, v != 0);
     return 0;
@@ -66,16 +73,47 @@ static int r_gpio_write(void* ctx, int pin, int v) {
 static int r_gpio_read(void* ctx, int pin) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
-    return gpio_get((uint)pin) ? 1 : 0;
+    return (gpio_get((uint)pin) ? 1 : 0) ^ R_INV(pin);
 }
 static void gpio_cb(uint gpio, uint32_t events) {
     int level = (events & GPIO_IRQ_EDGE_RISE) && !(events & GPIO_IRQ_EDGE_FALL) ? 1
               : (events & GPIO_IRQ_EDGE_FALL) && !(events & GPIO_IRQ_EDGE_RISE) ? 0 : (int)gpio_get(gpio);
-    mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level);
+    mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level ^ R_INV(gpio));
+}
+static int r_gpio_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
+    if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    if (c->hold == MCS_ON) { mcs_hal_error("Hold: not available on RP2 pads"); return MCS_HAL_ENOTSUP; }
+    if (c->filter_ns) { mcs_hal_error("FilterNs: RP2 GPIOs have no glitch filter (use Schmitt)"); return MCS_HAL_ENOTSUP; }
+    if (c->drive_ma && c->drive_ma != 2 && c->drive_ma != 4 && c->drive_ma != 8 && c->drive_ma != 12) {
+        mcs_hal_error("DriveMa: 2, 4, 8 or 12 mA");
+        return MCS_HAL_EINVAL;
+    }
+    if (c->alternate > 31 || c->pull > MCS_PULL_BOTH) return MCS_HAL_EINVAL;
+    uint p = (uint)pin;
+    int r, lvl = (c->initial != 0) ^ (c->invert == MCS_ON);
+    if (c->mode == MCS_GPIO_OUTPUT && c->initial >= 0) {     /* level first, then drive: no glitch */
+        if ((r = r_gpio_mode(ctx, pin, MCS_GPIO_INPUT))) return r;
+        gpio_put(p, lvl);
+        gpio_set_dir(p, GPIO_OUT);
+    } else if ((r = r_gpio_mode(ctx, pin, c->mode))) return r;
+    if (c->mode == MCS_GPIO_OPEN_DRAIN && c->initial >= 0 && !lvl) gpio_set_dir(p, GPIO_OUT);
+    if (c->pull) gpio_set_pulls(p, c->pull == MCS_PULL_UP || c->pull == MCS_PULL_BOTH, c->pull == MCS_PULL_DOWN || c->pull == MCS_PULL_BOTH);
+    if (c->drive_ma) gpio_set_drive_strength(p, c->drive_ma == 2 ? GPIO_DRIVE_STRENGTH_2MA : c->drive_ma == 4 ? GPIO_DRIVE_STRENGTH_4MA
+                                               : c->drive_ma == 8 ? GPIO_DRIVE_STRENGTH_8MA : GPIO_DRIVE_STRENGTH_12MA);
+    if (c->speed) gpio_set_slew_rate(p, c->speed >= MCS_SPEED_HIGH ? GPIO_SLEW_RATE_FAST : GPIO_SLEW_RATE_SLOW);
+    if (c->schmitt) gpio_set_input_hysteresis_enabled(p, c->schmitt == MCS_ON);
+    if (c->alternate >= 0) {
+        /* peripheral function: invert in the pad mux, the signal never passes SIO */
+        gpio_set_function(p, (gpio_function_t)c->alternate);
+        gpio_set_outover(p, c->invert == MCS_ON ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+        gpio_set_inover(p, c->invert == MCS_ON ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    } else if (c->invert == MCS_ON) g_inv_mask |= 1ull << pin;
+    return 0;
 }
 static int r_gpio_irq(void* ctx, int pin, int edge) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    if (R_INV(pin) && edge != MCS_GPIO_EDGE_BOTH) edge = edge == MCS_GPIO_EDGE_RISING ? MCS_GPIO_EDGE_FALLING : edge == MCS_GPIO_EDGE_FALLING ? MCS_GPIO_EDGE_RISING : edge;
     uint32_t ev = (edge & MCS_GPIO_EDGE_RISING ? GPIO_IRQ_EDGE_RISE : 0) | (edge & MCS_GPIO_EDGE_FALLING ? GPIO_IRQ_EDGE_FALL : 0);
     if (!ev) { gpio_set_irq_enabled((uint)pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false); return 0; }
     gpio_set_irq_enabled((uint)pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
@@ -120,6 +158,25 @@ static int r_uart_open(void* ctx, int port, uint32_t baud) {
     mcs_uart_cfg_t c = { baud, 8, MCS_UART_PARITY_NONE, 1, 0 };
     return r_uart_config(ctx, port, &c);
 }
+static int r_uart_configure(void* ctx, int port, const mcs_uart_config_t* x) {
+    uart_inst_t* u = uart_of(port);
+    if (!u) return MCS_HAL_ENOTSUP;
+    if (x->rs485) { mcs_hal_error("Rs485: the RP2 UART has no RS-485 mode - drive the DE pin from C#"); return MCS_HAL_ENOTSUP; }
+    if (x->dma == MCS_ON) { mcs_hal_error("Dma: RP2 UART receive uses an interrupt ring buffer"); return MCS_HAL_ENOTSUP; }
+    if (x->rx_buffer && x->rx_buffer != MCS_RP2_UART_RXBUF) { mcs_hal_error("RxBuffer: fixed at MCS_RP2_UART_RXBUF bytes (compile time)"); return MCS_HAL_EINVAL; }
+    if (x->tx_buffer) { mcs_hal_error("TxBuffer: RP2 UART writes are blocking"); return MCS_HAL_ENOTSUP; }
+    if (x->rx_timeout) { mcs_hal_error("RxTimeout: not configurable on RP2"); return MCS_HAL_ENOTSUP; }
+    mcs_rp2_uart_pins_t* pp = &g_cfg.uart[port];
+    if (x->tx >= 0 && x->tx != pp->tx) { if (pp->tx >= 0) gpio_init((uint)pp->tx); pp->tx = x->tx; }
+    if (x->rx >= 0 && x->rx != pp->rx) { if (pp->rx >= 0) gpio_init((uint)pp->rx); pp->rx = x->rx; }
+    int r = r_uart_config(ctx, port, &x->frame);
+    if (r) return r;
+    if (x->rts >= 0) gpio_set_function((uint)x->rts, GPIO_FUNC_UART);
+    if (x->cts >= 0) gpio_set_function((uint)x->cts, GPIO_FUNC_UART);
+    gpio_set_outover((uint)pp->tx, x->invert_tx ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    if (pp->rx >= 0) gpio_set_inover((uint)pp->rx, x->invert_rx ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    return 0;
+}
 static int r_uart_close(void* ctx, int port) {
     (void)ctx;
     uart_inst_t* u = uart_of(port);
@@ -162,18 +219,45 @@ static int r_uart_available(void* ctx, int port) {
 
 /* ------------------------------------------------------------------ I2C */
 static bool g_i2c_on[2];
+static uint8_t g_i2c_nopull[2], g_i2c_spk[2];
+static uint32_t g_i2c_to_us[2];
+#define I2C_TO(bus) (g_i2c_to_us[bus] ? g_i2c_to_us[bus] : MCS_RP2_TIMEOUT_US)
 static i2c_inst_t* i2c_of(int bus) { return bus == 0 ? i2c0 : bus == 1 ? i2c1 : NULL; }
 static int r_i2c_open(void* ctx, int bus, uint32_t freq) {
     (void)ctx;
     i2c_inst_t* i = i2c_of(bus);
     if (!i || g_cfg.i2c[bus].sda < 0) return MCS_HAL_ENOTSUP;
     i2c_init(i, freq ? freq : 100000);
+    if (g_i2c_spk[bus]) {             /* spike suppression length, written while disabled */
+        i2c_hw_t* hw = i2c_get_hw(i);
+        hw->enable = 0;
+        hw->fs_spklen = g_i2c_spk[bus];
+        hw->enable = 1;
+    }
     gpio_set_function((uint)g_cfg.i2c[bus].sda, GPIO_FUNC_I2C);
     gpio_set_function((uint)g_cfg.i2c[bus].scl, GPIO_FUNC_I2C);
-    gpio_pull_up((uint)g_cfg.i2c[bus].sda);
-    gpio_pull_up((uint)g_cfg.i2c[bus].scl);
+    if (g_i2c_nopull[bus]) {
+        gpio_disable_pulls((uint)g_cfg.i2c[bus].sda);
+        gpio_disable_pulls((uint)g_cfg.i2c[bus].scl);
+    } else {
+        gpio_pull_up((uint)g_cfg.i2c[bus].sda);
+        gpio_pull_up((uint)g_cfg.i2c[bus].scl);
+    }
     g_i2c_on[bus] = true;
     return 0;
+}
+static int r_i2c_configure(void* ctx, int bus, const mcs_i2c_config_t* c) {
+    if (!i2c_of(bus)) return MCS_HAL_ENOTSUP;
+    if (c->dma == MCS_ON) { mcs_hal_error("Dma: RP2 I2C transfers are short and run from the FIFO"); return MCS_HAL_ENOTSUP; }
+    if (c->analog_filter == MCS_ON) { mcs_hal_error("AnalogFilter: not available on RP2 (use GlitchFilter)"); return MCS_HAL_ENOTSUP; }
+    mcs_rp2_i2c_pins_t* pp = &g_cfg.i2c[bus];
+    if (c->sda >= 0 && c->sda != pp->sda) { if (pp->sda >= 0) gpio_init((uint)pp->sda); pp->sda = c->sda; }
+    if (c->scl >= 0 && c->scl != pp->scl) { if (pp->scl >= 0) gpio_init((uint)pp->scl); pp->scl = c->scl; }
+    if (pp->sda < 0 || pp->scl < 0) { mcs_hal_error("no I2C pins for this bus - set Sda and Scl"); return MCS_HAL_ENOTSUP; }
+    g_i2c_nopull[bus] = c->pullups == MCS_OFF;
+    g_i2c_spk[bus] = c->glitch_filter;
+    g_i2c_to_us[bus] = (uint32_t)c->timeout_ms * 1000u;
+    return r_i2c_open(ctx, bus, c->freq_hz);
 }
 static i2c_inst_t* i2c_ready(int bus, int* err) {
     i2c_inst_t* i = i2c_of(bus);
@@ -189,18 +273,18 @@ static int i2c_rc(int r, size_t n) {
 static int r_i2c_write(void* ctx, int bus, int addr, const uint8_t* d, size_t n) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    return i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, d, n, false, MCS_RP2_TIMEOUT_US), n);
+    return i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, d, n, false, I2C_TO(bus)), n);
 }
 static int r_i2c_read(void* ctx, int bus, int addr, uint8_t* buf, size_t n) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    return i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, buf, n, false, MCS_RP2_TIMEOUT_US), n);
+    return i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, buf, n, false, I2C_TO(bus)), n);
 }
 static int r_i2c_write_read(void* ctx, int bus, int addr, const uint8_t* tx, size_t tn, uint8_t* rx, size_t rn) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    int r = i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, tx, tn, true, MCS_RP2_TIMEOUT_US), tn);   /* no stop: repeated start */
-    return r ? r : i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, rx, rn, false, MCS_RP2_TIMEOUT_US), rn);
+    int r = i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, tx, tn, true, I2C_TO(bus)), tn);   /* no stop: repeated start */
+    return r ? r : i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, rx, rn, false, I2C_TO(bus)), rn);
 }
 static int r_i2c_probe(void* ctx, int bus, int addr) {
     uint8_t b;

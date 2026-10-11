@@ -185,7 +185,7 @@ typedef struct {
     int16_t sck, mosi, miso;       /* pins */
     int16_t cs;                    /* default chip select for SPI.Transfer(bus, data), driven by MicroCS */
     uint8_t cs_active_high;        /* bool */
-    uint8_t three_wire;            /* bool: half duplex, data in and out on MOSI */
+    uint8_t three_wire;            /* bool: half duplex on MOSI; spi_transfer(_async) then gets exactly one of tx / rx (the other NULL), any length */
     uint8_t dma;                   /* tri-state */
     uint8_t reserved;
     uint16_t input_delay_ns;       /* MISO sampling delay (long wires, level shifters) */
@@ -372,7 +372,9 @@ typedef struct mcs_hal {
     /* stop transfer `id` (best effort); no completion event follows */
     int (*dma_abort)(void* ctx, int id);
     /* Asynchronous peripheral transfers (return < 0 when they cannot start).
-     * NULL = the library runs the synchronous call and completes at once. */
+     * NULL, or MCS_HAL_ENOTSUP for one particular request (dma_copy fill, a
+     * size the engine cannot do ...) = the library runs the synchronous call
+     * and completes at once. */
     int (*spi_transfer_async)(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n, int id);
     int (*i2c_transfer_async)(void* ctx, int bus, int addr, const uint8_t* tx, size_t tn, uint8_t* rx, size_t rn, int id);
     int (*uart_write_async)(void* ctx, int port, const uint8_t* data, size_t n, int id);

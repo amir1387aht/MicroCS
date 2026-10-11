@@ -64,6 +64,7 @@ bool mcs__to_bytes(mcs_vm_t* vm, mcs_value_t v, uint8_t* buf, size_t* n);
 mcs_value_t mcs__bytes_val(mcs_vm_t* vm, const uint8_t* b, size_t n);
 bool mcs__check_callable(mcs_vm_t* vm, mcs_value_t fn);
 /* spi_transfer with NULL tx (send 0xFF) / rx (discard) allowed, any length */
+extern uint32_t mcs__spi_half;
 int mcs__spi_raw(const mcs_hal_t* h, int bus, const uint8_t* tx, uint8_t* rx, size_t n);
 
 /* config classes (mcs_hal_cfg.c) */

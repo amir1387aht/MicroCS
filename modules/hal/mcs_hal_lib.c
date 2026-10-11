@@ -778,7 +778,13 @@ static spi_cs_t spi_cs_of(mcs_vm_t* vm, int bus, int cs, int cs_high) {
 }
 /* spi_transfer never sees NULL buffers (the v1/v2 contract): one-way transfers of
  * any size go through the stack in MCS_HAL_MAX_XFER pieces, chip select held */
+uint32_t mcs__spi_half;     /* buses configured with SpiConfig.ThreeWire (bit per bus) */
 int mcs__spi_raw(const mcs_hal_t* h, int bus, const uint8_t* tx, uint8_t* rx, size_t n) {
+    if (bus >= 0 && bus < 32 && (mcs__spi_half >> bus & 1u)) {
+        /* half duplex: the port gets exactly one of tx / rx, any size */
+        if (tx && rx) { mcs_hal_error("ThreeWire: half duplex - use SPI.Write / SPI.Read"); return MCS_HAL_ENOTSUP; }
+        return h->spi_transfer(h->ctx, bus, tx, rx, n);
+    }
     if (tx && rx) return h->spi_transfer(h->ctx, bus, tx, rx, n);
     uint8_t t[MCS_HAL_MAX_XFER], r[MCS_HAL_MAX_XFER];
     if (!tx) memset(t, 0xFF, sizeof t);
@@ -835,12 +841,16 @@ static mcs_value_t spi_open_cfg(mcs_vm_t* vm, int bus, const mcs_spi_config_t* c
     const mcs_hal_t* h = s->hal;
     if (h->spi_configure) {
         RC("SPI.Open", h->spi_configure(h->ctx, bus, c));
+        if (bus >= 0 && bus < 32) {
+            if (c->three_wire) mcs__spi_half |= 1u << bus; else mcs__spi_half &= ~(1u << bus);
+        }
         if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) { s->spi_cur[bus] = c->bus; s->spi_valid[bus] = 1; }
     } else {
         static const char* const ok[] = { "Frequency", "Mode", "Bits", "LsbFirst", "Cs", "CsActiveHigh", NULL };
         const char* nd = mcs__cfg_nondefault(c, MCS__CFG_SPI, ok);
         if (nd) return cfg_unsupported(vm, "SPI.Open", nd);
         if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) s->spi_valid[bus] = 0;   /* apply even when cached */
+        if (bus >= 0 && bus < 32) mcs__spi_half &= ~(1u << bus);
         RC("SPI.Open", spi_apply(vm, bus, &c->bus));
     }
     if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) {

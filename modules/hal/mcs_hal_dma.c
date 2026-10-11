@@ -405,8 +405,10 @@ static mcs_value_t start(mcs_vm_t* vm, job_t* j, mcs_value_t a, mcs_value_t b) {
             if (rc < 0) { d->cs = -1; finish(vm, slot, rc); return mcs__hal_fail(vm, op_name(j->kind), rc); }
         }
         rc = run_async(h, j, id, &d->fill);
-        if (rc < 0) { finish(vm, slot, rc); return mcs__hal_fail(vm, op_name(j->kind), rc); }
-        return obj;                                  /* MCS_HAL_EV_DMA finishes it */
+        if (rc >= 0) return obj;                     /* MCS_HAL_EV_DMA finishes it */
+        if (rc != MCS_HAL_ENOTSUP) { finish(vm, slot, rc); return mcs__hal_fail(vm, op_name(j->kind), rc); }
+        /* the port declined this one (fill without a DMA engine ...): run it synchronously */
+        if (j->cs >= 0) h->gpio_write(h->ctx, j->cs, !j->cs_high);
     }
     if (j->kind == MCS__DMA_UART_RX) { d->polled = 1; d->cs = -1; dma_tick(vm); return obj; }   /* completes from Poll */
     d->cs = -1;                                      /* run_sync drives chip select itself */
