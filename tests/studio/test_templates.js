@@ -3,24 +3,33 @@
 // A template passes when it compiles and either finishes, hits the time budget
 // (main loops) or stops at a missing *device* (IOException / TimeoutException:
 // the simulator has no OLED, BME280...). Unknown members, type errors etc. fail.
-const fs = require('fs'), os = require('os'), path = require('path'), { spawn } = require('child_process');
+// U8g2 / U8x8 templates print a hint on firmware without u8g2; with a u8g2 build
+// (make mcs-u8g2) they run against the simulated SSD1306 (--oled) and must really draw:
+//   node tests/studio/test_templates.js build/mcs_u8g2 [--only=u8g2]
+const fs = require('fs'), os = require('os'), path = require('path'), { spawn, execFileSync } = require('child_process');
 const MCS = path.resolve(process.argv[2] || './mcs');
+const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+const HAS_U8G2 = / u8g2\b/.test(execFileSync(MCS, ['--features']).toString());
+const isU8g2 = (t) => /\bU8(g2|x8)\b/.test(t.text);
 global.window = {};
 const src = fs.readFileSync(path.join(__dirname, '../../tools/studio/templates.js'), 'utf8');
 const { TEMPLATES, SNIPPETS } = new Function(src + '; return { TEMPLATES, SNIPPETS };')();
 let fails = 0;
-const cs = TEMPLATES.filter((t) => t.file.endsWith('.cs'));
+const cs = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)));
 function run(t) {
   return new Promise((done) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcs-tpl-'));
     fs.writeFileSync(path.join(dir, t.file), t.text);
-    const p = spawn(MCS, ['--sim', '--fs', dir, '--time-limit', '3000', '--run-for', '2500', path.join(dir, t.file)]);
-    let err = '';
-    p.stderr.on('data', (d) => (err += d)); p.stdout.resume();
+    const oled = HAS_U8G2 && isU8g2(t);
+    const p = spawn(MCS, [...(oled ? ['--oled'] : []), '--sim', '--fs', dir, '--time-limit', '3000', '--run-for', '2500', path.join(dir, t.file)]);
+    let err = '', out = '';
+    p.stderr.on('data', (d) => (err += d)); p.stdout.on('data', (d) => (out += d));
     p.stdin.on('error', () => {}); p.stdin.end('Ann\n7\n');
     const kill = setTimeout(() => p.kill(), 20000);
     p.on('close', (code, signal) => {
       clearTimeout(kill);
+      if (oled) err = err.split('\n').filter((l) => !/^[|+]/.test(l)).join('\n');   // the drawn frames
+      if (oled && (/has no U8g2/.test(out) || !/\[oled 0x3C frame/.test(out + err))) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: drew nothing on the simulated OLED`); }
       const ok = code === 0 || /time limit|budget/i.test(err) || /Unhandled exception\. (IOException|TimeoutException)/.test(err) || signal === 'SIGTERM';
       if (!ok) { fails++; console.log(`FAIL ${t.cat} / ${t.name}\n${err.trim().split('\n').slice(0, 4).join('\n')}`); }
       fs.rmSync(dir, { recursive: true, force: true });
@@ -33,6 +42,6 @@ function run(t) {
   await Promise.all(Array.from({ length: 8 }, async () => { while (queue.length) await run(queue.shift()); }));
   const labels = new Set();
   for (const s of SNIPPETS) { if (labels.has(s.label)) { fails++; console.log('FAIL duplicate snippet ' + s.label); } labels.add(s.label); }
-  console.log(`${cs.length} C# templates, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);
+  console.log(`${cs.length} C# templates${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);
   process.exit(fails ? 1 : 0);
 })();

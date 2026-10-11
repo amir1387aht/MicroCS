@@ -140,6 +140,8 @@ jobs:
           grep -q "profont12_tr ssd1306_i2c_128x64_noname,sh1106_i2c_128x64_noname,st7920_s_128x64" /tmp/cu8.txt
       - name: make u8g2-test (scripts vs. simulated SSD1306 / SH1106 frames, font files, examples)
         run: make fetch-u8g2 u8g2-test
+      - name: Studio U8g2 / U8x8 templates on the simulated OLED
+        run: node tests/studio/test_templates.js build/mcs_u8g2 --only=u8g2
       - name: tools/u8g2.py (lists, config lines)
         run: |
           python3 tools/u8g2.py displays ssd1306 | head -5

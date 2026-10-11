@@ -4,13 +4,24 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* **Studio templates for U8g2 / U8x8 displays.** A new *U8g2 displays* category with 20
+  scripts that together cover the whole API: hello, every bus (`I2C`, `SoftI2C`, `SPI`,
+  `SoftSPI`, `Soft3WireSPI`, 8080 / 6800, `KS0108`), all shapes, text / alignment / font metrics,
+  fonts from files and `byte[]`, XBM bitmaps and icons, rotation / flip / contrast / sleep /
+  draw colours / clipping, page mode (`Draw`, `FirstPage` / `NextPage`), `Print`, buttons and
+  text bars, the built-in menus (scripted with `SetMenuInput`), a custom menu with
+  `GetMenuEvent`, the u8log terminal, a dashboard, a clock, an animation with
+  `UpdateDisplayArea`, buffer screenshots (`GetBuffer`, `Dump`, `WriteBufferXBM`), U8x8 text and
+  status screens, two displays. Snippets `u8g2`, `u8frame`, `u8page`, `u8x8`; Studio completion,
+  signature help and hover for every `U8g2` / `U8x8` member. `tests/studio/test_templates.js`
+  runs them on the simulated SSD1306 with a u8g2 build (new CI step).
 * **Studio templates for peripheral settings and DMA.** 17 new ready-to-run templates in two
   new categories: *Peripheral settings* (what the board supports, button / LED / open-drain
   `GpioConfig`, I2C, SPI and UART on your own pins, `PwmConfig`, `AdcConfig`, board options and
   reusable settings) and *DMA* (`DmaBuffer`, `SPI.WriteAsync` in the background, a
   double-buffered display loop, `I2C.WriteReadAsync`, `UART.ReadAsync` with timeout / cancel,
   `QSPI.ReadAsync`, `Dma.Copy` / `Fill`). New snippets `gpiocfg`, `i2ccfg`, `spicfg`, `uartcfg`,
-  `dmabuf`, `spiasync`. Studio now has 149 C# templates and 57 snippets; CI runs every one on the
+  `dmabuf`, `spiasync`. Studio now has 169 C# templates and 61 snippets; CI runs every one on the
   simulated board.
 
 ## 1.12.0 — Peripheral configuration and DMA (HAL API v3)
