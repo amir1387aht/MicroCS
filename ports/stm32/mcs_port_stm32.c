@@ -102,6 +102,60 @@ static int st_gpio_mode(void* ctx, int pin, int mode) {
     b->pull_down[p] = (uint16_t)(init.Pull == GPIO_PULLDOWN ? b->pull_down[p] | bit : b->pull_down[p] & ~bit);
     return 0;
 }
+/* v3 GpioConfig: HAL_GPIO_Init with pull / speed / open drain / alternate function */
+static int st_gpio_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
+    mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
+    GPIO_TypeDef* g = port_of(pin);
+    if (!g) return MCS_HAL_EINVAL;
+    if (c->drive_ma) { mcs_hal_error("DriveMa: STM32 pins have a fixed drive - use Speed"); return MCS_HAL_ENOTSUP; }
+    if (c->schmitt == MCS_OFF) { mcs_hal_error("Schmitt: STM32 inputs always have hysteresis"); return MCS_HAL_ENOTSUP; }
+    if (c->hold == MCS_ON) { mcs_hal_error("Hold: not available on STM32 GPIOs"); return MCS_HAL_ENOTSUP; }
+    if (c->invert == MCS_ON) { mcs_hal_error("Invert: STM32 GPIOs cannot invert in hardware"); return MCS_HAL_ENOTSUP; }
+    if (c->filter_ns) { mcs_hal_error("FilterNs: STM32 GPIOs have no glitch filter"); return MCS_HAL_ENOTSUP; }
+    if (c->pull == MCS_PULL_BOTH) { mcs_hal_error("Pull: up or down, not both"); return MCS_HAL_EINVAL; }
+    GPIO_InitTypeDef init;
+    memset(&init, 0, sizeof init);
+    init.Pin = 1u << (pin & 15);
+    init.Pull = GPIO_NOPULL;
+    switch (c->mode) {
+    case MCS_GPIO_INPUT: init.Mode = GPIO_MODE_INPUT; break;
+    case MCS_GPIO_OUTPUT: init.Mode = GPIO_MODE_OUTPUT_PP; break;
+    case MCS_GPIO_INPUT_PULLUP: init.Mode = GPIO_MODE_INPUT; init.Pull = GPIO_PULLUP; break;
+    case MCS_GPIO_INPUT_PULLDOWN: init.Mode = GPIO_MODE_INPUT; init.Pull = GPIO_PULLDOWN; break;
+    case MCS_GPIO_OPEN_DRAIN: init.Mode = GPIO_MODE_OUTPUT_OD; init.Pull = GPIO_PULLUP; break;
+    case MCS_GPIO_ANALOG: init.Mode = GPIO_MODE_ANALOG; break;
+    default: return MCS_HAL_EINVAL;
+    }
+    if (c->pull) init.Pull = c->pull == MCS_PULL_UP ? GPIO_PULLUP : c->pull == MCS_PULL_DOWN ? GPIO_PULLDOWN : GPIO_NOPULL;
+    switch (c->speed) {
+    case MCS_SPEED_MEDIUM: init.Speed = GPIO_SPEED_FREQ_MEDIUM; break;
+    case MCS_SPEED_HIGH: init.Speed = GPIO_SPEED_FREQ_HIGH; break;
+#ifdef GPIO_SPEED_FREQ_VERY_HIGH
+    case MCS_SPEED_VERY_HIGH: init.Speed = GPIO_SPEED_FREQ_VERY_HIGH; break;
+#else
+    case MCS_SPEED_VERY_HIGH: init.Speed = GPIO_SPEED_FREQ_HIGH; break;
+#endif
+    default: init.Speed = GPIO_SPEED_FREQ_LOW; break;
+    }
+    if (c->alternate >= 0) {
+#ifdef IS_GPIO_AF
+        if (c->alternate > 15) { mcs_hal_error("Alternate: AF0 .. AF15"); return MCS_HAL_EINVAL; }
+        init.Mode = c->mode == MCS_GPIO_OPEN_DRAIN ? GPIO_MODE_AF_OD : GPIO_MODE_AF_PP;
+        init.Alternate = (uint32_t)c->alternate;
+#else
+        mcs_hal_error("Alternate: STM32F1 uses AFIO remaps - set the pin up in CubeMX");
+        return MCS_HAL_ENOTSUP;
+#endif
+    }
+    if (c->initial >= 0 && (c->mode == MCS_GPIO_OUTPUT || c->mode == MCS_GPIO_OPEN_DRAIN))
+        HAL_GPIO_WritePin(g, (uint16_t)init.Pin, c->initial ? GPIO_PIN_SET : GPIO_PIN_RESET);   /* level first: no glitch */
+    HAL_GPIO_Init(g, &init);
+    uint16_t bit = (uint16_t)(1u << (pin & 15));
+    int p = pin >> 4;
+    b->pull_up[p] = (uint16_t)(init.Pull == GPIO_PULLUP ? b->pull_up[p] | bit : b->pull_up[p] & ~bit);
+    b->pull_down[p] = (uint16_t)(init.Pull == GPIO_PULLDOWN ? b->pull_down[p] | bit : b->pull_down[p] & ~bit);
+    return 0;
+}
 static int st_gpio_write(void* ctx, int pin, int v) {
     (void)ctx;
     GPIO_TypeDef* g = port_fast(pin);
@@ -549,7 +603,7 @@ static int st_pwm_set16(void* ctx, int ch, uint32_t freq, uint16_t duty) {
     if (ch < 0 || ch >= MCS_STM32_PWM_CHANNELS || !b->pwm[ch].h) return MCS_HAL_ENOTSUP;
     mcs_stm32_pwm_t* p = &b->pwm[ch];
     uint32_t psc, arr;
-    int r = tim_period(p->clock_hz ? p->clock_hz : SystemCoreClock, freq, &psc, &arr);
+    int r = tim_period(p->clock_hz ? p->clock_hz : SystemCoreClock, b->pwm_center[ch] ? freq * 2u : freq, &psc, &arr);
     if (r) return r;
     __HAL_TIM_SET_PRESCALER(p->h, psc);
     __HAL_TIM_SET_AUTORELOAD(p->h, arr);
@@ -559,6 +613,27 @@ static int st_pwm_set16(void* ctx, int ch, uint32_t freq, uint16_t duty) {
         b->pwm_started[ch] = 1;
     }
     return 0;
+}
+/* v3 PwmConfig: output polarity (CCxP) and centre-aligned counting (CR1.CMS);
+ * pins and timer clocks come from CubeMX. */
+static int st_pwm_configure(void* ctx, int ch, const mcs_pwm_config_t* c) {
+    mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
+    if (ch < 0 || ch >= MCS_STM32_PWM_CHANNELS || !b->pwm[ch].h) return MCS_HAL_ENOTSUP;
+    if (c->pin >= 0) { mcs_hal_error("Pin: STM32 PWM pins are set by CubeMX"); return MCS_HAL_ENOTSUP; }
+    if (c->resolution_bits) { mcs_hal_error("ResolutionBits: STM32 picks the finest step for the frequency"); return MCS_HAL_ENOTSUP; }
+    mcs_stm32_pwm_t* p = &b->pwm[ch];
+    TIM_TypeDef* t = p->h->Instance;
+    uint32_t pol = TIM_CCER_CC1P << (p->channel & 0x1Cu);
+    t->CCER = c->invert ? (t->CCER | pol) : (t->CCER & ~pol);
+    uint32_t cr1 = t->CR1 & ~TIM_CR1_CMS;
+    if (c->center_aligned) cr1 |= TIM_CR1_CMS;
+    if (cr1 != t->CR1) {
+        uint32_t en = t->CR1 & TIM_CR1_CEN;
+        t->CR1 = cr1 & ~TIM_CR1_CEN;     /* CMS may only change while the counter is stopped */
+        t->CR1 |= en;
+    }
+    b->pwm_center[ch] = c->center_aligned ? 1 : 0;
+    return c->freq_hz ? st_pwm_set16(ctx, ch, c->freq_hz, (uint16_t)0) : 0;
 }
 static int st_pwm_set(void* ctx, int ch, uint32_t freq, uint16_t permille) {
     return st_pwm_set16(ctx, ch, freq, (uint16_t)((uint32_t)permille * 65535u / 1000u));
@@ -981,6 +1056,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->gpio_write = st_gpio_write;
     hal->gpio_read = st_gpio_read;
     hal->gpio_irq = st_gpio_irq;
+    hal->gpio_configure = st_gpio_configure;
 #ifdef HAL_UART_MODULE_ENABLED
     hal->uart_open = st_uart_open;
     hal->uart_config = st_uart_config;
@@ -1012,6 +1088,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->pwm_set = st_pwm_set;
     hal->pwm_set16 = st_pwm_set16;
     hal->pwm_stop = st_pwm_stop;
+    hal->pwm_configure = st_pwm_configure;
     hal->timer_start = st_timer_start;
     hal->timer_stop = st_timer_stop;
 #endif
