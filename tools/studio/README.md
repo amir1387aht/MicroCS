@@ -79,6 +79,9 @@ led.Toggle();
 
 `String.raw` keeps `\n` and other escapes as they are, so you can paste C# straight in.
 `node tests/studio/test_templates.js ./mcs` compiles and runs every C# template on the
-simulated board. `tests/studio/test_studio.js` tests the page in a headless browser.
+simulated board. Templates that use `U8g2` / `U8x8` start with an
+`if (!Drivers.Has("u8g2")) { ...; return; }` hint and are run against the simulated OLED with a
+u8g2 build: `make fetch-u8g2 mcs-u8g2 && node tests/studio/test_templates.js build/mcs_u8g2 --only=u8g2`.
+`tests/studio/test_studio.js` tests the page in a headless browser.
 
 Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-browser-microcs-studio).

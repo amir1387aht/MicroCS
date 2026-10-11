@@ -855,7 +855,7 @@ Console.WriteLine($"JEDEC {BitConverter.ToString(id)}");
 byte[] data = QSPI.Read(0, 0x03, 0, 16);                 // READ at address 0
 Console.WriteLine($"first bytes {BitConverter.ToString(data)}");
 `);
-/* ---------------------------------------------------------------- Files and storage */
+/* ---------------------------------------------------------------- Peripheral settings and DMA (HAL v3) */
 T("Peripheral settings", "What can this board do?", "board_caps.cs",
   "Hal.Has for full settings and DMA, and the board-specific options.",
   String.raw`
@@ -1114,6 +1114,7 @@ for (int k = 0; k < 6; k++) jobs.Add(Dma.FillAsync(new DmaBuffer(256), k));
 Console.WriteLine($"all done: {Dma.WaitAll(1000)}, pending {Dma.Pending}, last {jobs[5].Result} bytes");
 `);
 
+/* ---------------------------------------------------------------- Files and storage */
 T("Files and storage", "Files and free space", "files.cs",
   "Write, read and list files; show the flash usage with DriveInfo.", String.raw`
 // Write, read and list files on the device's flash
@@ -1819,6 +1820,723 @@ void Print(int page, string text)
 Print(0, "MICROCS");
 Print(2, "OS: 123");
 Console.WriteLine("text written to the OLED");
+`);
+
+/* ---------------------------------------------------------------- U8g2 displays (firmware built with u8g2, docs/U8G2.md) */
+T("U8g2 displays", "Hello OLED (U8g2)", "oled_hello.cs",
+  "SSD1306 128x64 on I2C: begin, a font, text and a circle, then SendBuffer.",
+  String.raw`
+// oled_hello.cs - an SSD1306 / SH1106 OLED on I2C bus 0 (address 0x3C) with u8g2.
+// U8g2 needs firmware built with u8g2 (docs/U8G2.md). PC: mcs_u8g2 --oled oled_hello.cs
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var oled = new U8g2("ssd1306_i2c_128x64_noname");   // SH1106: "sh1106_i2c_128x64_noname"
+oled.Begin();                                        // init, clear, wake the display
+oled.ClearBuffer();
+oled.SetFont("helvB10_tr");
+oled.DrawStr(0, 14, "Hello, MicroCS!");
+oled.SetFont("6x10_tf");
+oled.DrawStr(0, 28, $"{oled.Width}x{oled.Height}, {oled.BufferSize} B");
+oled.DrawCircle(100, 46, 14);
+oled.DrawFrame(0, 34, 70, 30);
+oled.SendBuffer();                                   // the frame goes to the display
+Console.WriteLine($"{oled.Display} on {oled.Bus}, font {oled.Font}");
+Console.WriteLine("compiled-in displays: " + string.Join(", ", U8g2.Displays));
+`);
+
+T("U8g2 displays", "Connect a display: I2C, SPI, software buses", "oled_wiring.cs",
+  "Every way to create a display: I2C (address, reset), SoftI2C, SPI, SoftSPI, 3-wire, 8080 / 6800, KS0108.",
+  String.raw`
+// oled_wiring.cs - pick the bus your display uses. Pins are numbers or names ("GP4", "PA5").
+// The display is not touched before Begin(), so creating one never fails on wiring.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+int wiring = 0;          // change to try another bus
+U8g2 d;
+switch (wiring)
+{
+    case 0:  d = U8g2.I2C("ssd1306_i2c_128x64_noname", 0, 0x3C); break;          // hardware I2C bus 0
+    case 1:  d = U8g2.I2C("ssd1306_i2c_128x64_noname", 0, 0x3D, 16); break;      // other address, reset pin 16
+    case 2:  d = U8g2.SoftI2C("ssd1306_i2c_128x64_noname", 22, 21); break;       // bit-banged: SCL 22, SDA 21
+    case 3:  d = U8g2.SPI("ssd1306_128x64_noname", 0, 5, 4, 16); break;          // SPI bus 0: CS 5, DC 4, RESET 16
+    case 4:  d = U8g2.SoftSPI("ssd1306_128x64_noname", 18, 23, 5, 4); break;     // clock 18, data 23, CS 5, DC 4
+    case 5:  d = U8g2.Soft3WireSPI("ssd1306_128x64_noname", 18, 23, 5); break;   // 9-bit SPI, no DC pin
+    case 6:  d = U8g2.Parallel8080("ssd1306_128x64_noname", new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }, 8, 9, 10); break;  // WR, CS, DC
+    case 7:  d = U8g2.Parallel6800("ssd1306_128x64_noname", new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }, 8, 9, 10); break;  // E, CS, DC
+    default: d = U8g2.KS0108("ks0108_128x64", new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }, 8, 9, 10, 11, null); break;    // E, DC, CS0..2
+}
+Console.WriteLine($"{d.Display}: bus {d.Bus}, {d.Width}x{d.Height}, {d.Cols}x{d.Rows} tiles");
+d.SetBusClock(400_000);                 // used by Begin(); I2C address: d.SetI2CAddress(0x3D)
+d.Begin();
+d.SetFont("6x10_tf");
+d.ClearBuffer();
+d.DrawStr(0, 12, "Bus: " + d.Bus);
+d.DrawStr(0, 26, $"clock {d.BusClock} Hz");
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Shapes: every drawing primitive", "oled_shapes.cs",
+  "Pixels, lines, boxes, rounded boxes, circles and quadrants, ellipses, arcs, triangles, polygons.",
+  String.raw`
+// oled_shapes.cs - all U8g2 shapes, one screen at a time (full frame buffer).
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var g = new U8g2("ssd1306_i2c_128x64_noname");
+g.Begin();
+g.SetFont("5x7_tr");
+
+// 1. pixels and lines
+g.ClearBuffer();
+for (int x = 0; x < 128; x += 4) g.DrawPixel(x, 0);
+g.DrawHLine(0, 4, 128);                    // x, y, length
+g.DrawVLine(127, 4, 60);
+g.DrawHVLine(0, 8, 40, 0);                 // direction 0 right, 1 down, 2 left, 3 up
+g.DrawHVLine(0, 63, 50, 3);
+for (int i = 0; i < 8; i++) g.DrawLine(10, 60, 10 + i * 14, 12);
+g.DrawStr(70, 30, "lines");
+g.SendBuffer();
+Thread.Sleep(600);
+
+// 2. boxes and frames (plain and rounded)
+g.ClearBuffer();
+g.DrawFrame(0, 0, 40, 28);
+g.DrawBox(44, 0, 40, 28);
+g.DrawRFrame(88, 0, 40, 28, 6);            // corner radius 6
+g.DrawRBox(0, 34, 60, 28, 8);
+g.SetDrawColor(0); g.DrawStr(8, 52, "RBox"); g.SetDrawColor(1);
+g.DrawStr(70, 50, "boxes");
+g.SendBuffer();
+Thread.Sleep(600);
+
+// 3. circles, discs and quadrants
+g.ClearBuffer();
+g.DrawCircle(16, 16, 14);
+g.DrawDisc(50, 16, 14);
+g.DrawCircle(84, 16, 14, U8g2.DrawUpperRight | U8g2.DrawLowerLeft);
+g.DrawDisc(116, 16, 10, U8g2.DrawUpperLeft);
+g.DrawEllipse(24, 48, 22, 12);
+g.DrawFilledEllipse(76, 48, 22, 12);
+g.DrawFilledEllipse(116, 48, 10, 14, U8g2.DrawLowerRight);
+g.SendBuffer();
+Thread.Sleep(600);
+
+// 4. arcs, triangles, polygons
+g.ClearBuffer();
+g.DrawArc(20, 32, 18, 0, 64);              // angles 0..255 = a full turn (64 = 90 degrees)
+g.DrawArc(20, 32, 12, 128, 255);
+g.DrawTriangle(44, 60, 64, 4, 84, 60);
+g.DrawPolygon(new int[] { 94, 10, 124, 20, 116, 58, 96, 50, 100, 30 });  // x, y pairs, filled
+g.SendBuffer();
+Console.WriteLine("4 screens drawn");
+`);
+
+T("U8g2 displays", "Text, fonts and alignment", "oled_text.cs",
+  "DrawStr / DrawUTF8 / DrawGlyph, 2x text, centring with GetStrWidth, font metrics, position and direction.",
+  String.raw`
+// oled_text.cs - text with u8g2 fonts. U8g2.Fonts lists the fonts built into the firmware.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+Console.WriteLine("fonts in flash: " + string.Join(", ", U8g2.Fonts));
+
+d.ClearBuffer();
+d.SetFont("helvB10_tr");
+string title = "Centred";
+int w = d.GetStrWidth(title);
+d.DrawStr((d.Width - w) / 2, 12, title);           // y = baseline by default
+Console.WriteLine($"{d.Font}: ascent {d.Ascent}, descent {d.Descent}, max {d.MaxCharWidth}x{d.MaxCharHeight}, width('{title}') = {w}");
+
+d.SetFont("6x10_tf");
+d.DrawUTF8(0, 26, "UTF-8: 25°C ±1 µs");             // _tf fonts have Latin-1 characters
+d.DrawStrX2(0, 46, "X2");                            // double-size text
+d.DrawGlyph(40, 46, 'A');                            // one character by code
+Console.WriteLine($"glyph 'A' width {d.GetGlyphWidth('A')}, has 'é': {d.IsGlyph(0xE9)}, x offset {d.GetXOffsetGlyph('A')}");
+
+d.SetFontPosTop();                                   // y = top of the text from now on
+d.DrawStr(64, 30, "top");
+d.SetFontPosCenter();
+d.DrawStr(64, 46, "center");
+d.SetFontPosBottom();
+d.DrawStr(64, 63, "bottom");
+d.SetFontPosBaseline();
+
+d.SetFontDirection(3);                               // 0 = normal, 1 = down, 2 = upside down, 3 = up
+d.DrawStr(124, 63, "up");
+d.SetFontDirection(0);
+d.SendBuffer();
+Thread.Sleep(800);
+
+// transparent text over a filled box, and a big digit font
+d.ClearBuffer();
+d.DrawBox(0, 0, 128, 20);
+d.SetFontMode(1);                                    // 1 = transparent background
+d.SetDrawColor(0);
+d.DrawStr(4, 14, "inverted text");
+d.SetDrawColor(1);
+d.SetFontMode(0);
+d.SetFont("logisoso24_tn");                          // digits only
+d.DrawStr(10, 56, "12:34");
+d.SetFontRefHeightText();                            // what Ascent/Descent measure (also ...All, ...ExtendedText)
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Fonts from files (2000+ u8g2 fonts)", "oled_font_files.cs",
+  "Load any u8g2 font from /fonts by name, by path or from a byte[], with a fallback to the built-in fonts.",
+  String.raw`
+// oled_font_files.cs - fonts not built into the firmware are loaded from the board's /fonts folder.
+// Make the files on the PC and upload them (Studio Files panel, or --fs on the PC):
+//   python3 tools/u8g2.py fonts profont                    (search names and sizes)
+//   python3 tools/u8g2.py extract profont12_tr unifont_t_symbols open_iconic_weather_2x_t -o myfs/fonts
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.ClearBuffer();
+d.SetFont("6x10_tf");                                // built in: no file needed
+d.DrawStr(0, 10, "6x10_tf (flash)");
+
+bool TryFont(string name)
+{
+    try { d.SetFont(name); return true; }            // built-in first, else /fonts/u8g2_font_<name>.bin
+    catch (ArgumentException e) { Console.WriteLine(e.Message); return false; }
+}
+
+if (TryFont("profont12_tr")) d.DrawStr(0, 24, "profont12 (file)");
+if (TryFont("unifont_t_symbols")) d.DrawUTF8(0, 42, "☀ ☁ ☂ ★");
+if (TryFont("open_iconic_weather_2x_t")) d.DrawGlyph(100, 62, 0x45);   // icon fonts: glyph codes
+
+string path = "/fonts/u8g2_font_profont12_tr.bin";
+if (File.Exists(path))
+{
+    byte[] raw = File.ReadAllBytes(path);
+    d.SetFont(raw);                                  // a font from bytes (download, SD card, ...)
+    Console.WriteLine($"from bytes: {raw.Length} B, width('abc') = {d.GetStrWidth("abc")}");
+}
+d.SetFont("6x10_tf");
+d.DrawStr(0, 62, "font: " + d.Font);
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Bitmaps and icons (XBM)", "oled_bitmaps.cs",
+  "DrawXBM / DrawXBMP / DrawBitmap, transparent bitmaps and the built-in icon font.",
+  String.raw`
+// oled_bitmaps.cs - 1-bit images. XBM: LSB = leftmost pixel (GIMP "export as XBM", image2cpp).
+// DrawBitmap: MSB = leftmost pixel (the Adafruit / u8glib format).
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+
+byte[] heart = { 0x66, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00 };        // 8x8 XBM
+byte[] smiley =                                                            // 16x16 XBM, 2 bytes per row
+{
+    0xE0, 0x07, 0x18, 0x18, 0x04, 0x20, 0x02, 0x40, 0x32, 0x4C, 0x31, 0x8C, 0x01, 0x80, 0x01, 0x80,
+    0x01, 0x80, 0x09, 0x90, 0x12, 0x48, 0xE2, 0x47, 0x04, 0x20, 0x18, 0x18, 0xE0, 0x07, 0x00, 0x00,
+};
+byte[] arrow = { 0x18, 0x3C, 0x7E, 0xFF, 0x18, 0x18, 0x18, 0x18 };        // 8x8, MSB first
+
+d.ClearBuffer();
+for (int i = 0; i < 6; i++) d.DrawXBM(i * 12, 0, 8, 8, heart);
+d.DrawXBMP(0, 14, 16, 16, smiley);                   // P = data in flash on AVR; same here
+d.DrawBitmap(24, 14, 1, 8, arrow);                   // bytes per row, height
+
+d.DrawBox(40, 12, 40, 24);
+d.SetBitmapMode(1);                                  // 1 = transparent: only set bits are drawn
+d.SetDrawColor(0);
+d.DrawXBM(52, 16, 16, 16, smiley);
+d.SetDrawColor(1);
+d.SetBitmapMode(0);
+
+d.SetFont("open_iconic_embedded_1x_t");              // 8x8 icons, built in
+for (int i = 0; i < 12; i++) d.DrawGlyph(i * 10, 52, 0x40 + i);
+d.SetFont("5x7_tr");
+d.DrawStr(0, 63, "open_iconic_embedded_1x_t");
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Display settings: rotation, contrast, sleep, clip", "oled_settings.cs",
+  "SetDisplayRotation, SetFlipMode, SetContrast, Sleep / Wake, draw colours (XOR), clip windows.",
+  String.raw`
+// oled_settings.cs - everything you can change on a running display.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("6x10_tf");
+
+void Screen(string text)
+{
+    d.ClearBuffer();
+    d.DrawFrame(0, 0, d.Width, d.Height);
+    d.DrawStr(4, 14, text);
+    d.DrawStr(4, 28, $"{d.Width}x{d.Height}");
+    d.SendBuffer();
+    Thread.Sleep(150);
+}
+
+// rotation: R0, R1 (90), R2 (180), R3 (270), Mirror, MirrorVertical - Width/Height follow
+int[] rot = { U8g2.R1, U8g2.R2, U8g2.R3, U8g2.Mirror, U8g2.R0 };
+foreach (int r in rot) { d.SetDisplayRotation(r); Screen($"rotation {r}"); }
+
+d.SetFlipMode(true);  Screen("flip mode");           // 180 degrees in the display controller
+d.SetFlipMode(false);
+
+for (int c = 255; c >= 0; c -= 85) { d.SetContrast(c); Screen($"contrast {c}"); }
+d.SetContrast(255);
+
+d.Sleep();  Thread.Sleep(150);                       // display off, picture kept (SetPowerSave(true))
+d.Wake();                                            // SetPowerSave(false)
+
+// draw colours: 0 clear, 1 set, 2 XOR
+d.ClearBuffer();
+d.DrawBox(10, 10, 60, 30);
+d.SetDrawColor(U8g2.ColorXor);
+d.DrawBox(40, 20, 60, 30);                           // the overlap is inverted
+d.SetDrawColor(U8g2.ColorSet);
+Console.WriteLine($"draw colour {d.DrawColor}");
+
+// clip window: drawing outside it is ignored
+d.SetClipWindow(0, 50, 64, 64);
+d.DrawStr(0, 62, "clipped text, clipped");
+d.SetMaxClipWindow();
+Console.WriteLine($"box (0,0)-(20,20) visible: {d.IsIntersection(0, 0, 20, 20)}");
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Page mode: big displays on little RAM", "oled_page_mode.cs",
+  "_1 / _2 page buffers with Draw(() => ...) or FirstPage / NextPage - 128 bytes instead of 1 KB.",
+  String.raw`
+// oled_page_mode.cs - "_1" keeps one 8-pixel row of the screen in RAM (128 bytes), "_2" two,
+// "_f" (the default) the whole screen (1 KB). In page mode your drawing code runs once per page.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname_1");
+d.Begin();
+d.SetFont("6x10_tf");
+Console.WriteLine($"buffer {d.BufferSize} B, full buffer: {d.FullBuffer}, {d.BufferTileHeight} tile row(s) per page");
+
+int pages = 0;
+d.Draw(() =>                                         // runs the FirstPage / NextPage loop for you
+{
+    pages++;
+    d.DrawStr(0, 12, "page mode");
+    d.DrawFrame(0, 20, 128, 44);
+    d.DrawDisc(64, 42, 16);
+});
+Console.WriteLine($"drawn in {pages} pages");
+
+for (int n = 0; n <= 100; n += 25)
+{
+    d.Draw(g =>                                      // the display is passed in as well
+    {
+        g.DrawStr(0, 12, $"progress {n} %");
+        g.DrawFrame(0, 24, 128, 12);
+        g.DrawBox(2, 26, n * 124 / 100, 8);
+    });
+    Thread.Sleep(150);
+}
+
+d.FirstPage();                                       // the same loop written out
+do
+{
+    d.DrawStr(0, 40, $"tile row {d.BufferCurrTileRow}");
+} while (d.NextPage());
+`);
+
+T("U8g2 displays", "Arduino-style Print and Println", "oled_print.cs",
+  "SetCursor / Print / Println like the Arduino U8g2 library, with CursorX / CursorY and Home.",
+  String.raw`
+// oled_print.cs - print values at a cursor: U8g2 positions are pixels (baseline), U8x8 tiles.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("6x10_tf");
+for (int i = 0; i < 10; i++)
+{
+    d.ClearBuffer();
+    d.Home();                                        // cursor to (0, 0)
+    d.SetCursor(0, 10);
+    d.Print("Count: ");
+    d.Println(i);                                    // numbers, bools, strings ...
+    d.Println($"uptime {Environment.TickCount / 1000.0:F1} s");
+    d.Print("temp ");
+    d.Print(21.5 + i * 0.1);
+    d.Println(" C");
+    d.Print($"cursor at {d.CursorX},{d.CursorY}");
+    d.SendBuffer();
+    Thread.Sleep(100);
+}
+`);
+
+T("U8g2 displays", "Buttons, text bars and centred lines", "oled_ui_text.cs",
+  "DrawButtonUTF8 / DrawButtonFrame styles, DrawUTF8Line (bars, inverted), DrawUTF8Lines (centred lines).",
+  String.raw`
+// oled_ui_text.cs - u8g2's text helpers for small user interfaces.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("6x10_tf");
+d.ClearBuffer();
+// DrawButtonUTF8(x, y, flags, width, padding h, padding v, text): x, y = baseline of the text
+d.DrawButtonUTF8(4, 12, U8g2.BtnBW1, 0, 2, 2, "OK");
+d.DrawButtonUTF8(34, 12, U8g2.BtnInv | U8g2.BtnBW1, 0, 2, 2, "Inv");
+d.DrawButtonUTF8(70, 12, U8g2.BtnShadow1, 0, 2, 2, "Shadow");
+d.DrawButtonUTF8(64, 30, U8g2.BtnHCenter | U8g2.BtnBW2, 100, 1, 1, "centred, 100 px");
+// DrawUTF8Line(x, y, width, text, border, inverted): a full-width bar
+d.DrawUTF8Line(0, 34, 128, "Status: ready", 1, 1);
+// DrawUTF8Lines(x, y, width, line height, text): one centred line per \n, returns the height used
+int h = d.DrawUTF8Lines(0, 46, 128, 10, "centred line one\nand line two");
+Console.WriteLine($"text block height {h} px");
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Menus with buttons (selection list, message, number)", "oled_menu.cs",
+  "UserInterfaceSelectionList / Message / InputValue on 3 buttons; scripted keys so it also runs in the simulator.",
+  String.raw`
+// oled_menu.cs - u8g2's built-in menus. Real buttons: Begin(select, next, prev[, up, down, home]),
+// pins to GND (u8g2 enables the pull-ups). Here SetMenuInput feeds key presses from code so the
+// menus also run without buttons - remove it and press the buttons on your board.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin(2, 3, 4);                                    // GPIO 2 = select, 3 = next, 4 = prev
+d.SetFont("6x10_tf");
+
+int[] keys = { U8g2.EventSelect,                    // menu: "Brightness" (the first entry)
+               U8g2.EventNext, U8g2.EventNext, U8g2.EventSelect,   // value 5 -> 7
+               U8g2.EventNext, U8g2.EventNext, U8g2.EventSelect,   // menu: "Reset"
+               U8g2.EventNext, U8g2.EventSelect,     // message: "No"
+               U8g2.EventHome };                     // menu: leave
+int k = 0;
+d.SetMenuInput(() => { Thread.Sleep(50); return k < keys.Length ? keys[k++] : U8g2.EventHome; });
+
+int brightness = 5;
+while (true)
+{
+    int choice = d.UserInterfaceSelectionList("Settings", 1, "Brightness\nAbout\nReset");   // 1-based, 0 = home
+    if (choice == 0) break;
+    if (choice == 1)
+        brightness = d.UserInterfaceInputValue("Brightness", "level ", brightness, 0, 9, 1, "");
+    else if (choice == 2)
+        d.UserInterfaceMessage("MicroCS", "C# for MCUs", "with u8g2", " OK ");
+    else if (d.UserInterfaceMessage("Reset?", "all settings", "", " Yes \n No ") == 1)
+        brightness = 5;
+    d.SetContrast(brightness * 28);
+    Console.WriteLine($"choice {choice}, brightness {brightness}");
+}
+d.SetMenuInput(null);                                // back to the button pins
+d.ClearBuffer();
+d.DrawStr(0, 12, $"brightness = {brightness}");
+d.SendBuffer();
+`);
+
+T("U8g2 displays", "Your own menu with a rotary encoder or buttons", "oled_custom_menu.cs",
+  "Draw your own list and read keys with GetMenuEvent or SetMenuInput (encoder, touch, remote).",
+  String.raw`
+// oled_custom_menu.cs - a scrolling menu drawn by you. Keys come from GetMenuEvent(): the
+// Begin() button pins, or a SetMenuInput callback (here: an encoder simulated by a counter).
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("6x10_tf");
+string[] items = { "Start", "Speed", "Direction", "Light", "Sound", "Info" };
+
+int ticks = 0;                                       // replace with your encoder / button code
+d.SetMenuInput(() => ++ticks % 4 == 0 ? (ticks > 30 ? U8g2.EventSelect : U8g2.EventNext) : U8g2.EventNone);
+
+int sel = 0, top = 0;
+while (true)
+{
+    int ev = d.GetMenuEvent();
+    if (ev == U8g2.EventNext || ev == U8g2.EventDown) sel = (sel + 1) % items.Length;
+    if (ev == U8g2.EventPrev || ev == U8g2.EventUp) sel = (sel + items.Length - 1) % items.Length;
+    if (ev == U8g2.EventSelect) break;
+    if (sel < top) top = sel;
+    if (sel > top + 3) top = sel - 3;
+
+    d.ClearBuffer();
+    d.DrawStr(0, 9, "Menu");
+    d.DrawHLine(0, 11, 128);
+    for (int i = 0; i < 4 && top + i < items.Length; i++)
+    {
+        int y = 24 + i * 12;
+        if (top + i == sel) { d.DrawBox(0, y - 9, 120, 11); d.SetDrawColor(0); }
+        d.DrawStr(4, y, items[top + i]);
+        d.SetDrawColor(1);
+    }
+    d.DrawVLine(124, 14 + sel * 48 / items.Length, 8);  // scroll bar
+    d.SendBuffer();
+    Thread.Sleep(20);
+}
+Console.WriteLine("selected: " + items[sel]);
+`);
+
+T("U8g2 displays", "Scrolling log terminal (u8log)", "oled_log.cs",
+  "LogBegin / Log / LogLine: a terminal that scrolls by itself, or DrawLog inside your own screen.",
+  String.raw`
+// oled_log.cs - u8log keeps the last lines of text and draws them like a terminal.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("5x7_tr");
+
+// 1. automatic: the whole display shows the log and redraws on every newline
+d.LogBegin(25, 8);                                   // 25 columns x 8 lines = 200 bytes
+for (int i = 1; i <= 10; i++)
+{
+    d.Log($"#{i,2} A0 = {ADC.ReadMillivolts(0),4} mV\n");
+    Thread.Sleep(80);
+}
+d.LogLine("done.");
+
+// 2. manual: the log is one part of your screen
+d.LogBegin(20, 5, false);                            // false = collect only, draw with DrawLog
+d.LogLineHeightOffset = 1;                           // 1 px more between lines
+for (int i = 1; i <= 8; i++)
+{
+    d.LogLine($"event {i}");
+    d.ClearBuffer();
+    d.DrawStr(0, 7, "Events");
+    d.DrawHLine(0, 9, 128);
+    d.DrawLog(0, 18);                                // x, y of the first baseline
+    d.DrawFrame(104, 12, 22, 50);
+    d.DrawBox(106, 60 - i * 6, 18, i * 6);
+    d.SendBuffer();
+    Thread.Sleep(80);
+}
+`);
+
+T("U8g2 displays", "Sensor dashboard: big value, bar and graph", "oled_dashboard.cs",
+  "A live screen with a large number, a bar gauge and a scrolling graph of an ADC input.",
+  String.raw`
+// oled_dashboard.cs - big numbers (logisoso24_tn), a bar and a scrolling plot.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+int[] hist = new int[64];
+for (int n = 0; n < 60; n++)
+{
+    int mv = ADC.ReadMillivolts(0);
+    if (mv <= 0) mv = 1650 + (int)(1200 * Math.Sin(n / 5.0));    // no signal: demo values
+    Array.Copy(hist, 1, hist, 0, hist.Length - 1);
+    hist[hist.Length - 1] = mv;
+
+    d.ClearBuffer();
+    d.SetFont("logisoso24_tn");
+    d.DrawStr(0, 26, $"{mv / 1000.0:F2}");
+    d.SetFont("5x7_tr");
+    d.DrawStr(0, 36, "volts on A0");
+    d.DrawFrame(0, 42, 60, 10);                       // bar gauge 0..3.3 V
+    d.DrawBox(2, 44, Math.Min(56, mv * 56 / 3300), 6);
+    d.DrawFrame(63, 0, 65, 64);                       // graph
+    for (int x = 1; x < hist.Length; x++)
+        d.DrawLine(63 + x, 62 - hist[x - 1] * 60 / 3300, 64 + x, 62 - hist[x] * 60 / 3300);
+    d.SendBuffer();
+    Thread.Sleep(40);
+}
+`);
+
+T("U8g2 displays", "Analog clock face", "oled_clock.cs",
+  "A round clock with hands from Math.Sin / Math.Cos, arcs and a digital time below.",
+  String.raw`
+// oled_clock.cs - an analog clock. Uses the board's RTC when set, else counts from 10:08:30.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.Begin();
+d.SetFont("6x10_tf");
+int cx = 32, cy = 32, r = 30;
+int start = 10 * 3600 + 8 * 60 + 30;
+long t0 = Environment.TickCount;
+
+void Hand(double turn, int len)
+{
+    double a = turn * 2 * Math.PI;
+    d.DrawLine(cx, cy, cx + (int)(len * Math.Sin(a)), cy - (int)(len * Math.Cos(a)));
+}
+
+for (int frame = 0; frame < 20; frame++)
+{
+    int s = (start + (int)((Environment.TickCount - t0) / 1000) + frame * 7) % 86400;
+    d.ClearBuffer();
+    d.DrawCircle(cx, cy, r);
+    for (int h = 0; h < 12; h++)
+    {
+        double a = h * Math.PI / 6;
+        d.DrawPixel(cx + (int)((r - 3) * Math.Sin(a)), cy - (int)((r - 3) * Math.Cos(a)));
+    }
+    Hand((s % 43200) / 43200.0, 15);                  // hours
+    Hand((s % 3600) / 3600.0, 22);                    // minutes
+    Hand((s % 60) / 60.0, 27);                        // seconds
+    d.DrawDisc(cx, cy, 2);
+    d.DrawArc(cx, cy, r + 1, 0, (byte)(s % 60 * 255 / 60));
+    d.DrawStr(72, 28, $"{s / 3600:D2}:{s / 60 % 60:D2}");
+    d.DrawStr(72, 42, $":{s % 60:D2}");
+    d.SendBuffer();
+    Thread.Sleep(50);
+}
+`);
+
+T("U8g2 displays", "Bouncing ball animation (frames per second)", "oled_animation.cs",
+  "A smooth animation with ClearBuffer / SendBuffer and a frame-rate counter; UpdateDisplayArea for partial updates.",
+  String.raw`
+// oled_animation.cs - redraw the whole buffer every frame; the display only gets SendBuffer.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x64_noname");
+d.SetBusClock(400_000);                               // fast I2C: more frames per second
+d.Begin();
+d.SetFont("5x7_tr");
+int bx = 20, by = 20, dx = 3, dy = 2, frames = 0;
+var sw = Stopwatch.StartNew();
+for (int i = 0; i < 60; i++)
+{
+    d.ClearBuffer();
+    d.DrawFrame(0, 0, 128, 64);
+    d.DrawDisc(bx, by, 5);
+    d.DrawStr(4, 10, $"{frames * 1000 / Math.Max(1, sw.ElapsedMilliseconds)} fps");
+    d.SendBuffer();
+    frames++;
+    bx += dx; by += dy;
+    if (bx < 7 || bx > 120) dx = -dx;
+    if (by < 7 || by > 56) dy = -dy;
+}
+Console.WriteLine($"{frames} frames in {sw.ElapsedMilliseconds} ms");
+
+// partial update: only the tiles (8x8 blocks) that changed - here the top-left 4x2 tiles
+d.SetDrawColor(0); d.DrawBox(1, 1, 31, 15); d.SetDrawColor(1);
+d.DrawStr(4, 10, "done");
+d.UpdateDisplayArea(0, 0, 4, 2);                      // tile x, tile y, tiles wide, tiles high
+`);
+
+T("U8g2 displays", "Screenshot: read and save the frame buffer", "oled_buffer.cs",
+  "GetPixel, GetBuffer / SetBuffer, Dump as text, WriteBufferPBM / XBM to the console.",
+  String.raw`
+// oled_buffer.cs - the frame buffer is yours: read pixels, save and restore screens, screenshots.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var d = new U8g2("ssd1306_i2c_128x32_univision");     // 128x32: smaller dumps
+d.Begin();
+d.SetFont("6x10_tf");
+d.ClearBuffer();
+d.DrawStr(2, 12, "screenshot");
+d.DrawDisc(110, 16, 10);
+Console.WriteLine($"pixel (110,16) = {d.GetPixel(110, 16)}, (0,31) = {d.GetPixel(0, 31)}");
+
+byte[] saved = d.GetBuffer();                         // a copy (BufferSize bytes)
+File.WriteAllBytes("/screen.bin", saved);
+Console.WriteLine($"saved {saved.Length} bytes, tiles {d.BufferTileWidth}x{d.BufferTileHeight}");
+
+d.ClearBuffer();
+d.DrawStr(2, 12, "other screen");
+d.SendBuffer();
+Thread.Sleep(200);
+
+d.SetBuffer(File.ReadAllBytes("/screen.bin"));        // back to the saved picture
+d.SendBuffer();
+d.Dump();                                             // text art of the buffer on the console
+d.WriteBufferXBM();                                   // C array, paste into DrawXBM
+d.SetAutoPageClear(true);                             // page mode clears each page before drawing (default)
+`);
+
+T("U8g2 displays", "U8x8: text display with no frame buffer", "u8x8_text.cs",
+  "U8x8 draws 8x8 tiles directly: normal, 1x2 and 2x2 text, inverse, ClearLine, custom tiles - a few bytes of RAM.",
+  String.raw`
+// u8x8_text.cs - text-only output: 16 columns x 8 rows on a 128x64 panel, no frame buffer.
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var t = new U8x8("ssd1306_i2c_128x64_noname");
+t.Begin();
+t.SetFont("chroma48medium8_r");
+Console.WriteLine($"{t.Cols}x{t.Rows} tiles, font {t.FontWidth}x{t.FontHeight}; U8x8 fonts: {string.Join(", ", U8x8.Fonts)}");
+t.DrawString(0, 0, "U8x8 terminal");
+t.Draw2x2String(0, 1, "BIG");                         // 2 x 2 tiles per character
+t.Draw1x2String(8, 1, "tall");                        // 1 x 2 tiles
+t.SetInverseFont(true);
+t.DrawString(0, 4, " inverted ");
+t.SetInverseFont(false);
+t.DrawGlyph(12, 4, '*');
+t.DrawUTF8(0, 5, "25°C");
+Console.WriteLine($"UTF-8 length of '25°C': {t.GetUTF8Len("25°C")} tiles");
+
+byte[] tiles = { 0x00, 0x7E, 0x42, 0x5A, 0x5A, 0x42, 0x7E, 0x00,      // a custom 8x8 tile: one byte per
+                 0x18, 0x3C, 0x7E, 0xFF, 0xFF, 0x7E, 0x3C, 0x18 };    // column, LSB = top pixel
+t.DrawTile(14, 0, 2, tiles);
+
+for (int i = 0; i <= 20; i++)
+{
+    t.ClearLine(7);
+    t.SetCursor(0, 7);                                // tiles, not pixels
+    t.Print($"count {i,3}");
+    Thread.Sleep(50);
+}
+t.FillDisplay(); Thread.Sleep(200);                   // every pixel on
+t.ClearDisplay();
+t.DrawString(0, 3, "done");
+`);
+
+T("U8g2 displays", "U8x8 status screen for a sensor", "u8x8_status.cs",
+  "A clean label / value layout with U8x8, updating only the values that change.",
+  String.raw`
+// u8x8_status.cs - fixed labels drawn once, values redrawn in place (no flicker, no buffer).
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var t = new U8x8("ssd1306_i2c_128x64_noname");
+t.Begin();
+t.SetFont("chroma48medium8_r");
+t.SetInverseFont(true);
+t.DrawString(0, 0, "  MicroCS node  ");
+t.SetInverseFont(false);
+t.DrawString(0, 2, "A0 mV:");
+t.DrawString(0, 3, "uptime:");
+t.DrawString(0, 4, "loops:");
+t.SetFont("8x13_1x2_r");                              // a 1x2 tile font for the big line
+t.DrawString(0, 6, "status: OK");
+t.SetFont("chroma48medium8_r");
+for (int n = 1; n <= 30; n++)
+{
+    t.DrawString(8, 2, $"{ADC.ReadMillivolts(0),6}");
+    t.DrawString(8, 3, $"{Environment.TickCount / 1000,5} s");
+    t.DrawString(8, 4, $"{n,6}");
+    Thread.Sleep(50);
+}
+`);
+
+T("U8g2 displays", "Two displays at once", "oled_two_displays.cs",
+  "Two OLEDs on one I2C bus (0x3C and 0x3D), or one on I2C and one on SPI; free memory with Dispose.",
+  String.raw`
+// oled_two_displays.cs - every display is its own object. Two SSD1306 on one bus need different
+// addresses (the 0x3D board has its address resistor moved).
+if (!Drivers.Has("u8g2")) { Console.WriteLine("This firmware has no U8g2 - see docs/U8G2.md"); return; }
+
+var left = U8g2.I2C("ssd1306_i2c_128x64_noname", 0, 0x3C);
+var right = U8g2.I2C("ssd1306_i2c_128x64_noname", 0, 0x3D);
+// or on SPI: var right = U8g2.SPI("ssd1306_128x64_noname", 0, 5, 4, 16);
+left.Begin();
+left.SetFont("helvB10_tr");
+left.ClearBuffer();
+left.DrawStr(0, 20, "left");
+left.SendBuffer();
+try
+{
+    right.Begin();
+    right.SetFont("helvB10_tr");
+    right.ClearBuffer();
+    right.DrawStr(0, 20, "right");
+    right.SendBuffer();
+}
+catch (IOException e)
+{
+    Console.WriteLine("second display: " + e.Message);   // not connected
+}
+right.Dispose();                                     // frees its frame buffer (the picture stays)
+Console.WriteLine($"left: {left.Display} at 0x{left.I2CAddress:X2}");
 `);
 
 /* ---------------------------------------------------------------- Motors and actuators */
@@ -2663,6 +3381,10 @@ Console.WriteLine($"GPIO.Toggle: {N / Math.Max(a, 1):F0} kHz toggles   Pin.Toggl
 `);
 
 const SNIPPETS = [
+  { label: "u8g2", detail: "U8g2 OLED on I2C + first frame", text: "var oled = new U8g2(\"ssd1306_i2c_128x64_noname\");\noled.Begin();\noled.SetFont(\"6x10_tf\");\noled.ClearBuffer();\noled.DrawStr(0, 12, \"$0\");\noled.SendBuffer();" },
+  { label: "u8frame", detail: "U8g2 frame: ClearBuffer ... SendBuffer", text: "oled.ClearBuffer();\n$0\noled.SendBuffer();" },
+  { label: "u8page", detail: "U8g2 page mode: Draw(g => ...)", text: "oled.Draw(g =>\n{\n    $0\n});" },
+  { label: "u8x8", detail: "U8x8 text display (no frame buffer)", text: "var lcd = new U8x8(\"ssd1306_i2c_128x64_noname\");\nlcd.Begin();\nlcd.SetFont(\"chroma48medium8_r\");\nlcd.DrawString(0, 0, \"$0\");" },
   { label: "gpiocfg", detail: "Pin with GpioConfig (pull, initial level)", text: "var pin = new Pin($0, new GpioConfig(GPIO.Output) { Initial = 0 });" },
   { label: "i2ccfg", detail: "I2C.Open with I2cConfig (speed, SDA, SCL)", text: "I2C.Open(0, new I2cConfig(400_000, $0, ) { PullUps = true });" },
   { label: "spicfg", detail: "SPI.Open with SpiConfig (speed, mode, CS)", text: "SPI.Open(0, new SpiConfig(8_000_000, 0) { Cs = $0 });" },

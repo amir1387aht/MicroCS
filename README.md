@@ -277,12 +277,12 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 140+ templates (boot scripts, peripheral settings, DMA,
+hover, find/replace, format) that saves to and runs on the device, 160+ templates (boot scripts, peripheral settings, DMA, U8g2 displays,
 scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
 <p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
-<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 140+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
+<p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 160+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
 **Ready-to-flash firmware** in every [release](https://github.com/amir1387aht/MicroCS/releases/latest):

@@ -167,9 +167,9 @@ Dark (Light via the theme button).
   signature or type; `using System.C` completes namespaces. Types are inferred from
   `var x = new T()`, declarations, method return types (`var found = I2C.Scan(0)` →
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
-  methods and local functions of the open file are completed too. 57 snippets such as `cw`,
-  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`.
-* **Templates** (`Alt+T`) — 149 ready-to-run templates and examples in an *Add New Item* dialog
+  methods and local functions of the open file are completed too. 61 snippets such as `cw`,
+  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`.
+* **Templates** (`Alt+T`) — 169 ready-to-run templates and examples in an *Add New Item* dialog
   with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
   `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
   (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), every
@@ -177,7 +177,9 @@ Dark (Light via the theme button).
   files — plus **peripheral settings** (`GpioConfig`, `I2cConfig`, `SpiConfig`,
   `UartConfig`, `PwmConfig`, `AdcConfig`, board options), **DMA** (`DmaBuffer`, `SPI.WriteAsync`,
   double-buffered displays, async I2C / UART / QSPI reads, `Dma.Copy`), **sensors** (MPU6050, DS3231, ADS1115, INA219, AHT20/SHT31, DHT22, BH1750),
-  **displays** (SSD1306, MAX7219, LCD1602, TM1637), **motors** (H-bridge, steppers, servo),
+  **displays** (SSD1306, MAX7219, LCD1602, TM1637), **U8g2 displays** (20 scripts covering the
+  whole `U8g2` / `U8x8` API: buses, shapes, fonts, bitmaps, page mode, menus, log, U8x8 —
+  firmware built with [u8g2](U8G2.md)), **motors** (H-bridge, steppers, servo),
   **input devices** (rotary encoder, keypad, button gestures), **control** (PID, filters,
   Kalman), **protocols** (CRC, Modbus RTU, NMEA, Base64), games, benchmarks and C# language
   features. *Add* opens one as a new file, *Insert at cursor* pastes it into the current one.

@@ -831,7 +831,7 @@ Alignment: int | DmaBuffer alignment
 MaxTransfers: int | Transfers in flight at most
 
 @Drivers | Device drivers compiled into the firmware (modules/drivers, mcs_driver.h)
-Has(string name): bool | A driver ("ws2812", "servo") or a class it adds ("LedStrip", "Servo") is available
+Has(string name): bool | A driver ("ws2812", "servo", "u8g2") or a class it adds ("LedStrip", "Servo", "U8g2") is available
 List: string[] | Names of the registered drivers
 
 @LedStrip | WS2812 / WS2812B / SK6812 ("NeoPixel") addressable RGB LEDs on any pin ("ws2812" driver)
@@ -875,6 +875,253 @@ new(int channel, int minUs, int maxUs, int maxAngle) | Pulse range and travel in
 .MaxAngle: int | Travel in degrees
 .Channel: int | PWM channel
 .Dispose(): void | Stops the signal and releases the object
+
+@U8g2 | Monochrome OLED / LCD / e-paper graphics with u8g2 (firmware built with u8g2, docs/U8G2.md)
+new(string display) | Display on hardware I2C bus 0, address 0x3C (u8g2 name, e.g. "ssd1306_i2c_128x64_noname")
+I2C(string display, int bus = 0, int address = 0x3C, int reset = -1): U8g2 | Hardware I2C; 7-bit address (0x3D), optional reset pin
+SoftI2C(string display, int scl, int sda, int reset = -1): U8g2 | Bit-banged I2C on any two pins
+SPI(string display, int bus, int cs, int dc, int reset = -1): U8g2 | Hardware SPI (mode and clock from u8g2)
+SoftSPI(string display, int clock, int data, int cs, int dc, int reset = -1): U8g2 | Bit-banged 4-wire SPI
+Soft3WireSPI(string display, int clock, int data, int cs, int reset = -1): U8g2 | 3-wire SPI (9-bit, no DC pin)
+Parallel8080(string display, int[] data, int wr, int cs, int dc, int reset = -1): U8g2 | 8080 parallel bus (8 data pins)
+Parallel6800(string display, int[] data, int e, int cs, int dc, int reset = -1): U8g2 | 6800 parallel bus (8 data pins)
+KS0108(string display, int[] data, int e, int dc, int cs0, int cs1, int cs2, int reset = -1): U8g2 | KS0108 128x64 LCDs
+Displays: string[] | Displays compiled into the firmware
+Fonts: string[] | U8g2 fonts in flash (others load from /fonts)
+const EventNone: int | Menu key: nothing pressed
+const EventSelect: int | Menu key: select
+const EventNext: int | Menu key: next
+const EventPrev: int | Menu key: previous
+const EventHome: int | Menu key: home / abort
+const EventUp: int | Menu key: up
+const EventDown: int | Menu key: down
+const R0: int | Rotation 0°
+const R1: int | Rotation 90°
+const R2: int | Rotation 180°
+const R3: int | Rotation 270°
+const Mirror: int | Mirrored
+const MirrorVertical: int | Mirrored vertically
+const ColorClear: int | Draw colour 0
+const ColorSet: int | Draw colour 1
+const ColorXor: int | Draw colour 2 (XOR)
+const DrawUpperRight: int | Circle / ellipse quadrant
+const DrawUpperLeft: int | Circle / ellipse quadrant
+const DrawLowerLeft: int | Circle / ellipse quadrant
+const DrawLowerRight: int | Circle / ellipse quadrant
+const DrawAll: int | All quadrants
+const BtnBW0: int | Button: no border
+const BtnBW1: int | Button: 1 px border
+const BtnBW2: int | Button: 2 px border
+const BtnBW3: int | Button: 3 px border
+const BtnShadow0: int | Button shadow
+const BtnShadow1: int | Button shadow 1 px
+const BtnShadow2: int | Button shadow 2 px
+const BtnInv: int | Inverted button
+const BtnHCenter: int | Centre on x
+const BtnXFrame: int | Double frame
+.Begin(): void | Init, clear and wake the display
+.Begin(int select, int next, int prev): void | ... and menu buttons to GND (pull-ups by u8g2)
+.Begin(int select, int next, int prev, int up, int down, int home): void | Six menu buttons
+.InitDisplay(): void | u8g2 init sequence only
+.ClearDisplay(): void | Clears the display
+.Clear(): void | Clears display and buffer, cursor home
+.RefreshDisplay(): void | Refresh (e-paper)
+.SetPowerSave(bool on): void | true = display off (picture kept)
+.Sleep(): void | Display off
+.Wake(): void | Display on
+.SetContrast(int value): void | 0..255
+.SetFlipMode(bool on): void | Rotates 180° in the controller
+.BusClock: int | Bus clock in Hz used by Begin()
+.SetBusClock(int hz): void | Bus clock for the next Begin()
+.I2CAddress: int | 7-bit I2C address
+.SetI2CAddress(int address): void | I2C address for the next Begin()
+.Display: string | u8g2 setup name
+.Bus: string | I2C, SPI, ...
+.Cols: int | Width in 8x8 tiles
+.Rows: int | Height in 8x8 tiles
+.SetFont(string name): void | Built-in font, else /fonts/u8g2_font_<name>.bin, or a path
+.SetFont(byte[] font): void | Font data from bytes
+.Font: string | Current font name
+.SetCursor(int x, int y): void | Cursor for Print (U8g2: pixels, baseline; U8x8: tiles)
+.Home(): void | Cursor to 0, 0
+.CursorX: int | Cursor x
+.CursorY: int | Cursor y
+.Print(object value): void | Prints at the cursor (\n = new line)
+.Println(): void | New line
+.Println(object value): void | Prints and starts a new line
+.UserInterfaceSelectionList(string title, int start, string items): int | Menu ("a\nb\nc"); 1-based choice, 0 = home
+.UserInterfaceMessage(string title1, string title2, string title3, string buttons): int | Message box (" Ok \n Cancel "); 1-based button
+.UserInterfaceInputValue(string title, string pre, int value, int lo, int hi, int digits, string post): int | Number input; -1 = aborted
+.GetMenuEvent(): int | Polls the menu keys once (EventNone ...)
+.SetMenuInput(Func<int> keys): void | Menu keys from code (encoder, remote); null = the Begin() pins
+.LogBegin(int cols, int rows, bool autoRedraw = true): void | Text terminal (u8log)
+.Log(string text): void | Appends text; scrolls
+.LogLine(): void | New line in the log
+.LogLine(string text): void | Text and a new line
+.DrawLog(int x, int y): void | Draws the log (U8g2: first baseline; U8x8: tile)
+.LogRedrawOnNewline: bool | Redraw the screen on each newline
+.LogLineHeightOffset: int | Extra pixels between log lines
+.Dispose(): void | Frees the buffers; the picture stays
+.ClearBuffer(): void | Clears the frame buffer
+.SendBuffer(): void | Sends the frame buffer to the display
+.UpdateDisplay(): void | Sends the buffer (no clear)
+.UpdateDisplayArea(int tx, int ty, int tw, int th): void | Sends only these tiles (8x8 blocks)
+.SetAutoPageClear(bool on): void | Page mode: clear each page before drawing
+.FirstPage(): void | Page loop start (names ending _1 / _2)
+.NextPage(): bool | Next page; false when done
+.Draw(Action draw): void | Runs the page loop (or clear + send) around your drawing code
+.Draw(Action<U8g2> draw): void | Same, the display is passed in
+.BufferSize: int | Frame buffer bytes
+.FullBuffer: bool | true for _f displays
+.BufferTileWidth: int | Buffer width in tiles
+.BufferTileHeight: int | Buffer height in tiles (per page)
+.BufferCurrTileRow: int | Tile row of the current page
+.GetBuffer(): byte[] | Copy of the frame buffer
+.SetBuffer(byte[] data): void | Restores a saved buffer
+.GetPixel(int x, int y): int | 0 or 1 in the buffer
+.Dump(): void | Buffer as text art on the console
+.WriteBufferPBM(): void | Buffer as PBM image on the console
+.WriteBufferXBM(): void | Buffer as XBM C array on the console
+.DrawPixel(int x, int y): void | One pixel
+.DrawHLine(int x, int y, int w): void | Horizontal line
+.DrawVLine(int x, int y, int h): void | Vertical line
+.DrawHVLine(int x, int y, int len, int dir): void | dir 0 right, 1 down, 2 left, 3 up
+.DrawLine(int x0, int y0, int x1, int y1): void | Line
+.DrawBox(int x, int y, int w, int h): void | Filled rectangle
+.DrawFrame(int x, int y, int w, int h): void | Rectangle outline
+.DrawRBox(int x, int y, int w, int h, int r): void | Filled rounded rectangle
+.DrawRFrame(int x, int y, int w, int h, int r): void | Rounded rectangle outline
+.DrawCircle(int x, int y, int r): void | Circle
+.DrawCircle(int x, int y, int r, int quadrants): void | Parts of a circle (U8g2.DrawUpperRight | ...)
+.DrawDisc(int x, int y, int r): void | Filled circle
+.DrawDisc(int x, int y, int r, int quadrants): void | Parts of a filled circle
+.DrawEllipse(int x, int y, int rx, int ry): void | Ellipse
+.DrawEllipse(int x, int y, int rx, int ry, int quadrants): void | Parts of an ellipse
+.DrawFilledEllipse(int x, int y, int rx, int ry): void | Filled ellipse
+.DrawFilledEllipse(int x, int y, int rx, int ry, int quadrants): void | Parts of a filled ellipse
+.DrawArc(int x, int y, int r, int start, int end): void | Arc; angles 0..255 = full turn
+.DrawTriangle(int x0, int y0, int x1, int y1, int x2, int y2): void | Filled triangle
+.DrawPolygon(int[] xy): void | Filled polygon from x, y pairs
+.DrawXBM(int x, int y, int w, int h, byte[] bitmap): void | XBM bitmap (LSB = left)
+.DrawXBMP(int x, int y, int w, int h, byte[] bitmap): void | XBM bitmap (same as DrawXBM)
+.DrawBitmap(int x, int y, int bytesPerRow, int h, byte[] bitmap): void | Bitmap, MSB = left
+.SetBitmapMode(int transparent): void | 1 = only set bits are drawn
+.DrawStr(int x, int y, string text): int | Text at the baseline; returns the width
+.DrawUTF8(int x, int y, string text): int | UTF-8 text; returns the width
+.DrawGlyph(int x, int y, int code): int | One glyph (icon fonts: codes)
+.DrawStrX2(int x, int y, string text): int | Double-size text
+.DrawUTF8X2(int x, int y, string text): int | Double-size UTF-8 text
+.DrawGlyphX2(int x, int y, int code): int | Double-size glyph
+.DrawUTF8Line(int x, int y, int w, string text, int border, int inverted): void | Text bar of width w
+.DrawUTF8Lines(int x, int y, int w, int lineHeight, string text): int | Centred lines (\n); returns the height
+.DrawButtonUTF8(int x, int y, int flags, int width, int padH, int padV, string text): void | Button (U8g2.BtnBW1 | BtnInv ...)
+.DrawButtonFrame(int x, int y, int flags, int width, int padH, int padV): void | Button frame around existing text
+.GetStrWidth(string text): int | Width in pixels
+.GetUTF8Width(string text): int | Width of UTF-8 text
+.GetXOffsetUTF8(string text): int | Left offset of the first glyph
+.GetXOffsetGlyph(int code): int | Left offset of a glyph
+.GetGlyphWidth(int code): int | Advance width of a glyph
+.IsGlyph(int code): bool | The font has this glyph
+.Ascent: int | Font ascent
+.Descent: int | Font descent (negative)
+.MaxCharHeight: int | Tallest glyph
+.MaxCharWidth: int | Widest glyph
+.SetFontMode(int transparent): void | 1 = transparent text background
+.SetFontDirection(int dir): void | 0 normal, 1 down, 2 upside down, 3 up
+.SetFontPosBaseline(): void | y = baseline (default)
+.SetFontPosBottom(): void | y = bottom of the text
+.SetFontPosTop(): void | y = top of the text
+.SetFontPosCenter(): void | y = middle of the text
+.SetFontRefHeightAll(): void | Ascent / descent over all glyphs
+.SetFontRefHeightExtendedText(): void | ... over text glyphs incl. extended
+.SetFontRefHeightText(): void | ... over text glyphs
+.SetDrawColor(int color): void | 0 clear, 1 set, 2 XOR
+.DrawColor: int | Current draw colour
+.SetClipWindow(int x0, int y0, int x1, int y1): void | Draw only inside this window
+.SetMaxClipWindow(): void | Whole display again
+.IsIntersection(int x0, int y0, int x1, int y1): bool | The box is inside the clip window
+.SetDisplayRotation(int rotation): void | U8g2.R0..R3, Mirror, MirrorVertical
+.Width: int | Width in pixels (after rotation)
+.Height: int | Height in pixels
+
+@U8x8 | Text-only u8g2 output: 8x8 tiles straight to the display, no frame buffer (docs/U8G2.md)
+new(string display) | Display on hardware I2C bus 0, address 0x3C (u8g2 name, e.g. "ssd1306_i2c_128x64_noname")
+I2C(string display, int bus = 0, int address = 0x3C, int reset = -1): U8x8 | Hardware I2C; 7-bit address (0x3D), optional reset pin
+SoftI2C(string display, int scl, int sda, int reset = -1): U8x8 | Bit-banged I2C on any two pins
+SPI(string display, int bus, int cs, int dc, int reset = -1): U8x8 | Hardware SPI (mode and clock from u8g2)
+SoftSPI(string display, int clock, int data, int cs, int dc, int reset = -1): U8x8 | Bit-banged 4-wire SPI
+Soft3WireSPI(string display, int clock, int data, int cs, int reset = -1): U8x8 | 3-wire SPI (9-bit, no DC pin)
+Parallel8080(string display, int[] data, int wr, int cs, int dc, int reset = -1): U8x8 | 8080 parallel bus (8 data pins)
+Parallel6800(string display, int[] data, int e, int cs, int dc, int reset = -1): U8x8 | 6800 parallel bus (8 data pins)
+KS0108(string display, int[] data, int e, int dc, int cs0, int cs1, int cs2, int reset = -1): U8x8 | KS0108 128x64 LCDs
+Displays: string[] | Displays compiled into the firmware
+Fonts: string[] | U8x8 fonts in flash (others load from /fonts)
+const EventNone: int | Menu key: nothing pressed
+const EventSelect: int | Menu key: select
+const EventNext: int | Menu key: next
+const EventPrev: int | Menu key: previous
+const EventHome: int | Menu key: home / abort
+const EventUp: int | Menu key: up
+const EventDown: int | Menu key: down
+.Begin(): void | Init, clear and wake the display
+.Begin(int select, int next, int prev): void | ... and menu buttons to GND (pull-ups by u8g2)
+.Begin(int select, int next, int prev, int up, int down, int home): void | Six menu buttons
+.InitDisplay(): void | u8g2 init sequence only
+.ClearDisplay(): void | Clears the display
+.Clear(): void | Clears display and buffer, cursor home
+.RefreshDisplay(): void | Refresh (e-paper)
+.SetPowerSave(bool on): void | true = display off (picture kept)
+.Sleep(): void | Display off
+.Wake(): void | Display on
+.SetContrast(int value): void | 0..255
+.SetFlipMode(bool on): void | Rotates 180° in the controller
+.BusClock: int | Bus clock in Hz used by Begin()
+.SetBusClock(int hz): void | Bus clock for the next Begin()
+.I2CAddress: int | 7-bit I2C address
+.SetI2CAddress(int address): void | I2C address for the next Begin()
+.Display: string | u8g2 setup name
+.Bus: string | I2C, SPI, ...
+.Cols: int | Width in 8x8 tiles
+.Rows: int | Height in 8x8 tiles
+.SetFont(string name): void | Built-in font, else /fonts/u8g2_font_<name>.bin, or a path
+.SetFont(byte[] font): void | Font data from bytes
+.Font: string | Current font name
+.SetCursor(int x, int y): void | Cursor for Print (U8g2: pixels, baseline; U8x8: tiles)
+.Home(): void | Cursor to 0, 0
+.CursorX: int | Cursor x
+.CursorY: int | Cursor y
+.Print(object value): void | Prints at the cursor (\n = new line)
+.Println(): void | New line
+.Println(object value): void | Prints and starts a new line
+.UserInterfaceSelectionList(string title, int start, string items): int | Menu ("a\nb\nc"); 1-based choice, 0 = home
+.UserInterfaceMessage(string title1, string title2, string title3, string buttons): int | Message box (" Ok \n Cancel "); 1-based button
+.UserInterfaceInputValue(string title, string pre, int value, int lo, int hi, int digits, string post): int | Number input; -1 = aborted
+.GetMenuEvent(): int | Polls the menu keys once (EventNone ...)
+.SetMenuInput(Func<int> keys): void | Menu keys from code (encoder, remote); null = the Begin() pins
+.LogBegin(int cols, int rows, bool autoRedraw = true): void | Text terminal (u8log)
+.Log(string text): void | Appends text; scrolls
+.LogLine(): void | New line in the log
+.LogLine(string text): void | Text and a new line
+.DrawLog(int x, int y): void | Draws the log (U8g2: first baseline; U8x8: tile)
+.LogRedrawOnNewline: bool | Redraw the screen on each newline
+.LogLineHeightOffset: int | Extra pixels between log lines
+.Dispose(): void | Frees the buffers; the picture stays
+.ClearLine(int row): void | Clears one tile row
+.FillDisplay(): void | Every pixel on
+.DrawString(int col, int row, string text): void | Text at a tile position
+.DrawUTF8(int col, int row, string text): void | UTF-8 text
+.DrawGlyph(int col, int row, int code): void | One character
+.Draw1x2String(int col, int row, string text): void | Double-height text
+.Draw1x2UTF8(int col, int row, string text): void | Double-height UTF-8 text
+.Draw1x2Glyph(int col, int row, int code): void | Double-height character
+.Draw2x2String(int col, int row, string text): void | Double-size text
+.Draw2x2UTF8(int col, int row, string text): void | Double-size UTF-8 text
+.Draw2x2Glyph(int col, int row, int code): void | Double-size character
+.DrawTile(int col, int row, int count, byte[] tiles): void | Raw 8x8 tiles (8 bytes each, a byte per column)
+.SetInverseFont(bool on): void | Inverted text
+.GetUTF8Len(string text): int | Characters (tiles) of UTF-8 text
+.FontWidth: int | Font width in tiles
+.FontHeight: int | Font height in tiles
 
 @Exception | Base of every exception
 new() | Without a message

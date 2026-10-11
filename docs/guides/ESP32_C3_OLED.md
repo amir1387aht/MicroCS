@@ -150,6 +150,8 @@ there is one, otherwise the file is loaded.
 * **Buttons and menus:** `oled.Begin(selectPin, nextPin, prevPin)` + `UserInterfaceSelectionList(...)`
   ([`examples/u8g2/menu.cs`](../../examples/u8g2/menu.cs)).
 * **Sensor values on the screen:** [`examples/u8g2/sensor_log.cs`](../../examples/u8g2/sensor_log.cs).
+* **Ready-made scripts:** MicroCS Studio → *Templates* → *U8g2 displays* (20 examples: shapes,
+  fonts, bitmaps, menus, dashboard, clock, U8x8 ...).
 * **Try it on the PC first:** `make fetch-u8g2 mcs-u8g2 && ./build/mcs_u8g2 --oled main.cs`.
 * The whole API: [U8G2.md](../U8G2.md).
 
