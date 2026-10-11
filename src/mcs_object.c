@@ -602,6 +602,15 @@ bool mcs_dict_remove(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key) {
     return true;
 }
 
+uint32_t mcs_dict_len(mcs_value_t v) { return IS_KIND(v, MCS_O_DICT) ? AS_DICT(v)->count : 0; }
+bool mcs_dict_at(mcs_value_t v, uint32_t i, mcs_value_t* key, mcs_value_t* val) {
+    if (!IS_KIND(v, MCS_O_DICT) || i >= AS_DICT(v)->count) return false;
+    mcs_dict_t* d = AS_DICT(v);
+    if (key) *key = d->keys[i];
+    if (val) *val = DICT_VAL(d, i);
+    return true;
+}
+
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d) {
     mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
     d->idx = NULL; d->icap = d->iused = 0;

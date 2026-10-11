@@ -20,7 +20,7 @@ my_board/
 ├── CMakeLists.txt          # plain IDF project file, nothing MicroCS-specific
 ├── sdkconfig.defaults      # 16 KB main-task stack, partitions.csv, 4 MB flash
 │                           #   (delete an old sdkconfig after adding it)
-├── partitions.csv          # 1.5 MB app + LittleFS "storage" partition for your scripts
+├── partitions.csv          # 2 MB app (Wi-Fi + TLS) + LittleFS "storage" partition for your scripts
 ├── main/
 │   ├── CMakeLists.txt      # idf_component_register(SRCS "main.c")
 │   └── main.c              # ~45 lines: flash filesystem, heap, console, mcs_runtime_run()
@@ -53,15 +53,18 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
 
 * **Partition**: `storage` in [`example/partitions.csv`](example/partitions.csv) (type `data`,
   subtype `spiffs`). It is formatted automatically on first boot. The example is laid out
-  for **4 MB** of flash (1.5 MB app, 2.4 MB files). On bigger flash set *Serial flasher
+  for **4 MB** of flash (2 MB app with Wi-Fi and TLS, ~1.9 MB files). On bigger flash set *Serial flasher
   config → Flash size* in menuconfig (or `CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` in
   `sdkconfig.defaults`) and grow `storage` to the end of the chip:
 
   | Flash | `storage` size | Space for files |
   |---|---|---|
-  | 4 MB | `0x270000` | 2.4 MB |
-  | 8 MB | `0x670000` | 6.4 MB |
-  | 16 MB | `0xE70000` | 14.4 MB |
+  | 4 MB | `0x1F0000` | 1.9 MB |
+  | 8 MB | `0x5F0000` | 5.9 MB |
+  | 16 MB | `0xDF0000` | 13.9 MB |
+
+  Building without Wi-Fi (`CONFIG_MICROCS_WIFI=n`)? A 1.5 MB app is enough: `factory`
+  `0x180000`, `storage` at `0x190000` (`0x270000` = 2.4 MB on 4 MB flash).
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
 * **TinyFS instead** (built in, nothing to fetch): menuconfig → MicroCS → *Filesystem on the

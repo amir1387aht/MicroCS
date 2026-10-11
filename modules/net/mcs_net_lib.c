@@ -639,7 +639,7 @@ NATIVE(wifi_forget) {
 NATIVE(wifi_saved) {
     ST();
     char ssid[33] = "", pass[65] = "";
-    if (!NET() || !NET()->creds || NET()->creds(NET()->ctx, MCS_WIFI_CREDS_LOAD, ssid, pass) < 0 || !ssid[0]) return mcs_null();
+    if (!NET() || !NET()->creds || NET()->creds(NET()->ctx, MCS_WIFI_CREDS_LOAD, ssid, pass) < 0 || !ssid[0]) { memset(pass, 0, sizeof pass); return mcs_string(vm, ""); }
     memset(pass, 0, sizeof pass);
     return mcs_string(vm, ssid);
 }
@@ -879,12 +879,14 @@ NATIVE(ntp_start) {     /* ([server1[, server2[, server3]]]) */
     return mcs_null();
 }
 NATIVE(ntp_synced) { ST(); return mcs_bool(!NET() || !NET()->ntp_start || NET()->ntp_synced(NET()->ctx) > 0); }
-NATIVE(ntp_sync) {      /* ([server[, timeoutMs]]) -> true once the clock is set */
+NATIVE(ntp_sync) {      /* ([server[, timeoutMs]]) or (timeoutMs) -> true once the clock is set */
     ST();
     if (argc > 2) { mcs_raise(vm, "ArgumentException", "Ntp.Sync([server[, timeoutMs]])"); return mcs_null(); }
     if (!NET() || !NET()->ntp_start) return mcs_bool(true);
-    OPT_STR(0, server);
-    OPT_INT(1, timeout, MCS_NET_TIMEOUT);
+    bool only_t = argc == 1 && mcs_is_number(argv[0]);
+    const char* server = argc > 0 && !only_t && !mcs_is_null(argv[0]) ? mcs_to_cstr(vm, argv[0]) : NULL; CHECK();
+    mcs_value_t tv = only_t ? argv[0] : argc > 1 ? argv[1] : mcs_null();
+    mcs_int_t timeout = mcs_is_null(tv) ? (mcs_int_t)MCS_NET_TIMEOUT : mcs_to_int(vm, tv); CHECK();
     const char* sv[1] = { server ? server : "pool.ntp.org" };
     CALL("Ntp.Sync", NET()->ntp_start(NET()->ctx, sv, 1));
     uint32_t t0 = mcs_ticks(vm);

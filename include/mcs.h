@@ -289,6 +289,9 @@ uint32_t mcs_len(mcs_value_t v);                      /* array/list/string */
 mcs_value_t mcs_index(mcs_value_t v, uint32_t i);     /* unchecked */
 void mcs_set_index(mcs_value_t v, uint32_t i, mcs_value_t x);
 void mcs_list_add(mcs_vm_t* vm, mcs_value_t list, mcs_value_t x);
+/* Dictionary<K,V> entries in insertion order (HashSet: val = true); false past the end */
+uint32_t mcs_dict_len(mcs_value_t dict);
+bool mcs_dict_at(mcs_value_t dict, uint32_t i, mcs_value_t* key, mcs_value_t* val);
 /* Script objects: get/set a field or property by name */
 mcs_value_t mcs_get_field(mcs_vm_t* vm, mcs_value_t obj, const char* name);
 void mcs_set_field(mcs_vm_t* vm, mcs_value_t obj, const char* name, mcs_value_t v);

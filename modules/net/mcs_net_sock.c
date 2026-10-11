@@ -876,10 +876,37 @@ static bool put_str(mcs_vm_t* vm, char** b, size_t* len, size_t* cap, const char
     return true;
 }
 #define PUTS(s) put_str(vm, &req, &rl, &rc, (s), strlen(s))
-/* user headers: "Name: value" string (lines separated by \n) or string[] / List<string> */
+static bool add_header_line(mcs_vm_t* vm, const char* s, size_t l, char** b, size_t* len, size_t* cap, bool* has_ct, bool* has_ua) {
+    if (!memchr(s, ':', l)) { mcs_raise(vm, "ArgumentException", "Http header '%.*s' has no ':' (\"Name: value\")", (int)l, s); return false; }
+    if (l >= 13 && !strncasecmp(s, "Content-Type:", 13)) *has_ct = true;
+    if (l >= 11 && !strncasecmp(s, "User-Agent:", 11)) *has_ua = true;
+    return put_str(vm, b, len, cap, s, l) && put_str(vm, b, len, cap, "\r\n", 2);
+}
+/* user headers: Dictionary<string, string>, "Name: value" string (lines separated by \n)
+ * or string[] / List<string> of such lines */
 static bool add_headers(mcs_vm_t* vm, mcs_value_t h, char** b, size_t* len, size_t* cap, bool* has_ct, bool* has_ua) {
     if (mcs_is_null(h)) return true;
     int k = mcs_obj_kind(h);
+    if (k == MCS_O_DICT) {
+        mcs_value_t key, val;
+        for (uint32_t i = 0; mcs_dict_at(h, i, &key, &val); i++) {
+            char line[512];
+            const char* ks = mcs_to_cstr(vm, key);
+            if (mcs_has_exception(vm)) return false;
+            size_t kl = strlen(ks);
+            if (!kl || memchr(ks, ':', kl) || strpbrk(ks, "\r\n")) { mcs_raise(vm, "ArgumentException", "bad Http header name '%s'", ks); return false; }
+            if (kl > sizeof line - 4) kl = sizeof line - 4;
+            memcpy(line, ks, kl); line[kl] = ':'; line[kl + 1] = ' ';
+            const char* vs = mcs_is_null(val) ? "" : mcs_to_cstr(vm, val);
+            if (mcs_has_exception(vm)) return false;
+            if (strpbrk(vs, "\r\n")) { mcs_raise(vm, "ArgumentException", "Http header '%s': value contains a line break", ks); return false; }
+            size_t vl = strlen(vs);
+            if (vl > sizeof line - kl - 3) vl = sizeof line - kl - 3;
+            memcpy(line + kl + 2, vs, vl);
+            if (!add_header_line(vm, line, kl + 2 + vl, b, len, cap, has_ct, has_ua)) return false;
+        }
+        return true;
+    }
     uint32_t n = (k == MCS_O_ARRAY || k == MCS_O_LIST) ? mcs_len(h) : 1;
     for (uint32_t i = 0; i < n; i++) {
         mcs_value_t v = (k == MCS_O_ARRAY || k == MCS_O_LIST) ? mcs_index(h, i) : h;
@@ -889,12 +916,7 @@ static bool add_headers(mcs_vm_t* vm, mcs_value_t h, char** b, size_t* len, size
         while (*s) {
             const char* e = s; while (*e && *e != '\n' && *e != '\r') e++;
             size_t l = (size_t)(e - s);
-            if (l) {
-                if (!memchr(s, ':', l)) { mcs_raise(vm, "ArgumentException", "Http header '%.*s' has no ':' (\"Name: value\")", (int)l, s); return false; }
-                if (l >= 13 && !strncasecmp(s, "Content-Type:", 13)) *has_ct = true;
-                if (l >= 11 && !strncasecmp(s, "User-Agent:", 11)) *has_ua = true;
-                if (!put_str(vm, b, len, cap, s, l) || !put_str(vm, b, len, cap, "\r\n", 2)) return false;
-            }
+            if (l && !add_header_line(vm, s, l, b, len, cap, has_ct, has_ua)) return false;
             s = e; while (*s == '\r' || *s == '\n') s++;
         }
     }

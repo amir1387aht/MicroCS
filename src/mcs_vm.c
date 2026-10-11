@@ -1836,6 +1836,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     DISPATCH_END()
 
 on_exception:
+    /* a native stopped early because the run must end (time limit, Ctrl-C, hook) and the
+     * script then tripped over its result: report the abort, not the follow-up error */
+    if (vm->abort_req) { vm->abort_reason = vm->abort_hint ? vm->abort_hint : MCS_ABORT_REQUEST; vm->abort_hint = 0; goto on_abort; }
     if (unwind(vm, base_frame)) { LOAD(); sp = vm->sp; DISPATCH(); }
     vm->run_depth--;
     return MCS_ERR_RUNTIME;

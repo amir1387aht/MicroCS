@@ -48,8 +48,8 @@ git clone https://github.com/amir1387aht/MicroCS components/MicroCS    # or: mv 
 idf.py set-target esp32c3            # your chip: esp32, esp32s3, esp32c6, ...
 ```
 
-The example is the complete firmware: `main/main.c` (~45 lines: filesystem, heap, console,
-REPL), `partitions.csv` (1.5 MB app + 2.4 MB for your files on a 4 MB chip) and
+The example is the complete firmware: `main/main.c` (filesystem, heap, console,
+Wi-Fi, REPL), `partitions.csv` (2 MB app + 1.9 MB for your files on a 4 MB chip) and
 `sdkconfig.defaults`.
 
 ### 3. Give the buses their pins

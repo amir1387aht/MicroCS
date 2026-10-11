@@ -193,6 +193,9 @@
 #ifndef MCS_ENABLE_BYTES
 #define MCS_ENABLE_BYTES 1         /* Encoding.UTF8/ASCII, BitConverter, BinaryPrimitives, Convert.To/FromBase64String, To/FromHexString */
 #endif
+#ifndef MCS_ENABLE_JSON
+#define MCS_ENABLE_JSON 1          /* Json.Parse / Json.Stringify (+ JsonSerializer); needs List + Dictionary (~4 KB) */
+#endif
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT 1       /* the Convert class (ToInt32/ToString(x, base)/ToBoolean/...) */
 #endif

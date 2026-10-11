@@ -128,6 +128,9 @@
 #ifndef MCS_ENABLE_BYTES
 #define MCS_ENABLE_BYTES          1    /* Encoding, BitConverter, BinaryPrimitives, Base64 / hex (~3 KB) */
 #endif
+#ifndef MCS_ENABLE_JSON
+#define MCS_ENABLE_JSON           1    /* Json.Parse / Json.Stringify, JsonSerializer (~4 KB) */
+#endif
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT        1    /* the Convert class */
 #endif
@@ -371,6 +374,45 @@
 #define MCS_SERVO_MOVE_MAX_MS     600000    /* longest Servo.MoveTo time */
 #endif
 
+/* ---- Wi-Fi and networking (docs/NETWORK.md). On where BSD sockets exist: ESP-IDF (lwIP)
+ * and Linux / macOS hosts; elsewhere 0. On ESP-IDF: menuconfig > MicroCS > Wi-Fi. */
+#ifndef MCS_ENABLE_NET
+#define MCS_ENABLE_NET            MCS__NET_HOSTED    /* C# Wifi, EspNow, Ntp, Mdns, Ping, Http ... */
+#endif
+#ifndef MCS_ENABLE_SOCKETS
+#define MCS_ENABLE_SOCKETS        MCS_ENABLE_NET    /* TcpClient, TcpListener, UdpClient, Dns, Http */
+#endif
+#ifndef MCS_NET_SIM
+#define MCS_NET_SIM               (MCS_ENABLE_NET && !MCS__NET_ESP)    /* simulated radio for `mcs --sim` */
+#endif
+#ifndef MCS_NET_TIMEOUT
+#define MCS_NET_TIMEOUT           10000    /* default socket / DNS / HTTP timeout (ms) */
+#endif
+#ifndef MCS_NET_SLICE_MS
+#define MCS_NET_SLICE_MS          20    /* blocking socket waits check for Stop / time limits this often */
+#endif
+#ifndef MCS_WIFI_CONNECT_TIMEOUT
+#define MCS_WIFI_CONNECT_TIMEOUT  15000    /* Wifi.Connect waits this long for an IP address (ms) */
+#endif
+#ifndef MCS_WIFI_SCAN_MAX
+#define MCS_WIFI_SCAN_MAX         24    /* networks returned by Wifi.Scan */
+#endif
+#ifndef MCS_NET_MAX_READ
+#define MCS_NET_MAX_READ          4096    /* largest single socket Read / datagram (bytes) */
+#endif
+#ifndef MCS_HTTP_MAX_BODY
+#define MCS_HTTP_MAX_BODY         32768    /* largest HTTP body kept in memory (Http.Download streams) */
+#endif
+#ifndef MCS_HTTP_MAX_HEADER
+#define MCS_HTTP_MAX_HEADER       2048    /* response header bytes kept */
+#endif
+#ifndef MCS_HTTP_MAX_REDIRECTS
+#define MCS_HTTP_MAX_REDIRECTS    5    /* redirects followed by Http calls */
+#endif
+#ifndef MCS_ESPNOW_MAX_PEERS
+#define MCS_ESPNOW_MAX_PEERS      20    /* EspNow.Peers capacity */
+#endif
+
 /* ---- OS threads (docs/THREADS.md). Off unless you choose an OS: MCS_OS_FREERTOS (headers on the
  * include path; CMake MICROCS_OS=freertos, ESP-IDF menuconfig), MCS_OS_ZEPHYR (CONFIG_MICROCS_THREADS),
  * MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect). MCS_OS_NONE: single-threaded, as always. */
@@ -426,6 +468,12 @@
 
 /* ================================================================ board ports (ports/) */
 /* ---- ESP32 (ESP-IDF, ports/esp32) */
+#ifndef MCS_ESP32_WIFI_RETRIES
+#define MCS_ESP32_WIFI_RETRIES    2    /* extra attempts before Wifi.Connect reports a failure */
+#endif
+#ifndef MCS_ESP32_ESPNOW_QUEUE
+#define MCS_ESP32_ESPNOW_QUEUE    8    /* received ESP-NOW packets kept for EspNow.Receive */
+#endif
 #ifndef MCS_ESP32_UARTS
 #define MCS_ESP32_UARTS           3
 #endif

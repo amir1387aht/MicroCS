@@ -31,8 +31,8 @@ git clone https://github.com/amir1387aht/MicroCS components/MicroCS
 idf.py set-target esp32c3
 ```
 
-The example already fits a **4 MB** flash: 1.5 MB for the program and ~2.4 MB for your
-scripts and font files.
+The example already fits a **4 MB** flash: 2 MB for the program (Wi-Fi and TLS
+included) and ~1.9 MB for your scripts and font files.
 
 ## 3. Get the u8g2 sources (pick one)
 

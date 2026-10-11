@@ -1300,6 +1300,7 @@ static const struct { const mcs_lib_entry_t* tab; void (*make)(mcs_vm_t*, int); 
     { mcs_lib_str_entries, mcs_lib_str_make },
     { mcs_lib_coll_entries, mcs_lib_coll_make },
     { mcs_lib_bytes_entries, mcs_lib_bytes_make },
+    { mcs_lib_json_entries, mcs_lib_json_make },
 };
 #define LIB_AREAS ((int)(sizeof lib_areas / sizeof lib_areas[0]))
 

@@ -3380,7 +3380,333 @@ double b = sw.ElapsedMilliseconds;
 Console.WriteLine($"GPIO.Toggle: {N / Math.Max(a, 1):F0} kHz toggles   Pin.Toggle: {N / Math.Max(b, 1):F0} kHz toggles");
 `);
 
+// ---------------------------------------------------------------- Wi-Fi & networking
+T("Wi-Fi and networking", "Connect to Wi-Fi", "wifi_connect.cs",
+  "Join a network, print the IP settings and signal; works in the simulator (MicroCS-Lab / microcs123).", String.raw`
+// Connect the station interface and show what DHCP gave us
+if (!Net.Has("Wifi")) { Console.WriteLine("this board has no Wi-Fi"); return; }
+
+const string Ssid = "MicroCS-Lab", Password = "microcs123";
+Console.WriteLine($"connecting to {Ssid} ...");
+if (!Wifi.Connect(Ssid, Password, 15000))
+{
+    Console.WriteLine($"failed: {Wifi.StatusName} ({Wifi.ReasonName()})");
+    return;
+}
+Console.WriteLine($"connected  {Wifi.Ssid}  {Wifi.Rssi} dBm  channel {Wifi.Channel}  {Wifi.AuthName(Wifi.Auth)}");
+Console.WriteLine($"ip {Wifi.Ip}  mask {Wifi.Netmask}  gateway {Wifi.Gateway}  dns {Wifi.Dns}");
+Console.WriteLine($"mac {Wifi.Mac}  hostname {Wifi.Hostname}");
+`);
+
+T("Wi-Fi and networking", "Wi-Fi events and reconnect", "wifi_events.cs",
+  "React to connect / got-IP / disconnect events and let the driver reconnect on its own.", String.raw`
+// Wi-Fi events arrive on the script thread, like GPIO interrupts
+Wifi.OnEvent((ev, value) =>
+{
+    Console.WriteLine($"[{Environment.TickCount,6} ms] {Wifi.EventName(ev)}" +
+        (ev == Wifi.EventDisconnected ? $"  reason {Wifi.ReasonName(value)}" : ""));
+    if (ev == Wifi.EventGotIp) Console.WriteLine($"           ip {Wifi.Ip}");
+});
+
+Wifi.AutoReconnect = true;            // retry after the link drops
+Wifi.Begin("MicroCS-Lab", "microcs123");   // returns at once; events tell the story
+Console.WriteLine("connected: " + Wifi.WaitConnected(15000));
+
+for (int i = 0; i < 3; i++)
+{
+    Console.WriteLine($"status {Wifi.StatusName}  rssi {Wifi.Rssi} dBm");
+    Thread.Sleep(500);
+}
+Wifi.Disconnect();
+Thread.Sleep(50);
+`);
+
+T("Wi-Fi and networking", "Scan for networks", "wifi_scan.cs",
+  "List nearby access points sorted by signal, with channel, security and a 0-100 quality score.", String.raw`
+// Scan and print a small table (pass true to include hidden networks)
+var nets = Wifi.Scan(true);
+Array.Sort(nets, (a, b) => b.Rssi - a.Rssi);
+Console.WriteLine($"{nets.Length} networks");
+Console.WriteLine("SSID                 RSSI  CH  QUAL  SECURITY");
+foreach (var n in nets)
+{
+    string name = n.Ssid.Length == 0 ? "(hidden)" : n.Ssid;
+    Console.WriteLine($"{name,-20} {n.Rssi,4}  {n.Channel,2}  {n.Quality,3}%  {Wifi.AuthName(n.Auth)}");
+}
+`);
+
+T("Wi-Fi and networking", "Soft access point", "wifi_ap.cs",
+  "Run the board as its own hotspot and watch phones join and get addresses.", String.raw`
+// Start an access point (password: 8+ characters, empty = open network)
+Wifi.OnEvent((ev, v) =>
+{
+    if (ev == Wifi.EventApJoined || ev == Wifi.EventApLeft || ev == Wifi.EventApAssigned)
+        Console.WriteLine("ap: " + Wifi.EventName(ev));
+});
+Wifi.StartAp("MicroCS-Setup", "12345678", 6);
+Console.WriteLine($"hotspot up at {Wifi.ApIp}  (mac {Wifi.ApMac})");
+
+for (int i = 0; i < 3; i++)
+{
+    Thread.Sleep(300);
+    Console.WriteLine($"{Wifi.ApClientCount} client(s)");
+    foreach (var c in Wifi.ApClients()) Console.WriteLine("  " + c.Mac + "  " + c.Ip + "  " + c.Rssi + " dBm");
+}
+Wifi.StopAp();
+`);
+
+T("Wi-Fi and networking", "Static IP and radio options", "wifi_options.cs",
+  "Hostname, country, TX power, power save, protocols and a fixed IP address.", String.raw`
+// Set options before (or after) connecting
+Wifi.Hostname = "greenhouse";      // shown in the router's client list / DHCP
+Wifi.Country = "DE";               // allowed channels and power
+Wifi.TxPower = 15;                 // dBm (2..20)
+Wifi.PowerSave = Wifi.PowerMin;    // PowerNone = lowest latency, PowerMax = lowest current
+Wifi.Protocol = Wifi.Proto11b | Wifi.Proto11g | Wifi.Proto11n;
+
+Wifi.Connect("MicroCS-Lab", "microcs123");
+Wifi.SetStaticIp("192.168.1.77", "192.168.1.1", "255.255.255.0", "1.1.1.1");
+Console.WriteLine($"{Wifi.Hostname} static {Wifi.Ip} gw {Wifi.Gateway} dns {Wifi.Dns} dhcp={Wifi.Dhcp}");
+
+Wifi.UseDhcp();                    // back to automatic addressing
+Console.WriteLine($"dhcp {Wifi.Ip}  tx {Wifi.TxPower} dBm  ps {Wifi.PowerSave}  bw {Wifi.Bandwidth} MHz");
+`);
+
+T("Wi-Fi and networking", "Saved network (NVS)", "wifi_saved.cs",
+  "Store credentials in flash once; later scripts just call Wifi.Connect().", String.raw`
+// Wifi.Save keeps SSID + password in NVS (ESP32) so no script has to contain them
+if (Wifi.SavedSsid.Length == 0)
+{
+    Console.WriteLine("nothing saved yet, saving MicroCS-Lab");
+    Wifi.Save("MicroCS-Lab", "microcs123");
+}
+Console.WriteLine("saved network: " + Wifi.SavedSsid);
+Console.WriteLine("connect: " + Wifi.Connect() + "  ip " + Wifi.Ip);
+// Wifi.Forget();   // erase the stored credentials
+`);
+
+T("Wi-Fi and networking", "HTTP GET and JSON", "http_get.cs",
+  "Fetch a URL, check the status code and pick fields out of a JSON reply.", String.raw`
+// Http.Get returns an HttpResponse; network errors throw SocketException / TimeoutException
+Wifi.Connect("MicroCS-Lab", "microcs123");
+Http.Timeout = 8000;
+try
+{
+    var r = Http.Get("http://worldtimeapi.org/api/timezone/Etc/UTC");
+    Console.WriteLine($"{r.StatusCode} {r.Reason}  {r.ContentType}  {r.Body.Length} bytes");
+    if (r.IsSuccess)
+    {
+        var doc = Json.Parse(r.Body);
+        Console.WriteLine("utc: " + doc["datetime"]);
+    }
+}
+catch (IOException e) { Console.WriteLine("network error: " + e.Message); }
+catch (TimeoutException) { Console.WriteLine("timed out"); }
+`);
+
+T("Wi-Fi and networking", "HTTP POST JSON", "http_post.cs",
+  "Send a sensor reading as JSON with custom headers; read the reply.", String.raw`
+// POST a JSON body (Content-Type is detected; pass it explicitly to be sure)
+Wifi.Connect("MicroCS-Lab", "microcs123");
+var reading = new Dictionary<string, object> { ["device"] = "greenhouse", ["temp"] = 21.5, ["hum"] = 48 };
+string body = Json.Stringify(reading);
+var headers = new Dictionary<string, string> { ["X-Api-Key"] = "demo" };
+try
+{
+    var r = Http.Post("http://httpbin.org/post", body, "application/json", headers);
+    Console.WriteLine($"{r.StatusCode}  server says: {r.Header("Content-Type")}");
+    Console.WriteLine(r.Body.Length > 200 ? r.Body.Substring(0, 200) + "..." : r.Body);
+}
+catch (IOException e) { Console.WriteLine("post failed: " + e.Message); }
+catch (TimeoutException) { Console.WriteLine("timed out"); }
+`);
+
+T("Wi-Fi and networking", "HTTPS and file download", "https_download.cs",
+  "TLS with the built-in certificate bundle; stream a file straight to flash.", String.raw`
+// https:// works when the port has TLS (ESP32: esp-tls + certificate bundle)
+Console.WriteLine("TLS available: " + Net.Has("Tls"));
+Wifi.Connect("MicroCS-Lab", "microcs123");
+try
+{
+    var r = Http.Get("https://example.com/");
+    Console.WriteLine($"{r.StatusCode}  {r.ContentLength} bytes from {r.Url}");
+    long n = Http.Download("https://example.com/", "/page.html");
+    Console.WriteLine($"saved {n} bytes, file has {File.ReadAllText("/page.html").Length} chars");
+}
+catch (IOException e) { Console.WriteLine("failed: " + e.Message); }
+catch (TimeoutException) { Console.WriteLine("timed out"); }
+catch (NotSupportedException e) { Console.WriteLine(e.Message); }
+`);
+
+T("Wi-Fi and networking", "Tiny web server", "web_server.cs",
+  "Serve a status page and a JSON endpoint with TcpListener; open http://<board-ip>:8080/.", String.raw`
+// Minimal HTTP/1.0 server: one request per connection
+Wifi.Connect("MicroCS-Lab", "microcs123");
+var server = new TcpListener(8080);
+server.Start();
+Console.WriteLine($"listening on http://{Wifi.Ip}:{server.LocalPort}/");
+
+int hits = 0;
+var until = Environment.TickCount + 2000;               // demo: run for 2 s (use while (true) on a board)
+while (Environment.TickCount < until)
+{
+    var c = server.AcceptTcpClient(200);        // null when nobody connected in 200 ms
+    if (c == null) continue;
+    string req = c.ReadLine() ?? "";
+    while ((c.ReadLine() ?? "") != "") { }      // skip headers
+    hits++;
+    bool json = req.StartsWith("GET /api");
+    string body = json ? $"{{\"hits\":{hits},\"uptime\":{Environment.TickCount}}}"
+                       : $"<h1>MicroCS</h1><p>hits: {hits}</p>";
+    c.Write($"HTTP/1.0 200 OK\r\nContent-Type: {(json ? "application/json" : "text/html")}\r\n" +
+            $"Content-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}");
+    c.Close();
+}
+server.Stop();
+Console.WriteLine($"served {hits} request(s)");
+`);
+
+T("Wi-Fi and networking", "TCP client and server", "tcp_echo.cs",
+  "A line-based echo server and a client talking to it over TCP.", String.raw`
+// Server and client in one script (loopback); on a board point the client at a PC
+var server = new TcpListener("127.0.0.1", 0);   // port 0 = pick a free port
+server.Start();
+
+var client = new TcpClient("127.0.0.1", server.LocalPort, 3000);
+client.NoDelay = true;
+var peer = server.AcceptTcpClient(1000);
+Console.WriteLine("accepted " + peer.RemoteAddress + ":" + peer.RemotePort);
+
+foreach (var msg in new[] { "hello", "temp 21.5", "bye" })
+{
+    client.WriteLine(msg);
+    string line = peer.ReadLine();
+    peer.WriteLine(line.ToUpper());
+    Console.WriteLine($"sent '{msg}'  echo '{client.ReadLine()}'");
+}
+peer.Close();
+client.Close();
+server.Stop();
+`);
+
+T("Wi-Fi and networking", "UDP datagrams", "udp.cs",
+  "Send and receive UDP packets; broadcast a discovery message on the LAN.", String.raw`
+// UdpClient: Send(data, host, port) / Receive(timeoutMs) -> null on timeout
+var listener = new UdpClient(0);              // bound to a free port
+var sender = new UdpClient();
+sender.Send("hello udp", "127.0.0.1", listener.LocalPort);
+Console.WriteLine($"got '{listener.ReceiveString(500)}' from {listener.RemoteAddress}:{listener.RemotePort}");
+
+sender.Send(new byte[] { 1, 2, 3, 4 }, "127.0.0.1", listener.LocalPort);
+var data = listener.Receive(500);
+Console.WriteLine("bytes: " + string.Join(",", data));
+Console.WriteLine("nothing else: " + (listener.Receive(50) == null));
+
+sender.EnableBroadcast = true;               // e.g. Send("who is there?", "255.255.255.255", 5000)
+listener.Close();
+sender.Close();
+`);
+
+T("Wi-Fi and networking", "NTP clock", "ntp_clock.cs",
+  "Sync the real-time clock from the internet and print local time in your time zone.", String.raw`
+// Ntp.Sync waits until the first SNTP answer (the host already has the right time)
+Wifi.Connect("MicroCS-Lab", "microcs123");
+Ntp.Timezone = "CET-1CEST,M3.5.0,M10.5.0/3";    // POSIX TZ string (Berlin)
+Console.WriteLine("synced: " + Ntp.Sync(10000));
+for (int i = 0; i < 3; i++)
+{
+    Console.WriteLine($"{Ntp.LocalTime}   utc {Ntp.UtcTime}   offset {Ntp.UtcOffset / 3600} h");
+    Thread.Sleep(1000);
+}
+`);
+
+T("Wi-Fi and networking", "ESP-NOW messages", "espnow.cs",
+  "Board-to-board packets without a router: add a peer, send, receive with a callback.", String.raw`
+// ESP-NOW: up to EspNow.MaxData bytes per packet, ~1 ms latency, no access point needed
+EspNow.Start();
+Console.WriteLine("my mac: " + Wifi.Mac + "   max payload " + EspNow.MaxData);
+
+const string Peer = "24:0A:C4:00:00:99";       // the other board's MAC (simulator echoes)
+EspNow.AddPeer(Peer);
+EspNow.OnReceive((mac, data) =>
+    Console.WriteLine($"from {mac}: {Encoding.UTF8.GetString(data)}"));
+
+for (int i = 1; i <= 3; i++)
+{
+    bool ok = EspNow.Send(Peer, $"reading {i}: {20 + i}.5 C");
+    Console.WriteLine($"send {i}: {(ok ? "delivered" : "no ack")}");
+    Thread.Sleep(100);
+}
+EspNow.Broadcast("hello everyone");
+Thread.Sleep(50);
+EspNow.Stop();
+`);
+
+T("Wi-Fi and networking", "mDNS name and ping", "mdns_ping.cs",
+  "Reach the board as greenhouse.local, advertise a web service and ping hosts.", String.raw`
+// Mdns needs the espressif/mdns component on ESP32 (Net.Has("Mdns"))
+Wifi.Connect("MicroCS-Lab", "microcs123");
+if (Net.Has("Mdns"))
+{
+    Mdns.Start("greenhouse");
+    Mdns.AddService("_http", "_tcp", 80, new string[] { "path=/" });
+    Console.WriteLine("I am greenhouse.local, printer.local is " + (Mdns.Resolve("printer.local") ?? "not found"));
+}
+if (Net.Has("Ping"))
+{
+    foreach (var host in new[] { Wifi.Gateway, "8.8.8.8" })
+    {
+        int ms = Ping.Send(host, 1000);
+        Console.WriteLine($"ping {host}: {(ms < 0 ? "timeout" : ms + " ms")}");
+    }
+}
+`);
+
+T("Wi-Fi and networking", "MQTT publish", "mqtt_publish.cs",
+  "A tiny MQTT 3.1.1 client on TcpClient: connect to a broker and publish a reading.", String.raw`
+// MQTT CONNECT + PUBLISH (QoS 0) written by hand - about 30 lines of C#
+byte[] Str(string s) { var b = Encoding.UTF8.GetBytes(s); var r = new byte[b.Length + 2]; r[0] = (byte)(b.Length >> 8); r[1] = (byte)b.Length; Array.Copy(b, 0, r, 2, b.Length); return r; }
+byte[] Packet(int type, List<byte> body)
+{
+    var p = new List<byte> { (byte)type };
+    int len = body.Count;
+    do { int d = len % 128; len /= 128; p.Add((byte)(len > 0 ? d | 128 : d)); } while (len > 0);
+    p.AddRange(body);
+    return p.ToArray();
+}
+
+Wifi.Connect("MicroCS-Lab", "microcs123");
+try
+{
+    var tcp = new TcpClient("test.mosquitto.org", 1883, 5000);
+    var c = new List<byte>(Str("MQTT")) { 4, 2, 0, 60 };      // level 4, clean session, keep-alive 60 s
+    c.AddRange(Str("microcs-" + Environment.TickCount));
+    tcp.Write(Packet(0x10, c));
+    var ack = tcp.Read(4);
+    Console.WriteLine("CONNACK code " + (ack.Length == 4 ? ack[3] : -1));
+
+    var pub = new List<byte>(Str("microcs/demo/temp"));
+    pub.AddRange(Encoding.UTF8.GetBytes("21.5"));
+    tcp.Write(Packet(0x30, pub));
+    tcp.Write(new byte[] { 0xE0, 0 });                        // DISCONNECT
+    tcp.Close();
+    Console.WriteLine("published microcs/demo/temp = 21.5");
+}
+catch (IOException e) { Console.WriteLine("broker unreachable: " + e.Message); }
+catch (TimeoutException) { Console.WriteLine("timed out"); }
+`);
+
 const SNIPPETS = [
+  { label: "wifi", detail: "Wifi.Connect + print the IP", text: "if (Wifi.Connect(\"$0\", \"password\"))\n    Console.WriteLine(\"ip \" + Wifi.Ip);\nelse\n    Console.WriteLine(\"Wi-Fi: \" + Wifi.StatusName);" },
+  { label: "wifievents", detail: "Wifi.OnEvent((ev, value) => ...)", text: "Wifi.OnEvent((ev, value) =>\n{\n    Console.WriteLine(Wifi.EventName(ev));\n    $0\n});" },
+  { label: "httpget", detail: "Http.Get with error handling", text: "try\n{\n    var r = Http.Get(\"$0\");\n    Console.WriteLine(r.StatusCode + \" \" + r.Body);\n}\ncatch (IOException e) { Console.WriteLine(\"network error: \" + e.Message); }" },
+  { label: "httppost", detail: "Http.Post a JSON body", text: "var r = Http.Post(\"$0\", Json.Stringify(data), \"application/json\");" },
+  { label: "json", detail: "Json.Parse a reply", text: "var doc = Json.Parse($0);\nConsole.WriteLine(doc[\"key\"]);" },
+  { label: "tcpclient", detail: "TcpClient: connect, write a line, read a line", text: "var tcp = new TcpClient(\"$0\", 80, 5000);\ntcp.WriteLine(\"hello\");\nConsole.WriteLine(tcp.ReadLine());\ntcp.Close();" },
+  { label: "tcpserver", detail: "TcpListener accept loop", text: "var server = new TcpListener($0);\nserver.Start();\nwhile (true)\n{\n    var c = server.AcceptTcpClient(500);\n    if (c == null) continue;\n    c.WriteLine(c.ReadLine());\n    c.Close();\n}" },
+  { label: "udp", detail: "UdpClient send + receive", text: "var udp = new UdpClient($0);\nudp.Send(\"hello\", \"192.168.1.255\", 5000);\nvar reply = udp.ReceiveString(1000);" },
+  { label: "espnow", detail: "EspNow start, peer, send", text: "EspNow.Start();\nEspNow.AddPeer(\"$0\");\nEspNow.OnReceive((mac, data) => Console.WriteLine(mac + \": \" + Encoding.UTF8.GetString(data)));" },
+  { label: "ntp", detail: "Ntp.Sync + local time", text: "Ntp.Timezone = \"$0UTC0\";\nNtp.Sync();\nConsole.WriteLine(Ntp.LocalTime);" },
   { label: "u8g2", detail: "U8g2 OLED on I2C + first frame", text: "var oled = new U8g2(\"ssd1306_i2c_128x64_noname\");\noled.Begin();\noled.SetFont(\"6x10_tf\");\noled.ClearBuffer();\noled.DrawStr(0, 12, \"$0\");\noled.SendBuffer();" },
   { label: "u8frame", detail: "U8g2 frame: ClearBuffer ... SendBuffer", text: "oled.ClearBuffer();\n$0\noled.SendBuffer();" },
   { label: "u8page", detail: "U8g2 page mode: Draw(g => ...)", text: "oled.Draw(g =>\n{\n    $0\n});" },

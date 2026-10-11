@@ -129,7 +129,7 @@ def check():
         print(f"gen_config --check: template {n} differs from the default {v}"); ok = False
     listed = set(names) | set(re.findall(r"^//#define (MCS_\w+)", text, re.M))
     src = ""
-    for d in ("include", "include/profiles", "modules/fs", "modules/hal", "modules/drivers", "modules/sched", "modules/shell"):
+    for d in ("include", "include/profiles", "modules/fs", "modules/hal", "modules/drivers", "modules/sched", "modules/shell", "modules/net"):
         for f in sorted(os.listdir(os.path.join(ROOT, d))) if os.path.isdir(os.path.join(ROOT, d)) else []:
             if f.endswith((".h", ".c")):
                 src += open(os.path.join(ROOT, d, f), errors="replace").read()

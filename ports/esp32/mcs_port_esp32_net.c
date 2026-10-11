@@ -292,7 +292,7 @@ static void ap_rec(const wifi_ap_record_t* r, mcs_wifi_ap_info_t* o) {
     memcpy(o->ssid, r->ssid, strnlen((const char*)r->ssid, 32));
     memcpy(o->bssid, r->bssid, 6);
     o->rssi = r->rssi; o->channel = r->primary;
-    o->auth = (uint8_t)(r->authmode < MCS_WIFI_AUTH__COUNT ? r->authmode : MCS_WIFI_AUTH_ENTERPRISE);
+    o->auth = (uint8_t)((int)r->authmode < (int)MCS_WIFI_AUTH__COUNT ? (int)r->authmode : (int) MCS_WIFI_AUTH_ENTERPRISE);
     o->protocols = protos(r);
 }
 static int sta_link(void* ctx, mcs_wifi_link_t* l) {
