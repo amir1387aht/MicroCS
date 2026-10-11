@@ -57,14 +57,14 @@ MAP = {
     "drive_members": ("Filesystem (modules/fs)", "DriveInfo", "instance", "`new DriveInfo(path)`; size of the mount holding `path`"),
     "drive_statics": ("Filesystem (modules/fs)", "DriveInfo", "static", ""),
     "hal_fns": ("Hardware (modules/hal)", "Hal", "static", "consts `Board`, `ApiVersion`"),
-    "gpio_fns": ("Hardware (modules/hal)", "GPIO", "static", "consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`"),
-    "pin_members": ("Hardware (modules/hal)", "Pin", "instance", "`new Pin(pin[, mode])`; pin = number or name (`\"PA5\"`, `\"GPIO21\"`, `\"LED\"`)"),
+    "gpio_fns": ("Hardware (modules/hal)", "GPIO", "static", "consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md))"),
+    "pin_members": ("Hardware (modules/hal)", "Pin", "instance", "`new Pin(pin[, mode or GpioConfig])`; pin = number or name (`\"PA5\"`, `\"GPIO21\"`, `\"LED\"`)"),
     "uart_fns": ("Hardware (modules/hal)", "UART", "static", "consts `ParityNone ParityOdd ParityEven`"),
     "i2c_fns": ("Hardware (modules/hal)", "I2C", "static", ""),
     "i2cdev_members": ("Hardware (modules/hal)", "I2cDevice", "instance", "`new I2cDevice(bus, address)`"),
     "spi_fns": ("Hardware (modules/hal)", "SPI", "static", ""),
-    "spidev_members": ("Hardware (modules/hal)", "SpiDevice", "instance", "`new SpiDevice(bus, csPin, hz, mode)` — drives CS for you"),
-    "adc_fns": ("Hardware (modules/hal)", "ADC", "static", "consts `Resolution`, `ReferenceMillivolts`"),
+    "spidev_members": ("Hardware (modules/hal)", "SpiDevice", "instance", "`new SpiDevice(bus, csPin, hz, mode)` or `(bus, csPin, SpiConfig)` — drives CS for you"),
+    "adc_fns": ("Hardware (modules/hal)", "ADC", "static", "consts `Resolution`, `ReferenceMillivolts`, `AttenDefault Atten0dB Atten2_5dB Atten6dB Atten12dB`"),
     "dac_fns": ("Hardware (modules/hal)", "DAC", "static", "const `Resolution`"),
     "pwm_fns": ("Hardware (modules/hal)", "PWM", "static", "duty for `Set` is 0.0–1.0"),
     "timer_fns": ("Hardware (modules/hal)", "Timer", "static", "periods in microseconds"),
@@ -74,6 +74,14 @@ MAP = {
     "canframe_members": ("Hardware (modules/hal)", "CanFrame", "instance", "`new CanFrame(id, data[, extended])`"),
     "wdt_fns": ("Hardware (modules/hal)", "Watchdog", "static", ""),
     "rtc_fns": ("Hardware (modules/hal)", "RTC", "static", "Unix seconds"),
+    "hal_cfg_fns": ("Hardware (modules/hal)", "Hal", "static", ""),
+    "spi_async_fns": ("Hardware (modules/hal)", "SPI", "static", ""),
+    "i2c_async_fns": ("Hardware (modules/hal)", "I2C", "static", ""),
+    "uart_async_fns": ("Hardware (modules/hal)", "UART", "static", ""),
+    "qspi_async_fns": ("Hardware (modules/hal)", "QSPI", "static", ""),
+    "dmabuf_members": ("Hardware (modules/hal)", "DmaBuffer", "instance", "`new DmaBuffer(size or bytes)` — DMA-capable memory, indexer `buf[i]` ([DMA](DMA.md))"),
+    "xfer_members": ("Hardware (modules/hal)", "DmaTransfer", "instance", "returned by every `…Async` call"),
+    "dma_fns": ("Hardware (modules/hal)", "Dma", "static", "memory-to-memory DMA, transfers in flight"),
     "drivers_fns": ("Drivers (modules/drivers)", "Drivers", "static", "registered device drivers (`mcs_driver.h`); `List` = names"),
     "ledstrip_members": ("Drivers (modules/drivers)", "LedStrip", "instance", "`ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]`"),
     "ledstrip_statics": ("Drivers (modules/drivers)", "LedStrip", "static", "consts `GRB RGB GRBW`; colours `0xRRGGBB`"),
@@ -108,6 +116,14 @@ for s in src.values():
             items.append((name, kind, ar))
         tables[m.group(1)] = tables.get(m.group(1), []) + items
 
+# tables that add members to a type mapped earlier (Hal.Options, SPI.WriteAsync ...) join its row
+_first = {}
+for _t, _v in list(MAP.items()):
+    _k = (_v[0], _v[1], _v[2])
+    if _k not in _first: _first[_k] = _t; continue
+    if _t in tables:
+        tables[_first[_k]] = tables.get(_first[_k], []) + tables.pop(_t)
+    MAP.pop(_t)
 # Convert.ToBase64String & co. are registered from a second table (src/mcs_lib_bytes.c)
 tables["convert_fns"] = tables.get("convert_fns", []) + tables.pop("convert_bytes_fns", [])
 missing = [t for t in tables if t not in MAP and t not in HIDDEN]
@@ -117,7 +133,7 @@ if missing:
 def fmt(items):
     props, meths, seen = [], [], set()
     for name, kind, ar in items:
-        if name.startswith("op_") or name.startswith(".") or name.startswith("__"): continue
+        if name.startswith("op_") or name.startswith(".") or name.startswith("__") or name in ("get_Item", "set_Item"): continue
         if kind in ("GET", "SET"):
             if name not in seen: props.append("`%s`" % name); seen.add(name)
         else:

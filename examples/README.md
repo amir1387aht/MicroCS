@@ -23,6 +23,7 @@ real board through its port. `make test` runs all of them.
 | 14 | [`14_can_bus.cs`](hardware/14_can_bus.cs) | CAN standard + extended frames, receive callback | `./mcs --sim examples/hardware/14_can_bus.cs` |
 | 15 | [`15_watchdog_rtc.cs`](hardware/15_watchdog_rtc.cs) | watchdog, RTC, board information, feature detection | `./mcs --sim examples/hardware/15_watchdog_rtc.cs` |
 | 16 | [`16_data_logger.cs`](hardware/16_data_logger.cs) | background jobs: sensor → CSV file + heartbeat LED | `./mcs --sim --ramfs 16384 --run-for 1200 examples/hardware/16_data_logger.cs` |
+| 17 | [`17_config_dma.cs`](hardware/17_config_dma.cs) | peripheral settings objects + double-buffered SPI frames over DMA | `./mcs --sim --sim-virtual examples/hardware/17_config_dma.cs` |
 
 On a board, upload any of them with
 `python3 tools/mcs_remote.py --port /dev/ttyACM0 put examples/hardware/05_i2c_temperature.cs /main.cs + run /main.cs`,

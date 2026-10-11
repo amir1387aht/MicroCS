@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.11.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.12.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -18,6 +18,7 @@
 [**Getting started**](docs/GETTING_STARTED.md) ·
 [**Step-by-step guides**](docs/guides/README.md) ·
 [**Hardware API**](docs/HAL.md) ·
+[**Peripheral settings & DMA**](docs/PERIPHERALS.md) ·
 [**Drivers**](docs/DRIVERS.md) ·
 [**Examples**](examples/README.md) ·
 [**Porting**](docs/PORTING.md) ·
@@ -119,7 +120,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
+14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
@@ -254,7 +255,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.11.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.12.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -368,9 +369,11 @@ CAN.Send(0, 0x123, new byte[] { 1, 2, 3 });
 | RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ RTC driver / software | ✅ software |
 | Board info, µs clock, reset | `Hal` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | OLED / LCD displays (opt-in, [u8g2](docs/U8G2.md)) | `U8g2` `U8x8` | ✅ I²C / SPI | ✅ | ✅ | ✅ | ✅ U8g2 library |
+| [Settings objects](docs/PERIPHERALS.md) (pins, pulls, drive, filters…) | `GpioConfig` `SpiConfig` … | GPIO, PWM | ✅ all, runtime pins | ✅ all, runtime pins | basic | basic |
+| [DMA / async transfers](docs/DMA.md) | `DmaBuffer` `…Async` | sync fallback | ✅ SPI, QSPI, memcpy | ✅ SPI, memcpy | sync fallback | sync fallback |
 
 Full reference: [HAL.md](docs/HAL.md) · add your own devices: [DRIVERS.md](docs/DRIVERS.md) · generated API list: [STDLIB.md](docs/STDLIB.md) ·
-16 commented, runnable scripts: [examples/hardware](examples/hardware/)
+17 commented, runnable scripts: [examples/hardware](examples/hardware/)
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
 wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger) · displays:
 [examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal).
@@ -391,7 +394,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.11.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.12.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**

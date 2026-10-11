@@ -73,6 +73,10 @@ pins.i2c[0] = (mcs_esp32_i2c_pins_t){ 5, 6 };   // SDA, SCL - your GPIOs
 mcs_esp32_hal_init(&hal, &pins);
 ```
 
+Since MicroCS 1.12 you can also skip this step and choose the pins from C#, before the first
+I²C call: `I2C.Open(0, new I2cConfig(400_000, 5, 6));` (SDA, SCL — see
+[peripheral settings](PERIPHERALS.md)).
+
 ## 6. Build and flash
 
 ```sh
@@ -156,7 +160,7 @@ there is one, otherwise the file is loaded.
 | black screen, no error | address 0x3D: `U8g2.I2C("ssd1306_i2c_128x64_noname", 0, 0x3D)`; SDA/SCL swapped; no 3V3 |
 | picture shifted by 2 pixels / noise on the right | it is an SH1106: use `sh1106_i2c_128x64_noname` |
 | `I2C.Scan(0)` is empty | wiring, or the wrong GPIOs in step 5 |
-| `I2C.Scan: not supported` (or `I2C.Write: …`) | step 5 missing — the bus has no pins |
+| `I2C.Scan: not supported` (or `I2C.Write: …`) | step 5 missing — the bus has no pins (or open it with `new I2cConfig(400_000, sda, scl)`) |
 | `U8g2` does not exist | U8g2 is not in the firmware: step 4 (and delete `sdkconfig`), rebuild |
 | build stops: "u8g2 sources not found" | step 3 |
 | `display '…' is not compiled in` | add it to `CONFIG_MICROCS_U8G2_DISPLAYS`, rebuild |

@@ -78,7 +78,7 @@ port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephy
 
 ### Arduino IDE
 ```sh
-python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.11.0.zip
+python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.12.0.zip
 ```
 Sketch → Include Library → Add .ZIP Library, then open *File → Examples → MicroCS*.
 The Arduino IDE has no per-library `-D` flags, so options live in the packaged
@@ -144,7 +144,15 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
    has (GPIO first — everything else is optional; see [HAL.md](HAL.md#writing-a-board-table)).
 3. Post interrupts with `mcs_hal_post(MCS_HAL_EV_GPIO, pin, level)` and timer ticks with
    `MCS_HAL_EV_TIMER`.
-4. Optional: persistent files — fill the template's **flash port** (`mcs_flash_port_t`: region
+4. Optional (HAL API v3): `gpio_configure`, `spi_configure` … so scripts can set pins, pulls,
+   drive strength and filters with configuration objects, and an `options` table for settings
+   only your chip has ([PERIPHERALS.md](PERIPHERALS.md#ports-implementing-v3)). Return
+   `MCS_HAL_ENOTSUP` after `mcs_hal_error("why")` for anything the hardware cannot do — never
+   ignore a field. Background transfers: `dma_alloc`, `dma_copy`, `spi_transfer_async` …
+   posting `MCS_HAL_EV_DMA` when done; return `MCS_HAL_ENOTSUP` for one request and the
+   library runs it synchronously ([DMA.md](DMA.md#ports-implementing-dma)). A bus opened with
+   `three_wire` gets exactly one of `tx` / `rx` per `spi_transfer`.
+5. Optional: persistent files — fill the template's **flash port** (`mcs_flash_port_t`: region
    size, erase unit, program unit and `read` / `write` / `erase` of the chip's flash;
    `mcs_intflash_init()` makes the `mcs_flash_t`) and build with `MICROCS_FS=tinyfs` (built in,
    a few KB of internal flash is enough), `littlefs` or `yaffs2`
@@ -152,8 +160,8 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
    Zephyr already have theirs. Drivers — fill the template's `ws2812_write` backend for
    `LedStrip` (`Servo` uses the HAL PWM, nothing to add), or add your own driver
    ([DRIVERS.md](DRIVERS.md)).
-5. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
-6. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
+6. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
+7. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
    freely downloadable.
 
 ## 5. Bare-metal Cortex-M reference (`ports/cortex-m/`)

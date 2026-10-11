@@ -15,6 +15,8 @@ Each guide starts from nothing and ends with your C# running on the board. Pick 
 After the first program:
 
 * [Hardware API](../HAL.md) — every C# peripheral class (`GPIO`, `I2C`, `SPI`, `UART`, `PWM`…).
+* [Peripheral settings](PERIPHERALS.md) — pins, pulls, drive strength, filters, board options, step by step.
+* [DMA](DMA.md) — send display frames and read sensors in the background.
 * [MicroCS Studio](../../tools/studio/README.md) — the browser IDE: editor, files and REPL over USB.
 * [Examples](../../examples/README.md) — blink, buttons, sensors, displays, data loggers.
 * [The C# subset](../LANGUAGE.md) — what MicroCS supports from C#.

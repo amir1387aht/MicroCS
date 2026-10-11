@@ -27,12 +27,24 @@ Then `mcs_hal_open_lib(vm, &hal)` (library use) or `cfg.hal = &hal` (`mcs_runtim
 * **Only what exists is registered.** If the board has no CAN, there is no `CAN` class and
   `Hal.Has("CAN")` is false — scripts can adapt: `if (Hal.Has("DAC")) DAC.Write(0, 2048);`.
   Names for `Has`: `GPIO GPIO.IRQ UART I2C SPI ADC DAC PWM Timer I2S QSPI CAN Watchdog RTC`,
+  `GPIO.Configure` `UART.Configure` `I2C.Configure` `SPI.Configure` `QSPI.Configure`
+  `PWM.Configure` `ADC.Configure` (full configuration objects), `DMA` `DMA.Memory` `DMA.SPI`
+  `DMA.I2C` `DMA.UART` `DMA.QSPI` (transfers that really run in the background),
   `Drivers`, and the drivers / classes added by [device drivers](DRIVERS.md) (`ws2812`, `LedStrip`, yours).
 * **Errors are exceptions.** Driver results map to `IOException` (bus error, NACK),
   `TimeoutException`, `NotSupportedException` (pin/bus not available) and
   `ArgumentException` / `ArgumentOutOfRangeException` (bad values). Catch them like in .NET.
 * **Transfers** are up to `MCS_HAL_MAX_XFER` (256) bytes per call; data can be `byte[]`,
-  `List<byte>` or a `string`.
+  `List<byte>` or a `string`. A [`DmaBuffer`](DMA.md) has no size limit.
+* **Configuration objects** (API v3). Every peripheral can also be opened with a settings
+  object — pins, pulls, drive strength, filters, DMA and board options:
+  `SPI.Open(1, new SpiConfig(20_000_000, 0, 6, 7) { Cs = 10 })`,
+  `GPIO.Configure(4, new GpioConfig(GPIO.Input, GPIO.PullUp) { Schmitt = true })`.
+  Unset properties stay at the board default; settings a board cannot honour throw
+  `NotSupportedException` with the reason. See [Peripheral configuration](PERIPHERALS.md).
+* **DMA / asynchronous transfers** (API v3). `SPI.WriteAsync(1, frame)` and friends return a
+  `DmaTransfer` at once and run in the background where the board has DMA (ESP32, RP2),
+  synchronously elsewhere. See [DMA](DMA.md).
 
 ## Interrupts, timers and events
 
@@ -74,12 +86,14 @@ Optional arguments are shown in `[brackets]`.
 | `GPIO.Pin(name)` → `int` | resolve `"PA5"`, `"GPIO21"`, `"LED"` … |
 | `GPIO.OnChange(pin, edge, callback)` · `GPIO.Off(pin)` | edges `GPIO.Rising`, `Falling`, `Both` |
 | `GPIO.PulseIn(pin, level[, timeoutUs])` → µs | length of a pulse (ultrasonic sensors, IR) |
-| `new Pin(pin[, mode])` | `Write(v)`, `Read()`, `Toggle()`, `High()`, `Low()`, `SetMode(m)`, `OnChange(edge, fn)`, `Value` (get/set), `Number` |
+| `GPIO.Configure(pin, GpioConfig)` | pull, speed, drive, Schmitt, hold, invert, initial level, alternate function, filter — [details](PERIPHERALS.md#gpioconfig--gpioconfigurepin-cfg-new-pinpin-cfg-pinconfigurecfg) |
+| `new Pin(pin[, mode or GpioConfig])` | `Write(v)`, `Read()`, `Toggle()`, `High()`, `Low()`, `SetMode(m)`, `OnChange(edge, fn)`, `Value` (get/set), `Number` |
 
 ### UART
 | Member | Description |
 |---|---|
-| `UART.Open(port, baud[, dataBits, parity, stopBits])` | parity `UART.ParityNone`, `ParityOdd`, `ParityEven` |
+| `UART.Open(port, baud[, dataBits, parity, stopBits])` · `UART.Open(port, UartConfig)` | parity `UART.ParityNone`, `ParityOdd`, `ParityEven` |
+| `UART.WriteAsync(port, data)` · `UART.ReadAsync(port, DmaBuffer)` → `DmaTransfer` | [DMA](DMA.md) |
 | `UART.Write(port, data)` · `UART.WriteLine(port[, text])` | string or bytes |
 | `UART.Read(port, max[, timeoutMs])` → `byte[]` · `UART.ReadString(...)` → `string` | returns what arrived |
 | `UART.ReadLine(port[, timeoutMs = 1000])` → `string` or `null` | without the line ending |
@@ -88,7 +102,8 @@ Optional arguments are shown in `[brackets]`.
 ### I²C
 | Member | Description |
 |---|---|
-| `I2C.Open(bus[, hz = 100000])` | |
+| `I2C.Open(bus[, hz = 100000])` · `I2C.Open(bus, I2cConfig)` | |
+| `I2C.WriteAsync` · `ReadAsync` · `WriteReadAsync` → `DmaTransfer` | [DMA](DMA.md) |
 | `I2C.Write(bus, addr, data)` · `I2C.Read(bus, addr, n)` → `byte[]` | 7-bit addresses |
 | `I2C.WriteRead(bus, addr, data, n)` → `byte[]` | repeated start |
 | `I2C.ReadRegister(bus, addr, reg)` · `ReadRegisters(bus, addr, reg, n)` · `WriteRegister(bus, addr, reg, value or bytes)` | register-style devices |
@@ -98,10 +113,11 @@ Optional arguments are shown in `[brackets]`.
 ### SPI
 | Member | Description |
 |---|---|
-| `SPI.Open(bus[, hz = 1 MHz, mode = 0, lsbFirst = 0])` | mode 0–3 |
+| `SPI.Open(bus[, hz = 1 MHz, mode = 0, lsbFirst = 0])` · `SPI.Open(bus, SpiConfig)` | mode 0–3 |
+| `SPI.TransferAsync(bus, tx, rx[, cs])` · `WriteAsync(bus, data[, cs])` · `ReadAsync(bus, rx[, cs])` → `DmaTransfer` | [DMA](DMA.md) |
 | `SPI.Transfer(bus, data[, csPin])` → `byte[]` | full duplex |
 | `SPI.Write(bus, data[, csPin])` · `SPI.Read(bus, n[, csPin])` | |
-| `new SpiDevice(bus, csPin, hz, mode)` | `Transfer(data)`, `Write(data)`, `Read(n)`, `WriteRead(cmd, n)` — CS handled, bus re-configured per device |
+| `new SpiDevice(bus, csPin, hz, mode)` · `new SpiDevice(bus, csPin, SpiConfig)` | `Transfer(data)`, `Write(data)`, `Read(n)`, `WriteRead(cmd, n)` — CS handled, bus re-configured per device |
 
 ### ADC, DAC, PWM
 | Member | Description |
@@ -112,6 +128,7 @@ Optional arguments are shown in `[brackets]`.
 | `PWM.Set(ch, hz, duty 0.0–1.0)` · `PWM.SetPermille(ch, hz, 0–1000)` | 16-bit duty where the port supports it |
 | `PWM.SetPulse(ch, hz, pulseUs)` · `PWM.Servo(ch, degrees[, minUs = 500, maxUs = 2500])` | servos at 50 Hz |
 | `PWM.Tone(ch, hz)` · `PWM.Stop(ch)` | buzzers |
+| `ADC.Configure(ch, AdcConfig)` · `PWM.Configure(ch, PwmConfig)` | resolution, attenuation, oversampling · pin, resolution, polarity, centre-aligned |
 
 ### Timer, Watchdog, RTC, Hal
 | Member | Description |
@@ -121,6 +138,7 @@ Optional arguments are shown in `[brackets]`.
 | `RTC.Now` → Unix seconds · `RTC.Set(seconds)` | |
 | `Hal.Board`, `Hal.ApiVersion`, `Hal.CpuHz`, `Hal.UniqueId` (hex string), `Hal.Micros` | |
 | `Hal.Has(name)`, `Hal.Poll()`, `Hal.Run([ms])`, `Hal.DelayMicroseconds(us)`, `Hal.Reset()` | |
+| `Hal.Options([peripheral])` → `List<string>` | board-specific options for configuration objects |
 | `Hal.OnEvent(n, fn(source, value))`, `Hal.Post(n[, source, value])`, `Hal.DroppedEvents` | user events |
 
 ### LedStrip (WS2812 / NeoPixel)
@@ -217,6 +235,11 @@ mcs_hal_open_lib(vm, &board);
 Events can also be delivered from an RTOS queue via `.poll_event` instead of `mcs_hal_post`
 (the ESP32 port does this). [`ports/template/mcs_port_template.c`](../ports/template/mcs_port_template.c)
 lists every member with a stub. Board tables written for HAL v1 (1.3) compile unchanged.
+API v3 (1.12) adds optional members: `*_configure` for the configuration objects plus a
+`options` table ([Peripheral configuration](PERIPHERALS.md#ports-implementing-v3)), and
+`dma_alloc` / `dma_copy` / `spi_transfer_async` … for background transfers
+([DMA](DMA.md#ports-implementing-dma)). Boards without them keep working: the library falls
+back to `*_open` and synchronous transfers.
 Devices on top of the board (LED strips, displays, sensors ...) are not HAL members but
 [drivers](DRIVERS.md): a C# front end plus a per-MCU backend, registered with `mcs_driver_register`.
 
