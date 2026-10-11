@@ -694,7 +694,7 @@ static const mcs_reg_t wifi_fns[] = {
     MCS_FN("OnEvent", wifi_onevent, 1),
     MCS_REG_END };
 static const mcs_const_t wifi_consts[] = {
-    MCS_CONST("Off", MCS_WIFI_OFF), MCS_CONST("Station", MCS_WIFI_STA), MCS_CONST("AccessPoint", MCS_WIFI_AP), MCS_CONST("StationAp", MCS_WIFI_APSTA),
+    MCS_CONST("ModeOff", MCS_WIFI_OFF), MCS_CONST("ModeStation", MCS_WIFI_STA), MCS_CONST("ModeAccessPoint", MCS_WIFI_AP), MCS_CONST("ModeStationAp", MCS_WIFI_APSTA),
     MCS_CONST("Idle", MCS_WIFI_IDLE), MCS_CONST("NoSsid", MCS_WIFI_NO_SSID), MCS_CONST("ScanDone", MCS_WIFI_SCAN_DONE),
     MCS_CONST("Connected", MCS_WIFI_CONNECTED), MCS_CONST("ConnectFailed", MCS_WIFI_CONNECT_FAILED),
     MCS_CONST("ConnectionLost", MCS_WIFI_CONNECTION_LOST), MCS_CONST("Disconnected", MCS_WIFI_DISCONNECTED),

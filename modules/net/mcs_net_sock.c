@@ -461,6 +461,8 @@ NATIVE(lst_start) {
     }
     set_nonblock(fd);
     l->fd = fd;
+    socklen_t al = sizeof a;
+    if (getsockname(fd, (struct sockaddr*)&a, &al) == 0) l->port = ntohs(a.sin_port);   /* port 0: the one picked */
     return mcs_null();
 }
 NATIVE(lst_stop) { LS(); if (l->fd >= 0) close(l->fd); l->fd = -1; return mcs_null(); }
