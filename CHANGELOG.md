@@ -13,6 +13,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   `tools/mcs_remote.py` use it; older firmware still gets the plain stream); the ESP32 console
   installs the driver with a 4 KB receive buffer (`MCS_ESP32_USB_RXBUF`) and sleeps on the USB
   port instead of UART0 while a USB host is attached.
+  RP2040 was never affected: TinyUSB holds the host off (USB NAK) instead of dropping bytes.
 * **Studio templates for U8g2 / U8x8 displays.** A new *U8g2 displays* category with 20
   scripts that together cover the whole API: hello, every bus (`I2C`, `SoftI2C`, `SPI`,
   `SoftSPI`, `Soft3WireSPI`, 8080 / 6800, `KS0108`), all shapes, text / alignment / font metrics,
