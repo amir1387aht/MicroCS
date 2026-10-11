@@ -71,7 +71,7 @@ Jobs, timers and interrupt callbacks keep running while the REPL waits for input
 ## 3. The REPL
 
 ```text
-MicroCS 1.12.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.12.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var adc = ADC.ReadMillivolts(0);
 > adc
 1650
@@ -106,7 +106,7 @@ One command per line; every reply ends with a status line starting with EOT (0x0
 |---|---|
 | `ls [dir]` | `f <size> <name>` / `d - <name>` lines |
 | `cat <f>` | print a file |
-| `put <f> <len>` | reply `\x04READY`, then send exactly `<len>` raw bytes; written to `<f>.part` and renamed, so an interrupted or over-quota upload leaves the old file intact |
+| `put <f> <len> [<win>]` | reply `\x04READY`, then send exactly `<len>` raw bytes; written to `<f>.part` and renamed, so an interrupted or over-quota upload leaves the old file intact. With `<win>` (flow control, used by Studio and `mcs_remote.py`): reply `\x04READY <w>` (`w` ≤ `MCS_SHELL_PUT_WINDOW`, 256), send `w` bytes, wait for `\x04MORE`, repeat; the last window is answered with the status. Consoles that lose bytes while the flash is busy (ESP32 USB-Serial-JTAG) then never overflow |
 | `get <f>` | `\x04DATA <len>`, raw bytes, `\x04OK` |
 | `rm`, `mkdir`, `mv` | file management |
 | `run <f>` | run a source or image file (NOEXEC mounts refused) |

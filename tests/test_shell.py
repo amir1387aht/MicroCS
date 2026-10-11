@@ -38,6 +38,20 @@ try:
     check(st == "OK", "binary upload")
     st, data = dev.get("/blob.bin")
     check(st == "OK" and data == blob, "binary download matches (EOT, newline, Ctrl-C bytes inside)")
+    big = bytes((i * 7 + 3) & 255 for i in range(5000)) + b"\x04MORE\n\x04OK\n"
+    st, _ = dev.put(big, "/big.bin")                      # windowed: READY 256, MORE after every 256 bytes
+    check(st == "OK" and dev.get("/big.bin") == ("OK", big), "windowed upload (flow control), 5 KB with status bytes inside")
+    st, _ = dev.put(big, "/big2.bin", window=16)
+    check(st == "OK" and dev.get("/big2.bin") == ("OK", big), "windowed upload, 16-byte window")
+    st, _ = dev.put(big, "/big3.bin", window=0)           # what older hosts send: streamed
+    check(st == "OK" and dev.get("/big3.bin") == ("OK", big), "streamed upload (no window, older hosts)")
+    st, _ = dev.put(bytes(256), "/exact.bin")             # exactly one window: no MORE
+    check(st == "OK" and dev.get("/exact.bin") == ("OK", bytes(256)), "upload of exactly one window")
+    dev.link.write(b"put /w.bin 3 99999\n")
+    st, _ = dev._status()
+    dev.link.write(b"abc")
+    st2, _ = dev._status()
+    check(st == "READY 256" and st2 == "OK", "window capped at MCS_SHELL_PUT_WINDOW")
     check(not os.path.exists(os.path.join(root, "blob.bin.part")), "no temporary file left")
 
     st, out = dev.command("exec Console.WriteLine(Enumerable.Range(1, 4).Sum());")

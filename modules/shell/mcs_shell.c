@@ -119,10 +119,21 @@ static int read_exact(mcs_shell_t* sh, uint8_t* buf, size_t n) {
     return 0;
 }
 
-static void cmd_put(mcs_shell_t* sh, const char* path, const char* len_s) {
+/* put <path> <len> [window]: with a window the host sends at most `window` bytes, then waits
+ * for "\x04MORE" (flow control for consoles that drop bytes while the flash is busy, like the
+ * ESP32's USB-Serial-JTAG); the device answers "\x04READY <w>" with the window it uses.
+ * Without one (older hosts): "\x04READY" and the whole file is streamed. */
+static void cmd_put(mcs_shell_t* sh, const char* path, const char* len_s, const char* win_s) {
     char* end;
     unsigned long n = strtoul(len_s ? len_s : "", &end, 10);
-    if (!path || !len_s || *end) { err(sh, "usage: put <path> <len>"); return; }
+    if (!path || !len_s || *end) { err(sh, "usage: put <path> <len> [window]"); return; }
+    unsigned long win = 0;
+    if (win_s) {
+        win = strtoul(win_s, &end, 10);
+        if (*end) { err(sh, "usage: put <path> <len> [window]"); return; }
+        if (win > MCS_SHELL_PUT_WINDOW) win = MCS_SHELL_PUT_WINDOW;
+        if (win && win < 16) win = 16;
+    }
     char tmp[MCS_VFS_PATH_MAX];
     if (snprintf(tmp, sizeof tmp, "%s.part", path) >= (int)sizeof tmp) { err(sh, "path too long"); return; }
     /* refuse before the data is sent. The upload goes to <path>.part first, so the old
@@ -136,13 +147,19 @@ static void cmd_put(mcs_shell_t* sh, const char* path, const char* len_s) {
     mcs_vfs_file_t f;
     int e = mcs_vfs_open(sh->vfs, tmp, MCS_VFS_WRITE, &f);
     if (e) { err(sh, mcs_vfs_strerror(e)); return; }
-    out(sh, EOT "READY\n");
+    if (win) outf(sh, EOT "READY %lu\n", win); else out(sh, EOT "READY\n");
     uint8_t buf[256];
+    unsigned long left_in_win = win;
     while (n) {
         size_t k = n < sizeof buf ? n : sizeof buf;
+        if (win && k > left_in_win) k = left_in_win;
         if (read_exact(sh, buf, k)) { mcs_vfs_close(&f); mcs_vfs_remove(sh->vfs, tmp); err(sh, "upload timed out"); return; }
         if (!e && mcs_vfs_write(&f, buf, k) != (int)k) e = MCS_VFS_ENOSPC;   /* keep draining the stream */
         n -= k;
+        if (win && !(left_in_win -= k)) {          /* window written: ask for the next one */
+            left_in_win = win;
+            if (n) out(sh, EOT "MORE\n");
+        }
     }
     int c = mcs_vfs_close(&f);
     if (!e) e = c;
@@ -346,7 +363,7 @@ static int cmd_df(mcs_shell_t* sh, const char* path) {
 }
 
 static void cmd_help(mcs_shell_t* sh) {
-    out(sh, "ls [dir] | cat <f> | put <f> <len> | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
+    out(sh, "ls [dir] | cat <f> | put <f> <len> [win] | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
             "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
             "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
@@ -389,7 +406,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         if (n && d[n - 1] != '\n') out(sh, "\n");
         mcs_vfs_free(sh->vfs, d, n);
         ok(sh);
-    } else if (!strcmp(c, "put")) cmd_put(sh, argv[1], argv[2]);
+    } else if (!strcmp(c, "put")) cmd_put(sh, argv[1], argv[2], argc > 3 ? argv[3] : NULL);
     else if (!strcmp(c, "get")) cmd_get(sh, argv[1]);
     else if (!strcmp(c, "rm")) {
         if (argc < 2) { err(sh, "usage: rm <path>"); return; }
