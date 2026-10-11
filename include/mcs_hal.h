@@ -251,6 +251,7 @@ enum { MCS_HAL_EV_GPIO = 1,      /* source = pin,   value = level        */
        MCS_HAL_EV_UART = 3,      /* source = port,  value = bytes ready  */
        MCS_HAL_EV_CAN = 4,       /* source = bus,   value = frames ready */
        MCS_HAL_EV_DMA = 5,       /* source = transfer id, value = bytes or MCS_HAL_E* */
+       MCS_HAL_EV_NET = 6,       /* source = MCS_NET_EV_*, value = event data (mcs_net.h) */
        MCS_HAL_EV_USER = 16 };   /* MCS_HAL_EV_USER + n: your own events, Hal.OnEvent(n, ...) */
 typedef struct {
     uint8_t type;
@@ -412,6 +413,15 @@ int mcs_hal_spi_config(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* cfg);
  * Returns false when the queue is full (the event is counted as dropped). */
 bool mcs_hal_post(int type, int source, int32_t value);
 uint32_t mcs_hal_dropped_events(void);
+
+/* Module event handlers: events of `type` (MCS_HAL_EV_NET .. MCS_HAL_EV_USER - 1) go to fn
+ * on the VM thread (return 1 = a callback ran, 0 = nothing to do, < 0 = -mcs_result_t).
+ * Process-wide; fn NULL removes it. Used by the network module for Wifi.OnEvent. */
+typedef int (*mcs_hal_event_fn)(mcs_vm_t* vm, const mcs_hal_event_t* ev);
+void mcs_hal_set_event_handler(int type, mcs_hal_event_fn fn);
+/* true when this VM runs interrupt / timer / network callbacks (false for OS-thread VMs
+ * opened with MCS_HAL_NO_EVENTS, or without the HAL library) */
+bool mcs_hal_events(mcs_vm_t* vm);
 
 /* Dispatch queued events to their C# callbacks on the VM thread. Returns the
  * number of callbacks run or a negative mcs_result_t if one failed. Called by

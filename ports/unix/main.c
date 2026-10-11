@@ -230,7 +230,7 @@ static void print_features(void) {
         { MCS_FEAT_COMPILER, "compiler" }, { MCS_FEAT_IMAGE_LOAD, "image-load" }, { MCS_FEAT_IMAGE_SAVE, "image-save" },
         { MCS_FEAT_FLOAT, "float" }, { MCS_FEAT_DOUBLE, "double" }, { MCS_FEAT_INT64, "int64" },
         { MCS_FEAT_LINES, "lines" }, { MCS_FEAT_DISASM, "disasm" }, { MCS_FEAT_LIST, "list" }, { MCS_FEAT_DICT, "dict" },
-        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" },
+        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" }, { MCS_FEAT_NET, "net" },
     };
     uint32_t m = mcs_features();
     printf("MicroCS %s, %d-bit values:", MCS_VERSION_STRING, (int)(sizeof(mcs_value_t) * 8));

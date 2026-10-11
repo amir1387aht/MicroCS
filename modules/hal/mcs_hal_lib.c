@@ -10,6 +10,7 @@
 #include "mcs_hal.h"
 #include "mcs_driver.h"
 #include "mcs_hal_internal.h"
+#include "mcs_net.h"
 #if MCS_ENABLE_HAL
 #include <string.h>
 #include <stdio.h>
@@ -259,8 +260,20 @@ static mcs_value_t set_callback(mcs_vm_t* vm, int kind, int source, mcs_value_t 
     return mcs_null();
 }
 
+static mcs_hal_event_fn g_ev_handlers[MCS_HAL_EV_USER - MCS_HAL_EV_NET];
+void mcs_hal_set_event_handler(int type, mcs_hal_event_fn fn) {
+    if (type >= MCS_HAL_EV_NET && type < MCS_HAL_EV_USER) g_ev_handlers[type - MCS_HAL_EV_NET] = fn;
+}
+bool mcs_hal_events(mcs_vm_t* vm) {
+    hal_state_t* s = (hal_state_t*)mcs_get_ext(vm, MCS_EXT_HAL);
+    return s && s->hal && !s->no_events;
+}
 static int dispatch(mcs_vm_t* vm, hal_state_t* s, const mcs_hal_event_t* ev) {
     if (ev->type == MCS_HAL_EV_DMA) return mcs__dma_event(vm, ev);
+    if (ev->type >= MCS_HAL_EV_NET && ev->type < MCS_HAL_EV_USER) {
+        mcs_hal_event_fn fn = g_ev_handlers[ev->type - MCS_HAL_EV_NET];
+        return fn ? fn(vm, ev) : 0;
+    }
     int kind = ev->type == MCS_HAL_EV_GPIO ? CB_GPIO : ev->type == MCS_HAL_EV_TIMER ? CB_TIMER
              : ev->type == MCS_HAL_EV_UART ? CB_UART : ev->type == MCS_HAL_EV_CAN ? CB_CAN
              : ev->type >= MCS_HAL_EV_USER ? CB_USER : CB_FREE;
@@ -1417,6 +1430,9 @@ static bool has(const mcs_hal_t* h, const char* n) {
     if (!strcmp(n, "Watchdog")) return h->wdt_start != NULL;
     if (!strcmp(n, "RTC")) return h->rtc_get != NULL;
     if (!strcmp(n, "Micros")) return h->micros != NULL;
+#if MCS_ENABLE_NET
+    if (mcs_net_has(mcs_net_get(), n)) return true;
+#endif
 #if MCS_ENABLE_HAL_DMA
     /* DMA: transfers that really run in the background (the async API works everywhere) */
     if (!strcmp(n, "DMA")) return h->dma_channels > 0 || h->dma_copy || h->spi_transfer_async || h->i2c_transfer_async
@@ -1609,6 +1625,9 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     mcs_servo_use_hal(h);                         /* default "servo" backend: this board's PWM */
 #endif
     mcs_drivers_open(vm);                         /* Drivers class + every registered driver */
+#endif
+#if MCS_ENABLE_NET
+    mcs_net_open_lib(vm, mcs_net_get());          /* Wifi, EspNow, sockets, Http, Ntp ... (mcs_net.h) */
 #endif
 }
 #endif

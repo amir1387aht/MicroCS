@@ -2134,7 +2134,8 @@ uint32_t mcs_features(void) {
          | (MCS_ENABLE_LINES ? MCS_FEAT_LINES : 0) | (MCS_ENABLE_DISASM ? MCS_FEAT_DISASM : 0)
          | (MCS_ENABLE_LIST ? MCS_FEAT_LIST : 0) | (MCS_ENABLE_DICT ? MCS_FEAT_DICT : 0)
          | (MCS_ENABLE_FS ? MCS_FEAT_FS : 0) | (MCS_ENABLE_HAL ? MCS_FEAT_HAL : 0)
-         | (MCS_ENABLE_SCHED ? MCS_FEAT_SCHED : 0) | (MCS_ENABLE_SHELL ? MCS_FEAT_SHELL : 0);
+         | (MCS_ENABLE_SCHED ? MCS_FEAT_SCHED : 0) | (MCS_ENABLE_SHELL ? MCS_FEAT_SHELL : 0)
+         | (MCS_ENABLE_NET ? MCS_FEAT_NET : 0);
 }
 
 mcs_result_t mcs_fail(mcs_vm_t* vm, mcs_result_t code, const char* fmt, ...) {
