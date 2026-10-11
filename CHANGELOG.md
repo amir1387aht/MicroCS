@@ -43,7 +43,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   `dma_alloc` / `dma_free` / `dma_align` / `dma_channels`, `dma_copy`, `dma_abort`,
   `spi_transfer_async`, `i2c_transfer_async`, `uart_write_async`, `uart_read_async`,
   `qspi_command_async`), `mcs_*_config_init()`, `mcs_hal_opt()`, `mcs_hal_error()`,
-  `MCS_HAL_EV_DMA`; `MCS_HAL_MAX_DMA` and `MCS_HAL_MAX_OPTS` in `mcs_user_config.h`;
+  `MCS_HAL_EV_DMA`; `MCS_HAL_MAX_DMA`, `MCS_HAL_MAX_OPTS` and `MCS_ENABLE_HAL_DMA` (leave the DMA
+  classes out, ~11 KB; off in the 256 KB Cortex-M0 reference build) in `mcs_user_config.h`;
   `mcs_userdata_of()`. A port can return `MCS_HAL_ENOTSUP` from an async call to get the
   synchronous fallback. Board tables written for v1 / v2 compile and work unchanged.
 * Docs: [Peripheral configuration](docs/PERIPHERALS.md), [DMA](docs/DMA.md), step-by-step

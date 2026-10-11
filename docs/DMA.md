@@ -93,6 +93,9 @@ take `DmaBuffer`s, with no size limit.
   `MCS_HAL_EV_DMA` event dispatched like GPIO / timer events.
 - `SpiConfig.Dma = false` keeps a bus on CPU transfers; `true` asks for DMA
   where the board decides per transfer.
+- `MCS_ENABLE_HAL_DMA 0` (in `mcs_user_config.h`) leaves `DmaBuffer`, `Dma`,
+  `DmaTransfer` and the `…Async` calls out of the firmware (~11 KB of flash on
+  Cortex-M0); `Hal.Has("DMA")` is then `false`.
 
 ## Boards
 
