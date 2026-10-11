@@ -26,6 +26,7 @@ typedef struct {
     char eap_identity[65], eap_user[65];  /* copies for Reconnect (last.identity / username) */
     uint32_t http_timeout;           /* Http.Timeout (ms) */
     char user_agent[48];
+    uint8_t no_redirect;             /* Http.FollowRedirects = false */
 } mcs__net_state_t;
 
 enum { MCS__NET_CB_WIFI = 0, MCS__NET_CB_ESPNOW = 1, MCS__NET_CB_COUNT };

@@ -370,6 +370,8 @@ static const struct { const char* name; int8_t kind; int8_t parent; } exc_tbl[] 
     { "FileNotFoundException", -1, 21 },
     { "DirectoryNotFoundException", -1, 21 },
     { "UnauthorizedAccessException", -1, 1 },
+    { "SocketException", -1, 21 },                       /* networking (an IOException here) */
+    { "HttpRequestException", -1, 0 },
 };
 #define EXC_TBL_N ((int)(sizeof exc_tbl / sizeof exc_tbl[0]))
 

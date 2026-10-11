@@ -17,11 +17,15 @@
 #include "mcs_sched.h"
 #include "mcs_shell.h"
 #include "mcs_threads.h"
+#include "mcs_net.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#if MCS_ENABLE_NET && MCS_NET_SIM
+static mcs_net_t g_net;
+#endif
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -396,6 +400,9 @@ int main(int argc, char** argv) {
 #else
     (void)fs_dir; (void)ramfs; (void)no_fs; (void)ro;
 #endif
+#if MCS_ENABLE_NET && MCS_NET_SIM
+    if (sim) { mcs_net_sim_init(&g_net); mcs_net_set(&g_net); }      /* simulated Wi-Fi radio */
+#endif
 #if MCS_ENABLE_HAL
     if (sim) {
         g_sim.log = sim_log_on ? sim_log : NULL;
@@ -406,6 +413,13 @@ int main(int argc, char** argv) {
     }
 #else
     (void)sim; (void)sim_log_on; (void)sim_virtual; (void)oled;
+#endif
+#if MCS_ENABLE_NET
+#if MCS_ENABLE_HAL
+    if (!sim) mcs_net_open_lib(vm, NULL);          /* sockets, Dns, Http on the host network */
+#else
+    mcs_net_open_lib(vm, mcs_net_get());
+#endif
 #endif
 #if MCS_ENABLE_SCHED
 #if MCS_ENABLE_FS
