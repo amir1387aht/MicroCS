@@ -244,9 +244,20 @@ class Device:
         self.link.write(line.encode() + b"\n")
         return self._status(echo)
 
-    def put(self, data, remote):
-        self.link.write(("put %s %d\n" % (remote, len(data))).encode())
+    def put(self, data, remote, window=1024):
+        """Upload with flow control: the device answers READY <w> and asks for every further
+        <w> bytes with MORE (older firmware answers READY: the data is streamed in one go)."""
+        self.link.write(("put %s %d%s\n" % (remote, len(data), " %d" % window if window else "")).encode())
         st, _ = self._status()
+        if st.startswith("READY "):
+            w = int(st[6:])
+            for i in range(0, len(data), w):
+                self.link.write(data[i:i + w])
+                if i + w < len(data):
+                    st, _ = self._status()
+                    if st != "MORE":
+                        return st, b""
+            return self._status()
         if st != "READY":
             return st, b""
         self.link.write(data)

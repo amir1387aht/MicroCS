@@ -417,6 +417,9 @@
 #ifndef MCS_SHELL_LINE_MAX
 #define MCS_SHELL_LINE_MAX        256
 #endif
+#ifndef MCS_SHELL_PUT_WINDOW
+#define MCS_SHELL_PUT_WINDOW      256     /* upload flow-control window (put <f> <len> <win>); fit the console RX buffer */
+#endif
 #ifndef MCS_SHELL_REPL_MAX
 #define MCS_SHELL_REPL_MAX        1024    /* multi-line REPL buffer; 0 removes the REPL */
 #endif

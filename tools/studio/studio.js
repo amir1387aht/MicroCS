@@ -101,7 +101,8 @@ function dialog({ title, text = "", value = null, ok = "OK", danger = false, sel
 /* ================================================================ device protocol
  * The MicroCS shell (modules/shell/mcs_shell.c, docs/STANDALONE.md):
  *   machine mode: one command per line; output, then a status line "\x04OK" / "\x04ERR msg"
- *   put <f> <len> -> "\x04READY", raw bytes, status    get <f> -> "\x04DATA <len>", bytes, status
+ *   put <f> <len> <win> -> "\x04READY <w>", then <w> bytes / "\x04MORE" ... status (older firmware: "\x04READY", all bytes)
+ *     get <f> -> "\x04DATA <len>", bytes, status
  *   Ctrl-A: machine mode from any state ("\x04OK")      Ctrl-C: stop a running script
  *   repl: the interactive C# prompt ("> ", "... ")     */
 class TimeoutError extends Error {}
@@ -340,10 +341,25 @@ class Device {
   }
   async put(path, data, onProgress, chunk = 1024, gap = 0) {
     await this.machine();
-    await this.write(`put ${path} ${data.length}\n`);
+    await this.write(`put ${path} ${data.length} 1024\n`);   // ask for flow control (window of up to 1 KB)
     const r = await this.status();
+    const win = /^READY (\d+)$/.exec(r.status);
+    if (win) {                                  // the device acknowledges every window: nothing can overrun it
+      const w = +win[1];
+      for (let i = 0; i < data.length; i += w) {
+        await this.write(data.subarray(i, Math.min(data.length, i + w)));
+        if (onProgress) onProgress(Math.min(data.length, i + w), data.length);
+        if (i + w < data.length) {
+          const m = await this.status({ idle: 10000 });
+          if (m.status !== "MORE") throw new Error(m.status.replace(/^ERR /, ""));
+        }
+      }
+      const s = await this.status({ idle: 20000 });
+      if (s.status !== "OK") throw new Error(s.status.replace(/^ERR /, ""));
+      return;
+    }
     if (r.status !== "READY") throw new Error(r.status.replace(/^ERR /, ""));
-    for (let i = 0; i < data.length; i += chunk) {
+    for (let i = 0; i < data.length; i += chunk) {             // older firmware: stream, optionally paced
       await this.write(data.subarray(i, Math.min(data.length, i + chunk)));
       if (onProgress) onProgress(Math.min(data.length, i + chunk), data.length);
       if (gap) await sleep(gap);

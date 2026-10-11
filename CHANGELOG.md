@@ -2,8 +2,17 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased
+## 1.12.1 — Reliable uploads on ESP32 native USB; Studio templates for U8g2, peripheral settings and DMA
 
+* **Reliable uploads on ESP32 USB-Serial-JTAG (ESP32-C3 / C6 / S3 / H2 native USB).** Saving a
+  script from Studio sometimes stalled ("upload stalled - retrying slower") because ESP-IDF's
+  USB-Serial-JTAG driver silently drops received bytes when its 256-byte buffer is full —
+  which happened while LittleFS erased a flash block or while the console waited on UART0.
+  Fixes: `put <f> <len> <window>` — the device acknowledges every window with `\x04MORE`
+  (`MCS_SHELL_PUT_WINDOW`, 256), so the host can never overrun it (Studio and
+  `tools/mcs_remote.py` use it; older firmware still gets the plain stream); the ESP32 console
+  installs the driver with a 4 KB receive buffer (`MCS_ESP32_USB_RXBUF`) and sleeps on the USB
+  port instead of UART0 while a USB host is attached.
 * **Studio templates for U8g2 / U8x8 displays.** A new *U8g2 displays* category with 20
   scripts that together cover the whole API: hello, every bus (`I2C`, `SoftI2C`, `SPI`,
   `SoftSPI`, `Soft3WireSPI`, 8080 / 6800, `KS0108`), all shapes, text / alignment / font metrics,

@@ -130,6 +130,11 @@ mcs_esp32_hal_init(&hal, &pins);
 
 Console: `mcs_esp32_console()` (UART0 + USB-Serial-JTAG where the chip has it, input from
 either), `mcs_esp32_console_usb()` (USB-Serial-JTAG only) or `mcs_esp32_console_uart(0, 115200)`.
+ESP-IDF's USB-Serial-JTAG driver drops received bytes that do not fit its buffer (USB itself
+would wait), so MicroCS installs it with a 4 KB receive buffer (`MCS_ESP32_USB_RXBUF`, TX:
+`MCS_ESP32_USB_TXBUF`) and Studio / `mcs_remote.py` upload with flow control (`put … <window>`,
+[STANDALONE.md](../../docs/STANDALONE.md)). If your app installs that driver itself, give it a
+receive buffer of at least `MCS_SHELL_PUT_WINDOW` (256) bytes.
 
 ## Displays (U8g2)
 

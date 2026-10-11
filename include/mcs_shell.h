@@ -33,6 +33,11 @@ extern "C" {
 #ifndef MCS_SHELL_LINE_MAX
 #define MCS_SHELL_LINE_MAX 256
 #endif
+#ifndef MCS_SHELL_PUT_WINDOW
+/* `put <f> <len> <window>`: the host sends at most this many bytes, then waits for "\x04MORE".
+ * Must fit the console's receive buffer (ESP32 USB-Serial-JTAG drops bytes beyond it). */
+#define MCS_SHELL_PUT_WINDOW 256
+#endif
 #ifndef MCS_SHELL_REPL_MAX
 #define MCS_SHELL_REPL_MAX 1024    /* multi-line REPL input buffer; 0 removes the REPL */
 #endif

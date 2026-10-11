@@ -1219,6 +1219,22 @@ mcs_transport_t mcs_esp32_console_uart(int port, uint32_t baud) {
     return t;
 }
 #if SOC_USB_SERIAL_JTAG_SUPPORTED
+/* USB-Serial-JTAG receive buffer. ESP-IDF's driver reads every USB packet into it from the
+ * interrupt and silently drops what does not fit (no USB flow control), so it must hold
+ * everything that can arrive while MicroCS is busy (a flash erase, a long statement).
+ * Uploads use the shell's windowed `put` on top (MCS_SHELL_PUT_WINDOW). */
+#ifndef MCS_ESP32_USB_RXBUF
+#define MCS_ESP32_USB_RXBUF 4096
+#endif
+#ifndef MCS_ESP32_USB_TXBUF
+#define MCS_ESP32_USB_TXBUF 1024
+#endif
+static esp_err_t con_usb_install(void) {
+    usb_serial_jtag_driver_config_t c = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    c.rx_buffer_size = MCS_ESP32_USB_RXBUF;
+    c.tx_buffer_size = MCS_ESP32_USB_TXBUF;
+    return usb_serial_jtag_driver_install(&c);    /* ESP_ERR_INVALID_STATE: the app installed it already */
+}
 static int con_usb_read(void* ud, uint8_t* buf, size_t n, uint32_t timeout_ms) {
     (void)ud;
     int r = usb_serial_jtag_read_bytes(buf, n, ms_ticks(timeout_ms));
@@ -1235,8 +1251,7 @@ static void con_usb_write(void* ud, const char* s, size_t n) {
 #endif
 mcs_transport_t mcs_esp32_console_usb(void) {
 #if SOC_USB_SERIAL_JTAG_SUPPORTED
-    usb_serial_jtag_driver_config_t c = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
-    esp_err_t e = usb_serial_jtag_driver_install(&c);
+    esp_err_t e = con_usb_install();
     if (e == ESP_OK || e == ESP_ERR_INVALID_STATE) {      /* INVALID_STATE: already installed */
         mcs_transport_t t = { con_usb_read, con_usb_write, NULL };
         return t;
@@ -1253,10 +1268,24 @@ static int con_auto_read(void* ud, uint8_t* buf, size_t n, uint32_t timeout_ms) 
     (void)ud;
     uint32_t waited = 0;
     for (;;) {
-        int r = usb_serial_jtag_read_bytes(buf, n, 0);
-        if (r > 0) return r;
         uint32_t step = timeout_ms - waited < 10 ? timeout_ms - waited : 10;
-        r = e_uart_read(NULL, 0, buf, n, step);    /* waits up to `step` ms */
+        int r;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
+        bool usb = usb_serial_jtag_is_connected();
+#else
+        bool usb = true;
+#endif
+        /* sleep on the USB port when a host is attached, so its (dropping) buffer is drained
+         * the moment data arrives; the UART driver buffers by itself and is polled */
+        if (usb) {
+            r = usb_serial_jtag_read_bytes(buf, n, ms_ticks(step));
+            if (r > 0) return r;
+            r = e_uart_read(NULL, 0, buf, n, 0);
+        } else {
+            r = e_uart_read(NULL, 0, buf, n, step);
+            if (r > 0) return r;
+            r = usb_serial_jtag_read_bytes(buf, n, 0);
+        }
         if (r > 0) return r;
         waited += step;
         if (waited >= timeout_ms) return 0;
@@ -1274,8 +1303,7 @@ static void con_auto_write(void* ud, const char* s, size_t n) {
 mcs_transport_t mcs_esp32_console(void) {
     mcs_transport_t t = mcs_esp32_console_uart(0, 115200);
 #if SOC_USB_SERIAL_JTAG_SUPPORTED
-    usb_serial_jtag_driver_config_t c = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
-    esp_err_t e = usb_serial_jtag_driver_install(&c);
+    esp_err_t e = con_usb_install();
     if (e == ESP_OK || e == ESP_ERR_INVALID_STATE) {
         t.read = con_auto_read; t.write = con_auto_write; t.ud = NULL;
     }
