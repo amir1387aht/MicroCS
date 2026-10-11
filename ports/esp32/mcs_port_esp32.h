@@ -116,6 +116,23 @@ bool mcs_esp32_partition_flash(mcs_esp32_flash_t* f, const char* partition_label
  * filesystem compiled in: use a RAM disk. */
 bool mcs_esp32_flash_fs(const char* partition_label, const mcs_vfs_ops_t** ops, void** ctx);
 #endif       /* both: UART0 + USB-Serial-JTAG (use this if unsure) */
+/* Wi-Fi + networking (MCS_ENABLE_NET, menuconfig > MicroCS > Wi-Fi; docs/NETWORK.md).
+ * mcs_esp32_hal_init registers the backend with mcs_net_set(); the radio starts on the
+ * first Wifi / EspNow call. */
+#if MCS_ENABLE_NET
+#include "sdkconfig.h"
+#if CONFIG_SOC_WIFI_SUPPORTED
+#define MCS_ESP32_WIFI 1
+#include "mcs_net.h"
+const mcs_net_t* mcs_esp32_net(void);
+/* Connect in the background (returns at once; Wifi.OnEvent / Wifi.Status show the result).
+ * ssid NULL or "": the network saved with Wifi.Save. false: nothing to connect to. */
+bool mcs_esp32_wifi_autoconnect(const char* ssid, const char* password);
+#endif
+#endif
+#ifndef MCS_ESP32_WIFI
+#define MCS_ESP32_WIFI 0
+#endif
 uint32_t mcs_esp32_ticks(void* ud);            /* milliseconds since boot */
 void mcs_esp32_delay(void* ud, uint32_t ms);   /* vTaskDelay, at least one tick */
 

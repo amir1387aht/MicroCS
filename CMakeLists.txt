@@ -102,11 +102,32 @@ if(ESP_PLATFORM)
         set(_mcs_u8g2_srcs ${MICROCS_U8G2_SRCS})
         set(_mcs_u8g2_incs ${MICROCS_U8G2_INC})
     endif()
+    # menuconfig > MicroCS > Wi-Fi: C# Wifi, EspNow, TcpClient, Http (HTTPS), Ntp, Ping, Mdns
+    set(_mcs_net_srcs "")
+    set(_mcs_net_reqs "")
+    set(_mcs_mdns "")
+    if(CONFIG_MICROCS_WIFI)
+        set(_mcs_net_srcs ports/esp32/mcs_port_esp32_net.c)
+        set(_mcs_net_reqs esp_wifi esp_netif esp_event nvs_flash lwip esp-tls mbedtls wpa_supplicant)
+        # mDNS when the project has the espressif/mdns component (idf.py add-dependency espressif/mdns)
+        idf_build_get_property(_mcs_build_comps BUILD_COMPONENTS)
+        foreach(c espressif__mdns mdns)
+            if(c IN_LIST _mcs_build_comps AND NOT _mcs_mdns)
+                list(APPEND _mcs_net_reqs ${c})
+                set(_mcs_mdns 1)
+            endif()
+        endforeach()
+    endif()
     idf_component_register(
-        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
+        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
-        REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs
+        REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)
+    if(NOT CONFIG_MICROCS_WIFI)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_NET=0)
+    elseif(_mcs_mdns)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ESP32_MDNS=1)
+    endif()
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
     if(NOT CONFIG_MICROCS_WS2812)       # menuconfig > MicroCS > WS2812 / NeoPixel driver
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_WS2812=0)
