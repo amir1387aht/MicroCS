@@ -76,6 +76,7 @@ void mcs__cfg_open(mcs_vm_t* vm, const mcs_hal_t* h);
 const char* mcs__cfg_nondefault(const void* cfg, int kind, const char* const* allowed);
 
 /* DMA (mcs_hal_dma.c) */
+#if MCS_ENABLE_HAL_DMA
 void mcs__dma_open(mcs_vm_t* vm, const mcs_hal_t* h);
 /* a DmaBuffer's memory, or false (no exception) when v is not one */
 bool mcs__dmabuf(mcs_value_t v, uint8_t** data, size_t* len);
@@ -92,6 +93,26 @@ void mcs__dma_tick(mcs_vm_t* vm);
  * copied to a new buffer) or null; returns the DmaTransfer */
 mcs_value_t mcs__spi_async(mcs_vm_t* vm, int bus, int cs, int cs_high, mcs_value_t tx, mcs_value_t rx);
 mcs_value_t mcs__i2c_async(mcs_vm_t* vm, int bus, int addr, mcs_value_t tx, mcs_value_t rx);
+#else
+/* MCS_ENABLE_HAL_DMA 0: no DmaBuffer / DmaTransfer / Dma classes, the ...Async members raise */
+void mcs__hal_pump(mcs_vm_t* vm, bool dma_only);
+static inline void mcs__dma_open(mcs_vm_t* vm, const mcs_hal_t* h) { (void)vm; (void)h; }
+static inline bool mcs__dmabuf(mcs_value_t v, uint8_t** data, size_t* len) { (void)v; (void)data; (void)len; return false; }
+static inline bool mcs__dma_idle(mcs_vm_t* vm, int kind, int bus) { (void)vm; (void)kind; (void)bus; return true; }
+static inline int mcs__dma_event(mcs_vm_t* vm, const mcs_hal_event_t* ev) { (void)vm; (void)ev; return 0; }
+static inline void mcs__dma_close(mcs_vm_t* vm) { (void)vm; }
+static inline void mcs__dma_tick(mcs_vm_t* vm) { (void)vm; }
+static inline mcs_value_t mcs__dma_off(mcs_vm_t* vm) {
+    mcs_raise(vm, "NotSupportedException", "DMA transfers are not compiled in (MCS_ENABLE_HAL_DMA 0)");
+    return mcs_null();
+}
+static inline mcs_value_t mcs__spi_async(mcs_vm_t* vm, int bus, int cs, int cs_high, mcs_value_t tx, mcs_value_t rx) {
+    (void)bus; (void)cs; (void)cs_high; (void)tx; (void)rx; return mcs__dma_off(vm);
+}
+static inline mcs_value_t mcs__i2c_async(mcs_vm_t* vm, int bus, int addr, mcs_value_t tx, mcs_value_t rx) {
+    (void)bus; (void)addr; (void)tx; (void)rx; return mcs__dma_off(vm);
+}
+#endif
 /* last mcs_hal_error() text (cleared by the read) */
 const char* mcs__hal_take_error(void);
 

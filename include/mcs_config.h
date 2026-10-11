@@ -346,6 +346,9 @@
 #ifndef MCS_ENABLE_HAL
 #define MCS_ENABLE_HAL 1           /* C# GPIO/UART/I2C/SPI/ADC/PWM  */
 #endif
+#ifndef MCS_ENABLE_HAL_DMA
+#define MCS_ENABLE_HAL_DMA MCS_ENABLE_HAL /* C# DmaBuffer, Dma, DmaTransfer and the ...Async calls (~11 KB) */
+#endif
 #ifndef MCS_ENABLE_SCHED
 #define MCS_ENABLE_SCHED 1         /* job scheduler                 */
 #endif

@@ -1417,6 +1417,7 @@ static bool has(const mcs_hal_t* h, const char* n) {
     if (!strcmp(n, "Watchdog")) return h->wdt_start != NULL;
     if (!strcmp(n, "RTC")) return h->rtc_get != NULL;
     if (!strcmp(n, "Micros")) return h->micros != NULL;
+#if MCS_ENABLE_HAL_DMA
     /* DMA: transfers that really run in the background (the async API works everywhere) */
     if (!strcmp(n, "DMA")) return h->dma_channels > 0 || h->dma_copy || h->spi_transfer_async || h->i2c_transfer_async
                                   || h->uart_write_async || h->uart_read_async || h->qspi_command_async;
@@ -1425,6 +1426,7 @@ static bool has(const mcs_hal_t* h, const char* n) {
     if (!strcmp(n, "DMA.I2C")) return h->i2c_transfer_async != NULL;
     if (!strcmp(n, "DMA.UART")) return h->uart_write_async != NULL || h->uart_read_async != NULL;
     if (!strcmp(n, "DMA.QSPI")) return h->qspi_command_async != NULL;
+#endif
     /* full configuration objects honoured by the board (else only the basic fields) */
     if (!strcmp(n, "GPIO.Configure")) return h->gpio_configure != NULL;
     if (!strcmp(n, "UART.Configure")) return h->uart_configure != NULL;

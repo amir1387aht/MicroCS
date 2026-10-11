@@ -13,7 +13,7 @@
  */
 #include "mcs_hal.h"
 #include "mcs_hal_internal.h"
-#if MCS_ENABLE_HAL
+#if MCS_ENABLE_HAL && MCS_ENABLE_HAL_DMA
 #include <string.h>
 #include <stdio.h>
 
