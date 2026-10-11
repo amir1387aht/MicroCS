@@ -20,7 +20,7 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 | **Convert** | static | — | `ToInt32(…)` `ToInt64(…)` `ToUInt32(…)` `ToByte(…)` `ToSByte(…)` `ToInt16(…)` `ToUInt16(…)` `ToDouble(·)` `ToSingle(·)` `ToBoolean(·)` `ToChar(·)` `ToString(…)` `ToBase64String(…)` `FromBase64String(·)` `ToHexString(…)` `ToHexStringLower(…)` `FromHexString(·)` |  |
 | **Math** | static | — | `Abs(·)` `Max(·, ·)` `Min(·, ·)` `Sign(·)` `Clamp(·, ·, ·)` `DivRem(·, ·)` `Sqrt(·)` `Sin(·)` `Cos(·)` `Tan(·)` `Asin(·)` `Acos(·)` `Atan(·)` `Atan2(·, ·)` `Sinh(·)` `Cosh(·)` `Tanh(·)` `Exp(·)` `Log(…)` `Log10(·)` `Log2(·)` `Pow(·, ·)` `Cbrt(·)` `Hypot(·, ·)` `Floor(·)` `Ceiling(·)` `Truncate(·)` `Round(…)` `FusedMultiplyAdd(·, ·, ·)` `IEEERemainder(·, ·)` | `MCS_STDLIB_MATH` |
 | **Environment** | static | `TickCount` `TickCount64` | — | `Environment.NewLine` is a constant |
-| **Thread** | static | — | `Sleep(·)` |  |
+| **Thread** | static | `Cores` `CurrentCore` `Os` `Count` `Id` | `Start(…)` `Run(…)` `RunOn(…)` `Every(…)` `StopAll()` `Sleep(·)` |  |
 | **GC** | static | — | `Collect(…)` `GetTotalMemory(…)` `CollectionCount(…)` |  |
 | **Debug** | static | — | `Assert(…)` `WriteLine(…)` `Write(…)` |  |
 | **object** | instance | — | `ToString()` `ToString(·)` `Equals(·)` `GetHashCode()` `GetType()` | every value |
@@ -49,7 +49,7 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 |---|---|---|---|---|
 | **string** | instance | `Length` | `Substring(…)` `IndexOf(…)` `Contains(·)` `StartsWith(…)` `EndsWith(…)` `Trim(…)` `TrimStart(…)` `TrimEnd(…)` `ToUpper()` `ToLower()` `ToUpperInvariant()` `ToLowerInvariant()` `LastIndexOf(…)` `IndexOfAny(·)` `Replace(·, ·)` `PadLeft(…)` `PadRight(…)` `Split(…)` `ToCharArray()` `Insert(·, ·)` `Remove(…)` `CompareTo(·)` `Equals(·)` `Equals(·, ·)` `GetEnumerator()` `Clone()` | UTF-8, byte-indexed |
 | **string** | static | — | `IsNullOrEmpty(·)` `IsNullOrWhiteSpace(·)` `Join(…)` `Concat(…)` `Format(…)` `Compare(…)` `CompareOrdinal(·, ·)` `Equals(·, ·)` |  |
-| **StringBuilder** | instance | `Length` `Capacity` | `Append(…)` `AppendLine(…)` `AppendFormat(…)` `ToString()` `ToString(·, ·)` `Clear()` `Insert(·, ·)` `Remove(·, ·)` `Replace(·, ·)` `get_Item(·)` `set_Item(·, ·)` | `MCS_ENABLE_STRINGBUILDER` |
+| **StringBuilder** | instance | `Length` `Capacity` | `Append(…)` `AppendLine(…)` `AppendFormat(…)` `ToString()` `ToString(·, ·)` `Clear()` `Insert(·, ·)` `Remove(·, ·)` `Replace(·, ·)` | `MCS_ENABLE_STRINGBUILDER` |
 
 ## Collections
 
@@ -85,31 +85,34 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **Hal** | static | `Board` `Micros` `UniqueId` `CpuHz` `DroppedEvents` | `Has(·)` `Poll()` `Run(…)` `DelayMicroseconds(·)` `Reset()` `OnEvent(·, ·)` `Post(…)` | consts `Board`, `ApiVersion` |
-| **GPIO** | static | — | `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` `Pin(·)` `OnChange(·, ·, ·)` `Off(·)` `PulseIn(…)` | consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both` |
-| **Pin** | instance | `Value` `Number` | `Write(·)` `Read()` `Toggle()` `High()` `Low()` `SetMode(·)` `OnChange(·, ·)` | `new Pin(pin[, mode])`; pin = number or name (`"PA5"`, `"GPIO21"`, `"LED"`) |
-| **UART** | static | — | `Open(…)` `Close(·)` `Write(·, ·)` `WriteLine(…)` `Read(…)` `ReadString(…)` `ReadLine(…)` `Available(·)` `OnReceive(·, ·)` | consts `ParityNone ParityOdd ParityEven` |
-| **I2C** | static | — | `Open(…)` `Write(·, ·, ·)` `Read(·, ·, ·)` `WriteRead(·, ·, ·, ·)` `ReadRegister(·, ·, ·)` `ReadRegisters(·, ·, ·, ·)` `WriteRegister(·, ·, ·, ·)` `Scan(·)` |  |
-| **I2cDevice** | instance | `Address` `Bus` | `Write(·)` `Read(·)` `WriteRead(·, ·)` `ReadRegister(·)` `ReadRegisters(·, ·)` `WriteRegister(·, ·)` | `new I2cDevice(bus, address)` |
-| **SPI** | static | — | `Open(…)` `Transfer(…)` `Write(…)` `Read(…)` |  |
-| **SpiDevice** | instance | — | `Transfer(·)` `Write(·)` `Read(·)` `WriteRead(·, ·)` | `new SpiDevice(bus, csPin, hz, mode)` — drives CS for you |
-| **ADC** | static | `Resolution` `ReferenceMillivolts` | `Read(·)` `ReadMillivolts(·)` `ReadVoltage(·)` `ReadAverage(…)` | consts `Resolution`, `ReferenceMillivolts` |
+| **Hal** | static | `Board` `Micros` `UniqueId` `CpuHz` `DroppedEvents` | `Has(·)` `Poll()` `Run(…)` `DelayMicroseconds(·)` `Reset()` `OnEvent(·, ·)` `Post(…)` `Options(…)` | consts `Board`, `ApiVersion` |
+| **GPIO** | static | — | `Configure(·, ·)` `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` `Pin(·)` `OnChange(·, ·, ·)` `Off(·)` `PulseIn(…)` | consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md)) |
+| **Pin** | instance | `Value` `Number` | `Write(·)` `Read()` `Toggle()` `High()` `Low()` `SetMode(·)` `OnChange(·, ·)` `Configure(·)` | `new Pin(pin[, mode or GpioConfig])`; pin = number or name (`"PA5"`, `"GPIO21"`, `"LED"`) |
+| **UART** | static | — | `Open(…)` `Close(·)` `Write(·, ·)` `WriteLine(…)` `Read(…)` `ReadString(…)` `ReadLine(…)` `Available(·)` `OnReceive(·, ·)` `WriteAsync(·, ·)` `ReadAsync(·, ·)` | consts `ParityNone ParityOdd ParityEven` |
+| **I2C** | static | — | `Open(…)` `Write(·, ·, ·)` `Read(·, ·, ·)` `WriteRead(·, ·, ·, ·)` `ReadRegister(·, ·, ·)` `ReadRegisters(·, ·, ·, ·)` `WriteRegister(·, ·, ·, ·)` `Scan(·)` `WriteAsync(·, ·, ·)` `ReadAsync(·, ·, ·)` `WriteReadAsync(·, ·, ·, ·)` |  |
+| **I2cDevice** | instance | `Address` `Bus` | `Write(·)` `Read(·)` `WriteRead(·, ·)` `ReadRegister(·)` `ReadRegisters(·, ·)` `WriteRegister(·, ·)` `WriteAsync(·)` `ReadAsync(·)` `WriteReadAsync(·, ·)` | `new I2cDevice(bus, address)` |
+| **SPI** | static | — | `Open(…)` `Transfer(…)` `Write(…)` `Read(…)` `TransferAsync(…)` `WriteAsync(…)` `ReadAsync(…)` |  |
+| **SpiDevice** | instance | `Bus` `ChipSelect` | `Transfer(…)` `Write(·)` `Read(·)` `WriteRead(·, ·)` `TransferAsync(·, ·)` `WriteAsync(·)` `ReadAsync(·)` | `new SpiDevice(bus, csPin, hz, mode)` or `(bus, csPin, SpiConfig)` — drives CS for you |
+| **ADC** | static | `Resolution` `ReferenceMillivolts` | `Configure(·, ·)` `Read(·)` `ReadMillivolts(·)` `ReadVoltage(·)` `ReadAverage(…)` | consts `Resolution`, `ReferenceMillivolts`, `AttenDefault Atten0dB Atten2_5dB Atten6dB Atten12dB` |
 | **DAC** | static | `Resolution` | `Write(·, ·)` `WriteMillivolts(·, ·)` | const `Resolution` |
-| **PWM** | static | — | `Set(·, ·, ·)` `SetPermille(·, ·, ·)` `SetPulse(·, ·, ·)` `Servo(…)` `Tone(·, ·)` `Stop(·)` | duty for `Set` is 0.0–1.0 |
+| **PWM** | static | — | `Configure(·, ·)` `Set(·, ·, ·)` `SetPermille(·, ·, ·)` `SetPulse(·, ·, ·)` `Servo(…)` `Tone(·, ·)` `Stop(·)` | duty for `Set` is 0.0–1.0 |
 | **Timer** | static | — | `Start(·, ·, ·)` `Once(·, ·, ·)` `Stop(·)` | periods in microseconds |
 | **I2S** | static | — | `Open(…)` `Write(…)` `Read(…)` `WriteSamples(…)` `ReadSamples(…)` `Close(·)` | consts `Tx Rx Duplex` |
-| **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` | address `-1` = no address phase |
+| **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` `ReadAsync(…)` `WriteAsync(…)` | address `-1` = no address phase |
 | **CAN** | static | — | `Open(…)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` |  |
 | **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
 | **Watchdog** | static | — | `Start(·)` `Feed()` |  |
 | **RTC** | static | `Now` | `Set(·)` | Unix seconds |
+| **DmaBuffer** | instance | `Length` `Busy` | `Fill(…)` `CopyFrom(…)` `ToArray(…)` `GetString(…)` `ToString()` | `new DmaBuffer(size or bytes)` — DMA-capable memory, indexer `buf[i]` ([DMA](DMA.md)) |
+| **DmaTransfer** | instance | `IsCompleted` `Succeeded` `Error` `Result` `Id` | `Wait(…)` `OnComplete(·)` `Cancel()` | returned by every `…Async` call |
+| **Dma** | static | `Pending` `Available` `Channels` `Alignment` `MaxTransfers` | `Copy(…)` `CopyAsync(…)` `Fill(…)` `FillAsync(…)` `WaitAll(…)` | memory-to-memory DMA, transfers in flight |
 
 ## Drivers (modules/drivers)
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
 | **Drivers** | static | `List` | `Has(·)` | registered device drivers (`mcs_driver.h`); `List` = names |
-| **LedStrip** | instance | `Count` `Pin` `Brightness` | `get_Item(·)` `set_Item(·, ·)` `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
+| **LedStrip** | instance | `Count` `Pin` `Brightness` | `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
 | **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Servo** | instance | `Angle` `Pulse` `Attached` `MinPulse` `MaxPulse` `MaxAngle` `Channel` | `Write(·)` `Read()` `WritePulse(·)` `MoveTo(·, ·)` `Attach()` `Detach()` `Stop()` `Dispose()` | `servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases |
 
@@ -129,4 +132,4 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_622 members in 67 tables._
+_676 members in 70 tables._

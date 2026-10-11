@@ -183,7 +183,7 @@ if(NOT DEFINED MICROCS_OS)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.11.0 LANGUAGES C)
+    project(MicroCS VERSION 1.12.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})
@@ -256,7 +256,7 @@ endif()
 if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
                           hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
-                          hardware_flash hardware_sync)
+                          hardware_flash hardware_sync hardware_dma)
     if(MICROCS_WS2812)
         target_link_libraries(microcs PUBLIC hardware_pio)   # the ws2812 driver's PIO backend
     endif()

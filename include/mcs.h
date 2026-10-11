@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 11
+#define MCS_VERSION_MINOR 12
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.11.0"
+#define MCS_VERSION_STRING "1.12.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -246,6 +246,8 @@ bool mcs_has_exception(mcs_vm_t* vm);
 /* Userdata access for native classes */
 void* mcs_userdata(mcs_value_t v);                  /* NULL if not userdata */
 void* mcs_check_userdata(mcs_vm_t* vm, mcs_value_t v, const mcs_class_def_t* def);
+/* Same check without raising: NULL when v is not an instance of def (or a subclass). */
+void* mcs_userdata_of(mcs_value_t v, const mcs_class_def_t* def);
 
 /* ------------------------------------------------------- value helpers */
 static inline mcs_value_t mcs_null(void) { mcs_value_t v; v.type = MCS_T_NULL; v.as.i = 0; return v; }

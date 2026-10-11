@@ -2,6 +2,55 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.12.0 — Peripheral configuration and DMA (HAL API v3)
+
+* **Configuration objects for every peripheral.** `GpioConfig`, `UartConfig`, `I2cConfig`,
+  `SpiConfig`, `QspiConfig`, `PwmConfig` and `AdcConfig` carry the settings a vendor SDK takes in
+  its init struct — pins, pulls, slew rate / speed, drive strength, Schmitt trigger, pad hold,
+  hardware inversion, glitch filters, initial output level, alternate functions, buffer sizes,
+  RS-485, three-wire SPI, sampling delay, ADC attenuation / oversampling, PWM resolution /
+  polarity / centre alignment, DMA on / off. New overloads: `GPIO.Configure`, `new Pin(pin, cfg)`,
+  `pin.Configure`, `UART.Open(port, cfg)`, `I2C.Open(bus, cfg)`, `SPI.Open(bus, cfg)`,
+  `new SpiDevice(bus, cs, cfg)`, `QSPI.Open(bus, cfg)`, `PWM.Configure`, `ADC.Configure`.
+  Unset properties stay at the board default; values are range-checked on assignment; a board
+  that cannot honour a setting throws `NotSupportedException` / `ArgumentException` with the
+  reason (`DriveMa: 2, 4, 8 or 12 mA`). Nothing is silently ignored.
+* **Board options**: chip-specific settings by name (`cfg.Set("queue_size", 8)`), listed with
+  their range and help by `Hal.Options([peripheral])`.
+* **DMA and asynchronous transfers.** `DmaBuffer` (DMA-capable memory), `SPI.TransferAsync /
+  WriteAsync / ReadAsync`, `I2C.WriteAsync / ReadAsync / WriteReadAsync`, `UART.WriteAsync /
+  ReadAsync`, `QSPI.ReadAsync / WriteAsync`, device-object variants, and `Dma.Copy / Fill /
+  CopyAsync / FillAsync / WaitAll`. Each returns a `DmaTransfer` (`Wait`, `OnComplete`,
+  `Cancel`, `Result`, `Error`). Transfers stay in order per bus, keep their buffers alive and
+  complete through the event queue, never in an interrupt. Synchronous `SPI.Write / Read` and
+  `QSPI.Read` accept `DmaBuffer`s of any size. Boards without DMA run the same calls
+  synchronously, so scripts are portable. `Hal.Has("DMA.SPI")` & co. tell what really runs in
+  the background.
+* **ESP32 port**: everything — runtime pins for UART / I²C / SPI / QSPI / PWM (no more C pin
+  tables needed), GPIO filters (pin and flex glitch filters), hold, invert, drive; UART buffers,
+  inversion, RS-485 half duplex, RX timeout; I²C pull-ups and filter; SPI three-wire, input delay,
+  max transfer; LEDC resolution / invert; ADC attenuation / resolution / oversampling; SPI and
+  QSPI transfers on DMA, async memcpy on GDMA chips, `DmaBuffer` in internal DMA-capable RAM.
+* **RP2040 / RP2350 port**: GPIO pulls, drive, slew, Schmitt, alternate function, invert (pad
+  overrides or software), glitch-free initial level; runtime UART / I²C / SPI pins, UART
+  inversion and RTS / CTS, I²C spike filter, pull-ups and timeout; PWM resolution, polarity and
+  phase-correct mode; ADC oversampling; SPI transfers and memory copy / fill on DMA.
+* **STM32 port**: `GpioConfig` (pull, speed, open drain, alternate function) and `PwmConfig`
+  (polarity, centre-aligned). Zephyr, Arduino and Cortex-M keep the basic settings.
+* **Simulator** implements and validates every setting and runs DMA transfers through the event
+  queue, so scripts can be tested on a PC (`mcs --sim --sim-virtual`).
+* **C API**: `MCS_HAL_API_VERSION` 3. New optional `mcs_hal_t` members (`*_configure`, `options`,
+  `dma_alloc` / `dma_free` / `dma_align` / `dma_channels`, `dma_copy`, `dma_abort`,
+  `spi_transfer_async`, `i2c_transfer_async`, `uart_write_async`, `uart_read_async`,
+  `qspi_command_async`), `mcs_*_config_init()`, `mcs_hal_opt()`, `mcs_hal_error()`,
+  `MCS_HAL_EV_DMA`; `MCS_HAL_MAX_DMA`, `MCS_HAL_MAX_OPTS` and `MCS_ENABLE_HAL_DMA` (leave the DMA
+  classes out, ~11 KB; off in the 256 KB Cortex-M0 reference build) in `mcs_user_config.h`;
+  `mcs_userdata_of()`. A port can return `MCS_HAL_ENOTSUP` from an async call to get the
+  synchronous fallback. Board tables written for v1 / v2 compile and work unchanged.
+* Docs: [Peripheral configuration](docs/PERIPHERALS.md), [DMA](docs/DMA.md), step-by-step
+  guides for [peripheral settings](docs/guides/PERIPHERALS.md) and [DMA](docs/guides/DMA.md),
+  example `17_config_dma.cs`, Studio completions for every new class.
+
 ## 1.11.0 — U8g2 displays (optional)
 
 * **C# `U8g2` and `U8x8` on olikraus' u8g2 (2.37.1, the latest release)** for 365 monochrome

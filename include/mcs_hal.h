@@ -19,6 +19,12 @@
  * Compatibility: the v1 members (gpio .. pwm_set) keep their order. Everything
  * after them is optional, so a v1 board table written with designated
  * initializers still compiles and works unchanged.
+ *
+ * v3 adds full peripheral configuration (mcs_*_config_t: pins, pulls, drive
+ * strength, filters, DMA, buffer sizes ... with "board default" for every
+ * field, plus named port-specific options) and DMA: asynchronous SPI / I2C /
+ * UART / QSPI transfers and memory copies that complete with MCS_HAL_EV_DMA.
+ * See docs/PERIPHERALS.md and docs/DMA.md.
  */
 #ifndef MCS_HAL_H
 #define MCS_HAL_H
@@ -27,7 +33,7 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 2
+#define MCS_HAL_API_VERSION 3
 
 #ifndef MCS_HAL_MAX_XFER
 #define MCS_HAL_MAX_XFER 256     /* largest single transfer per call; buffers live on the C stack */
@@ -43,6 +49,12 @@ extern "C" {
 #endif
 #ifndef MCS_HAL_MAX_BUSES
 #define MCS_HAL_MAX_BUSES 4      /* per peripheral type, for cached bus settings */
+#endif
+#ifndef MCS_HAL_MAX_DMA
+#define MCS_HAL_MAX_DMA 4        /* asynchronous (DMA) transfers in flight per VM, 1..8 */
+#endif
+#ifndef MCS_HAL_MAX_OPTS
+#define MCS_HAL_MAX_OPTS 8       /* port-specific options per config object */
 #endif
 
 enum { MCS_HAL_ERR = -1, MCS_HAL_ENOTSUP = -2, MCS_HAL_ETIMEOUT = -3, MCS_HAL_ENODEV = -4,
@@ -104,12 +116,141 @@ typedef struct {
     uint8_t data[8];
 } mcs_can_frame_t;
 
+/* ---------------- v3: peripheral configuration ----------------
+ * Every field has a "board default" value: 0 for numbers and tri-states,
+ * -1 (MCS_PIN_DEFAULT) for pins. Initialise with the mcs_*_config_init()
+ * helpers (or the C# config classes) and set only what you need. A port that
+ * cannot honour a non-default field returns MCS_HAL_ENOTSUP and may name the
+ * field with mcs_hal_error("..."), which is appended to the C# exception. */
+#define MCS_PIN_DEFAULT (-1)
+enum { MCS_AUTO = 0, MCS_ON = 1, MCS_OFF = 2 };   /* tri-state: board default / enable / disable */
+
+/* Port-specific options: a NULL-terminated table in mcs_hal_t.options lists the
+ * names a board accepts ("i2c.timing", "spi.queue_size" ...); config objects
+ * carry (index, value) pairs set with cfg.Set("timing", 0x10909CEC) in C#. */
+typedef struct {
+    const char* periph;            /* "GPIO", "UART", "I2C", "SPI", "QSPI", "PWM", "ADC" */
+    const char* name;              /* "timing" */
+    int32_t min, max;
+    const char* help;              /* one line shown by Hal.Options() */
+} mcs_hal_option_t;
+typedef struct {
+    uint8_t n;
+    uint8_t id[MCS_HAL_MAX_OPTS];  /* index into mcs_hal_t.options */
+    int32_t value[MCS_HAL_MAX_OPTS];
+} mcs_hal_opts_t;
+/* value of option `name` (periph "SPI"...) or `def` when not set */
+int32_t mcs_hal_opt(const mcs_hal_option_t* table, const mcs_hal_opts_t* o, const char* periph, const char* name, int32_t def);
+
+enum { MCS_PULL_DEFAULT = 0, MCS_PULL_NONE = 1, MCS_PULL_UP = 2, MCS_PULL_DOWN = 3, MCS_PULL_BOTH = 4 };
+enum { MCS_SPEED_DEFAULT = 0, MCS_SPEED_LOW = 1, MCS_SPEED_MEDIUM = 2, MCS_SPEED_HIGH = 3, MCS_SPEED_VERY_HIGH = 4 };
+typedef struct {
+    uint8_t mode;                  /* MCS_GPIO_INPUT / OUTPUT / OPEN_DRAIN / ANALOG ... */
+    uint8_t pull;                  /* MCS_PULL_*: DEFAULT = what the mode implies */
+    uint8_t speed;                 /* slew rate / output speed, MCS_SPEED_* */
+    uint8_t drive_ma;              /* drive strength in mA, 0 = default (nearest supported) */
+    uint8_t schmitt;               /* tri-state: input hysteresis */
+    uint8_t hold;                  /* tri-state: latch the pad state (deep sleep / reset) */
+    uint8_t invert;                /* tri-state: invert input and output in hardware */
+    int8_t initial;                /* output level set before the pin turns into an output, -1 = keep */
+    int16_t alternate;             /* alternate function / pad mux number, -1 = GPIO */
+    uint16_t filter_ns;            /* input glitch filter, 0 = off / default */
+    mcs_hal_opts_t opts;
+} mcs_gpio_config_t;
+
+typedef struct {
+    mcs_uart_cfg_t frame;          /* baud, data bits, parity, stop bits, flow control */
+    int16_t tx, rx, rts, cts;      /* pins, MCS_PIN_DEFAULT = board default */
+    uint16_t rx_buffer, tx_buffer; /* driver buffer sizes in bytes, 0 = default */
+    uint8_t invert_tx, invert_rx;  /* bool: inverted line levels */
+    uint8_t rs485;                 /* bool: half duplex, RTS drives the transceiver DE pin */
+    uint8_t dma;                   /* tri-state */
+    uint16_t rx_timeout;           /* idle time in symbols before buffered bytes are reported, 0 = default */
+    mcs_hal_opts_t opts;
+} mcs_uart_config_t;
+
+typedef struct {
+    uint32_t freq_hz;              /* 0 = 100 kHz */
+    int16_t sda, scl;              /* pins */
+    uint8_t pullups;               /* tri-state: internal pull-ups */
+    uint8_t dma;                   /* tri-state */
+    uint16_t timeout_ms;           /* 0 = default */
+    uint8_t glitch_filter;         /* digital filter length in clock cycles, 0 = default */
+    uint8_t analog_filter;         /* tri-state */
+    mcs_hal_opts_t opts;
+} mcs_i2c_config_t;
+
+typedef struct {
+    mcs_spi_cfg_t bus;             /* frequency, mode, word size, bit order */
+    int16_t sck, mosi, miso;       /* pins */
+    int16_t cs;                    /* default chip select for SPI.Transfer(bus, data), driven by MicroCS */
+    uint8_t cs_active_high;        /* bool */
+    uint8_t three_wire;            /* bool: half duplex on MOSI; spi_transfer(_async) then gets exactly one of tx / rx (the other NULL), any length */
+    uint8_t dma;                   /* tri-state */
+    uint8_t reserved;
+    uint16_t input_delay_ns;       /* MISO sampling delay (long wires, level shifters) */
+    uint32_t max_transfer;         /* largest DMA transfer in bytes, 0 = default */
+    mcs_hal_opts_t opts;
+} mcs_spi_config_t;
+
+typedef struct {
+    uint32_t freq_hz;              /* 0 = 10 MHz */
+    uint8_t mode;                  /* SPI mode 0 or 3 */
+    uint8_t ddr;                   /* bool: double data rate */
+    uint8_t dma;                   /* tri-state */
+    uint8_t cs_high_cycles;        /* minimum CS high time between commands, 0 = default */
+    uint8_t sample_shift;          /* half-cycle sample delay, 0 = default */
+    uint8_t flash_size_log2;       /* memory size as 2^n bytes (memory-mapped / STM32 FSIZE), 0 = default */
+    int16_t sck, cs, io[4];        /* pins: io0 (MOSI) io1 (MISO) io2 (WP) io3 (HOLD) */
+    mcs_hal_opts_t opts;
+} mcs_qspi_config_t;
+
+typedef struct {
+    uint32_t freq_hz;              /* 0 = keep */
+    int16_t pin;                   /* output pin for the channel, MCS_PIN_DEFAULT = board default */
+    uint8_t resolution_bits;       /* duty resolution, 0 = best for the frequency */
+    uint8_t invert;                /* bool: active-low output */
+    uint8_t center_aligned;        /* bool: phase-correct / centre-aligned counting */
+    mcs_hal_opts_t opts;
+} mcs_pwm_config_t;
+
+enum { MCS_ADC_ATTEN_DEFAULT = 0, MCS_ADC_ATTEN_0DB = 1, MCS_ADC_ATTEN_2_5DB = 2,
+       MCS_ADC_ATTEN_6DB = 3, MCS_ADC_ATTEN_12DB = 4 };
+typedef struct {
+    uint8_t resolution_bits;       /* 0 = default */
+    uint8_t attenuation;           /* MCS_ADC_ATTEN_* (input range), 0 = default */
+    uint8_t oversample;            /* hardware averaging: samples per reading (power of two), 0 = off */
+    uint8_t reserved;
+    uint16_t sample_time;          /* sampling time in ADC clock cycles, 0 = default */
+    mcs_hal_opts_t opts;
+} mcs_adc_config_t;
+
+void mcs_gpio_config_init(mcs_gpio_config_t* c, int mode);
+void mcs_uart_config_init(mcs_uart_config_t* c, uint32_t baud);
+void mcs_i2c_config_init(mcs_i2c_config_t* c, uint32_t freq_hz);
+void mcs_spi_config_init(mcs_spi_config_t* c, uint32_t freq_hz, int mode);
+void mcs_qspi_config_init(mcs_qspi_config_t* c, uint32_t freq_hz);
+void mcs_pwm_config_init(mcs_pwm_config_t* c, uint32_t freq_hz);
+void mcs_adc_config_init(mcs_adc_config_t* c);
+/* Explain the last MCS_HAL_ENOTSUP / EINVAL ("drive_ma: 2, 4, 8 or 12 mA"); the
+ * text must be static. Call from the VM thread only. */
+void mcs_hal_error(const char* detail);
+
+/* ---------------- v3: DMA ----------------
+ * Asynchronous transfers get an id from the library and finish with
+ * mcs_hal_post(MCS_HAL_EV_DMA, id, result) - bytes transferred, or a negative
+ * MCS_HAL_E* code - usually from the DMA-complete interrupt. Buffers passed to
+ * *_async functions stay valid and untouched until that event. */
+enum { MCS_DMA_SRC_FIXED = 1,      /* dma_copy: repeat src[0] (fill) / read one peripheral register */
+       MCS_DMA_DST_FIXED = 2 };    /* dma_copy: write every byte to the same address (peripheral register) */
+
 /* Events posted by drivers (often from ISRs) and dispatched to C# callbacks
  * on the VM thread by mcs_hal_poll(). */
 enum { MCS_HAL_EV_GPIO = 1,      /* source = pin,   value = level        */
        MCS_HAL_EV_TIMER = 2,     /* source = timer, value = fire count   */
        MCS_HAL_EV_UART = 3,      /* source = port,  value = bytes ready  */
        MCS_HAL_EV_CAN = 4,       /* source = bus,   value = frames ready */
+       MCS_HAL_EV_DMA = 5,       /* source = transfer id, value = bytes or MCS_HAL_E* */
        MCS_HAL_EV_USER = 16 };   /* MCS_HAL_EV_USER + n: your own events, Hal.OnEvent(n, ...) */
 typedef struct {
     uint8_t type;
@@ -207,6 +348,38 @@ typedef struct mcs_hal {
      * queue). Return 1 when *ev was filled, 0 when empty. */
     int (*poll_event)(void* ctx, mcs_hal_event_t* ev);
 
+    /* ---------------- v3 (all optional) ---------------- */
+    /* Full configuration. NULL = the library uses the v1/v2 calls above and
+     * raises NotSupportedException for fields they cannot express. */
+    int (*gpio_configure)(void* ctx, int pin, const mcs_gpio_config_t* cfg);
+    int (*uart_configure)(void* ctx, int port, const mcs_uart_config_t* cfg);
+    int (*i2c_configure)(void* ctx, int bus, const mcs_i2c_config_t* cfg);
+    int (*spi_configure)(void* ctx, int bus, const mcs_spi_config_t* cfg);
+    int (*qspi_configure)(void* ctx, int bus, const mcs_qspi_config_t* cfg);
+    int (*pwm_configure)(void* ctx, int channel, const mcs_pwm_config_t* cfg);
+    int (*adc_configure)(void* ctx, int channel, const mcs_adc_config_t* cfg);
+    const mcs_hal_option_t* options;   /* port-specific option names, NULL-terminated table */
+
+    /* DMA. Memory for DmaBuffer: dma_alloc returns DMA-capable memory (internal
+     * SRAM, outside DTCM, cache-line aligned ...). NULL = VM heap aligned to
+     * dma_align (0 = 4). */
+    void* (*dma_alloc)(void* ctx, size_t n);
+    void (*dma_free)(void* ctx, void* p);
+    uint8_t dma_align;
+    uint8_t dma_channels;              /* hardware channels free for MicroCS, 0 = no DMA engine */
+    /* memory copy / fill (flags MCS_DMA_*), completes with MCS_HAL_EV_DMA */
+    int (*dma_copy)(void* ctx, void* dst, const void* src, size_t n, unsigned flags, int id);
+    /* stop transfer `id` (best effort); no completion event follows */
+    int (*dma_abort)(void* ctx, int id);
+    /* Asynchronous peripheral transfers (return < 0 when they cannot start).
+     * NULL, or MCS_HAL_ENOTSUP for one particular request (dma_copy fill, a
+     * size the engine cannot do ...) = the library runs the synchronous call
+     * and completes at once. */
+    int (*spi_transfer_async)(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n, int id);
+    int (*i2c_transfer_async)(void* ctx, int bus, int addr, const uint8_t* tx, size_t tn, uint8_t* rx, size_t rn, int id);
+    int (*uart_write_async)(void* ctx, int port, const uint8_t* data, size_t n, int id);
+    int (*uart_read_async)(void* ctx, int port, uint8_t* buf, size_t n, int id);   /* completes when n bytes arrived */
+    int (*qspi_command_async)(void* ctx, int bus, const mcs_qspi_cmd_t* cmd, const uint8_t* tx, uint8_t* rx, size_t n, int id);
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
@@ -303,6 +476,19 @@ typedef struct {
     uint32_t (*clock_us)(void* ud); /* optional real clock for timers / Hal.Micros */
     void* clock_ud;
     struct mcs_sim_oled* oled;      /* optional I2C OLED (mcs_hal_sim_attach_oled) */
+    /* v3: last configuration per peripheral, DMA bookkeeping */
+    mcs_gpio_config_t gpio_cfg;     /* last GPIO.Configure (pin in gpio_cfg_pin) */
+    int gpio_cfg_pin;
+    mcs_uart_config_t uart_full[4];
+    mcs_i2c_config_t i2c_cfg;
+    mcs_spi_config_t spi_full;
+    mcs_qspi_config_t qspi_cfg;
+    mcs_pwm_config_t pwm_cfg;       /* last PWM.Configure / ADC.Configure */
+    mcs_adc_config_t adc_cfg;
+    uint32_t dma_started, dma_bytes;
+    uint8_t* uart_rx_buf;           /* pending UART.ReadAsync */
+    uint32_t uart_rx_len, uart_rx_got;
+    int uart_rx_port, uart_rx_id;
 } mcs_hal_sim_t;
 void mcs_hal_sim_init(mcs_hal_t* hal, mcs_hal_sim_t* sim);
 

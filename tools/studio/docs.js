@@ -473,7 +473,7 @@ Micros: long | Microseconds since start
 UniqueId: string | Chip id as hex
 CpuHz: int | CPU clock in Hz
 DroppedEvents: int | Events lost because the queue was full
-Has(string name): bool | "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC", or a driver: "LedStrip", "ws2812"
+Has(string name): bool | "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC", "SPI.Configure" (full settings objects), "DMA", "DMA.SPI" (background transfers), or a driver: "LedStrip", "ws2812"
 Poll(): void | Runs pending callbacks now
 Run(): void | Dispatches events forever (until Ctrl-C)
 Run(int ms): void | Dispatches events for ms milliseconds
@@ -482,6 +482,8 @@ Reset(): void | Restarts the chip
 OnEvent(int n, Action<int, int> handler): void | Handler(source, value) for user event n (C: mcs_hal_post)
 Post(int n): void | Queues user event n
 Post(int n, int source, int value): void | Queues user event n with data
+Options(): List<string> | Board-specific settings for configuration objects ("SPI.queue_size (1..16): ...")
+Options(string peripheral): List<string> | Board options of one peripheral: "GPIO", "UART", "SPI"…
 
 @GPIO | Digital pins (modules/hal)
 const Input: int | Input mode
@@ -493,6 +495,15 @@ const Analog: int | Analog (ADC) mode
 const Rising: int | Edge: low → high
 const Falling: int | Edge: high → low
 const Both: int | Both edges
+const PullNone: int | GpioConfig.Pull: no pull resistor
+const PullUp: int | GpioConfig.Pull: pull-up
+const PullDown: int | GpioConfig.Pull: pull-down
+const PullBoth: int | GpioConfig.Pull: bus keeper (where supported)
+const SpeedLow: int | GpioConfig.Speed: slow edges
+const SpeedMedium: int | GpioConfig.Speed
+const SpeedHigh: int | GpioConfig.Speed
+const SpeedVeryHigh: int | GpioConfig.Speed: fastest edges
+Configure(pin pin, GpioConfig cfg): void | Mode, pull, speed, drive, Schmitt, hold, invert, initial level, alternate function, filter
 Mode(pin pin, int mode): void | Sets the mode: GPIO.Input, Output, InputPullUp, InputPullDown, OpenDrain, Analog
 Write(pin pin, bool value): void | Drives the pin: true / 1 = high, false / 0 = low
 Write(pin pin, int value): void | Drives the pin: 0 = low, anything else = high
@@ -508,6 +519,8 @@ PulseIn(pin pin, bool level, int timeoutUs): int | Pulse length in µs, 0 on tim
 @Pin | A GPIO pin object (modules/hal)
 new(pin pin) | A pin by number or name ("PA5", "GPIO21", "LED")
 new(pin pin, int mode) | A pin set to GPIO.Output, Input, InputPullUp…
+new(pin pin, GpioConfig cfg) | A pin with full electrical settings
+.Configure(GpioConfig cfg): void | Applies new settings
 .Write(bool value): void | Drives the pin
 .Read(): bool | Reads the level
 .Toggle(): void | Inverts the output
@@ -524,6 +537,9 @@ const ParityOdd: int | Odd parity
 const ParityEven: int | Even parity
 Open(int port, int baud): void | Opens the port, 8N1
 Open(int port, int baud, int dataBits, int parity, int stopBits): void | Opens with framing: parity UART.ParityNone / ParityOdd / ParityEven
+Open(int port, UartConfig cfg): void | Opens with pins, buffers, inversion, RS-485…
+WriteAsync(int port, object data): DmaTransfer | Sends in the background
+ReadAsync(int port, DmaBuffer rx): DmaTransfer | Completes when rx is full
 Close(int port): void | Closes the port
 Write(int port, string data): void | Sends text
 Write(int port, byte[] data): void | Sends bytes
@@ -541,6 +557,10 @@ OnReceive(int port, Action<int> handler): void | Callback(available) when data a
 @I2C | I²C buses (modules/hal)
 Open(int bus): void | Opens at 100 kHz
 Open(int bus, int hz): void | Opens at hz (100000, 400000…)
+Open(int bus, I2cConfig cfg): void | Opens with pins, pull-ups, filters, timeout
+WriteAsync(int bus, int addr, object data): DmaTransfer | Background write
+ReadAsync(int bus, int addr, DmaBuffer rx): DmaTransfer | Background read
+WriteReadAsync(int bus, int addr, object tx, DmaBuffer rx): DmaTransfer | Background write + read
 Write(int bus, int addr, byte[] data): void | Writes bytes (7-bit address)
 Read(int bus, int addr, int n): byte[] | Reads n bytes
 WriteRead(int bus, int addr, byte[] data, int n): byte[] | Write, repeated start, read n bytes
@@ -564,6 +584,13 @@ new(int bus, int address) | The device at the 7-bit address
 @SPI | SPI buses (modules/hal)
 Open(int bus): void | 1 MHz, mode 0
 Open(int bus, int hz, int mode = 0, int lsbFirst = 0): void | Clock, mode 0-3, bit order
+Open(int bus, SpiConfig cfg): void | Opens with pins, CS, 3-wire, DMA…
+TransferAsync(int bus, object tx, DmaBuffer rx): DmaTransfer | Full duplex in the background
+TransferAsync(int bus, object tx, DmaBuffer rx, pin csPin): DmaTransfer | Same, drives CS
+WriteAsync(int bus, object data): DmaTransfer | Sends in the background (DmaBuffer: any size)
+WriteAsync(int bus, object data, pin csPin): DmaTransfer | Same, drives CS
+ReadAsync(int bus, DmaBuffer rx): DmaTransfer | Reads in the background
+ReadAsync(int bus, DmaBuffer rx, pin csPin): DmaTransfer | Same, drives CS
 Transfer(int bus, byte[] data): byte[] | Full duplex
 Transfer(int bus, byte[] data, pin csPin): byte[] | Full duplex, drives CS
 Write(int bus, byte[] data): void | Sends bytes
@@ -573,6 +600,7 @@ Read(int bus, int n, pin csPin): byte[] | Reads n bytes, drives CS
 
 @SpiDevice | One SPI device with its own CS and settings (modules/hal)
 new(int bus, pin csPin, int hz, int mode) | CS handled, bus re-configured per device
+new(int bus, pin csPin, SpiConfig cfg) | Device with full bus settings
 .Transfer(byte[] data): byte[] | Full duplex
 .Write(byte[] data): void | Sends bytes
 .Read(int n): byte[] | Reads n bytes
@@ -586,6 +614,7 @@ ReadMillivolts(int ch): int | Calibrated millivolts
 ReadVoltage(int ch): double | Volts
 ReadAverage(int ch): int | Average of 16 raw readings
 ReadAverage(int ch, int n): int | Average of n raw readings
+Configure(int ch, AdcConfig cfg): void | Resolution, attenuation (input range), oversampling
 
 @DAC | Analog outputs (modules/hal)
 Resolution: int | Bits
@@ -595,6 +624,7 @@ WriteMillivolts(int ch, int mV): void | Output voltage
 @PWM | PWM channels: LEDs, motors, servos, buzzers (modules/hal)
 Set(int ch, int hz, double duty): void | Frequency and duty 0.0-1.0
 SetPermille(int ch, int hz, int permille): void | Duty 0-1000
+Configure(int ch, PwmConfig cfg): void | Pin, resolution, inverted, centre-aligned
 SetPulse(int ch, int hz, int pulseUs): void | High time in µs
 Servo(int ch, double degrees): void | 50 Hz servo, 0-180°, 500-2500 µs (the Servo class does more)
 Servo(int ch, double degrees, int minUs, int maxUs): void | Servo with its pulse range
@@ -639,6 +669,9 @@ Read(int bus, int instr, int address, int n, int dummy, int dataLines, int addrB
 Write(int bus, int instr, int address, byte[] data): void | Writes bytes
 Write(int bus, int instr, int address, byte[] data, int dataLines, int addrBytes): void | Every option
 Transfer(int bus, int instr, int instrLines, int address, int addrBytes, int addrLines, int dummy, int dataLines, object bytesOrCount): byte[] | Every phase explicit
+Open(int bus, QspiConfig cfg): void | Opens with pins, mode, DDR, flash size
+ReadAsync(int bus, int instr, int address, DmaBuffer rx): DmaTransfer | Background read (address -1 = none)
+WriteAsync(int bus, int instr, int address, object data): DmaTransfer | Background write
 
 @CAN | CAN bus / TWAI (modules/hal)
 Open(int bus): void | 500 kbit/s
@@ -658,6 +691,144 @@ new(int id, byte[] data, bool extended) | Extended (29-bit) when true
 .Remote: bool | Remote request
 .Length: int | Data length
 .Data: byte[] | Payload
+
+@GpioConfig | GPIO settings for GPIO.Configure / new Pin (modules/hal, HAL v3)
+new() | Everything at the board default
+new(int mode) | GPIO.Input, Output, OpenDrain…
+new(int mode, int pull) | Mode and GPIO.PullUp / PullDown / PullNone
+.Mode: int | GPIO.Input, Output, OpenDrain, Analog…
+.Pull: int | GPIO.PullNone, PullUp, PullDown, PullBoth
+.Speed: int | GPIO.SpeedLow … SpeedVeryHigh (slew rate)
+.DriveMilliamps: int | Drive strength in mA, 0 = default
+.Schmitt: bool? | Input hysteresis, null = default
+.Hold: bool? | Keep the level through sleep / reset
+.Invert: bool? | Invert in hardware
+.Initial: int | Level before the pin starts driving, -1 = keep
+.Alternate: int | Alternate function number, -1 = GPIO
+.FilterNs: int | Input glitch filter in ns
+.Set(string name, int value): GpioConfig | A property or board option by name
+.Get(string name): int | Value of a property or option
+.Reset(): void | Back to all defaults
+
+@UartConfig | UART settings for UART.Open (modules/hal, HAL v3)
+new(int baud) | Baud rate, 8N1
+new(int baud, pin tx, pin rx) | With pins
+.Baud: int | Baud rate
+.DataBits: int | 5-9
+.Parity: int | UART.ParityNone / Odd / Even
+.StopBits: int | 1 or 2
+.FlowControl: bool | RTS/CTS
+.Tx: pin | TX pin
+.Rx: pin | RX pin
+.Rts: pin | RTS pin
+.Cts: pin | CTS pin
+.RxBuffer: int | Receive buffer bytes
+.TxBuffer: int | Transmit buffer bytes
+.InvertTx: bool | Inverted TX level
+.InvertRx: bool | Inverted RX level
+.Rs485: bool | Half duplex, RTS drives the transceiver
+.Dma: bool? | DMA, null = default
+.RxTimeout: int | Idle symbols before data is reported
+.Set(string name, int value): UartConfig | A property or board option by name
+
+@I2cConfig | I²C settings for I2C.Open (modules/hal, HAL v3)
+new(int hz) | Clock
+new(int hz, pin sda, pin scl) | With pins
+.Frequency: int | Clock in Hz (up to 1 MHz)
+.Sda: pin | SDA pin
+.Scl: pin | SCL pin
+.PullUps: bool? | Internal pull-ups
+.Dma: bool? | DMA
+.TimeoutMs: int | Per transfer
+.GlitchFilter: int | Digital filter (clock cycles)
+.AnalogFilter: bool? | Analog filter
+.Set(string name, int value): I2cConfig | A property or board option by name
+
+@SpiConfig | SPI settings for SPI.Open / SpiDevice (modules/hal, HAL v3)
+new(int hz) | Clock, mode 0
+new(int hz, int mode) | Clock and mode 0-3
+new(int hz, int mode, pin sck, pin mosi, pin miso) | With pins
+.Frequency: int | Clock in Hz
+.Mode: int | 0-3
+.Bits: int | Bits per word
+.LsbFirst: bool | Bit order
+.Sck: pin | Clock pin
+.Mosi: pin | Data out pin
+.Miso: pin | Data in pin
+.Cs: pin | Chip select driven by MicroCS
+.CsActiveHigh: bool | CS polarity
+.ThreeWire: bool | Half duplex on MOSI (Write / Read only)
+.Dma: bool? | DMA, null = default
+.InputDelayNs: int | MISO sampling delay
+.MaxTransfer: int | Largest transfer in bytes
+.Set(string name, int value): SpiConfig | A property or board option ("queue_size")
+
+@QspiConfig | Quad SPI settings for QSPI.Open (modules/hal, HAL v3)
+new(int hz) | Clock
+.Frequency: int | Clock in Hz
+.Mode: int | 0 or 3
+.Ddr: bool | Double data rate
+.Dma: bool? | DMA
+.FlashSizeLog2: int | Memory size 2^n bytes
+.Sck: pin | Clock pin
+.Cs: pin | Chip select pin
+.Io0: pin | IO0 / MOSI
+.Io1: pin | IO1 / MISO
+.Io2: pin | IO2 / WP
+.Io3: pin | IO3 / HOLD
+
+@PwmConfig | PWM settings for PWM.Configure (modules/hal, HAL v3)
+new(int hz) | Frequency
+new(int hz, pin pin) | Frequency and output pin
+.Frequency: int | Hz, 0 = set by PWM.Set
+.Pin: pin | Output pin
+.ResolutionBits: int | Duty resolution, 0 = finest
+.Inverted: bool | Active-low
+.CenterAligned: bool | Phase-correct counting
+
+@AdcConfig | ADC settings for ADC.Configure (modules/hal, HAL v3)
+new(int attenuation) | ADC.Atten0dB … Atten12dB
+.ResolutionBits: int | 0 = native
+.Attenuation: int | Input range: ADC.Atten0dB, Atten2_5dB, Atten6dB, Atten12dB
+.Oversample: int | Samples averaged per reading
+.SampleTime: int | ADC clock cycles
+
+@DmaBuffer | DMA-capable memory for background transfers (modules/hal, HAL v3)
+new(int size) | Zero-filled buffer
+new(byte[] data) | Copy of bytes (or a string)
+.Length: int | Bytes
+.Busy: bool | A transfer uses it (writes throw)
+.Fill(int value): void | Sets every byte
+.Fill(int value, int offset, int count): void | Sets a range
+.CopyFrom(byte[] data, int offset): int | Copies bytes in, returns the count
+.ToArray(): byte[] | Copy of the contents
+.ToArray(int offset, int count): byte[] | Copy of a range
+.GetString(): string | Contents as UTF-8 text
+
+@DmaTransfer | A transfer started by an …Async call (modules/hal, HAL v3)
+.Wait(): bool | Waits for the end (throws if it failed)
+.Wait(int timeoutMs): bool | false on timeout
+.IsCompleted: bool | Finished
+.Succeeded: bool | Finished without error
+.Error: string | Reason of a failure or null
+.Result: int | Bytes transferred (waits)
+.OnComplete(Action<int> handler): void | Callback(bytes) on the VM thread
+.Cancel(): bool | Stops it (best effort)
+
+@Dma | Memory DMA and transfers in flight (modules/hal, HAL v3)
+Copy(DmaBuffer dst, object src): int | Copies (DMA engine or CPU)
+Copy(DmaBuffer dst, object src, int count, int dstOffset, int srcOffset): int | Copies a range
+CopyAsync(DmaBuffer dst, object src): DmaTransfer | Background copy
+Fill(DmaBuffer dst, int value): void | Fills
+Fill(DmaBuffer dst, int value, int offset, int count): void | Fills a range
+FillAsync(DmaBuffer dst, int value): DmaTransfer | Background fill
+WaitAll(): bool | Waits for every transfer
+WaitAll(int timeoutMs): bool | false on timeout
+Pending: int | Transfers in flight
+Available: bool | The board has a DMA engine
+Channels: int | DMA channels
+Alignment: int | DmaBuffer alignment
+MaxTransfers: int | Transfers in flight at most
 
 @Drivers | Device drivers compiled into the firmware (modules/drivers, mcs_driver.h)
 Has(string name): bool | A driver ("ws2812", "servo") or a class it adds ("LedStrip", "Servo") is available

@@ -455,6 +455,11 @@ mcs_value_t mcs_index(mcs_value_t v, uint32_t i) { return AS_LIST(v)->items[i]; 
 void mcs_set_index(mcs_value_t v, uint32_t i, mcs_value_t x) { AS_LIST(v)->items[i] = x; }
 void mcs_list_add(mcs_vm_t* vm, mcs_value_t list, mcs_value_t x) { mcs_listobj_push(vm, AS_LIST(list), x); }
 void* mcs_userdata(mcs_value_t v) { return IS_KIND(v, MCS_O_USERDATA) ? (void*)AS_UDATA(v)->data : NULL; }
+void* mcs_userdata_of(mcs_value_t v, const mcs_class_def_t* def) {
+    if (IS_KIND(v, MCS_O_USERDATA))
+        for (mcs_class_t* c = AS_UDATA(v)->cls; c; c = c->super) if (c->def == def) return AS_UDATA(v)->data;
+    return NULL;
+}
 void* mcs_check_userdata(mcs_vm_t* vm, mcs_value_t v, const mcs_class_def_t* def) {
     if (IS_KIND(v, MCS_O_USERDATA)) {
         for (mcs_class_t* c = AS_UDATA(v)->cls; c; c = c->super) if (c->def == def) return AS_UDATA(v)->data;

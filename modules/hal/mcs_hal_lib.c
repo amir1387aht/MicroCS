@@ -9,6 +9,7 @@
  */
 #include "mcs_hal.h"
 #include "mcs_driver.h"
+#include "mcs_hal_internal.h"
 #if MCS_ENABLE_HAL
 #include <string.h>
 #include <stdio.h>
@@ -16,52 +17,48 @@
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
-#define NATIVE(name) static mcs_value_t name(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv)
-#define ST() ((hal_state_t*)mcs_get_ext(vm, MCS_EXT_HAL))
-#define HAL() (ST()->hal)
-#define CTX() (HAL()->ctx)
-#define INT_ARG(i, var) int var = (int)mcs_to_int(vm, argv[i]); if (mcs_has_exception(vm)) return mcs_null()
-#define OPT_INT(i, var, def) int var = argc > (i) ? (int)mcs_to_int(vm, argv[i]) : (def); if (mcs_has_exception(vm)) return mcs_null()
-#define NEED(fn, what) if (!HAL()->fn) return hal_fail(vm, what, MCS_HAL_ENOTSUP)
-#define RC(what, expr) do { int _rc = (expr); if (_rc < 0) return hal_fail(vm, what, _rc); } while (0)
-
-/* ------------------------------------------------------------ state */
+/* ------------------------------------------------------------ state: mcs_hal_internal.h */
 enum { CB_FREE = 0, CB_GPIO, CB_TIMER, CB_UART, CB_CAN, CB_USER };
-typedef struct {
-    uint8_t kind;
-    uint16_t source;
-} hal_cb_t;
-typedef struct {
-    const mcs_hal_t* hal;
-    int self_pin;                   /* pinned userdata holding this struct */
-    int cb_pin;                     /* pinned List: callback i at index i */
-    hal_cb_t cb[MCS_HAL_MAX_CALLBACKS];
-    mcs_spi_cfg_t spi_cur[MCS_HAL_MAX_BUSES];
-    uint8_t spi_valid[MCS_HAL_MAX_BUSES];
-    uint8_t i2s_bits[MCS_HAL_MAX_BUSES];
-    uint8_t polling;
-    uint8_t no_events;              /* MCS_HAL_NO_EVENTS: OS-thread VM, callbacks belong to the main VM */
-} hal_state_t;
+typedef mcs__hal_state_t hal_state_t;
+typedef mcs__hal_cb_t hal_cb_t;
+#define hal_fail mcs__hal_fail
+#define range_fail mcs__range_fail
+#define to_bytes mcs__to_bytes
+#define bytes_val mcs__bytes_val
+#define pin_arg mcs__pin_arg
+#define check_callable mcs__check_callable
 
-static mcs_value_t hal_fail(mcs_vm_t* vm, const char* op, int rc) {
+static const char* g_err_detail;   /* mcs_hal_error(): explains the next failure */
+void mcs_hal_error(const char* detail) { g_err_detail = detail; }
+const char* mcs__hal_take_error(void) { const char* d = g_err_detail; g_err_detail = NULL; return d; }
+mcs_value_t hal_fail(mcs_vm_t* vm, const char* op, int rc) {
     const char* why = rc == MCS_HAL_ENOTSUP ? "not supported" : rc == MCS_HAL_ETIMEOUT ? "timeout"
                     : rc == MCS_HAL_ENODEV ? "no device" : rc == MCS_HAL_EBUSY ? "busy"
                     : rc == MCS_HAL_EINVAL ? "invalid argument" : "failed";
-    if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s", op, why);
-    else if (rc == MCS_HAL_ENOTSUP) mcs_raise(vm, "NotSupportedException", "%s: %s", op, why);
-    else if (rc == MCS_HAL_EINVAL) mcs_raise(vm, "ArgumentException", "%s: %s", op, why);
-    else mcs_raise(vm, "IOException", "%s: %s (%d)", op, why, rc);
+    const char* d = mcs__hal_take_error();
+    const char* sep = d ? " - " : "";
+    if (!d) d = "";
+    if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s%s%s", op, why, sep, d);
+    else if (rc == MCS_HAL_ENOTSUP) mcs_raise(vm, "NotSupportedException", "%s: %s%s%s", op, why, sep, d);
+    else if (rc == MCS_HAL_EINVAL) mcs_raise(vm, "ArgumentException", "%s: %s%s%s", op, why, sep, d);
+    else mcs_raise(vm, "IOException", "%s: %s (%d)%s%s", op, why, rc, sep, d);
     return mcs_null();
 }
 mcs_value_t mcs_hal_raise(mcs_vm_t* vm, const char* op, int rc) { return hal_fail(vm, op, rc); }
-static mcs_value_t range_fail(mcs_vm_t* vm, const char* what) {
+mcs_value_t range_fail(mcs_vm_t* vm, const char* what) {
     mcs_raise(vm, "ArgumentOutOfRangeException", "%s out of range", what);
     return mcs_null();
 }
 
 /* byte[] / List<byte> / string / null -> buffer */
-static bool to_bytes(mcs_vm_t* vm, mcs_value_t v, uint8_t* buf, size_t* n) {
+bool to_bytes(mcs_vm_t* vm, mcs_value_t v, uint8_t* buf, size_t* n) {
     if (mcs_is_null(v)) { *n = 0; return true; }
+    uint8_t* dd; size_t dl;
+    if (mcs__dmabuf(v, &dd, &dl)) {
+        if (dl > MCS_HAL_MAX_XFER) goto too_big;
+        memcpy(buf, dd, dl); *n = dl;
+        return true;
+    }
     if (mcs_is_string(v)) {
         size_t l = mcs_strlen(v);
         if (l > MCS_HAL_MAX_XFER) goto too_big;
@@ -69,7 +66,7 @@ static bool to_bytes(mcs_vm_t* vm, mcs_value_t v, uint8_t* buf, size_t* n) {
         return true;
     }
     int k = mcs_obj_kind(v);
-    if (k != MCS_O_ARRAY && k != MCS_O_LIST) { mcs_raise(vm, "ArgumentException", "expected byte[] or string"); return false; }
+    if (k != MCS_O_ARRAY && k != MCS_O_LIST) { mcs_raise(vm, "ArgumentException", "expected byte[], DmaBuffer or string"); return false; }
     uint32_t l = mcs_len(v);
     if (l > MCS_HAL_MAX_XFER) goto too_big;
     for (uint32_t i = 0; i < l; i++) {
@@ -82,7 +79,15 @@ too_big:
     mcs_raise(vm, "ArgumentOutOfRangeException", "transfer larger than %d bytes", MCS_HAL_MAX_XFER);
     return false;
 }
-static mcs_value_t bytes_val(mcs_vm_t* vm, const uint8_t* b, size_t n) {
+/* data as a pointer: a DmaBuffer is used in place (any size), anything else is
+ * copied into `stack` (MCS_HAL_MAX_XFER bytes) */
+static bool bytes_ref(mcs_vm_t* vm, mcs_value_t v, uint8_t* stack, const uint8_t** p, size_t* n) {
+    uint8_t* dd;
+    if (mcs__dmabuf(v, &dd, n)) { *p = dd; return true; }
+    *p = stack;
+    return to_bytes(vm, v, stack, n);
+}
+mcs_value_t bytes_val(mcs_vm_t* vm, const uint8_t* b, size_t n) {
     mcs_value_t a = mcs_new_array(vm, (uint32_t)n);
     for (size_t i = 0; i < n; i++) mcs_set_index(a, (uint32_t)i, mcs_int(b[i]));
     return a;
@@ -94,7 +99,7 @@ static int count_arg(mcs_vm_t* vm, mcs_value_t v) {
     return (int)n;
 }
 /* pin given as a number or a board name ("PA5", "GPIO13") */
-static int pin_arg(mcs_vm_t* vm, mcs_value_t v) {
+int pin_arg(mcs_vm_t* vm, mcs_value_t v) {
     if (mcs_is_string(v)) {
         const mcs_hal_t* h = HAL();
         int p = h->pin_lookup ? h->pin_lookup(h->ctx, mcs_cstr(v)) : -1;
@@ -237,7 +242,7 @@ static bool cb_set(mcs_vm_t* vm, hal_state_t* s, int kind, int source, mcs_value
     mcs_set_index(list, (uint32_t)i, fn);
     return true;
 }
-static bool check_callable(mcs_vm_t* vm, mcs_value_t fn) {
+bool check_callable(mcs_vm_t* vm, mcs_value_t fn) {
     int k = mcs_obj_kind(fn);
     if (mcs_is_null(fn) || k == MCS_O_CLOSURE || k == MCS_O_NATIVE || k == MCS_O_BOUND || k == MCS_O_FUNCTION || k == MCS_O_OVERLOADS) return true;
     mcs_raise(vm, "ArgumentException", "expected a callback (lambda or method)");
@@ -255,6 +260,7 @@ static mcs_value_t set_callback(mcs_vm_t* vm, int kind, int source, mcs_value_t 
 }
 
 static int dispatch(mcs_vm_t* vm, hal_state_t* s, const mcs_hal_event_t* ev) {
+    if (ev->type == MCS_HAL_EV_DMA) return mcs__dma_event(vm, ev);
     int kind = ev->type == MCS_HAL_EV_GPIO ? CB_GPIO : ev->type == MCS_HAL_EV_TIMER ? CB_TIMER
              : ev->type == MCS_HAL_EV_UART ? CB_UART : ev->type == MCS_HAL_EV_CAN ? CB_CAN
              : ev->type >= MCS_HAL_EV_USER ? CB_USER : CB_FREE;
@@ -277,6 +283,13 @@ static int dispatch(mcs_vm_t* vm, hal_state_t* s, const mcs_hal_event_t* ev) {
     return r == MCS_OK ? 1 : -(int)r;
 }
 
+static bool next_event(const mcs_hal_t* h, bool* driver_empty, mcs_hal_event_t* ev) {
+    if (!*driver_empty) {              /* the driver's own queue first, once until empty */
+        if (h->poll_event && h->poll_event(h->ctx, ev) == 1) return true;
+        *driver_empty = true;
+    }
+    return ring_pop(ev);
+}
 int mcs_hal_poll(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s || s->polling || s->no_events) return 0;
@@ -284,16 +297,16 @@ int mcs_hal_poll(mcs_vm_t* vm) {
     const mcs_hal_t* h = s->hal;
     int ran = 0, err = 0;
     mcs_hal_event_t ev;
+    /* events held back while a callback waited for a DMA transfer go first */
+    mcs_hal_event_t held[MCS__DEFER];
+    int nh = s->ndefer;
+    memcpy(held, s->defer, sizeof(mcs_hal_event_t) * (size_t)nh);
+    s->ndefer = 0;
     /* bounded: events posted by the callbacks themselves wait for the next poll */
     bool driver_empty = h->poll_event == NULL;
-    for (int budget = MCS_HAL_EVENT_QUEUE * 2; budget > 0; budget--) {
-        bool got = false;
-        if (!driver_empty) {           /* the driver's own queue first, once until empty */
-            if (h->poll_event(h->ctx, &ev) == 1) got = true;
-            else driver_empty = true;
-        }
-        if (!got && ring_pop(&ev)) got = true;
-        if (!got) break;
+    for (int budget = MCS_HAL_EVENT_QUEUE * 2 + nh, i = 0; budget > 0; budget--) {
+        if (i < nh) ev = held[i++];
+        else if (!next_event(h, &driver_empty, &ev)) break;
         int r = dispatch(vm, s, &ev);
         if (r > 0) ran++;
         else if (r < 0) {
@@ -301,8 +314,24 @@ int mcs_hal_poll(mcs_vm_t* vm) {
             if (mcs_has_exception(vm)) break;   /* nested in a script: let the exception propagate */
         }
     }
+    if (!mcs_has_exception(vm)) mcs__dma_tick(vm);   /* UART.ReadAsync without a DMA driver */
     s->polling = 0;
     return err ? err : ran;
+}
+/* Wait loops (DmaTransfer.Wait ...): a normal poll, or - inside a callback, where
+ * polls do not nest - only DMA completions, other events are kept for later */
+void mcs__hal_pump(mcs_vm_t* vm, bool dma_only) {
+    hal_state_t* s = ST();
+    if (!s || s->no_events) return;
+    if (!s->polling && !dma_only) { mcs_hal_poll(vm); return; }
+    const mcs_hal_t* h = s->hal;
+    bool driver_empty = h->poll_event == NULL;
+    mcs_hal_event_t ev;
+    for (int budget = MCS_HAL_EVENT_QUEUE; budget > 0 && next_event(h, &driver_empty, &ev); budget--) {
+        if (ev.type == MCS_HAL_EV_DMA) { mcs__dma_event(vm, &ev); if (mcs_has_exception(vm)) return; }
+        else if (s->ndefer < MCS__DEFER) s->defer[s->ndefer++] = ev;
+        else g_dropped++;
+    }
 }
 static int idle_poll(mcs_vm_t* vm, void* ud) { (void)ud; return mcs_hal_poll(vm); }
 
@@ -368,7 +397,44 @@ NATIVE(gpio_pulsein) {
     while (h->gpio_read(h->ctx, pin) == level) if (h->micros(h->ctx) - t0 > (uint32_t)timeout_us) return mcs_int(0);
     return mcs_int((mcs_int_t)(h->micros(h->ctx) - start));
 }
+/* fields a v1/v2 board can express through the legacy calls */
+static mcs_value_t cfg_unsupported(mcs_vm_t* vm, const char* what, const char* field) {
+    mcs_raise(vm, "NotSupportedException", "%s: %s is not supported by this board", what, field);
+    return mcs_null();
+}
+static mcs_value_t gpio_apply(mcs_vm_t* vm, int pin, const mcs_gpio_config_t* c, const char* what) {
+    const mcs_hal_t* h = HAL();
+    if (h->gpio_configure) { RC(what, h->gpio_configure(h->ctx, pin, c)); return mcs_null(); }
+    static const char* const ok[] = { "Mode", "Pull", "Initial", NULL };
+    const char* nd = mcs__cfg_nondefault(c, MCS__CFG_GPIO, ok);
+    if (nd) return cfg_unsupported(vm, what, nd);
+    int mode = c->mode;
+    if (c->pull == MCS_PULL_UP || c->pull == MCS_PULL_DOWN) {
+        if (mode == MCS_GPIO_INPUT || mode == MCS_GPIO_INPUT_PULLUP || mode == MCS_GPIO_INPUT_PULLDOWN)
+            mode = c->pull == MCS_PULL_UP ? MCS_GPIO_INPUT_PULLUP : MCS_GPIO_INPUT_PULLDOWN;
+        else return cfg_unsupported(vm, what, "Pull with this mode");
+    } else if (c->pull == MCS_PULL_BOTH) return cfg_unsupported(vm, what, "Pull = Both");
+    else if (c->pull == MCS_PULL_NONE && (mode == MCS_GPIO_INPUT_PULLUP || mode == MCS_GPIO_INPUT_PULLDOWN)) mode = MCS_GPIO_INPUT;
+    if (!h->gpio_mode) return hal_fail(vm, what, MCS_HAL_ENOTSUP);
+    bool out = mode == MCS_GPIO_OUTPUT || mode == MCS_GPIO_OPEN_DRAIN;
+    if (out && c->initial >= 0) h->gpio_write(h->ctx, pin, c->initial);   /* before the driver turns on, where the port allows */
+    RC(what, h->gpio_mode(h->ctx, pin, mode));
+    if (out && c->initial >= 0) RC(what, h->gpio_write(h->ctx, pin, c->initial));
+    return mcs_null();
+}
+static const mcs_gpio_config_t* gpio_cfg_arg(mcs_vm_t* vm, mcs_value_t v) {
+    const mcs_gpio_config_t* c = (const mcs_gpio_config_t*)mcs__cfg_get(v, MCS__CFG_GPIO);
+    if (!c) mcs_raise(vm, "ArgumentException", "GpioConfig expected");
+    return c;
+}
+/* GPIO.Configure(pin, new GpioConfig { Mode = GPIO.Output, DriveMilliamps = 12 }) */
+NATIVE(gpio_configure) {
+    PIN_ARG(0, pin);
+    const mcs_gpio_config_t* c = gpio_cfg_arg(vm, argv[1]);
+    return c ? gpio_apply(vm, pin, c, "GPIO.Configure") : mcs_null();
+}
 static const mcs_reg_t gpio_fns[] = {
+    MCS_FN("Configure", gpio_configure, 2),
     MCS_FN("Mode", gpio_mode, 2), MCS_FN("Write", gpio_write, 2), MCS_FN("Read", gpio_read, 1),
     MCS_FN("Toggle", gpio_toggle, 1), MCS_FN("Pin", gpio_pin, 1), MCS_FN("OnChange", gpio_onchange, 3),
     MCS_FN("Off", gpio_off, 1), MCS_FN("PulseIn", gpio_pulsein, -1), MCS_REG_END
@@ -379,8 +445,11 @@ typedef struct { int pin; int mode; } pin_t;
 static const mcs_class_def_t pin_def;
 static void pin_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     pin_t* p = (pin_t*)mcs_userdata(self);
-    if (argc < 1 || argc > 2) { mcs_raise(vm, "ArgumentException", "Pin(pin[, mode]) expected"); return; }
+    if (argc < 1 || argc > 2) { mcs_raise(vm, "ArgumentException", "Pin(pin[, mode | GpioConfig]) expected"); return; }
     p->pin = pin_arg(vm, argv[0]);
+    if (mcs_has_exception(vm)) return;
+    const mcs_gpio_config_t* gc = argc > 1 ? (const mcs_gpio_config_t*)mcs__cfg_get(argv[1], MCS__CFG_GPIO) : NULL;
+    if (gc) { p->mode = gc->mode; gpio_apply(vm, p->pin, gc, "Pin"); return; }
     p->mode = argc > 1 ? (int)mcs_to_int(vm, argv[1]) : -1;
     if (mcs_has_exception(vm) || p->mode < 0) return;
     if (!HAL()->gpio_mode) { hal_fail(vm, "Pin", MCS_HAL_ENOTSUP); return; }
@@ -413,17 +482,42 @@ NATIVE(pin_setmode) {
     return mcs_null();
 }
 NATIVE(pin_number) { PIN(); return mcs_int(p->pin); }
+NATIVE(pin_configure) {
+    PIN();
+    const mcs_gpio_config_t* c = gpio_cfg_arg(vm, argv[0]);
+    if (!c) return mcs_null();
+    gpio_apply(vm, p->pin, c, "Pin.Configure");
+    if (!mcs_has_exception(vm)) p->mode = c->mode;
+    return mcs_null();
+}
 NATIVE(pin_onchange) { PIN(); INT_ARG(0, edge); return gpio_irq_common(vm, p->pin, edge, argv[1]); }
 static const mcs_reg_t pin_members[] = {
     MCS_FN("Write", pin_write, 1), MCS_FN("Read", pin_read, 0), MCS_FN("Toggle", pin_toggle, 0),
     MCS_FN("High", pin_high, 0), MCS_FN("Low", pin_low, 0), MCS_FN("SetMode", pin_setmode, 1),
-    MCS_FN("OnChange", pin_onchange, 2),
+    MCS_FN("OnChange", pin_onchange, 2), MCS_FN("Configure", pin_configure, 1),
     MCS_GET("Value", pin_read), MCS_SET("Value", pin_write), MCS_GET("Number", pin_number), MCS_REG_END
 };
 static const mcs_class_def_t pin_def = { "Pin", sizeof(pin_t), pin_ctor, NULL, pin_members, NULL };
 
 /* ------------------------------------------------------------- UART */
+static mcs_value_t uart_open_cfg(mcs_vm_t* vm, int port, const mcs_uart_config_t* c) {
+    const mcs_hal_t* h = HAL();
+    if (h->uart_configure) { RC("UART.Open", h->uart_configure(h->ctx, port, c)); return mcs_null(); }
+    static const char* const ok[] = { "Baud", "DataBits", "Parity", "StopBits", NULL };
+    const char* nd = mcs__cfg_nondefault(c, MCS__CFG_UART, ok);
+    if (nd) return cfg_unsupported(vm, "UART.Open", nd);
+    if (h->uart_config) RC("UART.Open", h->uart_config(h->ctx, port, &c->frame));
+    else if (h->uart_open) {
+        if (c->frame.data_bits != 8 || c->frame.parity || c->frame.stop_bits != 1) return hal_fail(vm, "UART.Open", MCS_HAL_ENOTSUP);
+        RC("UART.Open", h->uart_open(h->ctx, port, c->frame.baud));
+    }
+    return mcs_null();
+}
 NATIVE(uart_open) {
+    if (argc == 2) {
+        const mcs_uart_config_t* c = (const mcs_uart_config_t*)mcs__cfg_get(argv[1], MCS__CFG_UART);
+        if (c) { INT_ARG(0, p); return uart_open_cfg(vm, p, c); }
+    }
     INT_ARG(0, port); INT_ARG(1, baud);
     OPT_INT(2, bits, 8); OPT_INT(3, parity, MCS_UART_PARITY_NONE); OPT_INT(4, stop, 1);
     if (baud <= 0) return range_fail(vm, "baud rate");
@@ -445,7 +539,14 @@ NATIVE(uart_close) {
 }
 static mcs_value_t uart_write_common(mcs_vm_t* vm, int port, mcs_value_t data, bool nl) {
     uint8_t buf[MCS_HAL_MAX_XFER + 2]; size_t n;
+    uint8_t* db;
+    if (!nl && mcs__dmabuf(data, &db, &n)) {      /* DmaBuffer: in place, any length */
+        if (!mcs__dma_idle(vm, MCS__DMA_UART_TX, port)) return mcs_null();
+        int rc = HAL()->uart_write(CTX(), port, db, n);
+        return rc < 0 ? hal_fail(vm, "UART.Write", rc) : mcs_int(rc);
+    }
     if (!to_bytes(vm, data, buf, &n)) return mcs_null();
+    if (!mcs__dma_idle(vm, MCS__DMA_UART_TX, port)) return mcs_null();
     if (nl) { buf[n++] = '\r'; buf[n++] = '\n'; }
     int rc = HAL()->uart_write(CTX(), port, buf, n);
     return rc < 0 ? hal_fail(vm, "UART.Write", rc) : mcs_int(rc);
@@ -464,6 +565,14 @@ static int uart_read_common(mcs_vm_t* vm, int argc, mcs_value_t* argv, uint8_t* 
 }
 NATIVE(uart_read) {
     uint8_t buf[MCS_HAL_MAX_XFER];
+    uint8_t* db; size_t dl;
+    if (argc >= 2 && mcs__dmabuf(argv[1], &db, &dl)) {   /* Read(port, DmaBuffer[, timeoutMs]) -> bytes read */
+        INT_ARG(0, port); OPT_INT(2, timeout, 0);
+        NEED(uart_read, "UART.Read");
+        if (!mcs__dma_idle(vm, MCS__DMA_UART_RX, port)) return mcs_null();
+        int rc = HAL()->uart_read(CTX(), port, db, dl, (uint32_t)timeout);
+        return rc < 0 ? hal_fail(vm, "UART.Read", rc) : mcs_int(rc);
+    }
     int rc = uart_read_common(vm, argc, argv, buf);
     return rc < 0 ? mcs_null() : bytes_val(vm, buf, (size_t)rc);
 }
@@ -515,13 +624,21 @@ static int i2c_wr(const mcs_hal_t* h, int bus, int addr, const uint8_t* tx, size
     return rc < 0 ? rc : h->i2c_read(h->ctx, bus, addr, rx, rn);
 }
 static mcs_value_t i2c_write_impl(mcs_vm_t* vm, int bus, int addr, mcs_value_t data) {
-    uint8_t buf[MCS_HAL_MAX_XFER]; size_t n;
+    uint8_t buf[MCS_HAL_MAX_XFER]; size_t n; const uint8_t* p;
     if (addr < 0 || addr > 0x3FF) return range_fail(vm, "I2C address");
-    if (!to_bytes(vm, data, buf, &n)) return mcs_null();
-    RC("I2C.Write", HAL()->i2c_write(CTX(), bus, addr, buf, n));
+    if (!bytes_ref(vm, data, buf, &p, &n)) return mcs_null();
+    if (!mcs__dma_idle(vm, MCS__DMA_I2C, bus)) return mcs_null();
+    RC("I2C.Write", HAL()->i2c_write(CTX(), bus, addr, p, n));
     return mcs_null();
 }
 static mcs_value_t i2c_read_impl(mcs_vm_t* vm, int bus, int addr, mcs_value_t count) {
+    uint8_t* db; size_t dl;
+    if (!mcs__dma_idle(vm, MCS__DMA_I2C, bus)) return mcs_null();
+    if (mcs__dmabuf(count, &db, &dl)) {            /* read into a DmaBuffer, any length */
+        NEED(i2c_read, "I2C.Read");
+        RC("I2C.Read", HAL()->i2c_read(CTX(), bus, addr, db, dl));
+        return count;
+    }
     int n = count_arg(vm, count);
     if (n < 0) return mcs_null();
     NEED(i2c_read, "I2C.Read");
@@ -531,7 +648,14 @@ static mcs_value_t i2c_read_impl(mcs_vm_t* vm, int bus, int addr, mcs_value_t co
 }
 static mcs_value_t i2c_wr_impl(mcs_vm_t* vm, int bus, int addr, mcs_value_t data, mcs_value_t count) {
     uint8_t tx[MCS_HAL_MAX_XFER], rx[MCS_HAL_MAX_XFER]; size_t tn;
-    if (!to_bytes(vm, data, tx, &tn)) return mcs_null();
+    const uint8_t* tp; uint8_t* db; size_t dl;
+    if (!bytes_ref(vm, data, tx, &tp, &tn)) return mcs_null();
+    if (!mcs__dma_idle(vm, MCS__DMA_I2C, bus)) return mcs_null();
+    if (mcs__dmabuf(count, &db, &dl)) {
+        RC("I2C.WriteRead", i2c_wr(HAL(), bus, addr, tp, tn, db, dl));
+        return count;
+    }
+    if (tp != tx) { if (tn > MCS_HAL_MAX_XFER) return range_fail(vm, "I2C.WriteRead size"); memcpy(tx, tp, tn); }
     int n = count_arg(vm, count);
     if (n < 0) return mcs_null();
     RC("I2C.WriteRead", i2c_wr(HAL(), bus, addr, tx, tn, rx, (size_t)n));
@@ -541,6 +665,7 @@ static mcs_value_t i2c_readreg_impl(mcs_vm_t* vm, int bus, int addr, int reg, in
     if (reg < 0 || reg > 0xFF) return range_fail(vm, "register");
     if (n < 0 || n > MCS_HAL_MAX_XFER) return range_fail(vm, "count");
     uint8_t r = (uint8_t)reg, rx[MCS_HAL_MAX_XFER];
+    if (!mcs__dma_idle(vm, MCS__DMA_I2C, bus)) return mcs_null();
     RC("I2C.ReadRegister", i2c_wr(HAL(), bus, addr, &r, 1, rx, (size_t)n));
     return as_int ? mcs_int(rx[0]) : bytes_val(vm, rx, (size_t)n);
 }
@@ -550,10 +675,22 @@ static mcs_value_t i2c_writereg_impl(mcs_vm_t* vm, int bus, int addr, int reg, m
     if (mcs_is_number(val)) { buf[1] = (uint8_t)mcs_to_int(vm, val); n = 1; }
     else if (!to_bytes(vm, val, buf + 1, &n)) return mcs_null();
     buf[0] = (uint8_t)reg;
+    if (!mcs__dma_idle(vm, MCS__DMA_I2C, bus)) return mcs_null();
     RC("I2C.WriteRegister", HAL()->i2c_write(CTX(), bus, addr, buf, n + 1));
     return mcs_null();
 }
 NATIVE(i2c_open) {
+    const mcs_i2c_config_t* c = argc == 2 ? (const mcs_i2c_config_t*)mcs__cfg_get(argv[1], MCS__CFG_I2C) : NULL;
+    if (c) {
+        INT_ARG(0, b);
+        const mcs_hal_t* h = HAL();
+        if (h->i2c_configure) { RC("I2C.Open", h->i2c_configure(h->ctx, b, c)); return mcs_null(); }
+        static const char* const ok[] = { "Frequency", NULL };
+        const char* nd = mcs__cfg_nondefault(c, MCS__CFG_I2C, ok);
+        if (nd) return cfg_unsupported(vm, "I2C.Open", nd);
+        if (h->i2c_open) RC("I2C.Open", h->i2c_open(h->ctx, b, c->freq_hz ? c->freq_hz : 100000));
+        return mcs_null();
+    }
     INT_ARG(0, bus); OPT_INT(1, freq, 100000);
     if (freq <= 0) return range_fail(vm, "frequency");
     if (HAL()->i2c_open) RC("I2C.Open", HAL()->i2c_open(CTX(), bus, (uint32_t)freq));
@@ -603,12 +740,17 @@ NATIVE(dev_write_read) { DEV(); return i2c_wr_impl(vm, d->bus, d->addr, argv[0],
 NATIVE(dev_readreg) { DEV(); INT_ARG(0, reg); return i2c_readreg_impl(vm, d->bus, d->addr, reg, 1, true); }
 NATIVE(dev_readregs) { DEV(); INT_ARG(0, reg); INT_ARG(1, n); return i2c_readreg_impl(vm, d->bus, d->addr, reg, n, false); }
 NATIVE(dev_writereg) { DEV(); INT_ARG(0, reg); return i2c_writereg_impl(vm, d->bus, d->addr, reg, argv[1]); }
+NATIVE(dev_write_async) { DEV(); return mcs__i2c_async(vm, d->bus, d->addr, argv[0], mcs_null()); }
+NATIVE(dev_read_async) { DEV(); return mcs__i2c_async(vm, d->bus, d->addr, mcs_null(), argv[0]); }
+NATIVE(dev_write_read_async) { DEV(); return mcs__i2c_async(vm, d->bus, d->addr, argv[0], argv[1]); }
 NATIVE(dev_addr) { DEV(); return mcs_int(d->addr); }
 NATIVE(dev_bus) { DEV(); return mcs_int(d->bus); }
 static const mcs_reg_t i2cdev_members[] = {
     MCS_FN("Write", dev_write, 1), MCS_FN("Read", dev_read, 1), MCS_FN("WriteRead", dev_write_read, 2),
     MCS_FN("ReadRegister", dev_readreg, 1), MCS_FN("ReadRegisters", dev_readregs, 2),
-    MCS_FN("WriteRegister", dev_writereg, 2), MCS_GET("Address", dev_addr), MCS_GET("Bus", dev_bus), MCS_REG_END
+    MCS_FN("WriteRegister", dev_writereg, 2),
+    MCS_FN("WriteAsync", dev_write_async, 1), MCS_FN("ReadAsync", dev_read_async, 1), MCS_FN("WriteReadAsync", dev_write_read_async, 2),
+    MCS_GET("Address", dev_addr), MCS_GET("Bus", dev_bus), MCS_REG_END
 };
 static const mcs_class_def_t i2cdev_def = { "I2cDevice", sizeof(i2cdev_t), i2cdev_ctor, NULL, i2cdev_members, NULL };
 
@@ -626,22 +768,102 @@ int mcs_hal_spi_config(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* cfg) {
     if (!vm || !cfg || !ST() || !HAL()) return MCS_HAL_ENOTSUP;
     return spi_apply(vm, bus, cfg);
 }
-/* mode: 0 transfer, 1 write only, 2 read only (count in `data`) */
-static mcs_value_t spi_xfer(mcs_vm_t* vm, int bus, mcs_value_t data, int cs, int mode) {
+/* chip select: explicit pin (active low), else the bus default from SpiConfig.Cs */
+typedef struct { int pin; int active; } spi_cs_t;
+static spi_cs_t spi_cs_of(mcs_vm_t* vm, int bus, int cs, int cs_high) {
+    spi_cs_t r = { cs, cs_high ? 1 : 0 };
+    hal_state_t* s = ST();
+    if (cs < 0 && bus >= 0 && bus < MCS_HAL_MAX_BUSES && s->spi_cs[bus] >= 0) { r.pin = s->spi_cs[bus]; r.active = s->spi_cs_high[bus]; }
+    return r;
+}
+/* spi_transfer never sees NULL buffers (the v1/v2 contract): one-way transfers of
+ * any size go through the stack in MCS_HAL_MAX_XFER pieces, chip select held */
+uint32_t mcs__spi_half;     /* buses configured with SpiConfig.ThreeWire (bit per bus) */
+int mcs__spi_raw(const mcs_hal_t* h, int bus, const uint8_t* tx, uint8_t* rx, size_t n) {
+    if (bus >= 0 && bus < 32 && (mcs__spi_half >> bus & 1u)) {
+        /* half duplex: the port gets exactly one of tx / rx, any size */
+        if (tx && rx) { mcs_hal_error("ThreeWire: half duplex - use SPI.Write / SPI.Read"); return MCS_HAL_ENOTSUP; }
+        return h->spi_transfer(h->ctx, bus, tx, rx, n);
+    }
+    if (tx && rx) return h->spi_transfer(h->ctx, bus, tx, rx, n);
+    uint8_t t[MCS_HAL_MAX_XFER], r[MCS_HAL_MAX_XFER];
+    if (!tx) memset(t, 0xFF, sizeof t);
+    for (size_t off = 0; off < n;) {
+        size_t k = n - off < sizeof t ? n - off : sizeof t;
+        int rc = h->spi_transfer(h->ctx, bus, tx ? tx + off : t, rx ? rx + off : r, k);
+        if (rc < 0) return rc;
+        off += k;
+    }
+    return 0;
+}
+static int spi_run(const mcs_hal_t* h, int bus, spi_cs_t cs, const uint8_t* tx, uint8_t* rx, size_t n) {
+    if (cs.pin >= 0) { int rc = h->gpio_write ? h->gpio_write(h->ctx, cs.pin, cs.active) : MCS_HAL_ENOTSUP; if (rc < 0) return rc; }
+    int rc = mcs__spi_raw(h, bus, tx, rx, n);
+    if (cs.pin >= 0) h->gpio_write(h->ctx, cs.pin, !cs.active);
+    return rc;
+}
+/* mode: 0 transfer, 1 write only, 2 read only (count or DmaBuffer in `data`).
+ * DmaBuffers are used in place and may be larger than MCS_HAL_MAX_XFER. */
+static mcs_value_t spi_xfer(mcs_vm_t* vm, int bus, mcs_value_t data, spi_cs_t cs, int mode) {
     uint8_t tx[MCS_HAL_MAX_XFER], rx[MCS_HAL_MAX_XFER]; size_t n;
-    if (mode == 2) {
+    const uint8_t* tp = tx; uint8_t* rp = rx;
+    uint8_t* db;
+    bool into = false;
+    if (mode == 2 && mcs__dmabuf(data, &db, &n)) {
+        into = true; rp = db;
+        if (n <= MCS_HAL_MAX_XFER) memset(tx, 0xFF, n); else tp = NULL;
+    } else if (mode == 2) {
         int c = count_arg(vm, data);
         if (c < 0) return mcs_null();
         n = (size_t)c; memset(tx, 0xFF, n);
-    } else if (!to_bytes(vm, data, tx, &n)) return mcs_null();
-    const mcs_hal_t* h = HAL();
-    if (cs >= 0) RC("SPI", h->gpio_write ? h->gpio_write(h->ctx, cs, 0) : MCS_HAL_ENOTSUP);
-    int rc = h->spi_transfer(h->ctx, bus, tx, rx, n);
-    if (cs >= 0) h->gpio_write(h->ctx, cs, 1);
-    if (rc < 0) return hal_fail(vm, "SPI.Transfer", rc);
+    } else {
+        if (!bytes_ref(vm, data, tx, &tp, &n)) return mcs_null();
+        if (n > MCS_HAL_MAX_XFER) { if (mode == 0) return range_fail(vm, "SPI.Transfer size (use Transfer(bus, tx, rx) with DmaBuffers)"); rp = NULL; }
+    }
+    if (!mcs__dma_idle(vm, MCS__DMA_SPI, bus)) return mcs_null();
+    int rc = spi_run(HAL(), bus, cs, tp, rp, n);
+    if (rc < 0) return hal_fail(vm, mode == 1 ? "SPI.Write" : mode == 2 ? "SPI.Read" : "SPI.Transfer", rc);
+    if (into) return data;
     return mode == 1 ? mcs_null() : bytes_val(vm, rx, n);
 }
+/* full duplex between two DmaBuffers of the same length */
+static mcs_value_t spi_xfer2(mcs_vm_t* vm, int bus, mcs_value_t txv, mcs_value_t rxv, spi_cs_t cs) {
+    uint8_t stack[MCS_HAL_MAX_XFER]; const uint8_t* tp; size_t tn, rn; uint8_t* rp;
+    if (!mcs__dmabuf(rxv, &rp, &rn)) { mcs_raise(vm, "ArgumentException", "rx must be a DmaBuffer"); return mcs_null(); }
+    if (!bytes_ref(vm, txv, stack, &tp, &tn)) return mcs_null();
+    if (tn != rn) { mcs_raise(vm, "ArgumentException", "tx and rx lengths differ (%d / %d)", (int)tn, (int)rn); return mcs_null(); }
+    if (!mcs__dma_idle(vm, MCS__DMA_SPI, bus)) return mcs_null();
+    RC("SPI.Transfer", spi_run(HAL(), bus, cs, tp, rp, tn));
+    return rxv;
+}
+static mcs_value_t spi_open_cfg(mcs_vm_t* vm, int bus, const mcs_spi_config_t* c) {
+    hal_state_t* s = ST();
+    const mcs_hal_t* h = s->hal;
+    if (h->spi_configure) {
+        RC("SPI.Open", h->spi_configure(h->ctx, bus, c));
+        if (bus >= 0 && bus < 32) {
+            if (c->three_wire) mcs__spi_half |= 1u << bus; else mcs__spi_half &= ~(1u << bus);
+        }
+        if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) { s->spi_cur[bus] = c->bus; s->spi_valid[bus] = 1; }
+    } else {
+        static const char* const ok[] = { "Frequency", "Mode", "Bits", "LsbFirst", "Cs", "CsActiveHigh", NULL };
+        const char* nd = mcs__cfg_nondefault(c, MCS__CFG_SPI, ok);
+        if (nd) return cfg_unsupported(vm, "SPI.Open", nd);
+        if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) s->spi_valid[bus] = 0;   /* apply even when cached */
+        if (bus >= 0 && bus < 32) mcs__spi_half &= ~(1u << bus);
+        RC("SPI.Open", spi_apply(vm, bus, &c->bus));
+    }
+    if (bus >= 0 && bus < MCS_HAL_MAX_BUSES) {
+        s->spi_cs[bus] = c->cs; s->spi_cs_high[bus] = c->cs_active_high ? 1 : 0;
+        if (c->cs >= 0 && h->gpio_mode) { h->gpio_mode(h->ctx, c->cs, MCS_GPIO_OUTPUT); h->gpio_write(h->ctx, c->cs, !s->spi_cs_high[bus]); }
+    }
+    return mcs_null();
+}
 NATIVE(spi_open) {
+    if (argc == 2) {
+        const mcs_spi_config_t* c = (const mcs_spi_config_t*)mcs__cfg_get(argv[1], MCS__CFG_SPI);
+        if (c) { INT_ARG(0, b); return spi_open_cfg(vm, b, c); }
+    }
     INT_ARG(0, bus); OPT_INT(1, freq, 1000000); OPT_INT(2, mode, 0); OPT_INT(3, lsb, 0);
     if (freq <= 0) return range_fail(vm, "frequency");
     if (mode < 0 || mode > 3) return range_fail(vm, "SPI mode");
@@ -649,36 +871,77 @@ NATIVE(spi_open) {
     RC("SPI.Open", spi_apply(vm, bus, &c));
     return mcs_null();
 }
-NATIVE(spi_transfer) { INT_ARG(0, bus); OPT_INT(2, cs, -1); return spi_xfer(vm, bus, argv[1], cs, 0); }
-NATIVE(spi_write) { INT_ARG(0, bus); OPT_INT(2, cs, -1); return spi_xfer(vm, bus, argv[1], cs, 1); }
-NATIVE(spi_read) { INT_ARG(0, bus); OPT_INT(2, cs, -1); return spi_xfer(vm, bus, argv[1], cs, 2); }
+static int opt_pin(mcs_vm_t* vm, int argc, mcs_value_t* argv, int i) {
+    return argc > i && !mcs_is_null(argv[i]) ? pin_arg(vm, argv[i]) : -1;
+}
+/* Transfer(bus, data[, cs]) or Transfer(bus, txBuffer, rxBuffer[, cs]) */
+NATIVE(spi_transfer) {
+    if (argc < 2 || argc > 4) { mcs_raise(vm, "ArgumentException", "SPI.Transfer(bus, data[, cs]) or (bus, tx, rx[, cs]) expected"); return mcs_null(); }
+    INT_ARG(0, bus);
+    uint8_t* d; size_t l;
+    if (argc > 2 && mcs__dmabuf(argv[2], &d, &l)) {
+        int cs = opt_pin(vm, argc, argv, 3);
+        if (mcs_has_exception(vm)) return mcs_null();
+        return spi_xfer2(vm, bus, argv[1], argv[2], spi_cs_of(vm, bus, cs, 0));
+    }
+    int cs = opt_pin(vm, argc, argv, 2);
+    if (mcs_has_exception(vm)) return mcs_null();
+    return spi_xfer(vm, bus, argv[1], spi_cs_of(vm, bus, cs, 0), 0);
+}
+NATIVE(spi_write) { INT_ARG(0, bus); int cs = opt_pin(vm, argc, argv, 2); if (mcs_has_exception(vm)) return mcs_null(); return spi_xfer(vm, bus, argv[1], spi_cs_of(vm, bus, cs, 0), 1); }
+NATIVE(spi_read) { INT_ARG(0, bus); int cs = opt_pin(vm, argc, argv, 2); if (mcs_has_exception(vm)) return mcs_null(); return spi_xfer(vm, bus, argv[1], spi_cs_of(vm, bus, cs, 0), 2); }
 static const mcs_reg_t spi_fns[] = {
     MCS_FN("Open", spi_open, -1), MCS_FN("Transfer", spi_transfer, -1), MCS_FN("Write", spi_write, -1),
     MCS_FN("Read", spi_read, -1), MCS_REG_END
 };
 
-/* SpiDevice(bus, csPin[, freqHz[, mode]]) - chip select is driven around every call;
- * the bus is reconfigured only when another device used different settings */
-typedef struct { int bus, cs; mcs_spi_cfg_t cfg; } spidev_t;
+/* SpiDevice(bus, csPin[, freqHz[, mode]]) or SpiDevice(bus, csPin, SpiConfig) - chip
+ * select is driven around every call; the bus is reconfigured only when another
+ * device used different settings */
+typedef struct { int bus, cs, cs_high; mcs_spi_cfg_t cfg; } spidev_t;
 static const mcs_class_def_t spidev_def;
 static void spidev_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     spidev_t* d = (spidev_t*)mcs_userdata(self);
-    if (argc < 2 || argc > 4) { mcs_raise(vm, "ArgumentException", "SpiDevice(bus, csPin[, freqHz[, mode]]) expected"); return; }
+    if (argc < 2 || argc > 4) { mcs_raise(vm, "ArgumentException", "SpiDevice(bus, csPin[, freqHz[, mode]]) or SpiDevice(bus, csPin, SpiConfig) expected"); return; }
     d->bus = (int)mcs_to_int(vm, argv[0]);
     d->cs = mcs_is_null(argv[1]) ? -1 : pin_arg(vm, argv[1]);
-    d->cfg.freq_hz = argc > 2 ? (uint32_t)mcs_to_int(vm, argv[2]) : 1000000;
-    d->cfg.mode = (uint8_t)(argc > 3 ? mcs_to_int(vm, argv[3]) : 0);
-    d->cfg.bits = 8;
     if (mcs_has_exception(vm)) return;
-    if (d->cfg.mode > 3) { range_fail(vm, "SPI mode"); return; }
+    const mcs_spi_config_t* c = argc == 3 ? (const mcs_spi_config_t*)mcs__cfg_get(argv[2], MCS__CFG_SPI) : NULL;
     const mcs_hal_t* h = HAL();
-    if (d->cs >= 0 && h->gpio_mode) { h->gpio_mode(h->ctx, d->cs, MCS_GPIO_OUTPUT); h->gpio_write(h->ctx, d->cs, 1); }
+    if (c) {
+        d->cfg = c->bus;
+        d->cs_high = c->cs_active_high ? 1 : 0;
+        if (d->cs < 0) d->cs = c->cs;
+        static const char* const dev_only[] = { "Frequency", "Mode", "Bits", "LsbFirst", "Cs", "CsActiveHigh", NULL };
+        if (mcs__cfg_nondefault(c, MCS__CFG_SPI, dev_only)) {      /* pins, DMA ...: configure the bus now */
+            mcs__hal_state_t* s = ST();
+            int saved_cs = d->bus >= 0 && d->bus < MCS_HAL_MAX_BUSES ? s->spi_cs[d->bus] : -1;
+            uint8_t saved_hi = d->bus >= 0 && d->bus < MCS_HAL_MAX_BUSES ? s->spi_cs_high[d->bus] : 0;
+            spi_open_cfg(vm, d->bus, c);
+            if (d->bus >= 0 && d->bus < MCS_HAL_MAX_BUSES) { s->spi_cs[d->bus] = (int16_t)saved_cs; s->spi_cs_high[d->bus] = saved_hi; }
+            if (mcs_has_exception(vm)) return;
+        }
+    } else {
+        d->cfg.freq_hz = argc > 2 ? (uint32_t)mcs_to_int(vm, argv[2]) : 1000000;
+        d->cfg.mode = (uint8_t)(argc > 3 ? mcs_to_int(vm, argv[3]) : 0);
+        d->cfg.bits = 8;
+        if (mcs_has_exception(vm)) return;
+        if (d->cfg.mode > 3) { range_fail(vm, "SPI mode"); return; }
+    }
+    if (d->cs >= 0 && h->gpio_mode) { h->gpio_mode(h->ctx, d->cs, MCS_GPIO_OUTPUT); h->gpio_write(h->ctx, d->cs, !d->cs_high); }
 }
 #define SDEV() spidev_t* d = (spidev_t*)mcs_check_userdata(vm, self, &spidev_def); if (!d) return mcs_null(); \
-    RC("SpiDevice", spi_apply(vm, d->bus, &d->cfg))
-NATIVE(sdev_transfer) { SDEV(); return spi_xfer(vm, d->bus, argv[0], d->cs, 0); }
-NATIVE(sdev_write) { SDEV(); return spi_xfer(vm, d->bus, argv[0], d->cs, 1); }
-NATIVE(sdev_read) { SDEV(); return spi_xfer(vm, d->bus, argv[0], d->cs, 2); }
+    if (!mcs__dma_idle(vm, MCS__DMA_SPI, d->bus)) return mcs_null(); \
+    RC("SpiDevice", spi_apply(vm, d->bus, &d->cfg)); spi_cs_t dcs = { d->cs, d->cs_high }
+NATIVE(sdev_transfer) {
+    SDEV();
+    uint8_t* b; size_t l;
+    if (argc == 2 && mcs__dmabuf(argv[1], &b, &l)) return spi_xfer2(vm, d->bus, argv[0], argv[1], dcs);
+    if (argc != 1) { mcs_raise(vm, "ArgumentException", "Transfer(data) or Transfer(tx, rx) expected"); return mcs_null(); }
+    return spi_xfer(vm, d->bus, argv[0], dcs, 0);
+}
+NATIVE(sdev_write) { SDEV(); return spi_xfer(vm, d->bus, argv[0], dcs, 1); }
+NATIVE(sdev_read) { SDEV(); return spi_xfer(vm, d->bus, argv[0], dcs, 2); }
 /* write a command, then read n bytes in the same chip-select window (flash, displays) */
 NATIVE(sdev_write_read) {
     SDEV();
@@ -688,15 +951,23 @@ NATIVE(sdev_write_read) {
     if (n < 0) return mcs_null();
     if (tn + (size_t)n > MCS_HAL_MAX_XFER) return range_fail(vm, "transfer");
     memset(tx + tn, 0xFF, (size_t)n);
-    const mcs_hal_t* h = HAL();
-    if (d->cs >= 0) h->gpio_write(h->ctx, d->cs, 0);
-    int rc = h->spi_transfer(h->ctx, d->bus, tx, rx, tn + (size_t)n);
-    if (d->cs >= 0) h->gpio_write(h->ctx, d->cs, 1);
+    int rc = spi_run(HAL(), d->bus, dcs, tx, rx, tn + (size_t)n);
     return rc < 0 ? hal_fail(vm, "SpiDevice.WriteRead", rc) : bytes_val(vm, rx + tn, (size_t)n);
 }
+/* asynchronous (DMA) transfers: mcs_hal_dma.c */
+#define SDEV_A() spidev_t* d = (spidev_t*)mcs_check_userdata(vm, self, &spidev_def); if (!d) return mcs_null(); \
+    if (!mcs__dma_idle(vm, MCS__DMA_SPI, d->bus)) return mcs_null(); \
+    RC("SpiDevice", spi_apply(vm, d->bus, &d->cfg))
+NATIVE(sdev_transfer_async) { SDEV_A(); return mcs__spi_async(vm, d->bus, d->cs, d->cs_high, argv[0], argv[1]); }
+NATIVE(sdev_write_async) { SDEV_A(); return mcs__spi_async(vm, d->bus, d->cs, d->cs_high, argv[0], mcs_null()); }
+NATIVE(sdev_read_async) { SDEV_A(); return mcs__spi_async(vm, d->bus, d->cs, d->cs_high, mcs_null(), argv[0]); }
+NATIVE(sdev_bus) { spidev_t* d = (spidev_t*)mcs_check_userdata(vm, self, &spidev_def); return d ? mcs_int(d->bus) : mcs_null(); }
+NATIVE(sdev_cs) { spidev_t* d = (spidev_t*)mcs_check_userdata(vm, self, &spidev_def); return d ? mcs_int(d->cs) : mcs_null(); }
 static const mcs_reg_t spidev_members[] = {
-    MCS_FN("Transfer", sdev_transfer, 1), MCS_FN("Write", sdev_write, 1), MCS_FN("Read", sdev_read, 1),
-    MCS_FN("WriteRead", sdev_write_read, 2), MCS_REG_END
+    MCS_FN("Transfer", sdev_transfer, -1), MCS_FN("Write", sdev_write, 1), MCS_FN("Read", sdev_read, 1),
+    MCS_FN("WriteRead", sdev_write_read, 2),
+    MCS_FN("TransferAsync", sdev_transfer_async, 2), MCS_FN("WriteAsync", sdev_write_async, 1), MCS_FN("ReadAsync", sdev_read_async, 1),
+    MCS_GET("Bus", sdev_bus), MCS_GET("ChipSelect", sdev_cs), MCS_REG_END
 };
 static const mcs_class_def_t spidev_def = { "SpiDevice", sizeof(spidev_t), spidev_ctor, NULL, spidev_members, NULL };
 
@@ -738,7 +1009,18 @@ NATIVE(adc_average) {
 }
 NATIVE(adc_resolution) { return mcs_int(HAL()->adc_bits ? HAL()->adc_bits : 12); }
 NATIVE(adc_vref) { return mcs_int(vref(HAL())); }
+/* ADC.Configure(channel, new AdcConfig { Attenuation = AdcConfig.Atten12dB }) */
+NATIVE(adc_configure) {
+    INT_ARG(0, ch);
+    const mcs_adc_config_t* c = (const mcs_adc_config_t*)mcs__cfg_get(argv[1], MCS__CFG_ADC);
+    if (!c) { mcs_raise(vm, "ArgumentException", "AdcConfig expected"); return mcs_null(); }
+    const mcs_hal_t* h = HAL();
+    if (h->adc_configure) { RC("ADC.Configure", h->adc_configure(h->ctx, ch, c)); return mcs_null(); }
+    const char* nd = mcs__cfg_nondefault(c, MCS__CFG_ADC, NULL);
+    return nd ? cfg_unsupported(vm, "ADC.Configure", nd) : mcs_null();
+}
 static const mcs_reg_t adc_fns[] = {
+    MCS_FN("Configure", adc_configure, 2),
     MCS_GET("Resolution", adc_resolution), MCS_GET("ReferenceMillivolts", adc_vref),
     MCS_FN("Read", adc_read, 1), MCS_FN("ReadMillivolts", adc_read_mv, 1),
 #if MCS_ENABLE_FLOAT
@@ -816,7 +1098,19 @@ NATIVE(pwm_stop) {
     int rc = h->pwm_stop ? h->pwm_stop(h->ctx, ch) : h->pwm_set16 ? h->pwm_set16(h->ctx, ch, 1000, 0) : h->pwm_set(h->ctx, ch, 1000, 0);
     return rc < 0 ? hal_fail(vm, "PWM.Stop", rc) : mcs_null();
 }
+/* PWM.Configure(channel, new PwmConfig { Pin = 5, ResolutionBits = 12, Inverted = true }) */
+NATIVE(pwm_configure) {
+    INT_ARG(0, ch);
+    const mcs_pwm_config_t* c = (const mcs_pwm_config_t*)mcs__cfg_get(argv[1], MCS__CFG_PWM);
+    if (!c) { mcs_raise(vm, "ArgumentException", "PwmConfig expected"); return mcs_null(); }
+    const mcs_hal_t* h = HAL();
+    if (h->pwm_configure) { RC("PWM.Configure", h->pwm_configure(h->ctx, ch, c)); return mcs_null(); }
+    static const char* const ok[] = { "Frequency", NULL };     /* the frequency comes with every PWM.Set */
+    const char* nd = mcs__cfg_nondefault(c, MCS__CFG_PWM, ok);
+    return nd ? cfg_unsupported(vm, "PWM.Configure", nd) : mcs_null();
+}
 static const mcs_reg_t pwm_fns[] = {
+    MCS_FN("Configure", pwm_configure, 2),
 #if MCS_ENABLE_FLOAT
     MCS_FN("Set", pwm_set, 3),           /* duty cycle 0.0 .. 1.0 */
 #endif
@@ -925,6 +1219,17 @@ static const mcs_reg_t i2s_fns[] = {
 
 /* ------------------------------------------------------------- QSPI */
 NATIVE(qspi_open) {
+    const mcs_qspi_config_t* c = argc == 2 ? (const mcs_qspi_config_t*)mcs__cfg_get(argv[1], MCS__CFG_QSPI) : NULL;
+    if (c) {
+        INT_ARG(0, b);
+        const mcs_hal_t* h = HAL();
+        if (h->qspi_configure) { RC("QSPI.Open", h->qspi_configure(h->ctx, b, c)); return mcs_null(); }
+        static const char* const ok[] = { "Frequency", NULL };
+        const char* nd = mcs__cfg_nondefault(c, MCS__CFG_QSPI, ok);
+        if (nd) return cfg_unsupported(vm, "QSPI.Open", nd);
+        if (h->qspi_open) RC("QSPI.Open", h->qspi_open(h->ctx, b, c->freq_hz ? c->freq_hz : 10000000));
+        return mcs_null();
+    }
     INT_ARG(0, bus); OPT_INT(1, freq, 10000000);
     if (freq <= 0) return range_fail(vm, "frequency");
     if (HAL()->qspi_open) RC("QSPI.Open", HAL()->qspi_open(CTX(), bus, (uint32_t)freq));
@@ -932,16 +1237,20 @@ NATIVE(qspi_open) {
 }
 static bool lines_ok(int l) { return l == 0 || l == 1 || l == 2 || l == 4 || l == 8; }
 /* data: byte[] to write, an int count to read, or null */
-static mcs_value_t qspi_run(mcs_vm_t* vm, int bus, mcs_qspi_cmd_t* c, mcs_value_t data, const char* what) {
+static mcs_value_t qspi_run(mcs_vm_t* vm, int bus, mcs_qspi_cmd_t* c, mcs_value_t data, const char* what, bool read_into) {
     if (!lines_ok(c->instr_lines) || !lines_ok(c->addr_lines) || !lines_ok(c->data_lines) || c->addr_bytes > 4)
         return range_fail(vm, "QSPI phase");
     uint8_t buf[MCS_HAL_MAX_XFER]; size_t n = 0;
-    bool rd = mcs_is_number(data);
+    const uint8_t* tp = buf; uint8_t* rp = buf;
+    bool rd = mcs_is_number(data), into = false;
     if (rd) { int k = count_arg(vm, data); if (k < 0) return mcs_null(); n = (size_t)k; }
-    else if (!to_bytes(vm, data, buf, &n)) return mcs_null();
+    else if (read_into && mcs__dmabuf(data, &rp, &n)) rd = into = true;   /* read into a DmaBuffer */
+    else if (!bytes_ref(vm, data, buf, &tp, &n)) return mcs_null();
     if (n && !c->data_lines) c->data_lines = 1;
-    int rc = HAL()->qspi_command(CTX(), bus, c, rd ? NULL : buf, rd ? buf : NULL, n);
+    if (!mcs__dma_idle(vm, MCS__DMA_QSPI, bus)) return mcs_null();
+    int rc = HAL()->qspi_command(CTX(), bus, c, rd ? NULL : tp, rd ? rp : NULL, n);
     if (rc < 0) return hal_fail(vm, what, rc);
+    if (into) return data;
     return rd ? bytes_val(vm, buf, n) : mcs_null();
 }
 static mcs_qspi_cmd_t qcmd(int instr, int addr, int addr_bytes, int lines, int dummy) {
@@ -955,15 +1264,16 @@ static mcs_qspi_cmd_t qcmd(int instr, int addr, int addr_bytes, int lines, int d
 NATIVE(qspi_command) {   /* (bus, instruction[, address]) */
     INT_ARG(0, bus); INT_ARG(1, instr); OPT_INT(2, addr, -1);
     mcs_qspi_cmd_t c = qcmd(instr, addr, addr >= 0 ? 3 : 0, 0, 0);
-    return qspi_run(vm, bus, &c, mcs_null(), "QSPI.Command");
+    return qspi_run(vm, bus, &c, mcs_null(), "QSPI.Command", false);
 }
 NATIVE(qspi_read) {      /* (bus, instruction, address, count[, dummyCycles[, dataLines[, addrBytes]]]) address -1 = none */
     INT_ARG(0, bus); INT_ARG(1, instr); INT_ARG(2, addr);
     OPT_INT(4, dummy, 0); OPT_INT(5, lines, 1); OPT_INT(6, ab, 3);
     if (ab < 1 || ab > 4) return range_fail(vm, "address bytes");
     mcs_qspi_cmd_t c = qcmd(instr, addr, addr >= 0 ? ab : 0, lines, dummy);
-    if (!mcs_is_number(argv[3])) { mcs_raise(vm, "ArgumentException", "count expected"); return mcs_null(); }
-    return qspi_run(vm, bus, &c, argv[3], "QSPI.Read");
+    uint8_t* db; size_t dl;
+    if (!mcs_is_number(argv[3]) && !mcs__dmabuf(argv[3], &db, &dl)) { mcs_raise(vm, "ArgumentException", "count or DmaBuffer expected"); return mcs_null(); }
+    return qspi_run(vm, bus, &c, argv[3], "QSPI.Read", true);
 }
 NATIVE(qspi_write) {     /* (bus, instruction, address, data[, dataLines[, addrBytes]]) */
     INT_ARG(0, bus); INT_ARG(1, instr); INT_ARG(2, addr);
@@ -971,7 +1281,7 @@ NATIVE(qspi_write) {     /* (bus, instruction, address, data[, dataLines[, addrB
     if (ab < 1 || ab > 4) return range_fail(vm, "address bytes");
     mcs_qspi_cmd_t c = qcmd(instr, addr, addr >= 0 ? ab : 0, lines, 0);
     if (mcs_is_number(argv[3])) { mcs_raise(vm, "ArgumentException", "byte[] expected"); return mcs_null(); }
-    return qspi_run(vm, bus, &c, argv[3], "QSPI.Write");
+    return qspi_run(vm, bus, &c, argv[3], "QSPI.Write", false);
 }
 /* full control: (bus, instr, instrLines, address, addrBytes, addrLines, dummy, dataLines, dataOrCount) */
 NATIVE(qspi_transfer) {
@@ -982,7 +1292,7 @@ NATIVE(qspi_transfer) {
     memset(&c, 0, sizeof c);
     c.instruction = (uint8_t)instr; c.instr_lines = (uint8_t)il; c.address = (uint32_t)addr;
     c.addr_bytes = (uint8_t)ab; c.addr_lines = (uint8_t)(ab ? al : 0); c.dummy_cycles = (uint8_t)dummy; c.data_lines = (uint8_t)dl;
-    return qspi_run(vm, bus, &c, argv[8], "QSPI.Transfer");
+    return qspi_run(vm, bus, &c, argv[8], "QSPI.Transfer", false);
 }
 static const mcs_reg_t qspi_fns[] = {
     MCS_FN("Open", qspi_open, -1), MCS_FN("Command", qspi_command, -1), MCS_FN("Read", qspi_read, -1),
@@ -1107,6 +1417,24 @@ static bool has(const mcs_hal_t* h, const char* n) {
     if (!strcmp(n, "Watchdog")) return h->wdt_start != NULL;
     if (!strcmp(n, "RTC")) return h->rtc_get != NULL;
     if (!strcmp(n, "Micros")) return h->micros != NULL;
+#if MCS_ENABLE_HAL_DMA
+    /* DMA: transfers that really run in the background (the async API works everywhere) */
+    if (!strcmp(n, "DMA")) return h->dma_channels > 0 || h->dma_copy || h->spi_transfer_async || h->i2c_transfer_async
+                                  || h->uart_write_async || h->uart_read_async || h->qspi_command_async;
+    if (!strcmp(n, "DMA.Memory")) return h->dma_copy != NULL;
+    if (!strcmp(n, "DMA.SPI")) return h->spi_transfer_async != NULL;
+    if (!strcmp(n, "DMA.I2C")) return h->i2c_transfer_async != NULL;
+    if (!strcmp(n, "DMA.UART")) return h->uart_write_async != NULL || h->uart_read_async != NULL;
+    if (!strcmp(n, "DMA.QSPI")) return h->qspi_command_async != NULL;
+#endif
+    /* full configuration objects honoured by the board (else only the basic fields) */
+    if (!strcmp(n, "GPIO.Configure")) return h->gpio_configure != NULL;
+    if (!strcmp(n, "UART.Configure")) return h->uart_configure != NULL;
+    if (!strcmp(n, "I2C.Configure")) return h->i2c_configure != NULL;
+    if (!strcmp(n, "SPI.Configure")) return h->spi_configure != NULL;
+    if (!strcmp(n, "QSPI.Configure")) return h->qspi_configure != NULL;
+    if (!strcmp(n, "PWM.Configure")) return h->pwm_configure != NULL;
+    if (!strcmp(n, "ADC.Configure")) return h->adc_configure != NULL;
 #if MCS_ENABLE_DRIVERS
     if (!strcmp(n, "Drivers")) return true;      /* the C# Drivers class */
     if (mcs_driver_provides(n)) return true;     /* "ws2812", "LedStrip", your drivers */
@@ -1186,6 +1514,7 @@ const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm) {
 void mcs_hal_close_lib(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s) return;
+    mcs__dma_close(vm);                           /* stop / finish transfers still in flight */
     mcs_set_ext(vm, MCS_EXT_HAL, NULL);
     mcs_set_idle(vm, NULL, NULL);
     int a = s->cb_pin, b = s->self_pin;
@@ -1227,7 +1556,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         s->self_pin = mcs_pin(vm, obj);
         mcs_value_t list = mcs_new_list(vm);
         mcs_push_root(vm, list);
-        for (int i = 0; i < MCS_HAL_MAX_CALLBACKS; i++) mcs_list_add(vm, list, mcs_null());
+        for (int i = 0; i < MCS__REF_COUNT; i++) mcs_list_add(vm, list, mcs_null());
         s->cb_pin = mcs_pin(vm, list);
         mcs_pop_root(vm, 1);
         if (s->self_pin < 0 || s->cb_pin < 0) {
@@ -1240,6 +1569,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     }
     s->hal = h;
     memset(s->spi_valid, 0, sizeof s->spi_valid);
+    for (int i = 0; i < MCS_HAL_MAX_BUSES; i++) { s->spi_cs[i] = -1; s->spi_cs_high[i] = 0; }
     s->no_events = (flags & MCS_HAL_NO_EVENTS) != 0;
     if (!s->no_events) mcs_set_idle(vm, idle_poll, NULL);
 
@@ -1269,6 +1599,8 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     if (has(h, "CAN")) { mcs_register_module(vm, "CAN", can_fns); mcs_register_class(vm, &canframe_def); }
     if (has(h, "Watchdog")) mcs_register_module(vm, "Watchdog", wdt_fns);
     if (has(h, "RTC")) mcs_register_module(vm, "RTC", rtc_fns);
+    mcs__cfg_open(vm, h);                         /* GpioConfig, SpiConfig ... + Hal.Options */
+    mcs__dma_open(vm, h);                         /* DmaBuffer, DmaTransfer, Dma + the *Async methods */
 #if MCS_ENABLE_DRIVERS
 #if MCS_ENABLE_U8G2
     mcs_u8g2_use_hal(h);                          /* "u8g2" driver: C# U8g2 / U8x8 displays */

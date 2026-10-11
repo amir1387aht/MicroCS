@@ -14,6 +14,7 @@
 #include "hardware/pwm.h"
 #include "hardware/clocks.h"
 #include "hardware/watchdog.h"
+#include "hardware/dma.h"
 #if MCS_ENABLE_FLASH
 #include "hardware/flash.h"
 #include "hardware/sync.h"
@@ -35,6 +36,8 @@
 
 static mcs_rp2_cfg_t g_cfg;
 static uint64_t g_od_mask;           /* open-drain pins (emulated with direction) */
+static uint64_t g_inv_mask;          /* GpioConfig.Invert on a plain GPIO (done here: SIO reads the pad) */
+#define R_INV(pin) ((int)((g_inv_mask >> (pin)) & 1u))
 
 /* ------------------------------------------------------------------ GPIO */
 static int r_gpio_mode(void* ctx, int pin, int mode) {
@@ -42,7 +45,10 @@ static int r_gpio_mode(void* ctx, int pin, int mode) {
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     uint p = (uint)pin;
     gpio_init(p);
+    gpio_set_outover(p, GPIO_OVERRIDE_NORMAL);
+    gpio_set_inover(p, GPIO_OVERRIDE_NORMAL);
     g_od_mask &= ~(1ull << pin);
+    g_inv_mask &= ~(1ull << pin);
     switch (mode) {
     case MCS_GPIO_INPUT: gpio_set_dir(p, GPIO_IN); gpio_disable_pulls(p); break;
     case MCS_GPIO_INPUT_PULLUP: gpio_set_dir(p, GPIO_IN); gpio_pull_up(p); break;
@@ -59,6 +65,7 @@ static int r_gpio_mode(void* ctx, int pin, int mode) {
 static int r_gpio_write(void* ctx, int pin, int v) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    v = (v != 0) ^ R_INV(pin);
     if (g_od_mask & (1ull << pin)) gpio_set_dir((uint)pin, v ? GPIO_IN : GPIO_OUT);
     else gpio_put((uint)pin, v != 0);
     return 0;
@@ -66,16 +73,47 @@ static int r_gpio_write(void* ctx, int pin, int v) {
 static int r_gpio_read(void* ctx, int pin) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
-    return gpio_get((uint)pin) ? 1 : 0;
+    return (gpio_get((uint)pin) ? 1 : 0) ^ R_INV(pin);
 }
 static void gpio_cb(uint gpio, uint32_t events) {
     int level = (events & GPIO_IRQ_EDGE_RISE) && !(events & GPIO_IRQ_EDGE_FALL) ? 1
               : (events & GPIO_IRQ_EDGE_FALL) && !(events & GPIO_IRQ_EDGE_RISE) ? 0 : (int)gpio_get(gpio);
-    mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level);
+    mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level ^ R_INV(gpio));
+}
+static int r_gpio_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
+    if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    if (c->hold == MCS_ON) { mcs_hal_error("Hold: not available on RP2 pads"); return MCS_HAL_ENOTSUP; }
+    if (c->filter_ns) { mcs_hal_error("FilterNs: RP2 GPIOs have no glitch filter (use Schmitt)"); return MCS_HAL_ENOTSUP; }
+    if (c->drive_ma && c->drive_ma != 2 && c->drive_ma != 4 && c->drive_ma != 8 && c->drive_ma != 12) {
+        mcs_hal_error("DriveMa: 2, 4, 8 or 12 mA");
+        return MCS_HAL_EINVAL;
+    }
+    if (c->alternate > 31 || c->pull > MCS_PULL_BOTH) return MCS_HAL_EINVAL;
+    uint p = (uint)pin;
+    int r, lvl = (c->initial != 0) ^ (c->invert == MCS_ON);
+    if (c->mode == MCS_GPIO_OUTPUT && c->initial >= 0) {     /* level first, then drive: no glitch */
+        if ((r = r_gpio_mode(ctx, pin, MCS_GPIO_INPUT))) return r;
+        gpio_put(p, lvl);
+        gpio_set_dir(p, GPIO_OUT);
+    } else if ((r = r_gpio_mode(ctx, pin, c->mode))) return r;
+    if (c->mode == MCS_GPIO_OPEN_DRAIN && c->initial >= 0 && !lvl) gpio_set_dir(p, GPIO_OUT);
+    if (c->pull) gpio_set_pulls(p, c->pull == MCS_PULL_UP || c->pull == MCS_PULL_BOTH, c->pull == MCS_PULL_DOWN || c->pull == MCS_PULL_BOTH);
+    if (c->drive_ma) gpio_set_drive_strength(p, c->drive_ma == 2 ? GPIO_DRIVE_STRENGTH_2MA : c->drive_ma == 4 ? GPIO_DRIVE_STRENGTH_4MA
+                                               : c->drive_ma == 8 ? GPIO_DRIVE_STRENGTH_8MA : GPIO_DRIVE_STRENGTH_12MA);
+    if (c->speed) gpio_set_slew_rate(p, c->speed >= MCS_SPEED_HIGH ? GPIO_SLEW_RATE_FAST : GPIO_SLEW_RATE_SLOW);
+    if (c->schmitt) gpio_set_input_hysteresis_enabled(p, c->schmitt == MCS_ON);
+    if (c->alternate >= 0) {
+        /* peripheral function: invert in the pad mux, the signal never passes SIO */
+        gpio_set_function(p, (gpio_function_t)c->alternate);
+        gpio_set_outover(p, c->invert == MCS_ON ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+        gpio_set_inover(p, c->invert == MCS_ON ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    } else if (c->invert == MCS_ON) g_inv_mask |= 1ull << pin;
+    return 0;
 }
 static int r_gpio_irq(void* ctx, int pin, int edge) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
+    if (R_INV(pin) && edge != MCS_GPIO_EDGE_BOTH) edge = edge == MCS_GPIO_EDGE_RISING ? MCS_GPIO_EDGE_FALLING : edge == MCS_GPIO_EDGE_FALLING ? MCS_GPIO_EDGE_RISING : edge;
     uint32_t ev = (edge & MCS_GPIO_EDGE_RISING ? GPIO_IRQ_EDGE_RISE : 0) | (edge & MCS_GPIO_EDGE_FALLING ? GPIO_IRQ_EDGE_FALL : 0);
     if (!ev) { gpio_set_irq_enabled((uint)pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false); return 0; }
     gpio_set_irq_enabled((uint)pin, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
@@ -120,6 +158,25 @@ static int r_uart_open(void* ctx, int port, uint32_t baud) {
     mcs_uart_cfg_t c = { baud, 8, MCS_UART_PARITY_NONE, 1, 0 };
     return r_uart_config(ctx, port, &c);
 }
+static int r_uart_configure(void* ctx, int port, const mcs_uart_config_t* x) {
+    uart_inst_t* u = uart_of(port);
+    if (!u) return MCS_HAL_ENOTSUP;
+    if (x->rs485) { mcs_hal_error("Rs485: the RP2 UART has no RS-485 mode - drive the DE pin from C#"); return MCS_HAL_ENOTSUP; }
+    if (x->dma == MCS_ON) { mcs_hal_error("Dma: RP2 UART receive uses an interrupt ring buffer"); return MCS_HAL_ENOTSUP; }
+    if (x->rx_buffer && x->rx_buffer != MCS_RP2_UART_RXBUF) { mcs_hal_error("RxBuffer: fixed at MCS_RP2_UART_RXBUF bytes (compile time)"); return MCS_HAL_EINVAL; }
+    if (x->tx_buffer) { mcs_hal_error("TxBuffer: RP2 UART writes are blocking"); return MCS_HAL_ENOTSUP; }
+    if (x->rx_timeout) { mcs_hal_error("RxTimeout: not configurable on RP2"); return MCS_HAL_ENOTSUP; }
+    mcs_rp2_uart_pins_t* pp = &g_cfg.uart[port];
+    if (x->tx >= 0 && x->tx != pp->tx) { if (pp->tx >= 0) gpio_init((uint)pp->tx); pp->tx = x->tx; }
+    if (x->rx >= 0 && x->rx != pp->rx) { if (pp->rx >= 0) gpio_init((uint)pp->rx); pp->rx = x->rx; }
+    int r = r_uart_config(ctx, port, &x->frame);
+    if (r) return r;
+    if (x->rts >= 0) gpio_set_function((uint)x->rts, GPIO_FUNC_UART);
+    if (x->cts >= 0) gpio_set_function((uint)x->cts, GPIO_FUNC_UART);
+    gpio_set_outover((uint)pp->tx, x->invert_tx ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    if (pp->rx >= 0) gpio_set_inover((uint)pp->rx, x->invert_rx ? GPIO_OVERRIDE_INVERT : GPIO_OVERRIDE_NORMAL);
+    return 0;
+}
 static int r_uart_close(void* ctx, int port) {
     (void)ctx;
     uart_inst_t* u = uart_of(port);
@@ -162,18 +219,45 @@ static int r_uart_available(void* ctx, int port) {
 
 /* ------------------------------------------------------------------ I2C */
 static bool g_i2c_on[2];
+static uint8_t g_i2c_nopull[2], g_i2c_spk[2];
+static uint32_t g_i2c_to_us[2];
+#define I2C_TO(bus) (g_i2c_to_us[bus] ? g_i2c_to_us[bus] : MCS_RP2_TIMEOUT_US)
 static i2c_inst_t* i2c_of(int bus) { return bus == 0 ? i2c0 : bus == 1 ? i2c1 : NULL; }
 static int r_i2c_open(void* ctx, int bus, uint32_t freq) {
     (void)ctx;
     i2c_inst_t* i = i2c_of(bus);
     if (!i || g_cfg.i2c[bus].sda < 0) return MCS_HAL_ENOTSUP;
     i2c_init(i, freq ? freq : 100000);
+    if (g_i2c_spk[bus]) {             /* spike suppression length, written while disabled */
+        i2c_hw_t* hw = i2c_get_hw(i);
+        hw->enable = 0;
+        hw->fs_spklen = g_i2c_spk[bus];
+        hw->enable = 1;
+    }
     gpio_set_function((uint)g_cfg.i2c[bus].sda, GPIO_FUNC_I2C);
     gpio_set_function((uint)g_cfg.i2c[bus].scl, GPIO_FUNC_I2C);
-    gpio_pull_up((uint)g_cfg.i2c[bus].sda);
-    gpio_pull_up((uint)g_cfg.i2c[bus].scl);
+    if (g_i2c_nopull[bus]) {
+        gpio_disable_pulls((uint)g_cfg.i2c[bus].sda);
+        gpio_disable_pulls((uint)g_cfg.i2c[bus].scl);
+    } else {
+        gpio_pull_up((uint)g_cfg.i2c[bus].sda);
+        gpio_pull_up((uint)g_cfg.i2c[bus].scl);
+    }
     g_i2c_on[bus] = true;
     return 0;
+}
+static int r_i2c_configure(void* ctx, int bus, const mcs_i2c_config_t* c) {
+    if (!i2c_of(bus)) return MCS_HAL_ENOTSUP;
+    if (c->dma == MCS_ON) { mcs_hal_error("Dma: RP2 I2C transfers are short and run from the FIFO"); return MCS_HAL_ENOTSUP; }
+    if (c->analog_filter == MCS_ON) { mcs_hal_error("AnalogFilter: not available on RP2 (use GlitchFilter)"); return MCS_HAL_ENOTSUP; }
+    mcs_rp2_i2c_pins_t* pp = &g_cfg.i2c[bus];
+    if (c->sda >= 0 && c->sda != pp->sda) { if (pp->sda >= 0) gpio_init((uint)pp->sda); pp->sda = c->sda; }
+    if (c->scl >= 0 && c->scl != pp->scl) { if (pp->scl >= 0) gpio_init((uint)pp->scl); pp->scl = c->scl; }
+    if (pp->sda < 0 || pp->scl < 0) { mcs_hal_error("no I2C pins for this bus - set Sda and Scl"); return MCS_HAL_ENOTSUP; }
+    g_i2c_nopull[bus] = c->pullups == MCS_OFF;
+    g_i2c_spk[bus] = c->glitch_filter;
+    g_i2c_to_us[bus] = (uint32_t)c->timeout_ms * 1000u;
+    return r_i2c_open(ctx, bus, c->freq_hz);
 }
 static i2c_inst_t* i2c_ready(int bus, int* err) {
     i2c_inst_t* i = i2c_of(bus);
@@ -189,18 +273,18 @@ static int i2c_rc(int r, size_t n) {
 static int r_i2c_write(void* ctx, int bus, int addr, const uint8_t* d, size_t n) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    return i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, d, n, false, MCS_RP2_TIMEOUT_US), n);
+    return i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, d, n, false, I2C_TO(bus)), n);
 }
 static int r_i2c_read(void* ctx, int bus, int addr, uint8_t* buf, size_t n) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    return i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, buf, n, false, MCS_RP2_TIMEOUT_US), n);
+    return i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, buf, n, false, I2C_TO(bus)), n);
 }
 static int r_i2c_write_read(void* ctx, int bus, int addr, const uint8_t* tx, size_t tn, uint8_t* rx, size_t rn) {
     (void)ctx; int err; i2c_inst_t* i = i2c_ready(bus, &err);
     if (!i) return err;
-    int r = i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, tx, tn, true, MCS_RP2_TIMEOUT_US), tn);   /* no stop: repeated start */
-    return r ? r : i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, rx, rn, false, MCS_RP2_TIMEOUT_US), rn);
+    int r = i2c_rc(i2c_write_timeout_us(i, (uint8_t)addr, tx, tn, true, I2C_TO(bus)), tn);   /* no stop: repeated start */
+    return r ? r : i2c_rc(i2c_read_timeout_us(i, (uint8_t)addr, rx, rn, false, I2C_TO(bus)), rn);
 }
 static int r_i2c_probe(void* ctx, int bus, int addr) {
     uint8_t b;
@@ -238,8 +322,121 @@ static int r_spi_transfer(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, si
     return 0;
 }
 
+static uint8_t g_spi_nodma[2];
+static int r_spi_configure(void* ctx, int bus, const mcs_spi_config_t* c) {
+    if (!spi_of(bus)) return MCS_HAL_ENOTSUP;
+    if (c->three_wire) { mcs_hal_error("ThreeWire: the RP2 SPI (PL022) is full duplex only"); return MCS_HAL_ENOTSUP; }
+    if (c->input_delay_ns) { mcs_hal_error("InputDelayNs: not adjustable on RP2 (lower the frequency)"); return MCS_HAL_ENOTSUP; }
+    if (c->bus.lsb_first) { mcs_hal_error("LsbFirst: the RP2 SPI sends MSB first only"); return MCS_HAL_ENOTSUP; }
+    mcs_rp2_spi_pins_t* pp = &g_cfg.spi[bus];
+    if (c->sck >= 0 && c->sck != pp->sck) { if (pp->sck >= 0) gpio_init((uint)pp->sck); pp->sck = c->sck; }
+    if (c->mosi >= 0 && c->mosi != pp->mosi) { if (pp->mosi >= 0) gpio_init((uint)pp->mosi); pp->mosi = c->mosi; }
+    if (c->miso >= 0 && c->miso != pp->miso) { if (pp->miso >= 0) gpio_init((uint)pp->miso); pp->miso = c->miso; }
+    g_spi_nodma[bus] = c->dma == MCS_OFF;
+    return r_spi_open(ctx, bus, &c->bus);
+}
+
+/* ------------------------------------------------------------------ DMA
+ * SPI: a TX and an RX channel paced by the SPI DREQs (dummy 0xFF / sink when one
+ * side is NULL), done when RX has all bytes. Memory: one channel, DREQ_FORCE.
+ * Completion on DMA_IRQ_1 (shared handler) -> MCS_HAL_EV_DMA. */
+typedef struct { int8_t ch, ch2; uint16_t id; int32_t n; volatile uint8_t on; } r_dma_job_t;
+static r_dma_job_t g_sdma[2], g_mdma[MCS_HAL_MAX_DMA];
+static uint8_t g_dummy_tx = 0xFF, g_dummy_rx;
+static void r_dma_end(r_dma_job_t* j, bool post) {
+    dma_channel_set_irq1_enabled((uint)j->ch, false);
+    dma_channel_acknowledge_irq1((uint)j->ch);
+    dma_channel_unclaim((uint)j->ch);
+    if (j->ch2 >= 0) dma_channel_unclaim((uint)j->ch2);
+    j->on = 0;
+    if (post) mcs_hal_post(MCS_HAL_EV_DMA, j->id, j->n);
+}
+static void r_dma_isr(void) {
+    for (int i = 0; i < 2; i++)
+        if (g_sdma[i].on && dma_channel_get_irq1_status((uint)g_sdma[i].ch)) r_dma_end(&g_sdma[i], true);
+    for (int i = 0; i < MCS_HAL_MAX_DMA; i++)
+        if (g_mdma[i].on && dma_channel_get_irq1_status((uint)g_mdma[i].ch)) r_dma_end(&g_mdma[i], true);
+}
+static void r_dma_irq_init(void) {
+    static bool on;
+    if (on) return;
+    irq_add_shared_handler(DMA_IRQ_1, r_dma_isr, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
+    irq_set_enabled(DMA_IRQ_1, true);
+    on = true;
+}
+static int r_spi_transfer_async(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n, int id) {
+    spi_inst_t* s = spi_of(bus);
+    if (!s) return MCS_HAL_ENOTSUP;
+    if (!g_spi_on[bus]) {
+        mcs_spi_cfg_t c = { 1000000, 0, 8, 0, 0 };
+        int r = r_spi_open(ctx, bus, &c);
+        if (r) return r;
+    }
+    if (g_spi_nodma[bus]) return MCS_HAL_ENOTSUP;          /* SpiConfig.Dma = false: synchronous */
+    if (g_sdma[bus].on) return MCS_HAL_EBUSY;
+    int tc = dma_claim_unused_channel(false);
+    if (tc < 0) return MCS_HAL_ENOTSUP;
+    int rc = dma_claim_unused_channel(false);
+    if (rc < 0) { dma_channel_unclaim((uint)tc); return MCS_HAL_ENOTSUP; }
+    dma_channel_config ct = dma_channel_get_default_config((uint)tc);
+    channel_config_set_transfer_data_size(&ct, DMA_SIZE_8);
+    channel_config_set_dreq(&ct, spi_get_dreq(s, true));
+    channel_config_set_read_increment(&ct, tx != NULL);
+    channel_config_set_write_increment(&ct, false);
+    dma_channel_configure((uint)tc, &ct, &spi_get_hw(s)->dr, tx ? tx : &g_dummy_tx, (uint32_t)n, false);
+    dma_channel_config cr = dma_channel_get_default_config((uint)rc);
+    channel_config_set_transfer_data_size(&cr, DMA_SIZE_8);
+    channel_config_set_dreq(&cr, spi_get_dreq(s, false));
+    channel_config_set_read_increment(&cr, false);
+    channel_config_set_write_increment(&cr, rx != NULL);
+    dma_channel_configure((uint)rc, &cr, rx ? (void*)rx : (void*)&g_dummy_rx, &spi_get_hw(s)->dr, (uint32_t)n, false);
+    while (spi_is_readable(s)) (void)spi_get_hw(s)->dr;    /* stale RX bytes */
+    r_dma_job_t* j = &g_sdma[bus];
+    j->ch = (int8_t)rc; j->ch2 = (int8_t)tc; j->id = (uint16_t)id; j->n = (int32_t)n; j->on = 1;
+    r_dma_irq_init();
+    dma_channel_acknowledge_irq1((uint)rc);
+    dma_channel_set_irq1_enabled((uint)rc, true);
+    dma_start_channel_mask((1u << tc) | (1u << rc));
+    return 0;
+}
+static int r_dma_copy(void* ctx, void* dst, const void* src, size_t n, unsigned flags, int id) {
+    (void)ctx;
+    r_dma_job_t* j = NULL;
+    for (int i = 0; i < MCS_HAL_MAX_DMA; i++) if (!g_mdma[i].on) { j = &g_mdma[i]; break; }
+    if (!j || !n) return MCS_HAL_ENOTSUP;
+    int ch = dma_claim_unused_channel(false);
+    if (ch < 0) return MCS_HAL_ENOTSUP;                    /* all channels busy: the CPU copies */
+    bool words = !(flags & MCS_DMA_SRC_FIXED) && !(((uintptr_t)dst | (uintptr_t)src | n) & 3u);
+    dma_channel_config c = dma_channel_get_default_config((uint)ch);
+    channel_config_set_transfer_data_size(&c, words ? DMA_SIZE_32 : DMA_SIZE_8);
+    channel_config_set_read_increment(&c, !(flags & MCS_DMA_SRC_FIXED));
+    channel_config_set_write_increment(&c, !(flags & MCS_DMA_DST_FIXED));
+    j->ch = (int8_t)ch; j->ch2 = -1; j->id = (uint16_t)id; j->n = (int32_t)n; j->on = 1;
+    r_dma_irq_init();
+    dma_channel_acknowledge_irq1((uint)ch);
+    dma_channel_set_irq1_enabled((uint)ch, true);
+    dma_channel_configure((uint)ch, &c, dst, src, (uint32_t)(words ? n / 4 : n), true);
+    return 0;
+}
+static int r_dma_abort(void* ctx, int id) {
+    (void)ctx;
+    r_dma_job_t* all[2 + MCS_HAL_MAX_DMA] = { &g_sdma[0], &g_sdma[1] };
+    for (int i = 0; i < MCS_HAL_MAX_DMA; i++) all[2 + i] = &g_mdma[i];
+    for (int i = 0; i < 2 + MCS_HAL_MAX_DMA; i++) {
+        r_dma_job_t* j = all[i];
+        if (!j->on || j->id != (uint16_t)id) continue;
+        dma_channel_set_irq1_enabled((uint)j->ch, false);   /* RP2040-E13: disable the IRQ before aborting */
+        dma_channel_abort((uint)j->ch);
+        if (j->ch2 >= 0) dma_channel_abort((uint)j->ch2);
+        r_dma_end(j, false);
+        return 0;
+    }
+    return MCS_HAL_EINVAL;
+}
+
 /* ------------------------------------------------------------------ ADC / PWM */
 static bool g_adc_on;
+static uint8_t g_adc_avg[NUM_ADC_CHANNELS];
 static int r_adc_read(void* ctx, int ch) {
     (void)ctx;
     if (ch < 0 || ch >= (int)NUM_ADC_CHANNELS) return MCS_HAL_ENOTSUP;
@@ -247,26 +444,61 @@ static int r_adc_read(void* ctx, int ch) {
     if (ch == (int)NUM_ADC_CHANNELS - 1) adc_set_temp_sensor_enabled(true);
     else adc_gpio_init((uint)(ADC_BASE_PIN + ch));
     adc_select_input((uint)ch);
-    return (int)adc_read();
+    int n = g_adc_avg[ch] ? g_adc_avg[ch] : 1;
+    uint32_t sum = 0;
+    for (int i = 0; i < n; i++) sum += adc_read();      /* Oversample: averaged in software */
+    return (int)(sum / (uint32_t)n);
 }
+static int r_adc_configure(void* ctx, int ch, const mcs_adc_config_t* c) {
+    (void)ctx;
+    if (ch < 0 || ch >= (int)NUM_ADC_CHANNELS) return MCS_HAL_ENOTSUP;
+    if (c->resolution_bits && c->resolution_bits != 12) { mcs_hal_error("ResolutionBits: the RP2 ADC is 12-bit"); return MCS_HAL_ENOTSUP; }
+    if (c->attenuation) { mcs_hal_error("Attenuation: the RP2 ADC range is fixed at 0..ADC_VREF"); return MCS_HAL_ENOTSUP; }
+    if (c->sample_time) { mcs_hal_error("SampleTime: fixed at 96 ADC clocks on RP2"); return MCS_HAL_ENOTSUP; }
+    if (c->oversample > 128 || (c->oversample & (c->oversample - 1))) { mcs_hal_error("Oversample: 0, 1, 2, 4 .. 128"); return MCS_HAL_EINVAL; }
+    g_adc_avg[ch] = c->oversample;
+    return 0;
+}
+/* per slice: PwmConfig.ResolutionBits, centre-aligned, inverted channels (bit 0 = A, 1 = B) */
+static uint8_t g_pwm_res[NUM_PWM_SLICES], g_pwm_cen[NUM_PWM_SLICES], g_pwm_inv[NUM_PWM_SLICES];
 static int r_pwm_set16(void* ctx, int pin, uint32_t freq, uint16_t duty) {
     (void)ctx;
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_ENOTSUP;
     if (!freq) return MCS_HAL_EINVAL;
     uint slice = pwm_gpio_to_slice_num((uint)pin), chan = pwm_gpio_to_channel((uint)pin);
     uint32_t clk = clock_get_hz(clk_sys);
-    /* integer + 4-bit fractional divider so that top fits 16 bits */
-    uint32_t div16 = (uint32_t)(((uint64_t)clk * 16u + (uint64_t)freq * 65536u - 1) / ((uint64_t)freq * 65536u));
-    if (div16 < 16) div16 = 16;
-    if (div16 > 255u * 16u + 15u) return MCS_HAL_EINVAL;      /* below ~8 Hz at 125 MHz */
-    uint32_t top = (uint32_t)((uint64_t)clk * 16u / ((uint64_t)div16 * freq)) - 1;
-    if (top > 65535u) top = 65535u;
+    uint64_t f = (uint64_t)freq * (g_pwm_cen[slice] ? 2u : 1u);     /* phase-correct counts up and down */
+    uint32_t div16, top;
+    if (g_pwm_res[slice]) {
+        top = (1u << g_pwm_res[slice]) - 1u;
+        div16 = (uint32_t)(((uint64_t)clk * 16u) / (f * (top + 1u)));
+        if (div16 < 16 || div16 > 255u * 16u + 15u) { mcs_hal_error("ResolutionBits: does not fit this frequency (clk_sys / 2^bits / freq must be 1..255)"); return MCS_HAL_EINVAL; }
+    } else {
+        /* integer + 4-bit fractional divider so that top fits 16 bits */
+        div16 = (uint32_t)(((uint64_t)clk * 16u + f * 65536u - 1) / (f * 65536u));
+        if (div16 < 16) div16 = 16;
+        if (div16 > 255u * 16u + 15u) return MCS_HAL_EINVAL;      /* below ~8 Hz at 125 MHz */
+        top = (uint32_t)((uint64_t)clk * 16u / ((uint64_t)div16 * f)) - 1;
+        if (top > 65535u) top = 65535u;
+    }
     gpio_set_function((uint)pin, GPIO_FUNC_PWM);
     pwm_set_clkdiv_int_frac(slice, (uint8_t)(div16 >> 4), (uint8_t)(div16 & 15));
     pwm_set_wrap(slice, (uint16_t)top);
+    pwm_set_phase_correct(slice, g_pwm_cen[slice] != 0);
+    pwm_set_output_polarity(slice, g_pwm_inv[slice] & 1, (g_pwm_inv[slice] >> 1) & 1);
     pwm_set_chan_level(slice, chan, (uint16_t)(((uint64_t)(top + 1) * duty) / 65535u));
     pwm_set_enabled(slice, true);
     return 0;
+}
+static int r_pwm_configure(void* ctx, int pin, const mcs_pwm_config_t* c) {
+    if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_ENOTSUP;
+    if (c->pin >= 0 && c->pin != pin) { mcs_hal_error("Pin: on RP2 the PWM channel number is the GPIO"); return MCS_HAL_ENOTSUP; }
+    if (c->resolution_bits > 16) { mcs_hal_error("ResolutionBits: 1..16"); return MCS_HAL_EINVAL; }
+    uint slice = pwm_gpio_to_slice_num((uint)pin), chan = pwm_gpio_to_channel((uint)pin);
+    g_pwm_res[slice] = c->resolution_bits;
+    g_pwm_cen[slice] = c->center_aligned ? 1 : 0;
+    g_pwm_inv[slice] = (uint8_t)((g_pwm_inv[slice] & ~(1u << chan)) | ((c->invert ? 1u : 0u) << chan));
+    return c->freq_hz ? r_pwm_set16(ctx, pin, c->freq_hz, 0) : 0;
 }
 static int r_pwm_set(void* ctx, int pin, uint32_t freq, uint16_t permille) {
     return r_pwm_set16(ctx, pin, freq, (uint16_t)((uint32_t)permille * 65535u / 1000u));
@@ -438,6 +670,18 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     mcs_driver_register_default(&r_ws2812);       /* keeps a "ws2812" you registered first */
 #endif
     hal->cpu_hz = clock_get_hz(clk_sys);
+    /* v3: full configuration + DMA (all SRAM is DMA-capable: DmaBuffer uses the VM heap) */
+    hal->gpio_configure = r_gpio_configure;
+    hal->uart_configure = r_uart_configure;
+    hal->i2c_configure = r_i2c_configure;
+    hal->spi_configure = r_spi_configure;
+    hal->pwm_configure = r_pwm_configure;
+    hal->adc_configure = r_adc_configure;
+    hal->dma_align = 4;
+    hal->dma_channels = NUM_DMA_CHANNELS;
+    hal->dma_copy = r_dma_copy;
+    hal->dma_abort = r_dma_abort;
+    hal->spi_transfer_async = r_spi_transfer_async;
 }
 
 /* ------------------------------------------------------------------ internal flash */

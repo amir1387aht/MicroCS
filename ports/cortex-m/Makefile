@@ -20,7 +20,7 @@ M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 # target: cpu flags, profile flags, flash, ram
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
-m0-runtime_F := $(M0)  $(RUNTIME) -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
+m0-runtime_F := $(M0)  $(RUNTIME) -DMCS_ENABLE_HAL_DMA=0 -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
 m0-runtime_M := FLASH_SIZE=256K RAM_SIZE=128K
 # m0-lowram: the lowram profile on a 64 KB-RAM part, 40 KB pool (VM heap + RAM filesystem)
 m0-lowram_F  := $(M0)  -DMCS_PROFILE=MCS_PROFILE_LOWRAM -DCM_HEAP_SIZE=40960 -DCM_RAMFS_SIZE=1024 -DCM_STACK_SLOTS=192 -DCM_FRAMES=32

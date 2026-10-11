@@ -1,0 +1,25 @@
+dma=True spi=True mem=True channels=4 align=4 max=4
+DmaBuffer[8] len=8 [0]=0
+171,1,1,1,0,0,0,0
+2 0,0,5,6
+index 8 outside DmaBuffer[8]
+hello ell
+pending=1 busy=True
+DmaBuffer is in use by a DMA transfer (Wait() for it first)
+spi done: 4 bytes
+wait=True ok=True result=4 rx=1,2,3,4 busy=False
+queued: first done=True second result=2
+big write ok 300
+copy callback fired=1 completed=True
+copied 3
+238,238,1,2,3,0
+fill True 0,0,0,0,0,0
+WHO_AM_I 0x68
+nack: I2C (DMA): no device (-4)
+succeeded=False error=no device (-4)
+after 3 bytes: False
+after 5 bytes: True 'abcde'
+timeout=False cancel=True done=True pending=0
+jedec 239,64,22
+flash 255,255,255
+all=True pending=0 last=32

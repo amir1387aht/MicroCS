@@ -215,6 +215,7 @@ typedef struct {
     } rx[MCS_STM32_UARTS];
     uint16_t exti_pin[16];                    /* C# pin number + 1 per EXTI line */
     uint16_t pull_up[11], pull_down[11];      /* pull set by GPIO.Mode, per port */
+    uint8_t pwm_center[MCS_STM32_PWM_CHANNELS]; /* PwmConfig.CenterAligned (counter runs at 2x freq) */
     uint32_t timer_count[MCS_STM32_TIMERS];
     uint8_t timer_once[MCS_STM32_TIMERS];
     uint8_t dac_started[2];

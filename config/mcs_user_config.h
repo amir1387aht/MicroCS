@@ -339,6 +339,15 @@
 #ifndef MCS_HAL_MAX_BUSES
 #define MCS_HAL_MAX_BUSES         4    /* per peripheral type, cached bus settings */
 #endif
+#ifndef MCS_ENABLE_HAL_DMA
+#define MCS_ENABLE_HAL_DMA        MCS_ENABLE_HAL    /* DmaBuffer / Dma / DmaTransfer + ...Async (~11 KB flash) */
+#endif
+#ifndef MCS_HAL_MAX_DMA
+#define MCS_HAL_MAX_DMA           4    /* asynchronous (DMA) transfers in flight per VM, 1..8 */
+#endif
+#ifndef MCS_HAL_MAX_OPTS
+#define MCS_HAL_MAX_OPTS          8    /* board-specific options per config object (cfg.Set) */
+#endif
 #ifndef MCS_HAL_SIM_FLASH
 #define MCS_HAL_SIM_FLASH         4096    /* simulator board: QSPI NOR size */
 #endif

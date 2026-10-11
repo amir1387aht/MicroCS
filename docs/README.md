@@ -8,6 +8,8 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 🧭 | [Step-by-step guides](guides/README.md) | from nothing to C# on your board: PC, ESP32, ESP32-C3 + OLED, Raspberry Pi Pico, STM32, Arduino, Zephyr |
 | 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
 | 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
+| 🎛️ | [Peripheral configuration](PERIPHERALS.md) | `GpioConfig`, `SpiConfig`, `UartConfig` …: pins, pulls, drive strength, filters, board options; what each board supports; implementing it in a port |
+| ⚡ | [DMA](DMA.md) | `DmaBuffer`, `SPI.WriteAsync` & co., `DmaTransfer`, memory DMA; ordering and lifetime rules; per-board support; implementing it in a port |
 | 🖥️ | [U8g2 displays](U8G2.md) | optional C# `U8g2` / `U8x8` on olikraus' u8g2: turning it on in each build, choosing displays and fonts, fonts from files, the whole API, the `--oled` simulator |
 | 🧩 | [Device drivers](DRIVERS.md) | the driver registry, the built-in `ws2812` (`LedStrip`) and `servo` (`Servo`) drivers and their backends, writing your own, turning drivers off |
 | ⚙️ | [Configuration](CONFIGURATION.md) | the project config header `mcs_user_config.h`, `-D` options, profiles, precedence, per build system |

@@ -69,7 +69,7 @@ static int i2c_read(void* ctx, int bus, int addr, uint8_t* b, size_t n) { return
 
 static int spi_open(void* ctx, int bus, const mcs_spi_cfg_t* c) { return 0; /* TODO: c->freq_hz, c->mode */ }
 static int spi_transfer(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n) {
-    memcpy(rx, tx, n);   /* TODO: full duplex; tx is never NULL */
+    memcpy(rx, tx, n);   /* TODO: full duplex; tx and rx are never NULL here */
     return 0;
 }
 
@@ -84,6 +84,50 @@ static int timer_stop(void* ctx, int id) { return 0; }
 
 static uint32_t micros(void* ctx) { return port_ticks(ctx) * 1000u; /* TODO: µs counter */ }
 
+/* ---- v3: full configuration (C# GpioConfig, SpiConfig ...; docs/PERIPHERALS.md).
+ * Every field has a "board default" (0, MCS_AUTO, MCS_PIN_DEFAULT = -1): apply
+ * only what is set. Reject what the chip cannot do with MCS_HAL_ENOTSUP or
+ * MCS_HAL_EINVAL and say why with mcs_hal_error() - the text reaches C#. */
+static const mcs_hal_option_t options[] = {
+    /* board-specific settings: cfg.Set("timing", 0x10909CEC) in C#, read with mcs_hal_opt() */
+    { "I2C", "timing", 0, 0x7FFFFFFF, "raw timing register" },
+    { NULL, NULL, 0, 0, NULL }
+};
+static int gpio_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
+    if (c->drive_ma && c->drive_ma != 4 && c->drive_ma != 8) { mcs_hal_error("DriveMilliamps: 4 or 8"); return MCS_HAL_EINVAL; }
+    /* TODO: c->mode, c->pull (MCS_PULL_*), c->speed, c->drive_ma, c->schmitt / hold / invert
+     * (MCS_ON / MCS_OFF), c->initial (-1 keep), c->alternate (-1 = GPIO), c->filter_ns */
+    return gpio_mode(ctx, pin, c->mode);
+}
+static int spi_configure(void* ctx, int bus, const mcs_spi_config_t* c) {
+    /* TODO: pins c->sck / mosi / miso (-1 = board default), c->bus.freq_hz / mode / bits /
+     * lsb_first, c->dma (MCS_AUTO / MCS_ON / MCS_OFF), c->max_transfer, c->input_delay_ns.
+     * c->cs is driven by MicroCS as a GPIO; c->three_wire = half duplex on MOSI. */
+    return spi_open(ctx, bus, &c->bus);
+}
+static int i2c_configure(void* ctx, int bus, const mcs_i2c_config_t* c) {
+    int32_t timing = mcs_hal_opt(options, &c->opts, "I2C", "timing", 0);   /* 0 = compute from freq_hz */
+    (void)timing;
+    /* TODO: c->sda / scl, c->pullups, c->timeout_ms, c->glitch_filter, c->analog_filter, c->dma */
+    return i2c_open(ctx, bus, c->freq_hz);
+}
+
+/* ---- v3: DMA (docs/DMA.md). Start the transfer, return 0, and from the
+ * DMA-complete interrupt call mcs_hal_post(MCS_HAL_EV_DMA, id, bytes or MCS_HAL_E*).
+ * tx or rx may be NULL (one-way transfer). Leave these NULL and the C# *Async
+ * calls still work - synchronously. */
+static int spi_transfer_async(void* ctx, int bus, const uint8_t* tx, uint8_t* rx, size_t n, int id) {
+    int rc = spi_transfer(ctx, bus, tx, rx, n);   /* TODO: HAL_SPI_TransmitReceive_DMA(...) */
+    if (rc >= 0) mcs_hal_post(MCS_HAL_EV_DMA, id, (int32_t)n);
+    return rc;
+}
+static int dma_copy(void* ctx, void* dst, const void* src, size_t n, unsigned flags, int id) {
+    /* TODO: memory-to-memory channel; MCS_DMA_SRC_FIXED = fill with *(uint8_t*)src */
+    if (flags & MCS_DMA_SRC_FIXED) memset(dst, *(const uint8_t*)src, n); else memmove(dst, src, n);
+    mcs_hal_post(MCS_HAL_EV_DMA, id, (int32_t)n);
+    return 0;
+}
+
 static const mcs_hal_t board = {
     .board = "my-board",
     .gpio_mode = gpio_mode, .gpio_write = gpio_write, .gpio_read = gpio_read, .gpio_irq = gpio_irq,
@@ -94,10 +138,16 @@ static const mcs_hal_t board = {
     .pwm_set16 = pwm_set16,
     .timer_start = timer_start, .timer_stop = timer_stop,
     .micros = micros,
+    /* v3 (optional) */
+    .gpio_configure = gpio_configure, .spi_configure = spi_configure, .i2c_configure = i2c_configure,
+    .options = options,
+    .spi_transfer_async = spi_transfer_async, .dma_copy = dma_copy, .dma_channels = 1,
     /* Optional members (see include/mcs_hal.h): pin_lookup, uart_close, i2c_write_read,
      * i2c_probe, adc_read_mv, adc_vref_mv, dac_write, dac_bits, pwm_stop, i2s_open/write/
      * read/close, qspi_open/command, can_open/send/recv, wdt_start/feed, rtc_get/set,
-     * delay_us, reset, unique_id, cpu_hz, poll_event. Addressable LEDs, displays, sensors ...
+     * delay_us, reset, unique_id, cpu_hz, poll_event; v3: uart/qspi/pwm/adc_configure,
+     * dma_alloc/free/align, dma_abort, i2c_transfer_async, uart_write/read_async,
+     * qspi_command_async. Addressable LEDs, displays, sensors ...
      * are drivers (below), not HAL members. */
 };
 
