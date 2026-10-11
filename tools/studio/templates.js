@@ -856,6 +856,264 @@ byte[] data = QSPI.Read(0, 0x03, 0, 16);                 // READ at address 0
 Console.WriteLine($"first bytes {BitConverter.ToString(data)}");
 `);
 /* ---------------------------------------------------------------- Files and storage */
+T("Peripheral settings", "What can this board do?", "board_caps.cs",
+  "Hal.Has for full settings and DMA, and the board-specific options.",
+  String.raw`
+// Which peripherals take full settings objects, what runs on DMA, and the
+// options only this chip has (shown by Hal.Options).
+Console.WriteLine($"Board {Hal.Board}, HAL API {Hal.ApiVersion}");
+foreach (var p in new[] { "GPIO", "UART", "I2C", "SPI", "QSPI", "PWM", "ADC" })
+    Console.WriteLine($"  {p,-5} {(Hal.Has(p) ? "yes" : "no "),-4} full settings: {Hal.Has(p + ".Configure")}");
+Console.WriteLine($"DMA: {Hal.Has("DMA")} (SPI {Hal.Has("DMA.SPI")}, memory {Hal.Has("DMA.Memory")}), channels {Dma.Channels}");
+var opts = Hal.Options();
+Console.WriteLine($"{opts.Count} board options");
+foreach (var o in opts) Console.WriteLine("  " + o);
+`);
+
+T("Peripheral settings", "Button: pull-up + Schmitt trigger (GpioConfig)", "button_config.cs",
+  "A clean button input with GpioConfig and an interrupt callback.",
+  String.raw`
+// Button between GPIO 9 and GND: internal pull-up, input hysteresis.
+// Unset properties stay at the board default; unsupported ones throw with the reason.
+var cfg = new GpioConfig(GPIO.Input, GPIO.PullUp) { Schmitt = true };
+var button = new Pin(9, cfg);
+Console.WriteLine(cfg);                       // GpioConfig { Pull = 2, Schmitt = true }
+button.OnChange(GPIO.Both, level => Console.WriteLine(level ? "released" : "pressed"));
+Console.WriteLine($"now {(button.Value ? "released" : "pressed")} - waiting 2 s for presses");
+Hal.Run(2000);
+`);
+
+T("Peripheral settings", "LED: start on, strong drive (GpioConfig)", "led_config.cs",
+  "Set the level before the pin drives (no glitch), drive strength and speed.",
+  String.raw`
+// Initial = 1: the output level is set before the pin starts driving.
+// DriveMilliamps / Speed: where the chip has them (ESP32, RP2: 2/4/8/12 mA).
+var cfg = new GpioConfig(GPIO.Output) { Initial = 1, DriveMilliamps = 12, Speed = GPIO.SpeedHigh };
+Pin led;
+try { led = new Pin("LED", cfg); }
+catch (NotSupportedException e)              // e.g. STM32: no drive strength setting
+{
+    Console.WriteLine("board says: " + e.Message);
+    led = new Pin("LED", new GpioConfig(GPIO.Output) { Initial = 1 });
+}
+Console.WriteLine($"LED {led.Number} starts at {led.Value}");
+for (int i = 0; i < 6; i++) { led.Toggle(); Thread.Sleep(150); }
+`);
+
+T("Peripheral settings", "Open-drain bus line with GpioConfig", "open_drain.cs",
+  "Open drain with no internal pull, then change the settings later.",
+  String.raw`
+// A shared open-drain line (e.g. a 1-wire style or interrupt line) with an external pull-up.
+var line = new Pin(4, new GpioConfig(GPIO.OpenDrain) { Pull = GPIO.PullNone, Initial = 1 });
+line.Low(); Thread.Sleep(1); line.High();   // a 1 ms low pulse
+Console.WriteLine($"line reads {line.Read()}");
+// reconfigure the same pin as an input with a pull-down
+line.Configure(new GpioConfig(GPIO.Input, GPIO.PullDown));
+Console.WriteLine($"as input with pull-down: {line.Read()}");
+`);
+
+T("Peripheral settings", "I2C on your own pins (I2cConfig)", "i2c_pins.cs",
+  "Choose SDA/SCL, speed, pull-ups and timeout at run time, then scan.",
+  String.raw`
+// ESP32 / RP2: any pins at run time. STM32: pins come from CubeMX - leave Sda/Scl unset.
+var i2c = new I2cConfig(400_000, 21, 22)    // frequency, SDA, SCL
+{
+    PullUps = true,                           // false when the board has external resistors
+    TimeoutMs = 20,
+};
+Console.WriteLine(i2c);
+I2C.Open(0, i2c);
+var found = I2C.Scan(0);
+Console.WriteLine($"{found.Count} device(s): " + string.Join(", ", found.ConvertAll(a => $"0x{a:X2}")));
+`);
+
+T("Peripheral settings", "SPI bus with pins and chip select (SpiConfig)", "spi_config.cs",
+  "SpiConfig with pins, CS driven by MicroCS, then transfers.",
+  String.raw`
+// SPI bus 0: 8 MHz, mode 0, SCK 18, MOSI 23, MISO 19; chip select 5 handled by MicroCS.
+var spi = new SpiConfig(8_000_000, 0, 18, 23, 19) { Cs = 5 };
+SPI.Open(0, spi);
+byte[] rx = SPI.Transfer(0, new byte[] { 0x9F, 0, 0, 0 });   // CS from the config
+Console.WriteLine("JEDEC id: " + BitConverter.ToString(rx, 1));
+// one config per device: the bus is re-configured on every access
+var sensor = new SpiDevice(0, 4, new SpiConfig(1_000_000, 3));
+Console.WriteLine($"sensor on bus {sensor.Bus}, CS {sensor.ChipSelect}: " + BitConverter.ToString(sensor.Transfer(new byte[] { 0x80, 0 })));
+`);
+
+T("Peripheral settings", "UART with pins, parity and buffers (UartConfig)", "uart_config.cs",
+  "UartConfig: pins, framing, receive buffer; RS-485 shown as an option.",
+  String.raw`
+// GPS / modem on UART 1: 9600 baud, TX 17, RX 16, a 1 KB receive buffer.
+var cfg = new UartConfig(9600, 17, 16) { Parity = UART.ParityNone, RxBuffer = 1024 };
+// cfg.Rs485 = true; cfg.Rts = 4;            // half duplex: RTS drives the transceiver DE pin
+Console.WriteLine(cfg);
+UART.Open(1, cfg);
+UART.WriteLine(1, "$PMTK000*32");
+string reply = UART.ReadLine(1, 500);
+Console.WriteLine(reply ?? "(no reply)");
+UART.Close(1);
+`);
+
+T("Peripheral settings", "PWM resolution, polarity, centre-aligned (PwmConfig)", "pwm_config.cs",
+  "PwmConfig before PWM.Set; errors explain what the board cannot do.",
+  String.raw`
+// Motor driver input: 20 kHz, 10-bit duty steps, active-low output.
+var cfg = new PwmConfig(20_000) { ResolutionBits = 10, Inverted = true };
+try { PWM.Configure(0, cfg); }
+catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
+for (double d = 0; d <= 1.0; d += 0.25)
+{
+    PWM.Set(0, 20_000, d);                    // keeps the configuration
+    Console.WriteLine($"duty {d:P0}");
+    Thread.Sleep(100);
+}
+PWM.Stop(0);
+`);
+
+T("Peripheral settings", "ADC input range and oversampling (AdcConfig)", "adc_config.cs",
+  "AdcConfig: attenuation (ESP32 input range) and averaged readings.",
+  String.raw`
+// ESP32: Atten12dB = full ~0..3.1 V range. Oversample = samples averaged per reading.
+var cfg = new AdcConfig(ADC.Atten12dB) { Oversample = 4 };
+try { ADC.Configure(0, cfg); Console.WriteLine(cfg); }
+catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
+for (int i = 0; i < 5; i++)
+{
+    Console.WriteLine($"raw {ADC.Read(0)}  {ADC.ReadMillivolts(0)} mV");
+    Thread.Sleep(100);
+}
+`);
+
+T("Peripheral settings", "Board options and reusable settings", "board_options.cs",
+  "Set chip-specific options by name; copy, tweak and reuse settings objects.",
+  String.raw`
+// Options only one chip family has are set by name (see Hal.Options("SPI")).
+foreach (var o in Hal.Options("SPI")) Console.WriteLine(o);
+var fast = new SpiConfig(40_000_000, 0);
+try { fast.Set("queue_size", 8); }
+catch (ArgumentException e) { Console.WriteLine("no such option here: " + e.Message); }
+Console.WriteLine(fast);
+fast.Frequency = 26_000_000;                 // objects are plain values: change and open again
+fast.Dma = null;                             // null = back to the board default
+SPI.Open(0, fast);
+Console.WriteLine($"Frequency = {fast.Get("Frequency")}");
+fast.Reset();
+Console.WriteLine(fast);
+`);
+
+T("DMA", "DmaBuffer basics", "dma_buffer.cs",
+  "DMA-capable memory: index, fill, copy, convert.",
+  String.raw`
+// DmaBuffer: memory the DMA engine can reach (ESP32: internal RAM). Use it like a byte[].
+var buf = new DmaBuffer(16);
+buf.Fill(0x20);
+buf.CopyFrom("MicroCS", 0);
+buf[7] = (byte)'!';
+Console.WriteLine($"{buf} '{buf.GetString(0, 8)}'");
+Console.WriteLine(BitConverter.ToString(buf.ToArray(0, 8)));
+var copy = new DmaBuffer(buf);               // a copy (also from byte[] or string)
+Console.WriteLine($"copy length {copy.Length}, busy {copy.Busy}");
+`);
+
+T("DMA", "SPI frame in the background", "spi_async.cs",
+  "SPI.WriteAsync returns at once; do other work, then Wait or OnComplete.",
+  String.raw`
+// A 1 KB display frame sent with DMA while the CPU keeps working.
+// Boards without DMA run the same call synchronously - the script does not change.
+SPI.Open(0, new SpiConfig(20_000_000, 0) { Cs = 5 });
+var frame = new DmaBuffer(1024);
+frame.Fill(0xAA);
+var t = SPI.WriteAsync(0, frame);
+int work = 0;
+while (!t.IsCompleted) work++;               // free CPU time
+Console.WriteLine($"{t.Result} bytes sent, {work} loops meanwhile (DMA.SPI = {Hal.Has("DMA.SPI")})");
+SPI.WriteAsync(0, frame).OnComplete(n => Console.WriteLine($"callback: {n} bytes"));
+Dma.WaitAll();
+Hal.Poll();                                  // run the pending callback now
+`);
+
+T("DMA", "Double-buffered display loop", "dma_double_buffer.cs",
+  "Draw the next frame while the last one is sent over SPI DMA.",
+  String.raw`
+// Two frame buffers: render into one while DMA sends the other.
+SPI.Open(0, new SpiConfig(20_000_000, 0) { Cs = 5 });
+var frames = new[] { new DmaBuffer(1024), new DmaBuffer(1024) };
+DmaTransfer sending = null;
+var sw = Stopwatch.StartNew();
+for (int f = 0; f < 30; f++)
+{
+    var draw = frames[f % 2];
+    draw.Fill(0);
+    draw[f * 8 % 1024] = 0xFF;               // ... render here
+    sending?.Wait();                         // the previous frame is out
+    sending = SPI.WriteAsync(0, draw);       // writing to a busy buffer would throw
+}
+sending.Wait();
+Console.WriteLine($"30 frames in {sw.ElapsedMilliseconds} ms");
+`);
+
+T("DMA", "I2C sensor read without blocking", "i2c_async.cs",
+  "I2C.WriteReadAsync into a DmaBuffer; errors arrive when the transfer ends.",
+  String.raw`
+// Read 6 accelerometer bytes from an MPU-6050 (0x68) in the background.
+I2C.Open(0, 400000);
+var imu = new I2cDevice(0, 0x68);
+imu.WriteRegister(0x6B, 0);
+var regs = new DmaBuffer(6);
+var t = imu.WriteReadAsync(new byte[] { 0x3B }, regs);
+// ... other work here ...
+t.Wait();
+Console.WriteLine("accel raw: " + BitConverter.ToString(regs.ToArray()));
+// a missing device: the NACK is reported by Wait / Succeeded / Error
+var none = I2C.WriteAsync(0, 0x33, new byte[] { 1 });
+try { none.Wait(); } catch (IOException e) { Console.WriteLine("0x33: " + e.Message); }
+Console.WriteLine($"succeeded={none.Succeeded} error={none.Error}");
+`);
+
+T("DMA", "UART receive with timeout and cancel", "uart_async.cs",
+  "UART.ReadAsync completes when the buffer is full; Wait(ms) and Cancel.",
+  String.raw`
+// Wait up to 1 s for a 16-byte packet, without blocking other code.
+UART.Open(1, 115200);
+var packet = new DmaBuffer(16);
+var rx = UART.ReadAsync(1, packet);
+UART.WriteAsync(1, "ping").Wait();
+if (rx.Wait(1000)) Console.WriteLine("packet: " + packet.GetString());
+else
+{
+    rx.Cancel();                              // stop waiting, free the buffer
+    Console.WriteLine($"no full packet in 1 s (completed={rx.IsCompleted})");
+}
+`);
+
+T("DMA", "QSPI flash read into a DmaBuffer", "qspi_async.cs",
+  "Read a NOR flash id and data with QSPI.ReadAsync / QSPI.Read.",
+  String.raw`
+// W25Qxx on QSPI bus 0: JEDEC id (0x9F, no address), then 256 bytes with quad read (0x6B).
+QSPI.Open(0, 40_000_000);
+var id = new DmaBuffer(3);
+QSPI.ReadAsync(0, 0x9F, -1, id).Wait();
+Console.WriteLine("JEDEC " + BitConverter.ToString(id.ToArray()));
+var page = new DmaBuffer(256);
+QSPI.ReadAsync(0, 0x6B, 0x000000, page, 8, 4).Wait();   // 8 dummy cycles, 4 data lines
+Console.WriteLine("first bytes " + BitConverter.ToString(page.ToArray(0, 8)));
+`);
+
+T("DMA", "Memory copy and fill (Dma)", "dma_memory.cs",
+  "Dma.Copy / Fill / CopyAsync / FillAsync and WaitAll.",
+  String.raw`
+// Memory to memory: the DMA engine where there is one, the CPU elsewhere.
+var src = new DmaBuffer(4096);
+for (int i = 0; i < src.Length; i++) src[i] = (byte)i;
+var dst = new DmaBuffer(4096);
+Console.WriteLine($"copied {Dma.Copy(dst, src)} bytes, dst[300] = {dst[300]}");
+Dma.Fill(dst, 0xEE, 0, 16);
+Console.WriteLine(BitConverter.ToString(dst.ToArray(0, 4)));
+var jobs = new List<DmaTransfer>();
+for (int k = 0; k < 6; k++) jobs.Add(Dma.FillAsync(new DmaBuffer(256), k));
+Console.WriteLine($"all done: {Dma.WaitAll(1000)}, pending {Dma.Pending}, last {jobs[5].Result} bytes");
+`);
+
 T("Files and storage", "Files and free space", "files.cs",
   "Write, read and list files; show the flash usage with DriveInfo.", String.raw`
 // Write, read and list files on the device's flash
@@ -2405,6 +2663,12 @@ Console.WriteLine($"GPIO.Toggle: {N / Math.Max(a, 1):F0} kHz toggles   Pin.Toggl
 `);
 
 const SNIPPETS = [
+  { label: "gpiocfg", detail: "Pin with GpioConfig (pull, initial level)", text: "var pin = new Pin($0, new GpioConfig(GPIO.Output) { Initial = 0 });" },
+  { label: "i2ccfg", detail: "I2C.Open with I2cConfig (speed, SDA, SCL)", text: "I2C.Open(0, new I2cConfig(400_000, $0, ) { PullUps = true });" },
+  { label: "spicfg", detail: "SPI.Open with SpiConfig (speed, mode, CS)", text: "SPI.Open(0, new SpiConfig(8_000_000, 0) { Cs = $0 });" },
+  { label: "uartcfg", detail: "UART.Open with UartConfig (baud, TX, RX)", text: "UART.Open(1, new UartConfig(115200, $0, ) { RxBuffer = 1024 });" },
+  { label: "dmabuf", detail: "DmaBuffer", text: "var buf = new DmaBuffer($0);" },
+  { label: "spiasync", detail: "SPI.WriteAsync + Wait (DMA)", text: "var t = SPI.WriteAsync(0, $0);\n// other work while the transfer runs\nt.Wait();" },
   { label: "cw", detail: "Console.WriteLine", text: "Console.WriteLine($0);" },
   { label: "cwi", detail: "Console.WriteLine($\"...\")", text: "Console.WriteLine($\"$0\");" },
   { label: "for", detail: "for loop", text: "for (int i = 0; i < $0; i++)\n{\n    \n}" },
