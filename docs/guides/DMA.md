@@ -9,6 +9,10 @@ Works on every board running MicroCS 1.12+: ESP32 and RP2 really run SPI (and me
 the background; elsewhere the same calls finish immediately, so the script does not change.
 The PC simulator (`mcs --sim --sim-virtual`) runs every example below.
 
+In [MicroCS Studio](../STANDALONE.md) open **Templates** (`Alt+T`) → *DMA* for seven ready-to-run
+examples (DmaBuffer, SPI in the background, double-buffered display, I2C / UART / QSPI reads,
+memory copy), or type the snippets `dmabuf` and `spiasync`.
+
 ## 1. Check what runs in the background
 
 ```csharp

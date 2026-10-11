@@ -167,14 +167,16 @@ Dark (Light via the theme button).
   signature or type; `using System.C` completes namespaces. Types are inferred from
   `var x = new T()`, declarations, method return types (`var found = I2C.Scan(0)` →
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
-  methods and local functions of the open file are completed too. 50 snippets such as `cw`,
-  `for`, `try`, `pin`, `every`, `i2cdev`.
-* **Templates** (`Alt+T`) — 127 ready-to-run templates and examples in an *Add New Item* dialog
+  methods and local functions of the open file are completed too. 57 snippets such as `cw`,
+  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`.
+* **Templates** (`Alt+T`) — 149 ready-to-run templates and examples in an *Add New Item* dialog
   with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
   `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
   (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), every
   API — GPIO, PWM, ADC/DAC, UART, I2C, SPI, timers, events, watchdog, RTC, I2S, CAN, QSPI,
-  files — plus **sensors** (MPU6050, DS3231, ADS1115, INA219, AHT20/SHT31, DHT22, BH1750),
+  files — plus **peripheral settings** (`GpioConfig`, `I2cConfig`, `SpiConfig`,
+  `UartConfig`, `PwmConfig`, `AdcConfig`, board options), **DMA** (`DmaBuffer`, `SPI.WriteAsync`,
+  double-buffered displays, async I2C / UART / QSPI reads, `Dma.Copy`), **sensors** (MPU6050, DS3231, ADS1115, INA219, AHT20/SHT31, DHT22, BH1750),
   **displays** (SSD1306, MAX7219, LCD1602, TM1637), **motors** (H-bridge, steppers, servo),
   **input devices** (rotary encoder, keypad, button gestures), **control** (PID, filters,
   Kalman), **protocols** (CRC, Modbus RTU, NMEA, Base64), games, benchmarks and C# language

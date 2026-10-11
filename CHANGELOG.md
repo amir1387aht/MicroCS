@@ -2,6 +2,17 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* **Studio templates for peripheral settings and DMA.** 17 new ready-to-run templates in two
+  new categories: *Peripheral settings* (what the board supports, button / LED / open-drain
+  `GpioConfig`, I2C, SPI and UART on your own pins, `PwmConfig`, `AdcConfig`, board options and
+  reusable settings) and *DMA* (`DmaBuffer`, `SPI.WriteAsync` in the background, a
+  double-buffered display loop, `I2C.WriteReadAsync`, `UART.ReadAsync` with timeout / cancel,
+  `QSPI.ReadAsync`, `Dma.Copy` / `Fill`). New snippets `gpiocfg`, `i2ccfg`, `spicfg`, `uartcfg`,
+  `dmabuf`, `spiasync`. Studio now has 149 C# templates and 57 snippets; CI runs every one on the
+  simulated board.
+
 ## 1.12.0 — Peripheral configuration and DMA (HAL API v3)
 
 * **Configuration objects for every peripheral.** `GpioConfig`, `UartConfig`, `I2cConfig`,
