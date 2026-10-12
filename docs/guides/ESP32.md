@@ -87,7 +87,8 @@ Press Enter for the `> ` prompt.
 
 ## Go online
 
-Wi-Fi is built in. Save your network once, and every later boot joins it by itself:
+Wi-Fi is built into the firmware you build yourself (Path B; the ready-to-flash release images
+of Path A leave it out). Save your network once, and every later boot joins it by itself:
 
 ```csharp
 Wifi.Save("MyNetwork", "secret-password");

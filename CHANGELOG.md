@@ -48,7 +48,12 @@ real sockets + HTTP on the PC. Reference: [docs/NETWORK.md](docs/NETWORK.md).
   `CONFIG_MICROCS_WIFI_RESERVE_KB` keeps RAM for the driver). The driver starts only when a
   script first uses Wi-Fi. **The example's `partitions.csv` now has a 2 MB app partition**
   (Wi-Fi + TLS ≈ 1.6 MB) and ~1.9 MB LittleFS — reflashing it re-formats the `storage`
-  partition, so copy your scripts off first (or keep your old table with `CONFIG_MICROCS_WIFI=n`).
+  partition, so copy your scripts off first (or keep the old layout: `partitions_nowifi.csv`
+  with `CONFIG_MICROCS_WIFI=n`).
+* **Release files stay without Wi-Fi** — the ready-to-flash ESP32 images are built with
+  `CONFIG_MICROCS_WIFI=n` and the unchanged 1.5 MB app / 2.4 MB LittleFS layout
+  (`partitions_nowifi.csv`), so updating them keeps your files; the Arduino library zip leaves
+  `modules/net` out. Wi-Fi is for firmware you build from `ports/esp32/example`.
 * **Studio** — 16 *Wi-Fi and networking* templates (connect, events, scan, soft AP, options,
   saved network, HTTP GET/POST JSON, HTTPS download, web server, TCP, UDP, NTP clock, ESP-NOW,
   mDNS + ping, MQTT publish), 10 new snippets, completions for every new class.

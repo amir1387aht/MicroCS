@@ -16,7 +16,7 @@ if (Wifi.Connect("MyNetwork", "secret-password"))
 
 | Where | What you get |
 |---|---|
-| **ESP32 family** (ESP-IDF port) — ESP32, S2, S3, C2, C3, C5, C6, C61 | everything: `Wifi`, `EspNow`, `Ntp` (SNTP), `Mdns`\*, `Ping`, sockets, `Http` + HTTPS |
+| **ESP32 family** (ESP-IDF port, firmware you build) — ESP32, S2, S3, C2, C3, C5, C6, C61 | everything: `Wifi`, `EspNow`, `Ntp` (SNTP), `Mdns`\*, `Ping`, sockets, `Http` + HTTPS |
 | **PC** (`./mcs`, Linux / macOS) | sockets, `Dns`, `Http` on the real network, `Ntp` = system clock |
 | **PC with `--sim`** | additionally a simulated Wi-Fi radio: networks, AP, ESP-NOW echo peer, mDNS, ping |
 | other ports | `Json` only, unless the port registers a backend (see [Porting](#porting-a-network-backend)) |
@@ -312,8 +312,10 @@ Blocking calls wait in short slices (`MCS_NET_SLICE_MS`): Ctrl-C, `Stop` in Stud
 
 ## ESP32 setup
 
-Nothing to do for the example firmware (`ports/esp32/example`): Wi-Fi is on by default
-on chips that have it. In **menuconfig → MicroCS → Wi-Fi and networking**:
+Nothing to do when you build the example firmware (`ports/esp32/example`): Wi-Fi is on by
+default on chips that have it. The ready-to-flash images on the Releases page are built
+**without** Wi-Fi (`CONFIG_MICROCS_WIFI=n`) — build the example yourself to get it
+([ESP32 guide](guides/ESP32.md#path-b--build-your-own-firmware-esp-idf)). In **menuconfig → MicroCS → Wi-Fi and networking**:
 
 | Option | Default | |
 |---|---|---|

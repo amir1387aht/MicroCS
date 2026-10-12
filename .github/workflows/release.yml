@@ -99,7 +99,7 @@ jobs:
         target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
     steps:
       - uses: actions/checkout@v4
-      - name: Build ports/esp32/example (one image, flash at 0x0; C# threads on FreeRTOS tasks)
+      - name: Build ports/esp32/example (one image, flash at 0x0; C# threads on FreeRTOS tasks; no Wi-Fi)
         shell: bash
         run: |
           . $IDF_PATH/export.sh
@@ -110,6 +110,10 @@ jobs:
           cd /tmp/proj
           # FreeRTOS is ESP-IDF's own OS: release images run C# threads on its tasks (both cores on ESP32 / S3)
           echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults
+          # release images leave Wi-Fi / networking out (build ports/esp32/example yourself for it)
+          # and keep the 1.5 MB app + 2.4 MB LittleFS layout of earlier releases
+          echo CONFIG_MICROCS_WIFI=n >> sdkconfig.defaults
+          echo 'CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_nowifi.csv"' >> sdkconfig.defaults
           idf.py set-target ${{ matrix.target }}
           idf.py build
           cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $OUT/microcs-${{ needs.version.outputs.version }}-${{ matrix.target }}.bin @flash_args

@@ -413,7 +413,8 @@ EspNow.Broadcast("hello");
 | HTTP | `Http.Get` / `Post` / `Put` / `Patch` / `Delete` / `Request` / `Download`, headers, redirects, chunked, `HttpResponse` |
 | Data | `Json.Parse` / `Json.Stringify`, `JsonSerializer` |
 
-Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
+Wi-Fi is part of the firmware you build from `ports/esp32/example` (the ready-to-flash release
+images leave it out). Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
 and find every method, event and option in [NETWORK.md](docs/NETWORK.md). Studio has 16
 ready-to-run networking templates (web server, MQTT publish, HTTPS download, ESP-NOW …).
 

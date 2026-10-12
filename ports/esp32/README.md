@@ -65,8 +65,10 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
   | 8 MB | `0x5F0000` | 5.9 MB |
   | 16 MB | `0xDF0000` | 13.9 MB |
 
-  Building without Wi-Fi (`CONFIG_MICROCS_WIFI=n`)? A 1.5 MB app is enough: `factory`
-  `0x180000`, `storage` at `0x190000` (`0x270000` = 2.4 MB on 4 MB flash).
+  Building without Wi-Fi (`CONFIG_MICROCS_WIFI=n`)? A 1.5 MB app is enough — use
+  [`example/partitions_nowifi.csv`](example/partitions_nowifi.csv)
+  (`CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_nowifi.csv"`): `factory` `0x180000`,
+  `storage` `0x270000` (2.4 MB) at `0x190000`, as the release images do.
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
 * **TinyFS instead** (built in, nothing to fetch): menuconfig → MicroCS → *Filesystem on the
@@ -149,8 +151,10 @@ Optional C# `U8g2` / `U8x8` for OLED and LCD panels: menuconfig → *MicroCS* �
 
 ## Wi-Fi and networking
 
-On by default wherever the chip has Wi-Fi: menuconfig → *MicroCS* → *Wi-Fi and networking*
-(`CONFIG_MICROCS_WIFI`).
+On by default wherever the chip has Wi-Fi when you build the example: menuconfig → *MicroCS* →
+*Wi-Fi and networking* (`CONFIG_MICROCS_WIFI`). The ready-to-flash release images are built
+without it (`CONFIG_MICROCS_WIFI=n`, [`partitions_nowifi.csv`](example/partitions_nowifi.csv):
+1.5 MB app + 2.4 MB files).
 
 ```csharp
 Wifi.Connect("MyNetwork", "secret-password");
