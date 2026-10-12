@@ -236,7 +236,7 @@ static int ws_frame(mcs_vm_t* vm, ws_t* w, int op, const uint8_t* p, size_t n) {
     return 0;
 }
 static void ws_send_close(mcs_vm_t* vm, ws_t* w, int code, const char* reason) {
-    uint8_t b[125]; size_t n = 0;
+    uint8_t b[125] = { 0 }; size_t n = 0;
     if (code) {
         b[0] = (uint8_t)(code >> 8); b[1] = (uint8_t)code; n = 2;
         size_t rl = reason ? strlen(reason) : 0;
@@ -827,7 +827,9 @@ static int send_file(mcs_vm_t* vm, req_t* r, const char* path0, const char* ctyp
     mcs_vfs_stat_t st;
     if (mcs_vfs_stat(vfs, path, &st) == 0 && st.is_dir) {
         size_t l = strlen(path);
-        snprintf(path + l, sizeof path - l, "%sindex.html", l && path[l - 1] == '/' ? "" : "/");
+        if (!l || path[l - 1] != '/') path[l++] = '/';
+        if (l + sizeof "index.html" > sizeof path) return 0;
+        memcpy(path + l, "index.html", sizeof "index.html");
     }
     const char* ct = ctype ? ctype : mime_of(path);
     bool zipped = false;
