@@ -486,7 +486,7 @@
 /* Bluetooth Low Energy (docs/BLE.md): C# Ble, BleAdvertisement, BleService, BleCharacteristic,
  * BleConnection, BleUart ... on the port's mcs_ble_t table (ESP32 NimBLE, Pico W BTstack, Zephyr,
  * ArduinoBLE). Opt-in: off by default everywhere and in the release firmware - turn it on with
- * CONFIG_MICROCS_BLE (ESP-IDF / Zephyr), -DMICROCS_BLE=ON (Pico W), MICROCS_BLE (Arduino) or
+ * CONFIG_MICROCS_BLE (ESP-IDF / Zephyr), -DMICROCS_BLE=ON (Pico W), tools/make_arduino.py --ble (Arduino) or
  * `make mcs-ble` (host CLI with the simulated radio). */
 #ifndef MCS_ENABLE_BLE
 #define MCS_ENABLE_BLE 0           /* C# Ble / BleService / BleConnection ... (include/mcs_ble.h) */

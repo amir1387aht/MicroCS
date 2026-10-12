@@ -15,7 +15,7 @@ project and keep the name `mcs_user_config.h` — that enables it. It already ho
 option set to its default value** (the full profile), with a one-line description, grouped
 by area: profile and target, numbers, compiler and bytecode, standard library, C library,
 VM speed, VM limits, modules, filesystem, HAL and drivers, Wi-Fi and networking
-([NETWORK.md](NETWORK.md#configuration)), scheduler and shell, and the
+([NETWORK.md](NETWORK.md#configuration)), Bluetooth LE ([BLE.md](BLE.md#options)), scheduler and shell, and the
 port options for ESP32, RP2040/RP2350, STM32, Zephyr and Arduino. An unmodified copy builds
 exactly like no header at all; change the values you need:
 

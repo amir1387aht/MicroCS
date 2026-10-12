@@ -1,0 +1,29 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Bluetooth LE
+
+[scanner.cs] BLE scanner
+Lists nearby Bluetooth LE devices with name, signal strength, services and beacons.
+Needs firmware built with BLE (docs/BLE.md); simulated with --sim.
+
+[beacon.cs] iBeacon / Eddystone beacon
+Advertises an iBeacon, then an Eddystone-URL, without accepting connections.
+
+[heart_rate.cs] Heart-rate peripheral
+Standard heart-rate and battery services with notifications: fitness apps and nRF Connect
+understand it.
+
+[led_service.cs] LED control service
+Your own 128-bit GATT service: a phone writes 01 / 00 to switch the LED and gets a counter
+by notification.
+
+[uart_echo.cs] BLE UART console
+Nordic UART Service: chat with the board from a "Serial Bluetooth Terminal" app.
+
+[central_client.cs] Central: read a sensor
+Finds a heart-rate sensor, connects, reads its battery level and subscribes to its readings.
+
+[pairing.cs] Pairing with a passkey
+A characteristic that needs an authenticated link: the board shows a passkey, bonds are kept.

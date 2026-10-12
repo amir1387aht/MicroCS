@@ -174,6 +174,19 @@ Console.WriteLine(Wifi.Ip + " " + Http.Get("https://example.com/").StatusCode);
 * **HTTPS** uses esp-tls with the ESP-IDF certificate bundle; ESP-NOW, SNTP and ping need
   nothing extra. WPA2/WPA3-Enterprise needs IDF 5.1+.
 
+## Bluetooth LE
+
+Opt-in, not in the release images: [`sdkconfig.ble`](example/sdkconfig.ble) turns on NimBLE and
+`CONFIG_MICROCS_BLE` (C# `Ble`, `BleService`, `BleConnection`, `BleUart`; [BLE.md](../../docs/BLE.md)):
+
+```sh
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ble" set-target esp32s3 build flash monitor
+```
+
+Every chip with Bluetooth LE (ESP32, S3, C2, C3, C5, C6, H2). `CONFIG_MICROCS_BLE_RESERVE_KB`
+(48 KB) stays outside the VM heap for the controller and NimBLE; bonds are kept in NVS. Wi-Fi
+and BLE work together. Backend: [`mcs_port_esp32_ble.c`](mcs_port_esp32_ble.c).
+
 The backend is [`mcs_port_esp32_net.c`](mcs_port_esp32_net.c); the C# API, events, options and
 limits are in [docs/NETWORK.md](../../docs/NETWORK.md).
 

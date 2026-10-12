@@ -30,7 +30,12 @@ python3 tools/make_arduino.py --config my_mcs_user_config.h   # your header inst
 python3 tools/make_arduino.py --profile lowram --define MCS_ENABLE_LINQ=0 --no-ws2812
 ```
 
-`--profile`, `--define`, `--no-ws2812`, `--no-servo` and `--fs` (`littlefs`, `yaffs2`, or the
+**Bluetooth LE**: `python3 tools/make_arduino.py --ble` adds C# `Ble`, `BleService` and
+`BleUart` on the ArduinoBLE library (Nano 33 BLE / IoT, Nano RP2040 Connect, UNO R4 WiFi …;
+the package then depends on ArduinoBLE). Advertising, scanning and the GATT server work; the
+GATT client (`Ble.Connect`) and pairing do not — [BLE.md](../../docs/BLE.md#arduino-arduinoble).
+
+`--profile`, `--define`, `--no-ws2812`, `--no-servo`, `--ble` and `--fs` (`littlefs`, `yaffs2`, or the
 built-in `tinyfs`) are written at the top of that file. Port
 options such as `MCS_ARDUINO_NO_WIRE` go there too. PlatformIO projects use the project's
 `include/mcs_user_config.h` or `build_flags = -D…` instead ([CONFIGURATION.md](../../docs/CONFIGURATION.md)).

@@ -103,6 +103,7 @@ QSPI API; use the flash API from C).
 | `CONFIG_MICROCS_YAFFS2` | n | YAFFS2 on `storage_partition` instead (`overlay-yaffs2.conf`) |
 | `CONFIG_MICROCS_RAMFS_SIZE` | 16 KB | RAM filesystem when there is no partition |
 | `CONFIG_MICROCS_CONSOLE_ECHO` | y | echo typed characters (raw terminals) |
+| `CONFIG_MICROCS_BLE` | n | C# `Ble` on the Zephyr Bluetooth host (`overlay-ble.conf`, [BLE.md](../../docs/BLE.md)) |
 
 ## Threads (optional)
 

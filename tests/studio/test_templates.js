@@ -6,16 +6,21 @@
 // U8g2 / U8x8 templates print a hint on firmware without u8g2; with a u8g2 build
 // (make mcs-u8g2) they run against the simulated SSD1306 (--oled) and must really draw:
 //   node tests/studio/test_templates.js build/mcs_u8g2 [--only=u8g2]
+// Bluetooth LE templates need a BLE build (make mcs-ble; skipped elsewhere):
+//   node tests/studio/test_templates.js build/mcs_ble --only=ble
 const fs = require('fs'), os = require('os'), path = require('path'), { spawn, execFileSync } = require('child_process');
 const MCS = path.resolve(process.argv[2] || './mcs');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
-const HAS_U8G2 = / u8g2\b/.test(execFileSync(MCS, ['--features']).toString());
+const FEATURES = execFileSync(MCS, ['--features']).toString();
+const HAS_U8G2 = / u8g2\b/.test(FEATURES), HAS_BLE = / ble\b/.test(FEATURES);
 const isU8g2 = (t) => /\bU8(g2|x8)\b/.test(t.text);
+const isBle = (t) => /\bBle(Service|Uart|Advertisement)?\b/.test(t.text);
 global.window = {};
 const studio = (f) => fs.readFileSync(path.join(__dirname, '../../tools/studio', f), 'utf8');
 const { TEMPLATES, SNIPPETS } = new Function(studio('templates.js') + '\n' + studio('snippets.js') + '; return { TEMPLATES, SNIPPETS };')();
 let fails = 0;
-const cs = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)));
+const all = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)) && (ONLY !== 'ble' || isBle(t)));
+const cs = all.filter((t) => HAS_BLE || !isBle(t));   // no Ble classes in this build
 function run(t) {
   return new Promise((done) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcs-tpl-'));
@@ -46,6 +51,8 @@ function run(t) {
   for (const t of TEMPLATES) if (!t.src || !t.desc) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: no source file or description (run tools/studio/gen_templates.py)`); }
   const labels = new Set();
   for (const s of SNIPPETS) { if (labels.has(s.label)) { fails++; console.log('FAIL duplicate snippet ' + s.label); } labels.add(s.label); }
-  console.log(`${cs.length} C# templates${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);
+  if (ONLY === 'ble' && !cs.length) { fails++; console.log('FAIL no Bluetooth LE templates ran (build with make mcs-ble)'); }
+  const skipped = all.length - cs.length;
+  console.log(`${cs.length} C# templates${skipped ? ` (${skipped} Bluetooth LE skipped: no ble in this build)` : ''}${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);
   process.exit(fails ? 1 : 0);
 })();

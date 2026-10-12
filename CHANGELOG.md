@@ -2,7 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — Studio templates as files
+## Unreleased — Bluetooth LE, Studio templates as files
+
+* **Bluetooth LE** ([docs/BLE.md](docs/BLE.md)) — opt-in (`MCS_ENABLE_BLE`), not in any release
+  firmware. C# `Ble` (radio, name, TX power, MTU, PHY, events), `BleAdvertisement` (name, UUIDs,
+  manufacturer / service data, iBeacon, Eddystone-URL / -UID, raw data), scanning into
+  `BleDevice` (parsed AD fields, beacons), a GATT server (`BleService`, `BleCharacteristic`,
+  `BleDescriptor`: read / write / notify / indicate, `OnWrite`, `OnSubscribe`, encrypted /
+  authenticated permissions), `BleConnection` in both roles (MTU, RSSI, parameters, pairing), a
+  GATT client (`BleRemoteService` / `Characteristic` / `Descriptor`: discovery, long reads and
+  writes, subscriptions), security (IO capabilities, passkeys, Secure Connections, bonds),
+  `BleUart` (Nordic UART Service) and `BleUuid`. Backends: ESP-IDF NimBLE
+  (`ports/esp32/example/sdkconfig.ble`), Pico W / Pico 2 W BTstack (`-DMICROCS_BLE=ON`, with or
+  without FreeRTOS / Wi-Fi), Zephyr Bluetooth host (`overlay-ble.conf`; the west manifest now
+  fetches `mbedtls`), ArduinoBLE (`tools/make_arduino.py --ble`; no central / security), and a
+  simulated radio with peers for the PC (`make mcs-ble`, CMake `-DMICROCS_BLE=ON`, `--sim`).
+  `make ble-test` (in `make check`) and CI builds for every backend.
+* **Fixed: Pico W / Pico 2 W filesystem** — the Wi-Fi firmware (~1.1 MB with the CYW43 blob)
+  overlapped the filesystem, which started at 1 MB, so the board silently fell back to a RAM
+  disk. Builds with the radio now keep 1.5 MB for the firmware (`MCS_RP2_FW_RESERVE`) and put
+  the filesystem after it.
 
 * **Templates are plain files** — `tools/studio/templates/<nn-category>/` holds one `.cs`
   (or `.cfg`) file per template and a `templates.txt` that names and describes every file of

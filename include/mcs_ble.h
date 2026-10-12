@@ -19,7 +19,7 @@
  *   ports/esp32   NimBLE (ESP-IDF; CONFIG_BT_ENABLED + CONFIG_BT_NIMBLE_ENABLED, CONFIG_MICROCS_BLE)
  *   ports/rp2     BTstack on the CYW43439 (Pico W / Pico 2 W, -DMICROCS_BLE=ON)
  *   ports/zephyr  Zephyr Bluetooth host (nRF52840 ..., CONFIG_MICROCS_BLE)
- *   ports/arduino ArduinoBLE (Nano 33 BLE, UNO R4 WiFi, Nano ESP32 ...; MICROCS_BLE)
+ *   ports/arduino ArduinoBLE (Nano 33 BLE, UNO R4 WiFi, Nano ESP32 ...; make_arduino.py --ble)
  *   mcs_ble_sim.c a simulated radio for the host CLI (build/mcs_ble --sim) and the tests
  *
  *   mcs_ble_set(&my_ble);           // before the VM starts (the ports above do it)

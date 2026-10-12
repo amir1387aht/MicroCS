@@ -110,12 +110,25 @@ MAP = {
     "req_members": ("Network (modules/net)", "HttpRequest", "instance", "passed to every `HttpServer` route"),
     "ws_members": ("Network (modules/net)", "WebSocket", "instance", "`new WebSocket([url[, timeoutMs]])` client, or a server-side connection from `HttpServer.WebSocket`"),
     "dnss_members": ("Network (modules/net)", "DnsServer", "instance", "`new DnsServer([address])` — captive portals"),
+    "ble_fns": ("Bluetooth (modules/ble)", "Ble", "static", "opt-in (`MCS_ENABLE_BLE`); `Has(feature)`, `Event*`, `Io*`, `Passkey*`, `Phy*` consts ([BLE.md](BLE.md))"),
+    "adv_members": ("Bluetooth (modules/ble)", "BleAdvertisement", "instance", "`new BleAdvertisement([name])` — advertising data"),
+    "adv_statics": ("Bluetooth (modules/ble)", "BleAdvertisement", "static", "beacon presets"),
+    "dev_members": ("Bluetooth (modules/ble)", "BleDevice", "instance", "returned by `Ble.Scan` / `Ble.StartScan`"),
+    "svc_members": ("Bluetooth (modules/ble)", "BleService", "instance", "`new BleService(uuid[, primary])` — local GATT service"),
+    "chr_members": ("Bluetooth (modules/ble)", "BleCharacteristic", "instance", "returned by `BleService.AddCharacteristic`; `BleProperty.*` flags"),
+    "dsc_members": ("Bluetooth (modules/ble)", "BleDescriptor", "instance", "returned by `BleCharacteristic.AddDescriptor`"),
+    "conn_members": ("Bluetooth (modules/ble)", "BleConnection", "instance", "a link in either role (`Ble.Connect`, `Ble.OnConnect`)"),
+    "rsvc_members": ("Bluetooth (modules/ble)", "BleRemoteService", "instance", "GATT client: `BleConnection.Services()`"),
+    "rchr_members": ("Bluetooth (modules/ble)", "BleRemoteCharacteristic", "instance", "GATT client"),
+    "rdsc_members": ("Bluetooth (modules/ble)", "BleRemoteDescriptor", "instance", "GATT client"),
+    "uart_members": ("Bluetooth (modules/ble)", "BleUart", "instance", "`new BleUart([name])` — Nordic UART Service"),
+    "uuid_fns": ("Bluetooth (modules/ble)", "BleUuid", "static", "UUID helpers"),
     "worker_members": ("Threads (modules/threads)", "Worker", "instance", "returned by `Thread.Run` / `RunOn` / `Every` ([THREADS.md](THREADS.md))"),
     "channel_members": ("Threads (modules/threads)", "Channel", "instance", "`new Channel(name[, capacity])` — messages between threads"),
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}
-ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Network (modules/net)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
+ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Network (modules/net)", "Bluetooth (modules/ble)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
 def strip_comments(s):

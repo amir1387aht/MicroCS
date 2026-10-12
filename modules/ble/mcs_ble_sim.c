@@ -1,6 +1,6 @@
 /*
  * MicroCS - simulated Bluetooth LE radio for the host CLI (`build/mcs_ble --sim`), the tests
- * and Studio (MCS_BLE_SIM, docs/BLE.md#simulator). Everything happens at once on the VM's
+ * and Studio (MCS_BLE_SIM, docs/BLE.md#try-it-on-the-pc). Everything happens at once on the VM's
  * thread; mcs_ble_sim_tick() (called from the HAL poll) sends the periodic notifications.
  *
  *   C0:FF:EE:00:00:01  "MicroCS-HRM"  heart rate 180D (2A37 notify every second), battery 180F,
