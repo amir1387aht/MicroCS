@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
 `include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, MCS_ENABLE_U8G2)](#displays-modulesdrivers-mcsenableu8g2) · [Network (modules/net)](#network-modulesnet) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Network (modules/net)](#network-modulesnet) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -117,7 +117,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Servo** | instance | `Angle` `Pulse` `Attached` `MinPulse` `MaxPulse` `MaxAngle` `Channel` | `Write(·)` `Read()` `WritePulse(·)` `MoveTo(·, ·)` `Attach()` `Detach()` `Stop()` `Dispose()` | `servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases |
 
-## Displays (modules/drivers, MCS_ENABLE_U8G2)
+## Displays (modules/drivers, optional U8g2)
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|

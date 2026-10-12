@@ -86,10 +86,10 @@ MAP = {
     "ledstrip_members": ("Drivers (modules/drivers)", "LedStrip", "instance", "`ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]`"),
     "ledstrip_statics": ("Drivers (modules/drivers)", "LedStrip", "static", "consts `GRB RGB GRBW`; colours `0xRRGGBB`"),
     "servo_members": ("Drivers (modules/drivers)", "Servo", "instance", "`servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases"),
-    "g_members": ("Displays (modules/drivers, MCS_ENABLE_U8G2)", "U8g2", "instance", "`new U8g2(display[, bus/pins])` — frame-buffer graphics ([U8G2.md](U8G2.md))"),
-    "g_statics": ("Displays (modules/drivers, MCS_ENABLE_U8G2)", "U8g2", "static", ""),
-    "x_members": ("Displays (modules/drivers, MCS_ENABLE_U8G2)", "U8x8", "instance", "`new U8x8(display)` — 8×8 text without a frame buffer"),
-    "x_statics": ("Displays (modules/drivers, MCS_ENABLE_U8G2)", "U8x8", "static", ""),
+    "g_members": ("Displays (modules/drivers, optional U8g2)", "U8g2", "instance", "`new U8g2(display[, bus/pins])` — frame-buffer graphics ([U8G2.md](U8G2.md))"),
+    "g_statics": ("Displays (modules/drivers, optional U8g2)", "U8g2", "static", ""),
+    "x_members": ("Displays (modules/drivers, optional U8g2)", "U8x8", "instance", "`new U8x8(display)` — 8×8 text without a frame buffer"),
+    "x_statics": ("Displays (modules/drivers, optional U8g2)", "U8x8", "static", ""),
     "json_fns": ("Core", "Json", "static", "`Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent])`; also as `JsonSerializer.Serialize` / `Deserialize` ([NETWORK.md](NETWORK.md#json))"),
     "net_fns": ("Network (modules/net)", "Net", "static", "const `ApiVersion`; `Has(feature)`: `Wifi`, `EspNow`, `Tls`, … ([NETWORK.md](NETWORK.md))"),
     "wifi_fns": ("Network (modules/net)", "Wifi", "static", "consts `ModeOff ModeStation ModeAccessPoint ModeStationAp`, statuses `Idle Connecting Connected NoSsid WrongPassword ConnectFailed ConnectionLost Disconnected Stopped`, `Auth*`, `Power*`, `Proto*`, `Band*`, `Event*`, `Reason*`"),
@@ -111,7 +111,7 @@ MAP = {
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}
-ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, MCS_ENABLE_U8G2)", "Network (modules/net)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
+ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Network (modules/net)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
 def strip_comments(s):
