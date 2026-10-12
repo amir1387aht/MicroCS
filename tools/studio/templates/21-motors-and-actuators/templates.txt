@@ -1,0 +1,23 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Motors and actuators
+
+[motor.cs] DC motor with an H-bridge
+Speed and direction for an L298N / TB6612 / DRV8833 driver.
+
+[stepper.cs] Stepper motor (A4988 / DRV8825)
+STEP/DIR stepper driver with acceleration.
+
+[uln2003.cs] 28BYJ-48 stepper (ULN2003)
+Half-step sequence for the cheap 28BYJ-48 geared stepper.
+
+[relay.cs] Relay with safety timeout
+Switch a relay and make sure it turns off again, even on errors.
+
+[servo_smooth.cs] Servo with smooth motion
+Ease a servo between positions with Servo.MoveTo instead of jumping.
+
+[pan_tilt.cs] Pan/tilt with two servos
+Aim a pan/tilt bracket: two servos, a sweep and a look-around.

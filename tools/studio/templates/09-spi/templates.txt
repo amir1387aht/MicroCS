@@ -1,0 +1,20 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: SPI
+
+[spi.cs] SPI transfer
+Full-duplex transfer with the static SPI API.
+
+[spi_flash.cs] SPI flash JEDEC id (SpiDevice)
+Read a NOR flash id and status with SpiDevice.
+
+[shift595.cs] Shift register (74HC595)
+Drive 8 outputs through a 74HC595 over SPI.
+
+[spi_config.cs] SPI bus with pins and chip select (SpiConfig)
+SpiConfig with pins, CS driven by MicroCS, then transfers.
+
+[spi_async.cs] SPI frame in the background
+SPI.WriteAsync returns at once; do other work, then Wait or OnComplete.

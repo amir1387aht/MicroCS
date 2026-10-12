@@ -1,0 +1,11 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: I2S audio
+
+[i2s.cs] I2S tone
+Generate a sine tone and send it to an I2S DAC / amplifier.
+
+[i2s_mic.cs] I2S microphone level
+Read samples from an I2S microphone and print the level.

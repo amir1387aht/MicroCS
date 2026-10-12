@@ -2,6 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Studio templates as files
+
+* **Templates are plain files** — `tools/studio/templates/<nn-category>/` holds one `.cs`
+  (or `.cfg`) file per template and a `templates.txt` that names and describes every file of
+  the folder ([how to add one](tools/studio/templates/README.md)). `tools/studio/gen_templates.py`
+  bundles them into `templates.js` (Studio still runs from `file://`); `--check` runs in CI and
+  `make docs-check`, and fails on undescribed, missing or duplicate files. Snippets moved to
+  `tools/studio/snippets.js`.
+* **Templates dialog** — search matches every word and ranks name hits first, with
+  highlighting; *Recent* category; tags derived from the code (*Wi-Fi*, *OLED*, *files*,
+  *jobs*, *threads*, *DMA*, *input*); line count, copy button and a link to the source file;
+  `PgUp`/`PgDn`/`Home`/`End`, `Ctrl+Enter` = insert at cursor, `Esc` clears the search first;
+  a link to search all categories when the current one has no hit; narrow-window layout.
+  Arrow keys no longer re-render the whole dialog.
+* **Fixes** — saving a new file (e.g. a template as `main.cs`) over an existing file on the
+  device now asks before replacing it; added templates get a name no open tab uses
+  (`hello-2.cs`); *Add* / *Insert at cursor* are disabled without a selection (and *Insert*
+  for read-only tabs); the save dialog selects the name without the extension for any
+  extension (it assumed `.cs`) and accepts a relative path.
+
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 
 The server side of the network, Wi-Fi on the Raspberry Pi Pico W / Pico 2 W, and Studio

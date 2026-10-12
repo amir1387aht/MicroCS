@@ -1,0 +1,26 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Board and system
+
+[info.cs] Board information
+Board name, CPU clock, unique id and available peripherals.
+
+[memory.cs] Memory and GC
+Watch heap use and run the garbage collector.
+
+[portable.cs] Feature check (Hal.Has)
+Write one script that adapts to the board's peripherals.
+
+[reset.cs] Reset the board
+Software reset with Hal.Reset.
+
+[errors.cs] Error handling for hardware
+Driver errors are exceptions: IOException, TimeoutException, NotSupportedException.
+
+[board_caps.cs] What can this board do?
+Hal.Has for full settings and DMA, and the board-specific options.
+
+[board_options.cs] Board options and reusable settings
+Set chip-specific options by name; copy, tweak and reuse settings objects.

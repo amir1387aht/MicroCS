@@ -204,9 +204,14 @@ check: test docs-check
 	$(CC) -std=gnu99 -O1 -Iinclude $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_alt || { echo "BUILD FAIL $$f"; exit 1; }; \
 	sh tests/run_tests.sh ./build/mcs_alt > build/alt.txt 2>&1 && echo "OK $$f ($$(tail -n 1 build/alt.txt))" || { cat build/alt.txt | grep FAIL; echo "FAIL $$f"; exit 1; }; done
 
-# Documentation: every relative link and #anchor resolves (the same pages go to the wiki)
+# Documentation: every relative link and #anchor resolves (the same pages go to the wiki),
+# and the Studio template bundle matches tools/studio/templates/
 docs-check:
 	python3 tools/wiki_sync.py --check
+	python3 tools/studio/gen_templates.py --check
+# MicroCS Studio's template gallery: tools/studio/templates/<nn-category>/ -> tools/studio/templates.js
+studio-templates:
+	python3 tools/studio/gen_templates.py
 wiki:
 	python3 tools/wiki_sync.py --out build/wiki
 
@@ -257,7 +262,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

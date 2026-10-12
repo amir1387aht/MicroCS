@@ -1,4 +1,4 @@
-// Compile and run every C# template of MicroCS Studio (tools/studio/templates.js)
+// Compile and run every C# template of MicroCS Studio (tools/studio/templates/, bundled in templates.js)
 // on the simulated board:  node tests/studio/test_templates.js ./mcs
 // A template passes when it compiles and either finishes, hits the time budget
 // (main loops) or stops at a missing *device* (IOException / TimeoutException:
@@ -12,8 +12,8 @@ const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
 const HAS_U8G2 = / u8g2\b/.test(execFileSync(MCS, ['--features']).toString());
 const isU8g2 = (t) => /\bU8(g2|x8)\b/.test(t.text);
 global.window = {};
-const src = fs.readFileSync(path.join(__dirname, '../../tools/studio/templates.js'), 'utf8');
-const { TEMPLATES, SNIPPETS } = new Function(src + '; return { TEMPLATES, SNIPPETS };')();
+const studio = (f) => fs.readFileSync(path.join(__dirname, '../../tools/studio', f), 'utf8');
+const { TEMPLATES, SNIPPETS } = new Function(studio('templates.js') + '\n' + studio('snippets.js') + '; return { TEMPLATES, SNIPPETS };')();
 let fails = 0;
 const cs = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)));
 function run(t) {

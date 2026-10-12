@@ -1,0 +1,16 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: ESP-NOW
+
+[espnow.cs] ESP-NOW messages
+Board-to-board packets without a router: add a peer, send, receive with a callback.
+
+[espnow_broadcast.cs] Sensor beacons to every board
+A sender broadcasts a JSON reading every 300 ms; receivers print who sent it and the signal
+strength.
+
+[espnow_secure.cs] Encrypted peer and remote LED
+Pairs with one board using a 16-character key and toggles its LED on command; replies are
+acknowledged.

@@ -1,0 +1,17 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Timers and events
+
+[timer.cs] Hardware timer
+Periodic and one-shot hardware timers with microsecond periods.
+
+[events.cs] User events (Hal.Post / OnEvent)
+Post your own events and handle them like interrupts.
+
+[watchdog.cs] Watchdog
+Start the watchdog and feed it - stop feeding to see the reset.
+
+[rtc.cs] Real-time clock
+Set and read RTC.Now (Unix seconds) and format it.

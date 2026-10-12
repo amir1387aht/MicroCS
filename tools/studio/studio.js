@@ -1419,6 +1419,23 @@ const dev = new Device();
 const term = new Term($("term"));
 const ed = new Editor();
 const plot = new Plot($("plot"));
+/* template gallery helpers: tags from what a template uses, search-hit highlighting */
+const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
+const TAG_RULES = [
+  ["Wi-Fi", /\b(Wifi|Http|HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer|Ntp|Mdns|Ping|Dns)\b\s*[.(]|new (HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer)\b/],
+  ["ESP-NOW", /\bEspNow\./], ["OLED", /\bnew U8(g2|x8)\b/], ["files", /\b(File|Directory)\.\w+\(/],
+  ["jobs", /\bScheduler\./], ["threads", /\bThread\.(Run|RunOn|Every)\b/],
+  ["DMA", /\bDmaBuffer\b|\w+Async\(/], ["input", /\bConsole\.ReadLine\b/],
+];
+function galTags(t) {
+  if (!t.tags) t.tags = /\.cs$/.test(t.file) ? TAG_RULES.filter(([, re]) => re.test(t.text)).map(([n]) => n) : [t.file.split(".").pop()];
+  return t.tags;
+}
+function galMark(text, words) {
+  if (!words.length) return esc(text);
+  const re = new RegExp("(" + words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
+  return String(text).split(re).map((part, i) => (i % 2 ? `<mark>${esc(part)}</mark>` : esc(part))).join("");
+}
 const store = {
   get(k, d) { try { const v = localStorage.getItem("mcs-studio." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("mcs-studio." + k, JSON.stringify(v)); } catch {} },
@@ -1667,6 +1684,15 @@ const App = {
     if (path.length > 100) { toast("Path too long.", "err"); return false; }
     return true;
   },
+  /* a new file must not silently replace one on the device (Add template -> Save as main.cs) */
+  async confirmReplace(path) {
+    let list = null;
+    try { list = dirName(path) === this.cwd ? this.entries : await dev.op(() => dev.ls(dirName(path))); } catch { return true; }   // folder missing: put creates the file
+    const e = (list || []).find((x) => x.name === baseName(path));
+    if (!e) return true;
+    if (e.dir) { toast(`${path} is a folder`, "err"); return false; }
+    return !!(await dialog({ title: "Replace file?", text: `${path} already exists on the device (${e.size ?? "?"} bytes). Replace it?`, ok: "Replace", danger: true }));
+  },
   async newFile() {
     const name = await dialog({ title: "New file", text: `Create a file in ${this.cwd}`, value: "app.cs", select: [0, 3], ok: "Create" });
     if (!name) return;
@@ -1861,10 +1887,12 @@ const App = {
     if (!dev.connected) { toast("Connect a device to save there (or use ⋯ → Download).", "err"); return false; }
     if (!t.path || t.local) {
       const sug = joinPath(this.cwd, (t.name || "app.cs").replace(/\s+/g, "_"));
-      const p = await dialog({ title: "Save to device", text: "Path on the device", value: sug, select: [sug.lastIndexOf("/") + 1, sug.length - 3], ok: "Save" });
+      const ext = extOf(sug);
+      const p = await dialog({ title: "Save to device", text: "Path on the device", value: sug, select: [sug.lastIndexOf("/") + 1, sug.length - (ext ? ext.length + 1 : 0)], ok: "Save" });
       if (!p) return false;
-      const path = normPath(p);
+      const path = normPath(p.startsWith("/") ? p : joinPath(this.cwd, p));
       if (!this.checkName(path)) return false;
+      if (!(await this.confirmReplace(path))) return false;
       t.path = path; t.local = false; t.name = null;
     }
     const text = t.text;
@@ -2044,46 +2072,91 @@ const App = {
     const k = parseInt(r, 10);
     if (k > 0) { ed.gotoLine(Math.min(k, n)); const p = ed.ta.selectionStart; ed.ta.setSelectionRange(p, p); }
   },
-  /* ---------- template gallery ("Add New Item") */
+  /* ---------- template gallery ("Add New Item")
+   * TEMPLATES comes from templates.js, generated from tools/studio/templates/<nn-category>/ */
   gallery(insertMode) {
-    const g = this.gal || (this.gal = { cat: "All", sel: 0, list: [] });
+    const g = this.gal || (this.gal = { cat: "All", sel: 0, list: [], q: "" });
     $("galleryBg").classList.add("show");
-    $("gSearch").value = "";
-    $("gInsert").disabled = !this.tab() || !!this.tab().binary;
+    $("gSearch").value = g.q = "";
     this.galRender();
-    setTimeout(() => (insertMode ? $("gInsert") : $("gSearch")).focus(), 0);
+    setTimeout(() => (insertMode && !$("gInsert").disabled ? $("gInsert") : $("gSearch")).focus(), 0);
   },
   galClose() { $("galleryBg").classList.remove("show"); if (this.tab()) ed.ta.focus(); },
+  galRecent() { const r = store.get("galRecent", []); return Array.isArray(r) ? r : []; },
+  /* search: every word must appear somewhere; name / file hits rank above description and code */
+  galScore(t, words) {
+    if (!words.length) return 1;
+    const name = t.name.toLowerCase(), file = t.file.toLowerCase(), desc = (t.desc + " " + t.cat + " " + galTags(t).join(" ")).toLowerCase();
+    let score = 0;
+    for (const w of words) {
+      const s = name.startsWith(w) ? 9 : name.includes(w) ? 6 : file.includes(w) ? 5 : desc.includes(w) ? 3 : t.lower.includes(w) ? 1 : 0;
+      if (!s) return 0;
+      score += s;
+    }
+    return score;
+  },
   galRender() {
-    const g = this.gal, q = $("gSearch").value.trim().toLowerCase();
-    const cats = ["All", ...new Set(TEMPLATES.map((t) => t.cat))];
-    const match = (t) => !q || (t.name + " " + t.desc + " " + t.file + " " + t.cat + " " + t.text).toLowerCase().includes(q);
-    $("gCats").innerHTML = cats.map((c) => {
-      const n = TEMPLATES.filter((t) => (c === "All" || t.cat === c) && match(t)).length;
-      return `<div data-c="${esc(c)}" class="${c === g.cat ? "on" : ""}"><span>${esc(c)}</span><small>${n}</small></div>`;
-    }).join("");
-    g.list = TEMPLATES.filter((t) => (g.cat === "All" || t.cat === g.cat) && match(t));
+    const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
+    for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
+    const recent = this.galRecent().map((src) => TEMPLATES.find((t) => t.src === src)).filter(Boolean);
+    const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(TEMPLATES.map((t) => t.cat))];
+    if (!cats.includes(g.cat)) g.cat = "All";
+    const pool = (c) => (c === "All" ? TEMPLATES : c === "Recent" ? recent : TEMPLATES.filter((t) => t.cat === c));
+    const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
+    $("gCats").innerHTML = cats.map((c) => `<div data-c="${esc(c)}" class="${c === g.cat ? "on" : ""}${c === "Recent" ? " recent" : ""}" title="${esc(c)}"><span>${esc(c)}</span><small>${scored(c).length}</small></div>`).join("");
+    const list = scored(g.cat);
+    if (words.length) list.sort((a, b) => b[1] - a[1]);        // stable: ties keep the folder order
+    g.list = list.map((x) => x[0]);
     if (g.sel >= g.list.length) g.sel = 0;
-    $("gItems").innerHTML = g.list.length ? g.list.map((t, i) =>
-      `<div class="item${i === g.sel ? " on" : ""}${/\.cs$/.test(t.file) ? "" : " cfg"}" data-i="${i}">${icon(/\.cs$/.test(t.file) ? "code" : "file")}<div><b>${esc(t.name)}</b><span>${esc(t.desc)}</span><em>${esc(t.file)}</em></div></div>`).join("")
-      : `<div class="none">No template matches “${esc(q)}”.</div>`;
+    const mark = (text) => galMark(text, words);
+    $("gItems").innerHTML = g.list.length ? g.list.map((t, i) => {
+      const cs = /\.cs$/.test(t.file);
+      return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
+        `<em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
+    }).join("") : `<div class="none">No template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+    const all = $("gAll");
+    if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();
   },
   galPreview() {
-    const t = this.gal.list[this.gal.sel];
-    $("gInfo").innerHTML = t ? `<b>${esc(t.name)}</b><span>${esc(t.cat)} · ${esc(t.desc)}</span>` : "";
+    const t = this.gal.list[this.gal.sel], tab = this.tab();
+    $("gItems").querySelectorAll(".item").forEach((x) => x.classList.toggle("on", +x.dataset.i === this.gal.sel));
+    if (t) {
+      const lines = t.text.replace(/\n$/, "").split("\n").length;
+      const src = t.src ? `<a href="${GH_TEMPLATES}${encodeURI(t.src)}" target="_blank" rel="noopener" title="Open the source file on GitHub">templates/${esc(t.src)}</a>` : "";
+      $("gInfo").innerHTML = `<div class="pt"><b>${esc(t.name)}</b><button class="btn icon" id="gCopy" title="Copy the code">${icon("copy")}</button></div>` +
+        `<span>${esc(t.cat)} · ${esc(t.desc)}</span><div class="tags">${galTags(t).map((x) => `<i>${esc(x)}</i>`).join("")}<small>${lines} lines${src ? " · " + src : ""}</small></div>`;
+      $("gCopy").onclick = () => navigator.clipboard?.writeText(t.text).then(() => toast("Copied " + t.file, "ok"), () => toast("Copy failed", "err"));
+    } else $("gInfo").innerHTML = "";
     $("gPrev").innerHTML = t ? (/\.cs$/.test(t.file) ? highlight(t.text) : highlightPlain(t.text)) : "";
-    $("gName").value = t ? t.file : "";
-    $("gAdd").disabled = $("gInsert").disabled && !t;
+    $("gPrev").scrollTop = 0;
+    $("gName").value = t ? this.uniqueName(t.file) : "";
+    $("gAdd").disabled = !t;
+    $("gInsert").disabled = !t || !tab || !!tab.binary || !!tab.readOnly;
     $("gItems").querySelector(".item.on")?.scrollIntoView({ block: "nearest" });
+  },
+  /* a name no open tab uses yet: blink.cs, blink-2.cs, ... */
+  uniqueName(file) {
+    const used = new Set(this.tabs.map((t) => (t.path ? baseName(t.path) : t.name)));
+    if (!used.has(file)) return file;
+    const dot = file.lastIndexOf("."), stem = dot > 0 ? file.slice(0, dot) : file, ext = dot > 0 ? file.slice(dot) : "";
+    for (let i = 2; ; i++) if (!used.has(`${stem}-${i}${ext}`)) return `${stem}-${i}${ext}`;
   },
   galAdd(insert) {
     const t = this.gal.list[this.gal.sel];
     if (!t) return;
+    if (insert && $("gInsert").disabled) return;
+    if (t.src) store.set("galRecent", [t.src, ...this.galRecent().filter((s) => s !== t.src)].slice(0, 12));
     this.galClose();
-    if (insert && this.tab() && !this.tab().binary) { ed.ta.focus(); ed.insert(t.text); return; }
-    const name = ($("gName").value.trim() || t.file).replace(/^\/+/, "");
+    if (insert) { ed.ta.focus(); ed.insert(t.text); return; }
+    const name = ($("gName").value.trim() || t.file).replace(/^\/+/, "").replace(/\s+/g, "_");
     this.newScratch({ ...t, file: name });
+  },
+  galMove(d) {
+    const g = this.gal;
+    if (!g.list.length) return;
+    g.sel = Math.max(0, Math.min(g.list.length - 1, d === "home" ? 0 : d === "end" ? g.list.length - 1 : g.sel + d));
+    this.galPreview();
   },
   galWire() {
     $("gCats").onclick = (e) => { const d = e.target.closest("[data-c]"); if (d) { this.gal.cat = d.dataset.c; this.gal.sel = 0; this.galRender(); } };
@@ -2093,22 +2166,28 @@ const App = {
       const d = e.target.closest("[data-i]");
       if (!d) return;
       this.gal.sel = +d.dataset.i;
-      $("gItems").querySelectorAll(".item.on").forEach((x) => x.classList.remove("on"));
-      d.classList.add("on");
       this.galPreview();
       if (e.detail === 2) this.galAdd(false);             // double-click = Add
     };
-    $("gSearch").oninput = () => { this.gal.sel = 0; this.galRender(); };
+    let timer = 0;
+    $("gSearch").oninput = () => { clearTimeout(timer); timer = setTimeout(() => { this.gal.q = $("gSearch").value.trim(); this.gal.sel = 0; this.galRender(); }, 60); };
     $("gClose").onclick = $("gCancel").onclick = () => this.galClose();
     $("gAdd").onclick = () => this.galAdd(false);
     $("gInsert").onclick = () => this.galAdd(true);
     $("galleryBg").onmousedown = (e) => { if (e.target === $("galleryBg")) this.galClose(); };
     $("galleryBg").addEventListener("keydown", (e) => {
-      const g = this.gal;
-      if (e.key === "Escape") { e.preventDefault(); this.galClose(); }
-      else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); g.sel = Math.max(0, Math.min(g.list.length - 1, g.sel + (e.key === "ArrowDown" ? 1 : -1))); this.galRender(); }
-      else if (e.key === "Enter" && e.target.id !== "gInsert" && e.target.id !== "gCancel" && e.target.id !== "gClose") { e.preventDefault(); this.galAdd(false); }
-      else if (e.key.toLowerCase() === "e" && e.ctrlKey) { e.preventDefault(); $("gSearch").focus(); }
+      const inSearch = e.target.id === "gSearch", inName = e.target.id === "gName";
+      const page = Math.max(1, Math.floor($("gItems").clientHeight / 64));
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (inSearch && $("gSearch").value) { $("gSearch").value = this.gal.q = ""; this.galRender(); } else this.galClose();
+      }
+      else if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); this.galMove(e.key === "ArrowDown" ? 1 : -1); }
+      else if (e.key === "PageDown" || e.key === "PageUp") { e.preventDefault(); this.galMove(e.key === "PageDown" ? page : -page); }
+      else if ((e.key === "Home" || e.key === "End") && !inSearch && !inName) { e.preventDefault(); this.galMove(e.key === "Home" ? "home" : "end"); }
+      else if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); this.galAdd(true); }
+      else if (e.key === "Enter" && !["gInsert", "gCancel", "gClose", "gCopy"].includes(e.target.id) && e.target.tagName !== "A") { e.preventDefault(); this.galAdd(false); }
+      else if (e.key.toLowerCase() === "e" && e.ctrlKey) { e.preventDefault(); $("gSearch").focus(); $("gSearch").select(); }
     });
   },
   moreMenu(anchor) {

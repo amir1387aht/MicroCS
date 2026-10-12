@@ -1,0 +1,20 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: PWM
+
+[fade.cs] Fade an LED (PWM)
+Breathe an LED with PWM.Set(channel, hz, duty).
+
+[servo.cs] Servo sweep
+Move a hobby servo from 0 to 180 degrees and back with the Servo class.
+
+[melody.cs] Buzzer melody
+Play notes on a passive buzzer with PWM.Tone.
+
+[dimmer.cs] Potentiometer dims an LED
+ADC reading controls PWM duty - analog in, analog out.
+
+[pwm_config.cs] PWM resolution, polarity, centre-aligned (PwmConfig)
+PwmConfig before PWM.Set; errors explain what the board cannot do.

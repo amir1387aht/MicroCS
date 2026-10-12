@@ -1,0 +1,23 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Files and storage
+
+[files.cs] Files and free space
+Write, read and list files; show the flash usage with DriveInfo.
+
+[folders.cs] Folders
+Create, list and delete directories; walk a tree recursively.
+
+[fileops.cs] Copy, move, delete
+File.Copy / Move / Delete / Exists and Path helpers.
+
+[csv.cs] Lines and CSV
+Write and parse a small CSV file.
+
+[binary.cs] Binary files
+Store numbers in a binary file with BitConverter.
+
+[kv.cs] Simple key-value store
+Persist settings across reboots in a file.

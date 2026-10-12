@@ -150,6 +150,49 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(/bad\.cs\(4,9\): error/.test(tt) && /✗ failed/.test(tt), 'compile error reported: ' + (tt.match(/✗.*/) || [''])[0]);
   check(await page.isVisible('#errline'), 'error line highlighted');
 
+  // gallery: ranked search with highlights, tags, source link, keyboard, Recent, unique names
+  await page.click('#btnTemplates'); await page.waitForSelector('#galleryBg.show');
+  await page.click('#gCats div[data-c="All"]');
+  await page.fill('#gSearch', 'blink');
+  await page.waitForFunction(() => App.gal.q === 'blink');
+  const first = await page.textContent('#gItems .item.on b');
+  check(/^blink/i.test(first) && await page.$('#gItems .item.on mark') !== null, 'search ranks name hits first, highlighted: ' + first);
+  await page.fill('#gSearch', 'http server json');
+  await page.waitForFunction(() => App.gal.q === 'http server json');
+  check((await page.$$('#gItems .item')).length >= 1, 'multi-word search: ' + await page.textContent('#gItems .item.on b'));
+  await page.fill('#gSearch', 'Web page that switches');
+  await page.waitForFunction(() => App.gal.q === 'Web page that switches');
+  const tags = await page.$$eval('#gInfo .tags i', els => els.map(e => e.textContent));
+  const href = await page.getAttribute('#gInfo .tags a', 'href');
+  check(tags.includes('Wi-Fi') && /\/tools\/studio\/templates\/\d\d-web-server-and-websocket\/web_led\.cs$/.test(href || ''), 'tags ' + tags + ' + GitHub source link');
+  await page.fill('#gSearch', 'zzqqxx');
+  await page.waitForFunction(() => App.gal.q === 'zzqqxx');
+  check(/No template matches/.test(await page.textContent('#gItems')), 'no-match message');
+  await page.keyboard.press('Escape');
+  check(await page.isVisible('#galleryBg') && (await page.inputValue('#gSearch')) === '', 'Escape clears the search first');
+  await page.click('#gCats div[data-c="GPIO"]');
+  await page.focus('#gSearch'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
+  check(await page.evaluate(() => App.gal.sel) === 2, 'arrow keys move the selection');
+  await page.keyboard.press('PageDown');
+  check(await page.evaluate(() => App.gal.sel === App.gal.list.length - 1 || App.gal.sel > 2), 'PageDown');
+  await page.keyboard.press('Escape');
+  await page.click('#btnTemplates'); await page.waitForSelector('#galleryBg.show');
+  check(await page.$('#gCats div[data-c="Recent"]') !== null, 'Recent category after adding templates');
+  await page.click('#gCats div[data-c="Recent"]');
+  const recent = await page.$$eval('#gItems .item b', els => els.map(e => e.textContent));
+  check(recent[0] === 'Hello world' && recent.includes('Files and free space'), 'Recent lists the last ones first: ' + recent.slice(0, 3));
+  await page.click('#gItems .item b:text-is("Hello world")');
+  check((await page.inputValue('#gName')) === 'hello-2.cs', 'a name no open tab uses: ' + await page.inputValue('#gName'));
+  await page.keyboard.press('Escape');
+  // saving a new file over one on the device asks first
+  await tpl('Files and free space');
+  await page.keyboard.press('Control+s');
+  await page.waitForSelector('#dlgIn'); await page.fill('#dlgIn', '/files.cs'); await page.press('#dlgIn', 'Enter');
+  await page.waitForFunction(() => /Replace file/.test(document.getElementById('modal').innerText), null, { timeout: 4000 }).catch(() => {});
+  check(/already exists on the device/.test(await page.innerText('#modal')), 'save asks before replacing /files.cs');
+  await page.click('#dlgNo');
+  await page.evaluate(() => { const t = App.tab(); t.saved = t.text; t.dirty = false; return App.closeTab(App.active); });
+
   // Scheduler.Every jobs outlive their script: Run first cancels the ones earlier runs left
   fs.writeFileSync(ROOT + '/tick.cs', 'Scheduler.Every(60000, () => Console.WriteLine("tick"));\nConsole.WriteLine("job set");\n');
   await page.evaluate(() => App.runPath('/tick.cs'));

@@ -19,12 +19,15 @@ the editor works there, but it can't connect to a board.
 | `index.html` | page layout |
 | `studio.css` | look: Visual Studio 2022 Dark / Light, C# colours (`--t-*` variables) |
 | `studio.js` | the app: serial link and shell protocol, editor, file manager, console |
-| `templates.js` | templates and examples (`T(category, name, file, description, code)`) and completion snippets |
+| `templates/` | the templates and examples: one folder per category, plain `.cs` files + a `templates.txt` describing them ([how to add one](templates/README.md)) |
+| `templates.js` | **generated** from `templates/` by `python3 gen_templates.py` (the page loads it; CI checks it is current) |
+| `snippets.js` | completion snippets (`label`, `detail`, `text` with `$0` for the caret) |
 | `api.js` | class and member names known to the runtime (completion fallback) |
 | `docs.js` | signatures and one-line docs of every library member (completion details, parameter info, hover) |
 | `lang.js` | C# language service: symbols of the open file, type inference, call context |
 
-No build step: edit a file and reload the page.
+No build step for the app: edit a file and reload the page. After changing a template run
+`python3 tools/studio/gen_templates.py` (or `make studio-templates`).
 
 ## Editor keys
 
@@ -49,6 +52,16 @@ Write(pin pin, bool value): void | Drives the pin: true / 1 = high, false / 0 = 
 ```
 
 Repeat a line for each overload; `new(...)` lines are constructors.
+
+## Templates dialog
+
+`Alt+T` (or *Templates*) opens it: categories on the left (*Recent* holds the last ones you
+used), search across names, descriptions and code (every word must match; name hits come
+first and are highlighted), a preview with tags, line count, a copy button and a link to the
+source file. `↑`/`↓`, `PgUp`/`PgDn`, `Home`/`End` move, `Enter` adds the template as a new file
+(named so it doesn't clash with an open tab), `Ctrl+Enter` inserts it at the cursor, `Esc`
+clears the search, then closes. Saving a new file over an existing one on the device asks
+first.
 
 ## Connection notes
 

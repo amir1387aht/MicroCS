@@ -1,0 +1,20 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: ADC and DAC
+
+[adc.cs] Read an analog input
+Raw value, millivolts and volts from an ADC channel.
+
+[adc_filter.cs] Averaged, filtered ADC
+Oversampling plus an exponential moving average.
+
+[battery.cs] Battery voltage (divider)
+Scale a voltage divider reading and estimate a Li-ion charge level.
+
+[dac.cs] DAC output and sine wave
+Set a voltage, then output a slow sine wave on a DAC channel.
+
+[adc_config.cs] ADC input range and oversampling (AdcConfig)
+AdcConfig: attenuation (ESP32 input range) and averaged readings.

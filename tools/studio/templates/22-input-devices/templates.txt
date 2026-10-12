@@ -1,0 +1,17 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Input devices
+
+[encoder.cs] Rotary encoder
+Quadrature decoding with pin interrupts, plus the push button.
+
+[keypad.cs] 4x4 matrix keypad
+Scan a membrane keypad: rows as outputs, columns with pull-ups.
+
+[button_events.cs] Button: click, double-click, long press
+Turn a raw button into click / double / long-press events.
+
+[touch.cs] Touch / capacitive pad (charge time)
+Measure how long a pin takes to charge - a DIY touch sensor.

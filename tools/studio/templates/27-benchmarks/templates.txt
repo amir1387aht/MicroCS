@@ -1,0 +1,11 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Benchmarks
+
+[bench_cpu.cs] CPU benchmark
+Integer, floating point, string and collection speed of the board.
+
+[bench_gpio.cs] GPIO toggle speed
+How fast can a script toggle a pin? Static calls vs. a Pin object.
