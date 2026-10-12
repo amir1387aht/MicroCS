@@ -1,6 +1,7 @@
 /* MicroCS - bytecode buffers, disassembler and portable image format.
  *
- * Image layout v3 (compact; vN = unsigned LEB128 varint, zN = zig-zag varint):
+ * Image layout v3/v4 (compact; vN = unsigned LEB128 varint, zN = zig-zag varint;
+ * v4 only adds the checked FOR_ITER form):
  *   "MCSB" u8 version u8 flags u16 reserved
  *   vN nglobals { str }             names referenced by GET/SET_GLOBAL
  *   function                         the <main> function (recursive)
@@ -19,7 +20,8 @@
 #include "mcs_internal.h"
 #include <stdio.h>
 
-#define IMG_VERSION 3      /* v2 added superinstructions, v3 the compact encoding */
+#define IMG_VERSION 4      /* v2 added superinstructions, v3 the compact encoding,
+                            * v4 the checked FOR_ITER (slot byte bit 7) */
 enum { K_NULL, K_FALSE, K_TRUE, K_INT, K_FLOAT, K_CHAR, K_STRING, K_FUNC, K_FLOAT32 };
 
 /* ------------------------------------------------------------ emitting */
@@ -151,7 +153,7 @@ void mcs_disassemble(mcs_vm_t* vm, mcs_function_t* fn, int depth) {
             out(vm, "-> %04u", (unsigned)(pc + 3 + u16)); break;
         case OP_LOOP: out(vm, "-> %04u", (unsigned)(pc + 3 - u16)); break;
         case OP_ARGC_JUMP: out(vm, "argc>=%u -> %04u", a[0], (unsigned)(pc + 4 + ((a[1] << 8) | a[2]))); break;
-        case OP_FOR_ITER: out(vm, "slot %u, end -> %04u", a[0], (unsigned)(pc + 4 + ((a[1] << 8) | a[2]))); break;
+        case OP_FOR_ITER: out(vm, "slot %u%s, end -> %04u", a[0] & 0x7F, a[0] & 0x80 ? " checked" : "", (unsigned)(pc + 4 + ((a[1] << 8) | a[2]))); break;
         case OP_INC_LOCAL: out(vm, "slot %u += %d", a[0], (int8_t)a[1]); break;
         case OP_INT8: out(vm, "%d", (int8_t)a[0]); break;
         case OP_CLOSURE: {
@@ -402,6 +404,7 @@ typedef struct {
     bool bad;
     bool xip;
     bool v3;               /* compact encoding */
+    bool v4;               /* FOR_ITER slot bit 7 = checked form */
     mcs_string_t** strs;   /* v3: strings read so far */
     uint32_t scount, scap;
 #if MCS_ENABLE_XIP
@@ -468,7 +471,7 @@ static mcs_string_t* rstr(loader_t* l) {
    Checks local/upvalue indices and that every branch lands on an
    instruction boundary inside the function. Stack balance is NOT verified;
    images must still come from a trusted compiler (see docs/SECURITY.md). */
-static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn) {
+static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn, bool v4) {
     uint32_t clen = fn->code_len;
     if (!clen) return true;
     uint32_t nbytes = (clen + 8) / 8;
@@ -486,8 +489,9 @@ static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn) {
         switch (op) {
         case OP_GET_LOCAL: case OP_SET_LOCAL: case OP_SET_LOCAL_POP: case OP_INC_LOCAL:
             ok = a[0] < fn->max_slots; break;
-        case OP_FOR_ITER:
-            ok = (uint32_t)a[0] + 1 < fn->max_slots && IS_START(pc + 4 + (uint32_t)((a[1] << 8) | a[2])); break;
+        case OP_FOR_ITER:   /* plain form: slots s, s+1; checked form (v4, bit 7): s .. s+3 */
+            ok = (a[0] < 0x80 ? (uint32_t)a[0] + 1 : (uint32_t)(a[0] & 0x7F) + 3) < fn->max_slots && (v4 || a[0] < 0x80) &&
+                 IS_START(pc + 4 + (uint32_t)((a[1] << 8) | a[2])); break;
         case OP_GET_UPVAL: case OP_SET_UPVAL:
             ok = a[0] < fn->upvalue_count; break;
         case OP_JUMP: case OP_JUMP_IF_FALSE: case OP_JUMP_IF_TRUE: case OP_JUMP_IF_FALSE_KEEP:
@@ -664,7 +668,7 @@ static mcs_function_t* read_fn(loader_t* l) {
         }
         pc += len;
     }
-    if (!validate_code(vm, fn)) { l->bad = true; return NULL; }
+    if (!validate_code(vm, fn, l->v4)) { l->bad = true; return NULL; }
     uint32_t nl = rn(l);
     if (nl && need(l, l->v3 ? (size_t)nl * 2 : (size_t)nl * 8)) {
 #if MCS_ENABLE_LINES
@@ -702,7 +706,7 @@ mcs_function_t* mcs_load_image_ex(mcs_vm_t* vm, const uint8_t* img, size_t len, 
 #endif
     MCS_UNUSED(flags);
     loader_t l; memset(&l, 0, sizeof l);
-    l.vm = vm; l.p = img + 8; l.end = img + len; l.xip = xip; l.v3 = img[4] >= 3;
+    l.vm = vm; l.p = img + 8; l.end = img + len; l.xip = xip; l.v3 = img[4] >= 3; l.v4 = img[4] >= 4;
     vm->gc_pause++;
     l.gcount = rn(&l);
     if (l.gcount > 65535) l.bad = true;

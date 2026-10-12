@@ -820,6 +820,7 @@ NATIVE(list_removerange) {
     if (!check_range(vm, a, n, l->count)) return mcs_null();
     memmove(l->items + a, l->items + a + n, sizeof(mcs_value_t) * (l->count - (uint32_t)(a + n)));
     l->count -= (uint32_t)n;
+    if (n) MCS_LIST_TOUCH(l);
     return mcs_null();
 }
 NATIVE(list_removeall) {
@@ -838,18 +839,21 @@ NATIVE(list_removeall) {
         l->items[w++] = l->items[i];
     }
     l->count = w;
+    if (removed) MCS_LIST_TOUCH(l);
     mcs_pop_root(vm, 1);
     return mcs_int((mcs_int_t)removed);
 }
-NATIVE(list_clear) { SELF_LIST(); l->count = 0; return mcs_null(); }
+NATIVE(list_clear) { SELF_LIST(); l->count = 0; MCS_LIST_TOUCH(l); return mcs_null(); }
 NATIVE(list_sort) {
     SELF_SEQ();
     if (argc == 3 || argc == 4) {
         mcs_int_t a = mcs_to_int(vm, argv[0]), n = mcs_to_int(vm, argv[1]); CHECK();
         if (!check_range(vm, a, n, l->count)) return mcs_null();
+        MCS_LIST_TOUCH(l);
         sort_values(vm, l, (uint32_t)a, (uint32_t)n, argc == 3 ? argv[2] : argv[3], false);
         return mcs_null();
     }
+    MCS_LIST_TOUCH(l);
     sort_values(vm, l, 0, l->count, argc ? argv[0] : mcs_null(), false);
     return mcs_null();
 }
@@ -860,6 +864,7 @@ NATIVE(list_reverse) {
         if (!check_range(vm, a, n, l->count)) return mcs_null();
         reverse_range(l, (uint32_t)a, (uint32_t)n);
     } else reverse_range(l, 0, l->count);
+    MCS_LIST_TOUCH(l);
     return mcs_null();
 }
 NATIVE(list_getrange) {

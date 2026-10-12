@@ -634,7 +634,11 @@ static bool arith(mcs_vm_t* vm, int op, mcs_value_t a, mcs_value_t b, mcs_value_
         case OP_MUL: *out = mcs_int((mcs_int_t)(x * y)); return true;
         case OP_DIV: case OP_MOD:
             if (b.as.i == 0) { mcs_throw(vm, EXC_DIVZERO, "Attempted to divide by zero."); return false; }
-            if (b.as.i == -1) { *out = mcs_int(op == OP_DIV ? (mcs_int_t)(0 - x) : 0); return true; }
+            if (b.as.i == -1) {
+                /* MinValue / -1 does not fit; .NET throws for both / and % */
+                if (x == (mcs_uint_t)1 << (bits - 1)) { mcs_throw(vm, EXC_OVERFLOW, "Arithmetic operation resulted in an overflow."); return false; }
+                *out = mcs_int(op == OP_DIV ? (mcs_int_t)(0 - x) : 0); return true;
+            }
             *out = mcs_int(op == OP_DIV ? a.as.i / b.as.i : a.as.i % b.as.i); return true;
         case OP_BAND: *out = mcs_int((mcs_int_t)(x & y)); return true;
         case OP_BOR: *out = mcs_int((mcs_int_t)(x | y)); return true;
@@ -798,6 +802,7 @@ static int set_index_op(mcs_vm_t* vm) {
         case MCS_O_ARRAY: case MCS_O_LIST:
             if (!check_index(vm, obj, idx, AS_LIST(obj)->count, &i)) return CALL_ERR;
             AS_LIST(obj)->items[i] = val;
+            MCS_LIST_TOUCH(AS_LIST(obj));
             vm->sp -= 2; vm->sp[-1] = val; return CALL_DONE;
         case MCS_O_DICT:
             if (idx.type == MCS_T_NULL) { mcs_throw(vm, EXC_ARGNULL, "Value cannot be null. (Parameter 'key')"); return CALL_ERR; }
@@ -1075,7 +1080,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(SET_INDEX) {
         const mcs_value_t* pa_ = sp - 3;
         if (IS_SEQ(pa_[0]) && pa_[1].type == MCS_T_INT && (mcs_uint_t)pa_[1].as.i < AS_LIST(pa_[0])->count) {
-            AS_LIST(pa_[0])->items[pa_[1].as.i] = sp[-1]; sp[-3] = sp[-1]; sp -= 2; DISPATCH();
+            AS_LIST(pa_[0])->items[pa_[1].as.i] = sp[-1]; MCS_LIST_TOUCH(AS_LIST(pa_[0])); sp[-3] = sp[-1]; sp -= 2; DISPATCH();
         }
         SAVE();
         CHECKCALL(set_index_op(vm));
@@ -1470,7 +1475,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(SET_INDEX_LL) {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
-            AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; sp--; ip += 2; DISPATCH();
+            AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; MCS_LIST_TOUCH(AS_LIST(*pa_)); sp--; ip += 2; DISPATCH();
         }
         b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; ip += 2;
         SAVE();
@@ -1770,9 +1775,15 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(FOR_ITER) {
         uint8_t s = READ8();
         uint16_t o = READ16();
+        const bool checked = (s & 0x80) != 0;   /* slots[s+2] = version, slots[s+3] = current key */
+        s &= 0x7F;
         a = slots[s];
         mcs_int_t i = slots[s + 1].as.i;
         if (IS_KIND(a, MCS_O_ARRAY) || IS_KIND(a, MCS_O_LIST)) {
+            if (checked && IS_KIND(a, MCS_O_LIST)) {
+                if (i == 0) slots[s + 2] = mcs_int((mcs_int_t)AS_LIST(a)->obj.aux);
+                else if (slots[s + 2].as.i != (mcs_int_t)AS_LIST(a)->obj.aux) goto for_iter_modified;
+            }
             if ((mcs_uint_t)i < AS_LIST(a)->count) { PUSH(AS_LIST(a)->items[i]); slots[s + 1].as.i = i + 1; }
             else ip += o;
             DISPATCH();
@@ -1791,12 +1802,24 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         if (IS_KIND(a, MCS_O_DICT)) {
             mcs_dict_t* d = AS_DICT(a);
+            if (checked) {
+                if (i == 0) slots[s + 2] = mcs_int((mcs_int_t)DICT_VERSION(d));
+                else if (slots[s + 2].as.i != (mcs_int_t)DICT_VERSION(d)) goto for_iter_modified;
+                else if (!((mcs_uint_t)(i - 1) < d->count && mcs_values_same(d->keys[i - 1], slots[s + 3]))) {
+                    /* entries were removed (they shift down): continue after the current key,
+                     * or at its old position when the current key itself was removed */
+                    uint32_t p;
+                    if (mcs_dict_pos(d, slots[s + 3], &p)) i = (mcs_int_t)p + 1;
+                    else { i--; if ((mcs_uint_t)i > d->count) i = (mcs_int_t)d->count; }
+                }
+            }
             if ((mcs_uint_t)i < d->count) {
+                if (checked) slots[s + 3] = d->keys[i];
                 mcs_instance_t* kv = mcs_new_instance(vm, MCS_CLS(vm, kvp));
                 kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
                 PUSH(OBJ_VAL(kv));
                 slots[s + 1].as.i = i + 1;
-            } else ip += o;
+            } else { if (checked) slots[s + 3] = mcs_null(); ip += o; }
             DISPATCH();
         }
         SAVE();
@@ -1816,6 +1839,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         if (a.type == MCS_T_NULL) mcs_throw(vm, EXC_NULLREF, "Object reference not set to an instance of an object.");
         else mcs_throw(vm, EXC_INVOP, "foreach cannot operate on a value of type '%s'", mcs_type_name(vm, a));
+        THROWN();
+    for_iter_modified:
+        SAVE();
+        mcs_throw(vm, EXC_INVOP, "Collection was modified; enumeration operation may not execute.");
         THROWN();
     }
     CASE(TRY) {

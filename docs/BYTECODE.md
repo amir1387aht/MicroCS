@@ -11,11 +11,13 @@ run without the compiler (`MCS_ENABLE_COMPILER=0`).
 ./mcs -d app.mcsb                    # validate + disassemble an image
 ```
 
-## Image layout (version 3)
+## Image layout (version 4)
 
 `mcs -c` writes **optimized** images (superinstructions, see below); `mcs -O0 -c` writes plain
 bytecode for a VM built with `MCS_ENABLE_SUPEROPS=0`. Version 3 is a compact encoding of the
-same records; the loader still accepts version 1 and 2 images.
+same records; version 4 has the same layout and adds the checked `FOR_ITER` form (slot byte
+bit 7). The loader still accepts version 1–3 images (whose `FOR_ITER` slot bytes must be
+below 128).
 
 Header integers are **little-endian**; `vN` is an unsigned LEB128 varint, `zN` a zig-zag
 varint. Instruction operands inside `code` are **big-endian** (`hi, lo`).
@@ -68,7 +70,7 @@ with MCS_ENABLE_SUPEROPS=1 or compile with -O0").
 * constant operands are in range and of the right kind (strings for names, functions for `CLOSURE`,
   including the default-value operand of `FIELD` and the constants of superinstructions);
 * global operands are in range (they are re-linked to the VM's global slots);
-* local-slot operands are `< max_slots` (`FOR_ITER` uses two slots), upvalue operands are
+* local-slot operands are `< max_slots` (`FOR_ITER` uses two slots, four in its checked form), upvalue operands are
   `< upvalue_count`, and `CLOSURE` captures reference valid locals / upvalues;
 * every branch target (`JUMP*`, `JF_*`, `LOOP`, `TRY`, `ARGC_JUMP`, `FOR_ITER` and the fused
   compare-and-branch superinstructions) lands on an instruction boundary inside the function;
@@ -179,7 +181,7 @@ Operand legend: `k16` constant index · `g16` global · `s8` local slot · `u8` 
 | 71 | `IS` | k16 | `is T` |
 | 72 | `AS` | k16 | `as T` |
 | 73 | `CAST` | k16 | `(T)x` with check |
-| 74 | `FOR_ITER` | s8 o16 | foreach step over `slots[s8]` (collection) / `slots[s8+1]` (index); exit `o16` |
+| 74 | `FOR_ITER` | s8 o16 | foreach step over `slots[s]` (collection) / `slots[s+1]` (index); exit `o16`. Bit 7 of `s8` *(v4)* = checked form, `s = s8 & 127`: `slots[s+2]` holds the `List` / `Dictionary` version (a change throws *Collection was modified*), `slots[s+3]` the current dictionary key (removals don't skip entries) |
 | 75 | `TRY` | o16 | push handler at `pc + o16` |
 | 76 | `END_TRY` | — | pop handler |
 | 77 | `THROW` | — | throw top |

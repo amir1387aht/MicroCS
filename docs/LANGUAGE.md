@@ -102,6 +102,12 @@ names in one program may get the wrong labels (positional `ItemN` access is alwa
 * `StackOverflowException` is catchable; out-of-memory ends the run with `MCS_ERR_MEMORY`
   instead of killing the process.
 * Integer constant overflow wraps instead of a compile error; `checked` does not trap.
+  Division is the exception: `MinValue / -1` and `MinValue % -1` throw `OverflowException`
+  as in .NET (also for constants, which C# rejects at compile time) — `MinValue` of the
+  shared integer representation, so with `MCS_INT64=1` `int.MinValue / -1` is `2147483648`.
+* `foreach` throws *Collection was modified* after a `List<T>` change or a `Dictionary` key
+  addition / `Clear` in the loop body, like .NET; removing dictionary entries is allowed.
+  `HashSet`, `Stack` and `Queue` are enumerated from a snapshot, so changing them does not throw.
 * `GroupBy` returns a `Dictionary<key, List<item>>`.
 * Index-out-of-range messages include the index and length.
 * Enums print as their numeric value.

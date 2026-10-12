@@ -497,6 +497,7 @@ void mcs_listobj_push(mcs_vm_t* vm, mcs_list_t* l, mcs_value_t v) {
         l->items = MCS_GROW(vm, mcs_value_t, l->items, l->cap, nc); l->cap = nc;
     }
     l->items[l->count++] = v;
+    MCS_LIST_TOUCH(l);
 }
 
 void mcs_listobj_insert(mcs_vm_t* vm, mcs_list_t* l, uint32_t at, mcs_value_t v) {
@@ -508,6 +509,7 @@ void mcs_listobj_insert(mcs_vm_t* vm, mcs_list_t* l, uint32_t at, mcs_value_t v)
 void mcs_listobj_remove_at(mcs_list_t* l, uint32_t at) {
     memmove(&l->items[at], &l->items[at + 1], sizeof(mcs_value_t) * (l->count - at - 1));
     l->count--;
+    MCS_LIST_TOUCH(l);
 }
 
 #define TABLE_MAX_LOAD_NUM 3
@@ -579,8 +581,17 @@ void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v) {
     }
     d->keys[d->count] = key;
     if (d->vals) d->vals[d->count] = v;
+    d->obj.aux = (uint16_t)(d->obj.aux + DICT_VER_STEP);
     if (ix_get(d, s) == 0) d->iused++;   /* else: reusing a deleted slot */
     ix_set(d, s, ++d->count);
+}
+
+/* insertion-order position of key */
+bool mcs_dict_pos(const mcs_dict_t* d, mcs_value_t key, uint32_t* pos) {
+    uint32_t s;
+    if (d->count == 0 || !dict_find(d, key, &s)) return false;
+    *pos = ix_get(d, s) - 1;
+    return true;
 }
 
 bool mcs_dict_remove(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key) {
@@ -614,6 +625,7 @@ bool mcs_dict_at(mcs_value_t v, uint32_t i, mcs_value_t* key, mcs_value_t* val) 
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d) {
     mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
     d->idx = NULL; d->icap = d->iused = 0;
+    if (d->count) d->obj.aux = (uint16_t)(d->obj.aux + DICT_VER_STEP);
     d->count = 0;
 }
 
