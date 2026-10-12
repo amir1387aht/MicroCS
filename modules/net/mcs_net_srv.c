@@ -1136,11 +1136,13 @@ static bool path_match(const char* pat, const char* path, req_t* rq) {
     if (rq) rq->pp_len = pp;
     return true;
 }
+#if MCS_ENABLE_FS
 static bool files_match(const route_t* r, const char* path) {
     size_t l = strlen(r->path);
     if (l == 1) return true;                                          /* "/" serves everything */
     return !strncmp(path, r->path, l) && (path[l] == '/' || !path[l]);
 }
+#endif
 /* read the request head (+ the start of the body) into a heap buffer; true = complete */
 static bool read_head(mcs_vm_t* vm, mcs__conn_t* c, char** buf, size_t* cap, size_t* len, size_t* head_end) {
     size_t c0 = 1024;
