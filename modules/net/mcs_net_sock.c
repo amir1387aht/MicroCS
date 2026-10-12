@@ -29,7 +29,11 @@
 #define RBUF 512
 
 /* ------------------------------------------------------------ low level */
+#if MCS_NET_LWIP && !defined(ESP_PLATFORM)
+static void set_nonblock(int fd) { int one = 1; ioctl(fd, FIONBIO, &one); }   /* libc's O_NONBLOCK != lwIP's */
+#else
 static void set_nonblock(int fd) { int f = fcntl(fd, F_GETFL, 0); if (f >= 0) fcntl(fd, F_SETFL, f | O_NONBLOCK); }
+#endif
 static void no_sigpipe(int fd) {
 #ifdef SO_NOSIGPIPE
     int one = 1; setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one);

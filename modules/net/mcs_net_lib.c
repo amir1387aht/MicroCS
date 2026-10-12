@@ -11,6 +11,9 @@
  * The radio is the port's mcs_net_t table; sockets, DNS and HTTP live in mcs_net_sock.c.
  */
 #include "mcs_net_internal.h"
+#if MCS_ENABLE_FS
+#include "mcs_vfs.h"
+#endif
 #if MCS_ENABLE_NET
 #include <time.h>
 #include <stdlib.h>
@@ -284,13 +287,57 @@ static mcs_value_t wait_connected(mcs_vm_t* vm, mcs__net_state_t* s, uint32_t ti
         if (!mcs__net_wait(vm, 20)) return mcs_null();
     }
 }
+/* ---- saved credentials: the port's store (NVS on ESP32) or, without one, the file
+ * MCS_WIFI_CREDS_FILE on the VM's filesystem (e.g. LittleFS on a Pico W) */
+#ifndef MCS_WIFI_CREDS_FILE
+#define MCS_WIFI_CREDS_FILE "/.wifi"
+#endif
+static bool creds_avail(mcs_vm_t* vm, const mcs_net_t* n) {
+    if (n && n->creds) return true;
+#if MCS_ENABLE_FS
+    return n && n->wifi_set_mode && mcs_get_ext(vm, MCS_EXT_VFS) != NULL;
+#else
+    (void)vm; return false;
+#endif
+}
+static int creds_op(mcs_vm_t* vm, const mcs_net_t* n, int op, char ssid[33], char pass[65]) {
+    if (n && n->creds) return n->creds(n->ctx, op, ssid, pass);
+#if MCS_ENABLE_FS
+    mcs_vfs_t* vfs = (mcs_vfs_t*)mcs_get_ext(vm, MCS_EXT_VFS);
+    if (!vfs || !creds_avail(vm, n)) return MCS_HAL_ENOTSUP;
+    if (op == MCS_WIFI_CREDS_FORGET) { mcs_vfs_remove(vfs, MCS_WIFI_CREDS_FILE); return 0; }
+    if (op == MCS_WIFI_CREDS_SAVE) {
+        char b[33 + 65 + 2];
+        int l = snprintf(b, sizeof b, "%s\n%s\n", ssid, pass);
+        int e = mcs_vfs_write_file(vfs, MCS_WIFI_CREDS_FILE, b, (size_t)l, false);
+        memset(b, 0, sizeof b);
+        return e < 0 ? MCS_HAL_ERR : 0;
+    }
+    char* d = NULL; size_t len = 0;
+    if (mcs_vfs_read_file(vfs, MCS_WIFI_CREDS_FILE, &d, &len) < 0 || !d) return MCS_HAL_ENODEV;
+    size_t i = 0, k = 0;
+    while (i < len && d[i] != '\n' && k < 32) ssid[k++] = d[i++];
+    ssid[k] = 0;
+    while (i < len && d[i] != '\n') i++;
+    if (i < len) i++;
+    k = 0;
+    while (i < len && d[i] != '\n' && d[i] != '\r' && k < 64) pass[k++] = d[i++];
+    pass[k] = 0;
+    memset(d, 0, len);
+    mcs_vfs_free(vfs, d, len);
+    return ssid[0] ? 0 : MCS_HAL_ENODEV;
+#else
+    (void)vm; (void)op; (void)ssid; (void)pass;
+    return MCS_HAL_ENOTSUP;
+#endif
+}
 /* (ssid[, password[, timeoutMs[, bssid[, channel]]]]) -> cfg; argc 0: saved credentials */
 static bool sta_args(mcs_vm_t* vm, mcs__net_state_t* s, int argc, mcs_value_t* argv, mcs_wifi_sta_cfg_t* c, uint32_t* timeout) {
     memset(c, 0, sizeof *c);
     c->min_auth = -1;
     *timeout = MCS_WIFI_CONNECT_TIMEOUT;
     if (argc == 0 || mcs_is_null(argv[0])) {
-        if (s->net->creds && s->net->creds(s->net->ctx, MCS_WIFI_CREDS_LOAD, c->ssid, c->password) >= 0 && c->ssid[0]) {}
+        if (creds_op(vm, s->net, MCS_WIFI_CREDS_LOAD, c->ssid, c->password) >= 0 && c->ssid[0]) {}
         else if (s->have_last) *c = s->last;
         else { mcs_raise(vm, "InvalidOperationException", "no Wi-Fi network saved: Wifi.Connect(ssid, password) or Wifi.Save(ssid, password) first"); return false; }
     } else {
@@ -624,24 +671,51 @@ NATIVE(wifi_apcount) { ST(); mcs_wifi_client_t c[16]; int n = clients_of(s, c, 1
 
 /* ---- saved credentials */
 NATIVE(wifi_save) {
-    ST(); NEED(creds, "Wifi.Save");
+    ST();
+    if (!creds_avail(vm, NET())) return mcs__net_fail(vm, "Wifi.Save", MCS_HAL_ENOTSUP);
     char ssid[33], pass[65]; pass[0] = 0;
     if (argc < 1 || argc > 2) { mcs_raise(vm, "ArgumentException", "Wifi.Save(ssid[, password])"); return mcs_null(); }
     if (!str_copy(vm, argv[0], ssid, sizeof ssid, "SSID")) return mcs_null();
     if (argc > 1 && !mcs_is_null(argv[1]) && !str_copy(vm, argv[1], pass, sizeof pass, "password")) return mcs_null();
-    CALL("Wifi.Save", NET()->creds(NET()->ctx, MCS_WIFI_CREDS_SAVE, ssid, pass));
+    CALL("Wifi.Save", creds_op(vm, NET(), MCS_WIFI_CREDS_SAVE, ssid, pass));
     return mcs_null();
 }
+static mcs_value_t provision(mcs_vm_t* vm, int argc, mcs_value_t* argv, int method, const char* op) {
+    ST();
+    if (!NET() || !NET()->provision || NET()->provision(NET()->ctx, method, MCS_WIFI_PROV_QUERY, NULL, NULL) < 0) return mcs__net_fail(vm, op, MCS_HAL_ENOTSUP);
+    if (argc > 2) { mcs_raise(vm, "ArgumentException", "%s([timeoutMs[, save]])", op); return mcs_null(); }
+    OPT_INT(0, timeout, 120000);
+    bool save = argc < 2 || mcs_truthy(argv[1]);
+    if (timeout < 0) return mcs__net_fail(vm, op, MCS_HAL_EINVAL);
+    mcs_wifi_sta_cfg_t c; memset(&c, 0, sizeof c); c.min_auth = -1;
+    CALL(op, NET()->provision(NET()->ctx, method, MCS_WIFI_PROV_START, c.ssid, c.password));
+    uint32_t t0 = mcs_ticks(vm);
+    int rc;
+    for (;;) {
+        rc = NET()->provision(NET()->ctx, method, MCS_WIFI_PROV_POLL, c.ssid, c.password);
+        if (rc != 0) break;
+        if (timeout && (uint32_t)(mcs_ticks(vm) - t0) >= (uint32_t)timeout) break;
+        if (!mcs__net_wait(vm, 100)) { NET()->provision(NET()->ctx, method, MCS_WIFI_PROV_STOP, NULL, NULL); return mcs_null(); }
+    }
+    NET()->provision(NET()->ctx, method, MCS_WIFI_PROV_STOP, NULL, NULL);
+    if (rc != 1 || !c.ssid[0]) return mcs_bool(false);
+    if (save && creds_avail(vm, NET())) creds_op(vm, NET(), MCS_WIFI_CREDS_SAVE, c.ssid, c.password);
+    CALL(op, sta_start(s, &c));
+    return wait_connected(vm, s, MCS_WIFI_CONNECT_TIMEOUT);
+}
+NATIVE(wifi_wps) { return provision(vm, argc, argv, MCS_WIFI_PROV_WPS, "Wifi.Wps"); }
+NATIVE(wifi_smartconfig) { return provision(vm, argc, argv, MCS_WIFI_PROV_SMARTCONFIG, "Wifi.SmartConfig"); }
 NATIVE(wifi_forget) {
-    ST(); NEED(creds, "Wifi.Forget");
+    ST();
+    if (!creds_avail(vm, NET())) return mcs__net_fail(vm, "Wifi.Forget", MCS_HAL_ENOTSUP);
     char ssid[33] = "", pass[65] = "";
-    CALL("Wifi.Forget", NET()->creds(NET()->ctx, MCS_WIFI_CREDS_FORGET, ssid, pass));
+    CALL("Wifi.Forget", creds_op(vm, NET(), MCS_WIFI_CREDS_FORGET, ssid, pass));
     return mcs_null();
 }
 NATIVE(wifi_saved) {
     ST();
     char ssid[33] = "", pass[65] = "";
-    if (!NET() || !NET()->creds || NET()->creds(NET()->ctx, MCS_WIFI_CREDS_LOAD, ssid, pass) < 0 || !ssid[0]) { memset(pass, 0, sizeof pass); return mcs_string(vm, ""); }
+    if (!creds_avail(vm, NET()) || creds_op(vm, NET(), MCS_WIFI_CREDS_LOAD, ssid, pass) < 0 || !ssid[0]) { memset(pass, 0, sizeof pass); return mcs_string(vm, ""); }
     memset(pass, 0, sizeof pass);
     return mcs_string(vm, ssid);
 }
@@ -693,6 +767,7 @@ static const mcs_reg_t wifi_fns[] = {
     MCS_FN("StartAp", wifi_startap, -1), MCS_FN("StopAp", wifi_stopap, 0), MCS_GET("ApIp", wifi_apip),
     MCS_FN("SetApIp", wifi_apsetip, -1), MCS_FN("ApClients", wifi_apclients, 0), MCS_GET("ApClientCount", wifi_apcount),
     MCS_FN("Save", wifi_save, -1), MCS_FN("Forget", wifi_forget, 0), MCS_GET("SavedSsid", wifi_saved),
+    MCS_FN("Wps", wifi_wps, -1), MCS_FN("SmartConfig", wifi_smartconfig, -1),
     MCS_FN("OnEvent", wifi_onevent, 1),
     MCS_REG_END };
 static const mcs_const_t wifi_consts[] = {
@@ -1017,6 +1092,9 @@ bool mcs_net_has(const mcs_net_t* n, const char* f) {
     if (!strcmp(f, "Ping")) return n->ping != NULL;
     if (!strcmp(f, "Tls") || !strcmp(f, "Https")) return n->tls_open != NULL && MCS_ENABLE_SOCKETS;
     if (!strcmp(f, "Ntp.Sntp")) return n->ntp_start != NULL;
+    if (!strcmp(f, "Wifi.Wps")) return n->provision && n->provision(n->ctx, MCS_WIFI_PROV_WPS, MCS_WIFI_PROV_QUERY, NULL, NULL) >= 0;
+    if (!strcmp(f, "Wifi.SmartConfig")) return n->provision && n->provision(n->ctx, MCS_WIFI_PROV_SMARTCONFIG, MCS_WIFI_PROV_QUERY, NULL, NULL) >= 0;
+    if (!strcmp(f, "Wifi.Save")) return n->creds != NULL || (MCS_ENABLE_FS && n->wifi_set_mode != NULL);
     return false;
 }
 NATIVE(net_has) { ST(); STR_ARG(0, f); return mcs_bool(mcs_net_has(NET(), f)); }

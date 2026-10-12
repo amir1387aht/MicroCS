@@ -3,6 +3,7 @@
 #include "mcs_driver.h"
 #include <string.h>
 #include <stdio.h>
+#include <sys/time.h>
 #include "pico/stdlib.h"
 #include "pico/unique_id.h"
 #include "hardware/gpio.h"
@@ -42,6 +43,9 @@ static uint64_t g_inv_mask;          /* GpioConfig.Invert on a plain GPIO (done 
 /* ------------------------------------------------------------------ GPIO */
 static int r_gpio_mode(void* ctx, int pin, int mode) {
     (void)ctx;
+#if MCS_RP2_WIFI
+    if (pin >= MCS_RP2_WL_PIN(0) && pin <= MCS_RP2_WL_PIN(2)) return mode == MCS_GPIO_OUTPUT || mode == MCS_GPIO_INPUT ? 0 : MCS_HAL_ENOTSUP;
+#endif
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     uint p = (uint)pin;
     gpio_init(p);
@@ -64,6 +68,9 @@ static int r_gpio_mode(void* ctx, int pin, int mode) {
 }
 static int r_gpio_write(void* ctx, int pin, int v) {
     (void)ctx;
+#if MCS_RP2_WIFI
+    if (pin >= MCS_RP2_WL_PIN(0) && pin <= MCS_RP2_WL_PIN(2)) return mcs_rp2_wl_gpio(pin, 1, v);
+#endif
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     v = (v != 0) ^ R_INV(pin);
     if (g_od_mask & (1ull << pin)) gpio_set_dir((uint)pin, v ? GPIO_IN : GPIO_OUT);
@@ -72,6 +79,9 @@ static int r_gpio_write(void* ctx, int pin, int v) {
 }
 static int r_gpio_read(void* ctx, int pin) {
     (void)ctx;
+#if MCS_RP2_WIFI
+    if (pin >= MCS_RP2_WL_PIN(0) && pin <= MCS_RP2_WL_PIN(2)) return mcs_rp2_wl_gpio(pin, 0, 0);
+#endif
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
     return (gpio_get((uint)pin) ? 1 : 0) ^ R_INV(pin);
 }
@@ -559,15 +569,18 @@ static int r_wdt_start(void* ctx, uint32_t ms) {
     return 0;
 }
 static int r_wdt_feed(void* ctx) { (void)ctx; watchdog_update(); return 0; }
-static int64_t g_rtc_offset;         /* unix seconds at boot (software clock) */
+/* RTC = the C library clock (time(), gettimeofday), which SNTP sets on a Pico W */
 static int r_rtc_get(void* ctx, uint32_t* secs) {
     (void)ctx;
-    *secs = (uint32_t)(g_rtc_offset + (int64_t)(time_us_64() / 1000000u));
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    *secs = (uint32_t)tv.tv_sec;
     return 0;
 }
 static int r_rtc_set(void* ctx, uint32_t secs) {
     (void)ctx;
-    g_rtc_offset = (int64_t)secs - (int64_t)(time_us_64() / 1000000u);
+    struct timeval tv = { (time_t)secs, 0 };
+    settimeofday(&tv, NULL);
     return 0;
 }
 static uint32_t r_micros(void* ctx) { (void)ctx; return time_us_32(); }
@@ -615,6 +628,11 @@ static int r_pin_lookup(void* ctx, const char* name) {
     (void)ctx;
 #ifdef PICO_DEFAULT_LED_PIN
     if (!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) return PICO_DEFAULT_LED_PIN;
+#elif MCS_RP2_WIFI && defined(CYW43_WL_GPIO_LED_PIN)
+    if (!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) return MCS_RP2_WL_PIN(CYW43_WL_GPIO_LED_PIN);
+#endif
+#if MCS_RP2_WIFI
+    if (!strncmp(name, "WL_GPIO", 7) && name[7] >= '0' && name[7] <= '2' && !name[8]) return MCS_RP2_WL_PIN(name[7] - '0');
 #endif
 #ifdef PICO_DEFAULT_WS2812_PIN       /* boards with an RGB LED: Waveshare RP2040-Zero (GP16), ... */
     if (!strcmp(name, "NEOPIXEL") || !strcmp(name, "RGB_LED") || !strcmp(name, "WS2812")) return PICO_DEFAULT_WS2812_PIN;
@@ -682,6 +700,9 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->dma_copy = r_dma_copy;
     hal->dma_abort = r_dma_abort;
     hal->spi_transfer_async = r_spi_transfer_async;
+#if MCS_RP2_WIFI && MCS_ENABLE_NET
+    mcs_net_set(mcs_rp2_net());                    /* C# Wifi, Ntp, Mdns, Ping; sockets over lwIP */
+#endif
 }
 
 /* ------------------------------------------------------------------ internal flash */

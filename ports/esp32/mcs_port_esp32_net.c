@@ -33,6 +33,8 @@
 #include "ping/ping_sock.h"
 #include "lwip/ip4_addr.h"
 #include "esp_tls.h"
+#include "esp_wps.h"
+#include "esp_smartconfig.h"
 #if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
 #include "esp_crt_bundle.h"
 #endif
@@ -73,6 +75,10 @@ typedef struct {
 } esp_net_t;
 static esp_net_t g;
 static mcs_net_t g_table;
+/* Wifi.Wps / Wifi.SmartConfig: 0 idle, 1 waiting, 2 credentials received, -1 failed / timed out */
+static volatile int g_prov;
+static int g_prov_method;
+static char g_prov_ssid[33], g_prov_pass[65];
 
 #define TRY(x) do { esp_err_t e_ = (x); if (e_ != ESP_OK) { ESP_LOGW(TAG, "%s: %s", #x, esp_err_to_name(e_)); return map_err(e_); } } while (0)
 static int map_err(esp_err_t e) {
@@ -126,6 +132,21 @@ static void on_wifi(void* arg, esp_event_base_t base, int32_t id, void* data) {
         if (g.opt[MCS_WIFI_OPT_AUTO_RECONNECT]) esp_wifi_connect();  /* keep trying while the AP is gone */
         break;
     }
+    case WIFI_EVENT_STA_WPS_ER_SUCCESS: {
+        wifi_event_sta_wps_er_success_t* e = (wifi_event_sta_wps_er_success_t*)data;
+        if (e && e->ap_cred_cnt > 0) {
+            memcpy(g_prov_ssid, e->ap_cred[0].ssid, 32); g_prov_ssid[32] = 0;
+            memcpy(g_prov_pass, e->ap_cred[0].passphrase, 64); g_prov_pass[64] = 0;
+        } else {                                              /* one network: already in the station config */
+            wifi_config_t c; memset(&c, 0, sizeof c);
+            esp_wifi_get_config(WIFI_IF_STA, &c);
+            memcpy(g_prov_ssid, c.sta.ssid, 32); g_prov_ssid[32] = 0;
+            memcpy(g_prov_pass, c.sta.password, 64); g_prov_pass[64] = 0;
+        }
+        g_prov = 2;
+        break;
+    }
+    case WIFI_EVENT_STA_WPS_ER_FAILED: case WIFI_EVENT_STA_WPS_ER_TIMEOUT: if (g_prov == 1) g_prov = -1; break;
     case WIFI_EVENT_SCAN_DONE: { wifi_event_sta_scan_done_t* e = (wifi_event_sta_scan_done_t*)data; post(MCS_NET_EV_SCAN_DONE, e->number); break; }
     case WIFI_EVENT_AP_START: post(MCS_NET_EV_AP_START, 0); break;
     case WIFI_EVENT_AP_STOP: memset(g.cl, 0, sizeof g.cl); post(MCS_NET_EV_AP_STOP, 0); break;
@@ -833,6 +854,55 @@ static int tls_read(void* conn, uint8_t* b, size_t n, uint32_t timeout) {
 }
 static void tls_close(void* conn) { esp_tls_conn_destroy((esp_tls_t*)conn); }
 
+/* ------------------------------------------------------------ WPS + SmartConfig (ESP-Touch / AirKiss) */
+static void on_sc(void* arg, esp_event_base_t base, int32_t id, void* data) {
+    (void)arg; (void)base;
+    if (id == SC_EVENT_GOT_SSID_PSWD && data) {
+        smartconfig_event_got_ssid_pswd_t* e = (smartconfig_event_got_ssid_pswd_t*)data;
+        memcpy(g_prov_ssid, e->ssid, 32); g_prov_ssid[32] = 0;
+        memcpy(g_prov_pass, e->password, 64); g_prov_pass[64] = 0;
+        g_prov = 2;
+    }
+}
+static int provision(void* ctx, int method, int op, char ssid[33], char pass[65]) {
+    (void)ctx;
+    if (method != MCS_WIFI_PROV_WPS && method != MCS_WIFI_PROV_SMARTCONFIG) return MCS_HAL_ENOTSUP;
+    if (op == MCS_WIFI_PROV_QUERY) return 0;
+    if (op == MCS_WIFI_PROV_START) {
+        int rc = set_mode(NULL, g.mode | MCS_WIFI_STA);
+        if (rc < 0) return rc;
+        g.user_disc = 1; g.connecting = 0;
+        esp_wifi_disconnect();
+        g_prov = 1; g_prov_method = method;
+        g_prov_ssid[0] = g_prov_pass[0] = 0;
+        if (method == MCS_WIFI_PROV_WPS) {
+            esp_wps_config_t c = WPS_CONFIG_INIT_DEFAULT(WPS_TYPE_PBC);
+            TRY(esp_wifi_wps_enable(&c));
+            TRY(esp_wifi_wps_start(0));
+        } else {
+            static int registered;
+            if (!registered) { TRY(esp_event_handler_instance_register(SC_EVENT, ESP_EVENT_ANY_ID, on_sc, NULL, NULL)); registered = 1; }
+            TRY(esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS));
+            smartconfig_start_config_t c = SMARTCONFIG_START_CONFIG_DEFAULT();
+            TRY(esp_smartconfig_start(&c));
+        }
+        return 0;
+    }
+    if (op == MCS_WIFI_PROV_POLL) {
+        if (g_prov == 2) { memcpy(ssid, g_prov_ssid, 33); memcpy(pass, g_prov_pass, 65); return 1; }
+        return g_prov < 0 ? MCS_HAL_ETIMEOUT : 0;
+    }
+    if (op == MCS_WIFI_PROV_STOP) {
+        if (g_prov) {
+            if (g_prov_method == MCS_WIFI_PROV_WPS) esp_wifi_wps_disable();
+            else esp_smartconfig_stop();
+        }
+        g_prov = 0; g.user_disc = 0;
+        return 0;
+    }
+    return MCS_HAL_EINVAL;
+}
+
 /* ------------------------------------------------------------ table */
 const mcs_net_t* mcs_esp32_net(void) {
     if (g_table.name) return &g_table;
@@ -857,6 +927,7 @@ const mcs_net_t* mcs_esp32_net(void) {
 #endif
     n->ping = ping;
     n->tls_open = tls_open; n->tls_write = tls_write; n->tls_read = tls_read; n->tls_close = tls_close;
+    n->provision = provision;
     n->name = "esp32";
     return n;
 }

@@ -75,6 +75,23 @@ typedef struct { mcs_flash_t flash; uint32_t offset; uint32_t size; } mcs_rp2_fl
 int mcs_rp2_flash_init(mcs_rp2_flash_t* f, uint32_t offset, uint32_t size);
 #endif
 
+/* Pico W / Pico 2 W Wi-Fi (-DMICROCS_WIFI=ON, needs MICROCS_OS=freertos; docs/NETWORK.md).
+ * mcs_rp2_hal_init registers the backend with mcs_net_set(); the CYW43439 driver and lwIP
+ * start at boot, the radio on the first Wifi call. The on-board LED is the chip's WL_GPIO0:
+ * Pin "LED" = MCS_RP2_WL_PIN(0) (WL_GPIO1 = VBUS sense, WL_GPIO2 = VSYS detect on a Pico W). */
+#ifndef MCS_RP2_WIFI
+#define MCS_RP2_WIFI 0
+#endif
+#define MCS_RP2_WL_PIN(n) (100 + (n))
+#ifndef MCS_RP2_HOSTNAME
+#define MCS_RP2_HOSTNAME "microcs"     /* DHCP host name until Wifi.Hostname is set */
+#endif
+#if MCS_RP2_WIFI
+#include "mcs_net.h"
+const mcs_net_t* mcs_rp2_net(void);
+int mcs_rp2_wl_gpio(int pin, int write, int v);     /* MCS_RP2_WL_PIN(0..2): write 0/1 or read */
+#endif
+
 #ifdef __cplusplus
 }
 #endif

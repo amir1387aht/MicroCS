@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        board: [pico, pico2, waveshare_rp2040_zero]
+        board: [pico, pico2, pico_w, pico2_w, waveshare_rp2040_zero]   # *_w: Wi-Fi (MICROCS_WIFI, automatic)
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain, pico-sdk, LittleFS
@@ -75,7 +75,7 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
-          git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
+          git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb lib/cyw43-driver lib/lwip
           git clone -q --depth 1 --branch v2.9.3 https://github.com/littlefs-project/littlefs.git $HOME/littlefs
           # FreeRTOS SMP from Raspberry Pi's FreeRTOS-Kernel (the RTOS of pico-examples; RP2040 + RP2350 ports)
           mkdir -p $HOME/FreeRTOS-Kernel && curl -sSL https://github.com/raspberrypi/FreeRTOS-Kernel/archive/4f7299d6ea746b27a9dd19e87af568e34bd65b15.tar.gz | tar xz --strip-components=1 -C $HOME/FreeRTOS-Kernel
@@ -172,7 +172,7 @@ jobs:
             echo
             echo "| Board | File | How to flash |"
             echo "|---|---|---|"
-            echo "| Raspberry Pi Pico / Pico 2 / RP2040-Zero | \`microcs-$V-<board>.uf2\` | hold BOOTSEL, plug in, copy the file to the RPI-RP2 drive |"
+            echo "| Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W / RP2040-Zero | \`microcs-$V-<board>.uf2\` | hold BOOTSEL, plug in, copy the file to the RPI-RP2 drive (\`pico_w\` / \`pico2_w\` files: Wi-Fi, sockets, HTTP client + server, WebSocket) |"
             echo "| ESP32 / ESP32-S3 / ESP32-C2 / ESP32-C3 / ESP32-C6 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
             echo "| STM32 Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI | \`microcs-$V-nucleo_<board>.bin\` | copy the file to the NOD_xxx drive of the Nucleo's ST-LINK (or STM32CubeProgrammer, \`.hex\` keeps your files); the console is the ST-LINK virtual COM port |"
             echo "| STM32 Black Pill (F411CE) | \`microcs-$V-blackpill_f411ce.bin\` | USB DFU (hold BOOT0, reset): \`dfu-util -a 0 -s 0x08000000:leave -D microcs-$V-blackpill_f411ce.bin\`, or ST-LINK; console = USART1 (PA9 TX, PA10 RX) via a USB-serial adapter |"

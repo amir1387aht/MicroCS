@@ -446,6 +446,48 @@ for (int round = 0; round < 5; round++)
     for (int i = leds.Count - 2; i > 0; i--) { leds[i].High(); Thread.Sleep(60); leds[i].Low(); }
 }
 `);
+T("GPIO", "Button: pull-up + Schmitt trigger (GpioConfig)", "button_config.cs",
+  "A clean button input with GpioConfig and an interrupt callback.",
+  String.raw`
+// Button between GPIO 9 and GND: internal pull-up, input hysteresis.
+// Unset properties stay at the board default; unsupported ones throw with the reason.
+var cfg = new GpioConfig(GPIO.Input, GPIO.PullUp) { Schmitt = true };
+var button = new Pin(9, cfg);
+Console.WriteLine(cfg);                       // GpioConfig { Pull = 2, Schmitt = true }
+button.OnChange(GPIO.Both, level => Console.WriteLine(level ? "released" : "pressed"));
+Console.WriteLine($"now {(button.Value ? "released" : "pressed")} - waiting 2 s for presses");
+Hal.Run(2000);
+`);
+
+T("GPIO", "LED: start on, strong drive (GpioConfig)", "led_config.cs",
+  "Set the level before the pin drives (no glitch), drive strength and speed.",
+  String.raw`
+// Initial = 1: the output level is set before the pin starts driving.
+// DriveMilliamps / Speed: where the chip has them (ESP32, RP2: 2/4/8/12 mA).
+var cfg = new GpioConfig(GPIO.Output) { Initial = 1, DriveMilliamps = 12, Speed = GPIO.SpeedHigh };
+Pin led;
+try { led = new Pin("LED", cfg); }
+catch (NotSupportedException e)              // e.g. STM32: no drive strength setting
+{
+    Console.WriteLine("board says: " + e.Message);
+    led = new Pin("LED", new GpioConfig(GPIO.Output) { Initial = 1 });
+}
+Console.WriteLine($"LED {led.Number} starts at {led.Value}");
+for (int i = 0; i < 6; i++) { led.Toggle(); Thread.Sleep(150); }
+`);
+
+T("GPIO", "Open-drain bus line with GpioConfig", "open_drain.cs",
+  "Open drain with no internal pull, then change the settings later.",
+  String.raw`
+// A shared open-drain line (e.g. a 1-wire style or interrupt line) with an external pull-up.
+var line = new Pin(4, new GpioConfig(GPIO.OpenDrain) { Pull = GPIO.PullNone, Initial = 1 });
+line.Low(); Thread.Sleep(1); line.High();   // a 1 ms low pulse
+Console.WriteLine($"line reads {line.Read()}");
+// reconfigure the same pin as an input with a pull-down
+line.Configure(new GpioConfig(GPIO.Input, GPIO.PullDown));
+Console.WriteLine($"as input with pull-down: {line.Read()}");
+`);
+
 /* ---------------------------------------------------------------- PWM */
 T("PWM", "Fade an LED (PWM)", "fade.cs",
   "Breathe an LED with PWM.Set(channel, hz, duty).", String.raw`
@@ -493,6 +535,22 @@ while (true)
     Thread.Sleep(20);
 }
 `);
+T("PWM", "PWM resolution, polarity, centre-aligned (PwmConfig)", "pwm_config.cs",
+  "PwmConfig before PWM.Set; errors explain what the board cannot do.",
+  String.raw`
+// Motor driver input: 20 kHz, 10-bit duty steps, active-low output.
+var cfg = new PwmConfig(20_000) { ResolutionBits = 10, Inverted = true };
+try { PWM.Configure(0, cfg); }
+catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
+for (double d = 0; d <= 1.0; d += 0.25)
+{
+    PWM.Set(0, 20_000, d);                    // keeps the configuration
+    Console.WriteLine($"duty {d:P0}");
+    Thread.Sleep(100);
+}
+PWM.Stop(0);
+`);
+
 /* ---------------------------------------------------------------- ADC and DAC */
 T("ADC and DAC", "Read an analog input", "adc.cs",
   "Raw value, millivolts and volts from an ADC channel.", String.raw`
@@ -541,6 +599,20 @@ for (int i = 0; i < 400; i++)
     Thread.Sleep(5);
 }
 `);
+T("ADC and DAC", "ADC input range and oversampling (AdcConfig)", "adc_config.cs",
+  "AdcConfig: attenuation (ESP32 input range) and averaged readings.",
+  String.raw`
+// ESP32: Atten12dB = full ~0..3.1 V range. Oversample = samples averaged per reading.
+var cfg = new AdcConfig(ADC.Atten12dB) { Oversample = 4 };
+try { ADC.Configure(0, cfg); Console.WriteLine(cfg); }
+catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
+for (int i = 0; i < 5; i++)
+{
+    Console.WriteLine($"raw {ADC.Read(0)}  {ADC.ReadMillivolts(0)} mV");
+    Thread.Sleep(100);
+}
+`);
+
 /* ---------------------------------------------------------------- UART */
 T("UART", "Serial port: send and receive", "uart.cs",
   "Open a UART, write a line and wait for an answer.", String.raw`
@@ -605,6 +677,36 @@ UART.Open(1, 115200);
 UART.Write(1, pkt);
 Console.WriteLine($"sent {pkt.Length} bytes; value back = {BitConverter.ToInt32(pkt, 2)}");
 `);
+T("UART", "UART with pins, parity and buffers (UartConfig)", "uart_config.cs",
+  "UartConfig: pins, framing, receive buffer; RS-485 shown as an option.",
+  String.raw`
+// GPS / modem on UART 1: 9600 baud, TX 17, RX 16, a 1 KB receive buffer.
+var cfg = new UartConfig(9600, 17, 16) { Parity = UART.ParityNone, RxBuffer = 1024 };
+// cfg.Rs485 = true; cfg.Rts = 4;            // half duplex: RTS drives the transceiver DE pin
+Console.WriteLine(cfg);
+UART.Open(1, cfg);
+UART.WriteLine(1, "$PMTK000*32");
+string reply = UART.ReadLine(1, 500);
+Console.WriteLine(reply ?? "(no reply)");
+UART.Close(1);
+`);
+
+T("UART", "UART receive with timeout and cancel", "uart_async.cs",
+  "UART.ReadAsync completes when the buffer is full; Wait(ms) and Cancel.",
+  String.raw`
+// Wait up to 1 s for a 16-byte packet, without blocking other code.
+UART.Open(1, 115200);
+var packet = new DmaBuffer(16);
+var rx = UART.ReadAsync(1, packet);
+UART.WriteAsync(1, "ping").Wait();
+if (rx.Wait(1000)) Console.WriteLine("packet: " + packet.GetString());
+else
+{
+    rx.Cancel();                              // stop waiting, free the buffer
+    Console.WriteLine($"no full packet in 1 s (completed={rx.IsCompleted})");
+}
+`);
+
 /* ---------------------------------------------------------------- I2C */
 T("I2C", "I2C bus scan", "i2c_scan.cs",
   "List every device that answers on an I2C bus.", String.raw`
@@ -683,6 +785,39 @@ for (int page = 0; page < 8; page++)
 }
 Console.WriteLine("pattern drawn");
 `);
+T("I2C", "I2C on your own pins (I2cConfig)", "i2c_pins.cs",
+  "Choose SDA/SCL, speed, pull-ups and timeout at run time, then scan.",
+  String.raw`
+// ESP32 / RP2: any pins at run time. STM32: pins come from CubeMX - leave Sda/Scl unset.
+var i2c = new I2cConfig(400_000, 21, 22)    // frequency, SDA, SCL
+{
+    PullUps = true,                           // false when the board has external resistors
+    TimeoutMs = 20,
+};
+Console.WriteLine(i2c);
+I2C.Open(0, i2c);
+var found = I2C.Scan(0);
+Console.WriteLine($"{found.Count} device(s): " + string.Join(", ", found.ConvertAll(a => $"0x{a:X2}")));
+`);
+
+T("I2C", "I2C sensor read without blocking", "i2c_async.cs",
+  "I2C.WriteReadAsync into a DmaBuffer; errors arrive when the transfer ends.",
+  String.raw`
+// Read 6 accelerometer bytes from an MPU-6050 (0x68) in the background.
+I2C.Open(0, 400000);
+var imu = new I2cDevice(0, 0x68);
+imu.WriteRegister(0x6B, 0);
+var regs = new DmaBuffer(6);
+var t = imu.WriteReadAsync(new byte[] { 0x3B }, regs);
+// ... other work here ...
+t.Wait();
+Console.WriteLine("accel raw: " + BitConverter.ToString(regs.ToArray()));
+// a missing device: the NACK is reported by Wait / Succeeded / Error
+var none = I2C.WriteAsync(0, 0x33, new byte[] { 1 });
+try { none.Wait(); } catch (IOException e) { Console.WriteLine("0x33: " + e.Message); }
+Console.WriteLine($"succeeded={none.Succeeded} error={none.Error}");
+`);
+
 /* ---------------------------------------------------------------- SPI */
 T("SPI", "SPI transfer", "spi.cs",
   "Full-duplex transfer with the static SPI API.", String.raw`
@@ -711,6 +846,104 @@ for (int i = 0; i < 16; i++)
 }
 sr.Write(new byte[] { 0 });
 `);
+T("SPI", "SPI bus with pins and chip select (SpiConfig)", "spi_config.cs",
+  "SpiConfig with pins, CS driven by MicroCS, then transfers.",
+  String.raw`
+// SPI bus 0: 8 MHz, mode 0, SCK 18, MOSI 23, MISO 19; chip select 5 handled by MicroCS.
+var spi = new SpiConfig(8_000_000, 0, 18, 23, 19) { Cs = 5 };
+SPI.Open(0, spi);
+byte[] rx = SPI.Transfer(0, new byte[] { 0x9F, 0, 0, 0 });   // CS from the config
+Console.WriteLine("JEDEC id: " + BitConverter.ToString(rx, 1));
+// one config per device: the bus is re-configured on every access
+var sensor = new SpiDevice(0, 4, new SpiConfig(1_000_000, 3));
+Console.WriteLine($"sensor on bus {sensor.Bus}, CS {sensor.ChipSelect}: " + BitConverter.ToString(sensor.Transfer(new byte[] { 0x80, 0 })));
+`);
+
+T("SPI", "SPI frame in the background", "spi_async.cs",
+  "SPI.WriteAsync returns at once; do other work, then Wait or OnComplete.",
+  String.raw`
+// A 1 KB display frame sent with DMA while the CPU keeps working.
+// Boards without DMA run the same call synchronously - the script does not change.
+SPI.Open(0, new SpiConfig(20_000_000, 0) { Cs = 5 });
+var frame = new DmaBuffer(1024);
+frame.Fill(0xAA);
+var t = SPI.WriteAsync(0, frame);
+int work = 0;
+while (!t.IsCompleted) work++;               // free CPU time
+Console.WriteLine($"{t.Result} bytes sent, {work} loops meanwhile (DMA.SPI = {Hal.Has("DMA.SPI")})");
+SPI.WriteAsync(0, frame).OnComplete(n => Console.WriteLine($"callback: {n} bytes"));
+Dma.WaitAll();
+Hal.Poll();                                  // run the pending callback now
+`);
+
+/* ---------------------------------------------------------------- QSPI */
+T("QSPI", "QSPI flash id", "qspi.cs",
+  "Read a QSPI NOR flash JEDEC id and data.", String.raw`
+// QSPI NOR flash on bus 0.
+QSPI.Open(0, 10000000);
+byte[] id = QSPI.Read(0, 0x9F, -1, 3);                  // -1 = no address phase
+Console.WriteLine($"JEDEC {BitConverter.ToString(id)}");
+byte[] data = QSPI.Read(0, 0x03, 0, 16);                 // READ at address 0
+Console.WriteLine($"first bytes {BitConverter.ToString(data)}");
+`);
+
+T("QSPI", "QSPI flash read into a DmaBuffer", "qspi_async.cs",
+  "Read a NOR flash id and data with QSPI.ReadAsync / QSPI.Read.",
+  String.raw`
+// W25Qxx on QSPI bus 0: JEDEC id (0x9F, no address), then 256 bytes with quad read (0x6B).
+QSPI.Open(0, 40_000_000);
+var id = new DmaBuffer(3);
+QSPI.ReadAsync(0, 0x9F, -1, id).Wait();
+Console.WriteLine("JEDEC " + BitConverter.ToString(id.ToArray()));
+var page = new DmaBuffer(256);
+QSPI.ReadAsync(0, 0x6B, 0x000000, page, 8, 4).Wait();   // 8 dummy cycles, 4 data lines
+Console.WriteLine("first bytes " + BitConverter.ToString(page.ToArray(0, 8)));
+`);
+
+/* ---------------------------------------------------------------- I2S audio */
+T("I2S audio", "I2S tone", "i2s.cs",
+  "Generate a sine tone and send it to an I2S DAC / amplifier.", String.raw`
+// 16-bit mono at 16 kHz to an I2S amplifier (MAX98357A...) on bus 0.
+I2S.Open(0, 16000, 16, 1);
+var buf = new int[100];                                  // 100 samples = 6.25 ms (max 256 bytes per call)
+for (int i = 0; i < buf.Length; i++) buf[i] = (int)(Math.Sin(2 * Math.PI * 440 * i / 16000.0) * 8000);
+for (int n = 0; n < 160; n++) I2S.WriteSamples(0, buf);  // 1 s of 440 Hz
+I2S.Close(0);
+`);
+
+T("I2S audio", "I2S microphone level", "i2s_mic.cs",
+  "Read samples from an I2S microphone and print the level.", String.raw`
+// INMP441-style microphone on I2S bus 0 (receive).
+I2S.Open(0, 16000, 32, 1, I2S.Receive);
+for (int n = 0; n < 40; n++)
+{
+    int[] s = I2S.ReadSamples(0, 64);                    // 64 x 32-bit = 256 bytes per call
+    double sum = 0;
+    foreach (int x in s) sum += (double)x * x;
+    Console.WriteLine($"level {Math.Sqrt(sum / s.Length):F0}");
+}
+I2S.Close(0);
+`);
+
+/* ---------------------------------------------------------------- CAN */
+T("CAN", "CAN bus send and receive", "can.cs",
+  "Send frames and print received ones (TWAI on ESP32).", String.raw`
+// CAN bus 0 at 500 kbit/s.
+CAN.Open(0, 500000);
+CAN.OnReceive(0, (int pending) =>
+{
+    CanFrame f;
+    while ((f = CAN.Receive(0)) != null) Console.WriteLine($"rx {f}");
+});
+for (int i = 0; i < 5; i++)
+{
+    CAN.Send(0, 0x123, new byte[] { (byte)i, 0xAB });
+    Thread.Sleep(200);
+}
+CAN.Send(0, new CanFrame(0x18FF50E5, new byte[] { 1, 2, 3 }, true));   // extended id
+Hal.Run(500);
+`);
+
 /* ---------------------------------------------------------------- Timers and events */
 T("Timers and events", "Hardware timer", "timer.cs",
   "Periodic and one-shot hardware timers with microsecond periods.", String.raw`
@@ -806,57 +1039,7 @@ catch (TimeoutException) { Console.WriteLine("timeout"); }
 catch (NotSupportedException e) { Console.WriteLine($"not on this board: {e.Message}"); }
 finally { Console.WriteLine("done"); }
 `);
-/* ---------------------------------------------------------------- Audio, CAN, QSPI */
-T("Audio, CAN, QSPI", "I2S tone", "i2s.cs",
-  "Generate a sine tone and send it to an I2S DAC / amplifier.", String.raw`
-// 16-bit mono at 16 kHz to an I2S amplifier (MAX98357A...) on bus 0.
-I2S.Open(0, 16000, 16, 1);
-var buf = new int[100];                                  // 100 samples = 6.25 ms (max 256 bytes per call)
-for (int i = 0; i < buf.Length; i++) buf[i] = (int)(Math.Sin(2 * Math.PI * 440 * i / 16000.0) * 8000);
-for (int n = 0; n < 160; n++) I2S.WriteSamples(0, buf);  // 1 s of 440 Hz
-I2S.Close(0);
-`);
-T("Audio, CAN, QSPI", "I2S microphone level", "i2s_mic.cs",
-  "Read samples from an I2S microphone and print the level.", String.raw`
-// INMP441-style microphone on I2S bus 0 (receive).
-I2S.Open(0, 16000, 32, 1, I2S.Receive);
-for (int n = 0; n < 40; n++)
-{
-    int[] s = I2S.ReadSamples(0, 64);                    // 64 x 32-bit = 256 bytes per call
-    double sum = 0;
-    foreach (int x in s) sum += (double)x * x;
-    Console.WriteLine($"level {Math.Sqrt(sum / s.Length):F0}");
-}
-I2S.Close(0);
-`);
-T("Audio, CAN, QSPI", "CAN bus send and receive", "can.cs",
-  "Send frames and print received ones (TWAI on ESP32).", String.raw`
-// CAN bus 0 at 500 kbit/s.
-CAN.Open(0, 500000);
-CAN.OnReceive(0, (int pending) =>
-{
-    CanFrame f;
-    while ((f = CAN.Receive(0)) != null) Console.WriteLine($"rx {f}");
-});
-for (int i = 0; i < 5; i++)
-{
-    CAN.Send(0, 0x123, new byte[] { (byte)i, 0xAB });
-    Thread.Sleep(200);
-}
-CAN.Send(0, new CanFrame(0x18FF50E5, new byte[] { 1, 2, 3 }, true));   // extended id
-Hal.Run(500);
-`);
-T("Audio, CAN, QSPI", "QSPI flash id", "qspi.cs",
-  "Read a QSPI NOR flash JEDEC id and data.", String.raw`
-// QSPI NOR flash on bus 0.
-QSPI.Open(0, 10000000);
-byte[] id = QSPI.Read(0, 0x9F, -1, 3);                  // -1 = no address phase
-Console.WriteLine($"JEDEC {BitConverter.ToString(id)}");
-byte[] data = QSPI.Read(0, 0x03, 0, 16);                 // READ at address 0
-Console.WriteLine($"first bytes {BitConverter.ToString(data)}");
-`);
-/* ---------------------------------------------------------------- Peripheral settings and DMA (HAL v3) */
-T("Peripheral settings", "What can this board do?", "board_caps.cs",
+T("Board and system", "What can this board do?", "board_caps.cs",
   "Hal.Has for full settings and DMA, and the board-specific options.",
   String.raw`
 // Which peripherals take full settings objects, what runs on DMA, and the
@@ -870,121 +1053,7 @@ Console.WriteLine($"{opts.Count} board options");
 foreach (var o in opts) Console.WriteLine("  " + o);
 `);
 
-T("Peripheral settings", "Button: pull-up + Schmitt trigger (GpioConfig)", "button_config.cs",
-  "A clean button input with GpioConfig and an interrupt callback.",
-  String.raw`
-// Button between GPIO 9 and GND: internal pull-up, input hysteresis.
-// Unset properties stay at the board default; unsupported ones throw with the reason.
-var cfg = new GpioConfig(GPIO.Input, GPIO.PullUp) { Schmitt = true };
-var button = new Pin(9, cfg);
-Console.WriteLine(cfg);                       // GpioConfig { Pull = 2, Schmitt = true }
-button.OnChange(GPIO.Both, level => Console.WriteLine(level ? "released" : "pressed"));
-Console.WriteLine($"now {(button.Value ? "released" : "pressed")} - waiting 2 s for presses");
-Hal.Run(2000);
-`);
-
-T("Peripheral settings", "LED: start on, strong drive (GpioConfig)", "led_config.cs",
-  "Set the level before the pin drives (no glitch), drive strength and speed.",
-  String.raw`
-// Initial = 1: the output level is set before the pin starts driving.
-// DriveMilliamps / Speed: where the chip has them (ESP32, RP2: 2/4/8/12 mA).
-var cfg = new GpioConfig(GPIO.Output) { Initial = 1, DriveMilliamps = 12, Speed = GPIO.SpeedHigh };
-Pin led;
-try { led = new Pin("LED", cfg); }
-catch (NotSupportedException e)              // e.g. STM32: no drive strength setting
-{
-    Console.WriteLine("board says: " + e.Message);
-    led = new Pin("LED", new GpioConfig(GPIO.Output) { Initial = 1 });
-}
-Console.WriteLine($"LED {led.Number} starts at {led.Value}");
-for (int i = 0; i < 6; i++) { led.Toggle(); Thread.Sleep(150); }
-`);
-
-T("Peripheral settings", "Open-drain bus line with GpioConfig", "open_drain.cs",
-  "Open drain with no internal pull, then change the settings later.",
-  String.raw`
-// A shared open-drain line (e.g. a 1-wire style or interrupt line) with an external pull-up.
-var line = new Pin(4, new GpioConfig(GPIO.OpenDrain) { Pull = GPIO.PullNone, Initial = 1 });
-line.Low(); Thread.Sleep(1); line.High();   // a 1 ms low pulse
-Console.WriteLine($"line reads {line.Read()}");
-// reconfigure the same pin as an input with a pull-down
-line.Configure(new GpioConfig(GPIO.Input, GPIO.PullDown));
-Console.WriteLine($"as input with pull-down: {line.Read()}");
-`);
-
-T("Peripheral settings", "I2C on your own pins (I2cConfig)", "i2c_pins.cs",
-  "Choose SDA/SCL, speed, pull-ups and timeout at run time, then scan.",
-  String.raw`
-// ESP32 / RP2: any pins at run time. STM32: pins come from CubeMX - leave Sda/Scl unset.
-var i2c = new I2cConfig(400_000, 21, 22)    // frequency, SDA, SCL
-{
-    PullUps = true,                           // false when the board has external resistors
-    TimeoutMs = 20,
-};
-Console.WriteLine(i2c);
-I2C.Open(0, i2c);
-var found = I2C.Scan(0);
-Console.WriteLine($"{found.Count} device(s): " + string.Join(", ", found.ConvertAll(a => $"0x{a:X2}")));
-`);
-
-T("Peripheral settings", "SPI bus with pins and chip select (SpiConfig)", "spi_config.cs",
-  "SpiConfig with pins, CS driven by MicroCS, then transfers.",
-  String.raw`
-// SPI bus 0: 8 MHz, mode 0, SCK 18, MOSI 23, MISO 19; chip select 5 handled by MicroCS.
-var spi = new SpiConfig(8_000_000, 0, 18, 23, 19) { Cs = 5 };
-SPI.Open(0, spi);
-byte[] rx = SPI.Transfer(0, new byte[] { 0x9F, 0, 0, 0 });   // CS from the config
-Console.WriteLine("JEDEC id: " + BitConverter.ToString(rx, 1));
-// one config per device: the bus is re-configured on every access
-var sensor = new SpiDevice(0, 4, new SpiConfig(1_000_000, 3));
-Console.WriteLine($"sensor on bus {sensor.Bus}, CS {sensor.ChipSelect}: " + BitConverter.ToString(sensor.Transfer(new byte[] { 0x80, 0 })));
-`);
-
-T("Peripheral settings", "UART with pins, parity and buffers (UartConfig)", "uart_config.cs",
-  "UartConfig: pins, framing, receive buffer; RS-485 shown as an option.",
-  String.raw`
-// GPS / modem on UART 1: 9600 baud, TX 17, RX 16, a 1 KB receive buffer.
-var cfg = new UartConfig(9600, 17, 16) { Parity = UART.ParityNone, RxBuffer = 1024 };
-// cfg.Rs485 = true; cfg.Rts = 4;            // half duplex: RTS drives the transceiver DE pin
-Console.WriteLine(cfg);
-UART.Open(1, cfg);
-UART.WriteLine(1, "$PMTK000*32");
-string reply = UART.ReadLine(1, 500);
-Console.WriteLine(reply ?? "(no reply)");
-UART.Close(1);
-`);
-
-T("Peripheral settings", "PWM resolution, polarity, centre-aligned (PwmConfig)", "pwm_config.cs",
-  "PwmConfig before PWM.Set; errors explain what the board cannot do.",
-  String.raw`
-// Motor driver input: 20 kHz, 10-bit duty steps, active-low output.
-var cfg = new PwmConfig(20_000) { ResolutionBits = 10, Inverted = true };
-try { PWM.Configure(0, cfg); }
-catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
-for (double d = 0; d <= 1.0; d += 0.25)
-{
-    PWM.Set(0, 20_000, d);                    // keeps the configuration
-    Console.WriteLine($"duty {d:P0}");
-    Thread.Sleep(100);
-}
-PWM.Stop(0);
-`);
-
-T("Peripheral settings", "ADC input range and oversampling (AdcConfig)", "adc_config.cs",
-  "AdcConfig: attenuation (ESP32 input range) and averaged readings.",
-  String.raw`
-// ESP32: Atten12dB = full ~0..3.1 V range. Oversample = samples averaged per reading.
-var cfg = new AdcConfig(ADC.Atten12dB) { Oversample = 4 };
-try { ADC.Configure(0, cfg); Console.WriteLine(cfg); }
-catch (NotSupportedException e) { Console.WriteLine("board says: " + e.Message); }
-for (int i = 0; i < 5; i++)
-{
-    Console.WriteLine($"raw {ADC.Read(0)}  {ADC.ReadMillivolts(0)} mV");
-    Thread.Sleep(100);
-}
-`);
-
-T("Peripheral settings", "Board options and reusable settings", "board_options.cs",
+T("Board and system", "Board options and reusable settings", "board_options.cs",
   "Set chip-specific options by name; copy, tweak and reuse settings objects.",
   String.raw`
 // Options only one chip family has are set by name (see Hal.Options("SPI")).
@@ -1001,6 +1070,7 @@ fast.Reset();
 Console.WriteLine(fast);
 `);
 
+/* ---------------------------------------------------------------- DMA (HAL v3) */
 T("DMA", "DmaBuffer basics", "dma_buffer.cs",
   "DMA-capable memory: index, fill, copy, convert.",
   String.raw`
@@ -1013,23 +1083,6 @@ Console.WriteLine($"{buf} '{buf.GetString(0, 8)}'");
 Console.WriteLine(BitConverter.ToString(buf.ToArray(0, 8)));
 var copy = new DmaBuffer(buf);               // a copy (also from byte[] or string)
 Console.WriteLine($"copy length {copy.Length}, busy {copy.Busy}");
-`);
-
-T("DMA", "SPI frame in the background", "spi_async.cs",
-  "SPI.WriteAsync returns at once; do other work, then Wait or OnComplete.",
-  String.raw`
-// A 1 KB display frame sent with DMA while the CPU keeps working.
-// Boards without DMA run the same call synchronously - the script does not change.
-SPI.Open(0, new SpiConfig(20_000_000, 0) { Cs = 5 });
-var frame = new DmaBuffer(1024);
-frame.Fill(0xAA);
-var t = SPI.WriteAsync(0, frame);
-int work = 0;
-while (!t.IsCompleted) work++;               // free CPU time
-Console.WriteLine($"{t.Result} bytes sent, {work} loops meanwhile (DMA.SPI = {Hal.Has("DMA.SPI")})");
-SPI.WriteAsync(0, frame).OnComplete(n => Console.WriteLine($"callback: {n} bytes"));
-Dma.WaitAll();
-Hal.Poll();                                  // run the pending callback now
 `);
 
 T("DMA", "Double-buffered display loop", "dma_double_buffer.cs",
@@ -1050,53 +1103,6 @@ for (int f = 0; f < 30; f++)
 }
 sending.Wait();
 Console.WriteLine($"30 frames in {sw.ElapsedMilliseconds} ms");
-`);
-
-T("DMA", "I2C sensor read without blocking", "i2c_async.cs",
-  "I2C.WriteReadAsync into a DmaBuffer; errors arrive when the transfer ends.",
-  String.raw`
-// Read 6 accelerometer bytes from an MPU-6050 (0x68) in the background.
-I2C.Open(0, 400000);
-var imu = new I2cDevice(0, 0x68);
-imu.WriteRegister(0x6B, 0);
-var regs = new DmaBuffer(6);
-var t = imu.WriteReadAsync(new byte[] { 0x3B }, regs);
-// ... other work here ...
-t.Wait();
-Console.WriteLine("accel raw: " + BitConverter.ToString(regs.ToArray()));
-// a missing device: the NACK is reported by Wait / Succeeded / Error
-var none = I2C.WriteAsync(0, 0x33, new byte[] { 1 });
-try { none.Wait(); } catch (IOException e) { Console.WriteLine("0x33: " + e.Message); }
-Console.WriteLine($"succeeded={none.Succeeded} error={none.Error}");
-`);
-
-T("DMA", "UART receive with timeout and cancel", "uart_async.cs",
-  "UART.ReadAsync completes when the buffer is full; Wait(ms) and Cancel.",
-  String.raw`
-// Wait up to 1 s for a 16-byte packet, without blocking other code.
-UART.Open(1, 115200);
-var packet = new DmaBuffer(16);
-var rx = UART.ReadAsync(1, packet);
-UART.WriteAsync(1, "ping").Wait();
-if (rx.Wait(1000)) Console.WriteLine("packet: " + packet.GetString());
-else
-{
-    rx.Cancel();                              // stop waiting, free the buffer
-    Console.WriteLine($"no full packet in 1 s (completed={rx.IsCompleted})");
-}
-`);
-
-T("DMA", "QSPI flash read into a DmaBuffer", "qspi_async.cs",
-  "Read a NOR flash id and data with QSPI.ReadAsync / QSPI.Read.",
-  String.raw`
-// W25Qxx on QSPI bus 0: JEDEC id (0x9F, no address), then 256 bytes with quad read (0x6B).
-QSPI.Open(0, 40_000_000);
-var id = new DmaBuffer(3);
-QSPI.ReadAsync(0, 0x9F, -1, id).Wait();
-Console.WriteLine("JEDEC " + BitConverter.ToString(id.ToArray()));
-var page = new DmaBuffer(256);
-QSPI.ReadAsync(0, 0x6B, 0x000000, page, 8, 4).Wait();   // 8 dummy cycles, 4 data lines
-Console.WriteLine("first bytes " + BitConverter.ToString(page.ToArray(0, 8)));
 `);
 
 T("DMA", "Memory copy and fill (Dma)", "dma_memory.cs",

@@ -30,6 +30,8 @@
 #                     second-core jobs on the OS's tasks (docs/THREADS.md, cmake/MicroCSOS.cmake).
 #                     FreeRTOS: a freertos_kernel / FreeRTOS-Kernel target, or MICROCS_FREERTOS_PATH
 #                     + MICROCS_FREERTOS_PORT + MICROCS_FREERTOS_CONFIG_DIR
+#   MICROCS_WIFI      ON (RP2 only): Wi-Fi + lwIP sockets on a Pico W / Pico 2 W (PICO_BOARD=pico_w / pico2_w,
+#                     MICROCS_OS=freertos; ports/rp2/mcs_port_rp2_net.c, lwipopts.h from MICROCS_LWIPOPTS_DIR)
 #   MICROCS_U8G2      ON: C# U8g2 / U8x8 on olikraus' u8g2 library (docs/U8G2.md; default OFF, or ON when
 #                     mcs_user_config.h has #define MCS_ENABLE_U8G2 1). Sources: MICROCS_U8G2_DIR, a copy
 #                     found next to the project or -DMICROCS_U8G2_DOWNLOAD=ON; compiled in only the
@@ -200,6 +202,9 @@ endif()
 if(NOT DEFINED MICROCS_SERVO)
     option(MICROCS_SERVO "Built-in servo driver: C# Servo (hobby servos on a PWM channel)" ON)
 endif()
+if(NOT DEFINED MICROCS_WIFI)
+    option(MICROCS_WIFI "RP2: Wi-Fi + sockets on a Pico W / Pico 2 W (needs MICROCS_OS=freertos)" OFF)
+endif()
 if(NOT DEFINED MICROCS_OS)
     set(MICROCS_OS "none" CACHE STRING "OS for real C# threads: none (default, single-threaded), freertos, posix, auto")
 endif()
@@ -275,6 +280,7 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # ------------------------------------------------------------------ vendor SDKs
+string(TOLOWER "${MICROCS_OS}" _mcs_os_lc)
 if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
                           hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
@@ -284,6 +290,19 @@ if(MICROCS_PORT STREQUAL "rp2")
     endif()
     if(TARGET pico_flash)
         target_link_libraries(microcs PUBLIC pico_flash)   # flash_safe_execute (pico-sdk >= 1.5.1)
+    endif()
+    if(MICROCS_WIFI)                                 # Pico W / Pico 2 W: Wi-Fi + lwIP sockets (docs/NETWORK.md)
+        if(NOT TARGET pico_cyw43_arch_lwip_sys_freertos OR NOT _mcs_os_lc STREQUAL "freertos")
+            message(FATAL_ERROR "MICROCS_WIFI=ON needs a board with the CYW43 radio (-DPICO_BOARD=pico_w or pico2_w) "
+                "and -DMICROCS_OS=freertos (lwIP sockets run in FreeRTOS threads)")
+        endif()
+        target_sources(microcs PRIVATE ${MICROCS_DIR}/ports/rp2/mcs_port_rp2_net.c)
+        if(NOT MICROCS_LWIPOPTS_DIR)
+            set(MICROCS_LWIPOPTS_DIR ${MICROCS_DIR}/ports/rp2/wifi)   # lwipopts.h (your own: -DMICROCS_LWIPOPTS_DIR=...)
+        endif()
+        target_include_directories(microcs PUBLIC ${MICROCS_LWIPOPTS_DIR})
+        target_link_libraries(microcs PUBLIC pico_cyw43_arch_lwip_sys_freertos pico_lwip_sntp pico_lwip_mdns)
+        target_compile_definitions(microcs PUBLIC MCS_RP2_WIFI=1 MCS_ENABLE_NET=1 MCS_NET_LWIP=1 MCS_NET_SIM=0)
     endif()
 elseif(MICROCS_PORT STREQUAL "stm32")
     # STM32CubeMX >= 6.11 generates an INTERFACE target with the HAL includes + defines
