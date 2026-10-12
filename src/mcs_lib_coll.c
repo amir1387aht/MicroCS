@@ -250,7 +250,7 @@ static mcs_value_t minmax(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t*
         if (!item_at(vm, l, i, argc, argv, &v)) FAIL_POP();
         int c = mcs_compare_values(vm, v, best, &ok);
         if (!ok) FAIL_POP();
-        if (c * sign > 0) { best = v; bestv = l->items[i]; vm->roots[vm->root_count - 1] = best; }
+        if (c * sign > 0) { best = v; bestv = l->items[i]; *mcs_root_slot(vm, vm->root_count - 1) = best; }
     }
     mcs_pop_root(vm, 1);
     return by ? bestv : best;
@@ -480,7 +480,7 @@ NATIVE(seq_aggregate) {
     for (uint32_t i = start; i < l->count; i++) {
         mcs_value_t args[2] = { acc, l->items[i] };
         if (!lib_call(vm, fn, 2, args, &acc)) FAIL_POP();
-        vm->roots[vm->root_count - 1] = acc;
+        *mcs_root_slot(vm, vm->root_count - 1) = acc;
     }
     if (argc >= 3) { mcs_value_t r; if (!lib_call(vm, argv[2], 1, &acc, &r)) FAIL_POP(); acc = r; }
     mcs_pop_root(vm, 1);
@@ -874,7 +874,7 @@ NATIVE(list_asreadonly) { return self; }
 /* ------------------------------------------------------------ Enumerable */
 NATIVE(enum_range) {
     mcs_int_t a = mcs_to_int(vm, argv[0]), n = mcs_to_int(vm, argv[1]); CHECK();
-    if (n < 0 || n > 0x7FFFFFF) { mcs_throw(vm, EXC_ARGRANGE, "Specified argument was out of the range of valid values. (Parameter 'count')"); return mcs_null(); }
+    if (n < 0 || n > 0x7FFFFFF || (n > 0 && (int64_t)a + (int64_t)n - 1 > INT32_MAX)) { mcs_throw(vm, EXC_ARGRANGE, "Specified argument was out of the range of valid values. (Parameter 'count')"); return mcs_null(); }
     vm->gc_pause++;
     mcs_list_t* o = mcs_new_listobj(vm, MCS_O_LIST, (uint32_t)n);
     for (mcs_int_t i = 0; i < n; i++) o->items[i] = mcs_int(a + i);

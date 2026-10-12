@@ -20,7 +20,42 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   device now asks before replacing it; added templates get a name no open tab uses
   (`hello-2.cs`); *Add* / *Insert at cursor* are disabled without a selection (and *Insert*
   for read-only tabs); the save dialog selects the name without the extension for any
-  extension (it assumed `.cs`) and accepts a relative path.
+  extension (it assumed `.cs`) and accepts a relative path. The *Wi-Fi and networking* folder
+  is `28-wifi-and-networking`; `test_templates.js` fails on a template without source or
+  description.
+* **Robustness pass** (ASan/UBSan, source + shell-protocol fuzzing of tests, examples and
+  templates):
+  * array / list / buffer allocations check `count * element size` for overflow — on 32-bit
+    MCUs `new int[int.MaxValue]` wrapped to a tiny block and then overflowed the heap; it now
+    fails with an out-of-memory error like any other too-large allocation;
+  * `StringComparison` is honored by `IndexOf`, `LastIndexOf`, `Contains`, `StartsWith`,
+    `EndsWith`, `Replace`, `Equals`, `string.Equals` and `string.Compare` (before,
+    `IndexOf("x", StringComparison.Ordinal)` took the enum for a start index and
+    `string.Compare(a, b, StringComparison.Ordinal)` ignored case);
+    added `CurrentCulture` / `InvariantCulture`; `StartsWith` / `EndsWith(v, ignoreCase, culture)`;
+  * `IndexOf(value, start, count)` honors `count`; `LastIndexOf(value, startIndex[, count])`
+    searches backwards from `startIndex` (both ignored the extra arguments);
+  * `Math.Round(x, digits)` returns huge values unchanged (`Math.Round(1e300, 15)` was
+    infinity);
+  * `StringBuilder.Remove` / `ToString(start, length)`, `LedStrip.Fill` and u8g2 rounded boxes
+    no longer overflow `int` in their range checks;
+  * `--sim-virtual`: the virtual clock advances on every `Hal.Micros` read, so
+    `GPIO.PulseIn` and other busy-waits no longer spin forever; RAM filesystem reads/writes
+    of 0 bytes no longer pass a null pointer to `memcpy`;
+  * compiler: an unterminated string or char literal ending in `\` (or in an interpolation
+    hole) no longer moves the lexer past the end of the source (which then tried to allocate
+    gigabytes for the token array); `void.X` in an expression is a syntax error instead of a
+    null-pointer `strlen`; `mcs -c` prints each compile error once (it printed the last one twice).
+  * native GC roots beyond `MCS_MAX_ROOTS` spill to the heap: recursion through LINQ
+    callbacks (or `Sort` comparers ...) ended the script with an uncatchable
+    *fatal: too many temporary roots*; it now reaches the normal, catchable
+    `StackOverflowException`. A panic also restores the root count (in the REPL every later
+    native call failed after one such error);
+  * `Json.Parse` no longer roots every open object (16 nested objects were fatal); nesting
+    deeper than 32 is a `FormatException` as documented;
+  * `Enumerable.Range(start, count)` throws when `start + count - 1` overflows `int`;
+  * `tools/fuzz.py` (run in CI) also mutates the examples and every Studio template, and
+    alternates `--sim` / `--sim-virtual` runs with compile-only runs.
 
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 

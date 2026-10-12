@@ -329,7 +329,8 @@ static int sim_poll(void* ctx, mcs_hal_event_t* ev) {
     }
     return 0;   /* events went through the shared queue */
 }
-static uint32_t sim_micros(void* ctx) { return now_us(SIM); }
+/* virtual clock: each read advances it by 1 us, so busy-waits on Micros (GPIO.PulseIn, polling loops) end */
+static uint32_t sim_micros(void* ctx) { return SIM->clock_us ? now_us(SIM) : SIM->virt_us++; }
 static void sim_delay_us(void* ctx, uint32_t us) { if (!SIM->clock_us) SIM->virt_us += us; else { uint32_t t0 = now_us(SIM); while (now_us(SIM) - t0 < us) {} } }
 
 /* ---------------------------------------------------------------- I2S (loopback) */

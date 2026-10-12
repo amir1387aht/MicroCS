@@ -1052,7 +1052,7 @@ NATIVE(g_line) { GSELF(); INTS(4); u8g2_DrawLine(G2(d), U(a[0]), U(a[1]), U(a[2]
 NATIVE(g_box) { GSELF(); INTS(4); u8g2_DrawBox(G2(d), U(a[0]), U(a[1]), U(a[2]), U(a[3])); return mcs_null(); }
 NATIVE(g_frame) { GSELF(); INTS(4); u8g2_DrawFrame(G2(d), U(a[0]), U(a[1]), U(a[2]), U(a[3])); return mcs_null(); }
 static bool rbox_ok(mcs_vm_t* vm, int* a) {   /* u8g2 needs w, h >= 2 * (r + 1) */
-    if (a[4] < 0 || a[2] < 2 * (a[4] + 1) || a[3] < 2 * (a[4] + 1)) { mcs_raise(vm, "ArgumentOutOfRangeException", "rounded box: width and height must be >= 2 * (radius + 1)"); return false; }
+    if (a[4] < 0 || a[4] > 0x7fff || a[2] < 2 * (a[4] + 1) || a[3] < 2 * (a[4] + 1)) { mcs_raise(vm, "ArgumentOutOfRangeException", "rounded box: width and height must be >= 2 * (radius + 1)"); return false; }
     return true;
 }
 NATIVE(g_rbox) { GSELF(); INTS(5); if (!rbox_ok(vm, a)) return mcs_null(); u8g2_DrawRBox(G2(d), U(a[0]), U(a[1]), U(a[2]), U(a[3]), U(a[4])); return mcs_null(); }

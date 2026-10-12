@@ -22,17 +22,34 @@ static bool piece_of(mcs_vm_t* vm, mcs_value_t v, piece_t* pc, const char* param
     return false;
 }
 
-static long find_bytes(const char* h, size_t hn, const char* nd, size_t nn, size_t from) {
-    if (nn == 0) return from <= hn ? (long)from : -1;
-    if (nn > hn) return -1;
-    for (size_t i = from; i + nn <= hn; i++)
-        if (h[i] == nd[0] && memcmp(h + i, nd, nn) == 0) return (long)i;
+/* StringComparison values are tagged ints, so IndexOf(s, StringComparison.Ordinal) is not
+ * mistaken for IndexOf(s, startIndex) (enums are plain ints at run time) */
+#define STRCMP_TAG ((mcs_int_t)0x53430000)
+static int cmp_mode(mcs_value_t v) { return v.type == MCS_T_INT && (v.as.i & ~(mcs_int_t)0xF) == STRCMP_TAG ? (int)(v.as.i & 0xF) : -1; }
+static bool cmp_ic(int m) { return m == 1 || m == 3 || m == 5; } /* *IgnoreCase */
+/* strips a trailing StringComparison argument; returns true for an *IgnoreCase one */
+static bool take_cmp(int* argc, const mcs_value_t* argv, int min) {
+    if (*argc > min && cmp_mode(argv[*argc - 1]) >= 0) { (*argc)--; return cmp_ic(cmp_mode(argv[*argc])); }
+    return false;
+}
+static int fold_c(int c) { return (c >= 'A' && c <= 'Z') ? c + 32 : c; }
+static bool eq_bytes(const char* a, const char* b, size_t n, bool ic) {
+    if (!ic) return memcmp(a, b, n) == 0;
+    for (size_t i = 0; i < n; i++) if (fold_c((unsigned char)a[i]) != fold_c((unsigned char)b[i])) return false;
+    return true;
+}
+/* first match of nd in h[from, hn) */
+static long find_in(const char* h, size_t hn, const char* nd, size_t nn, size_t from, bool ic) {
+    if (from > hn) return -1;
+    if (nn == 0) return (long)from;
+    for (size_t i = from; i + nn <= hn; i++) if (eq_bytes(h + i, nd, nn, ic)) return (long)i;
     return -1;
 }
 #if MCS_ENABLE_STRING_EXTRA
-static long rfind_bytes(const char* h, size_t hn, const char* nd, size_t nn) {
-    if (nn > hn) return -1;
-    for (size_t i = hn - nn + 1; i-- > 0;) if (memcmp(h + i, nd, nn) == 0) return (long)i;
+/* last match of nd lying entirely in h[lo, hi) */
+static long rfind_in(const char* h, size_t lo, size_t hi, const char* nd, size_t nn, bool ic) {
+    if (hi < lo || nn > hi - lo) return -1;
+    for (size_t i = hi - nn + 1; i-- > lo;) if (eq_bytes(h + i, nd, nn, ic)) return (long)i;
     return -1;
 }
 #endif
@@ -133,8 +150,16 @@ static int cmp_str(mcs_value_t a, mcs_value_t b, bool ic) {
         if (cx != cy || !cx) return cx < cy ? -1 : cx > cy;
     }
 }
-NATIVE(str_compare) { ARGN(2); return mcs_int(cmp_str(argv[0], argv[1], argc > 2 && mcs_truthy(argv[2]))); }
-NATIVE(str_equals_static) { ARGN(2); return mcs_bool(mcs_values_same(argv[0], argv[1])); }
+NATIVE(str_compare) { /* Compare(a, b[, bool ignoreCase | StringComparison]) */
+    ARGN(2);
+    bool ic = argc > 2 && (cmp_mode(argv[2]) >= 0 ? cmp_ic(cmp_mode(argv[2])) : mcs_truthy(argv[2]));
+    return mcs_int(cmp_str(argv[0], argv[1], ic));
+}
+NATIVE(str_equals_static) { /* string.Equals(a, b[, StringComparison]) */
+    ARGN(2);
+    if (take_cmp(&argc, argv, 2) && IS_STRING(argv[0]) && IS_STRING(argv[1])) return mcs_bool(cmp_str(argv[0], argv[1], true) == 0);
+    return mcs_bool(mcs_values_same(argv[0], argv[1]));
+}
 
 /* --------------------------------------------------------------- instance */
 NATIVE(str_length) { SELF_STR(); return mcs_int((mcs_int_t)s->len); }
@@ -146,18 +171,29 @@ NATIVE(str_substring) {
     else len = s->len - start;
     return lib_str(vm, s->chars + start, len);
 }
-NATIVE(str_indexof) {
+NATIVE(str_indexof) { /* IndexOf(value[, startIndex[, count]][, StringComparison]) */
     SELF_STR(); ARGN(1);
+    bool ic = take_cmp(&argc, argv, 1);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
-    size_t from = 0;
+    size_t from = 0, n;
     if (argc > 1 && !get_index(vm, argv[1], s->len, &from, "startIndex")) return mcs_null();
-    return mcs_int(find_bytes(s->chars, s->len, p.p, p.n, from));
+    n = s->len - from;
+    if (argc > 2 && !get_index(vm, argv[2], s->len - from, &n, "count")) return mcs_null();
+    return mcs_int(find_in(s->chars, from + n, p.p, p.n, from, ic));
 }
 #if MCS_ENABLE_STRING_EXTRA
-NATIVE(str_lastindexof) {
+NATIVE(str_lastindexof) { /* LastIndexOf(value[, startIndex[, count]][, StringComparison]): searches backwards from startIndex */
     SELF_STR(); ARGN(1);
+    bool ic = take_cmp(&argc, argv, 1);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
-    return mcs_int(rfind_bytes(s->chars, s->len, p.p, p.n));
+    if (argc < 2) return mcs_int(rfind_in(s->chars, 0, s->len, p.p, p.n, ic));
+    size_t start, n;
+    if (!get_index(vm, argv[1], s->len, &start, "startIndex")) return mcs_null();
+    if (s->len == 0) return mcs_int(p.n ? -1 : 0);
+    if (start == s->len) start--; /* like .NET, startIndex == Length means "from the end" */
+    n = start + 1;
+    if (argc > 2 && !get_index(vm, argv[2], start + 1, &n, "count")) return mcs_null();
+    return mcs_int(rfind_in(s->chars, start + 1 - n, start + 1, p.p, p.n, ic));
 }
 NATIVE(str_indexofany) {
     SELF_STR();
@@ -169,24 +205,33 @@ NATIVE(str_indexofany) {
     return mcs_int(-1);
 }
 #endif
-NATIVE(str_contains) {
-    SELF_STR();
+/* trailing StringComparison, or (bool ignoreCase, culture) as in StartsWith(v, true, null) */
+static bool take_case_arg(int* argc, const mcs_value_t* argv) {
+    if (take_cmp(argc, argv, 1)) return true;
+    return *argc > 1 && argv[1].type == MCS_T_BOOL && argv[1].as.b;
+}
+NATIVE(str_contains) { /* Contains(value[, StringComparison]) */
+    SELF_STR(); ARGN(1);
+    bool ic = take_cmp(&argc, argv, 1);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
-    return mcs_bool(find_bytes(s->chars, s->len, p.p, p.n, 0) >= 0);
+    return mcs_bool(find_in(s->chars, s->len, p.p, p.n, 0, ic) >= 0);
 }
 NATIVE(str_startswith) {
-    SELF_STR();
+    SELF_STR(); ARGN(1);
+    bool ic = take_case_arg(&argc, argv);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
-    return mcs_bool(p.n <= s->len && memcmp(s->chars, p.p, p.n) == 0);
+    return mcs_bool(p.n <= s->len && eq_bytes(s->chars, p.p, p.n, ic));
 }
 NATIVE(str_endswith) {
-    SELF_STR();
+    SELF_STR(); ARGN(1);
+    bool ic = take_case_arg(&argc, argv);
     piece_t p; if (!piece_of(vm, argv[0], &p, "value")) return mcs_null();
-    return mcs_bool(p.n <= s->len && memcmp(s->chars + s->len - p.n, p.p, p.n) == 0);
+    return mcs_bool(p.n <= s->len && eq_bytes(s->chars + s->len - p.n, p.p, p.n, ic));
 }
 #if MCS_ENABLE_STRING_EXTRA
-NATIVE(str_replace) {
+NATIVE(str_replace) { /* Replace(old, new[, StringComparison | bool ignoreCase, culture]) */
     SELF_STR(); ARGN(2);
+    bool ic = take_cmp(&argc, argv, 2) || (argc > 2 && argv[2].type == MCS_T_BOOL && argv[2].as.b);
     piece_t a, b;
     if (!piece_of(vm, argv[0], &a, "oldValue")) return mcs_null();
     if (argv[1].type == MCS_T_NULL) { b.p = ""; b.n = 0; }
@@ -195,7 +240,7 @@ NATIVE(str_replace) {
     mcs_buf_t o; mcs_buf_init(&o, vm);
     size_t i = 0;
     for (;;) {
-        long k = find_bytes(s->chars, s->len, a.p, a.n, i);
+        long k = find_in(s->chars, s->len, a.p, a.n, i, ic);
         if (k < 0) break;
         mcs_buf_putn(&o, s->chars + i, (size_t)k - i);
         mcs_buf_putn(&o, b.p, b.n);
@@ -328,8 +373,7 @@ NATIVE(str_remove) {
 NATIVE(str_compareto) { SELF_STR(); (void)s; return mcs_int(cmp_str(self, argv[0], false)); }
 NATIVE(str_equals) {
     SELF_STR(); (void)s;
-    if (argc > 1 && mcs_truthy(argv[1]) && argv[1].type == MCS_T_INT && (argv[1].as.i == 5 || argv[1].as.i == 3 || argv[1].as.i == 1))
-        return mcs_bool(cmp_str(self, argv[0], true) == 0); /* StringComparison.*IgnoreCase */
+    if (take_cmp(&argc, argv, 1) && IS_STRING(argv[0])) return mcs_bool(cmp_str(self, argv[0], true) == 0); /* StringComparison.*IgnoreCase */
     return mcs_bool(mcs_values_same(self, argv[0]));
 }
 NATIVE(str_getenum) { return self; }
@@ -338,12 +382,12 @@ NATIVE(str_clone) { return self; }
 static const mcs_reg_t string_methods[] = {
     MCS_GET("Length", str_length),
     MCS_FN("Substring", str_substring, -1), MCS_FN("IndexOf", str_indexof, -1),
-    MCS_FN("Contains", str_contains, 1), MCS_FN("StartsWith", str_startswith, -1),
+    MCS_FN("Contains", str_contains, -1), MCS_FN("StartsWith", str_startswith, -1),
     MCS_FN("EndsWith", str_endswith, -1), MCS_FN("Trim", str_trim, -1),
     MCS_FN("TrimStart", str_trimstart, -1), MCS_FN("TrimEnd", str_trimend, -1), MCS_FN("ToUpper", str_toupper, 0),
     MCS_FN("ToLower", str_tolower, 0), MCS_FN("ToUpperInvariant", str_toupper, 0), MCS_FN("ToLowerInvariant", str_tolower, 0),
 #if MCS_ENABLE_STRING_EXTRA
-    MCS_FN("LastIndexOf", str_lastindexof, -1), MCS_FN("IndexOfAny", str_indexofany, 1), MCS_FN("Replace", str_replace, 2),
+    MCS_FN("LastIndexOf", str_lastindexof, -1), MCS_FN("IndexOfAny", str_indexofany, 1), MCS_FN("Replace", str_replace, -1),
     MCS_FN("PadLeft", str_padleft, -1), MCS_FN("PadRight", str_padright, -1), MCS_FN("Split", str_split, -1),
     MCS_FN("ToCharArray", str_tochararray, 0), MCS_FN("Insert", str_insert, 2), MCS_FN("Remove", str_remove, -1),
 #endif
@@ -357,7 +401,7 @@ static const mcs_reg_t string_statics[] = {
     MCS_FN("Join", str_join, -1),
 #endif
     MCS_FN("Concat", str_concat, -1), MCS_FN("Format", str_format, -1),
-    MCS_FN("Compare", str_compare, -1), MCS_FN("CompareOrdinal", str_compare, 2), MCS_FN("Equals", str_equals_static, 2),
+    MCS_FN("Compare", str_compare, -1), MCS_FN("CompareOrdinal", str_compare, 2), MCS_FN("Equals", str_equals_static, -1),
     MCS_REG_END
 };
 
@@ -398,7 +442,7 @@ NATIVE(sb_tostring) {
     SB();
     if (argc == 2) {
         mcs_int_t a = mcs_to_int(vm, argv[0]), n = mcs_to_int(vm, argv[1]); CHECK();
-        if (a < 0 || n < 0 || (size_t)(a + n) > b->len) { mcs_throw(vm, EXC_ARGRANGE, "Index was out of range."); return mcs_null(); }
+        if (a < 0 || n < 0 || (uint64_t)a + (uint64_t)n > b->len) { mcs_throw(vm, EXC_ARGRANGE, "Index was out of range."); return mcs_null(); }
         return lib_str(vm, b->data + a, (size_t)n);
     }
     return lib_str(vm, b->data ? b->data : "", b->len);
@@ -430,7 +474,7 @@ NATIVE(sb_insert) {
 NATIVE(sb_remove) {
     SB();
     mcs_int_t at = mcs_to_int(vm, argv[0]), n = mcs_to_int(vm, argv[1]); CHECK();
-    if (at < 0 || n < 0 || (size_t)(at + n) > b->len) { mcs_throw(vm, EXC_ARGRANGE, "Index was out of range."); return mcs_null(); }
+    if (at < 0 || n < 0 || (uint64_t)at + (uint64_t)n > b->len) { mcs_throw(vm, EXC_ARGRANGE, "Index was out of range."); return mcs_null(); }
     memmove(b->data + at, b->data + at + n, b->len - (size_t)(at + n));
     b->len -= (size_t)n;
     return self;
@@ -444,7 +488,7 @@ NATIVE(sb_replace) {
     mcs_buf_t o; mcs_buf_init(&o, vm);
     size_t i = 0;
     for (;;) {
-        long k = find_bytes(b->data ? b->data : "", b->len, a.p, a.n, i);
+        long k = find_in(b->data ? b->data : "", b->len, a.p, a.n, i, false);
         if (k < 0) break;
         mcs_buf_putn(&o, b->data + i, (size_t)k - i);
         mcs_buf_putn(&o, r.p, r.n);
@@ -492,8 +536,9 @@ static const mcs_const_t split_opts[] = {
     MCS_CONST("None", 0), MCS_CONST("RemoveEmptyEntries", 1), MCS_CONST("TrimEntries", 2), MCS_CONST_END
 };
 static const mcs_const_t str_cmp[] = {
-    MCS_CONST("Ordinal", 4), MCS_CONST("OrdinalIgnoreCase", 5), MCS_CONST("CurrentCultureIgnoreCase", 1),
-    MCS_CONST("InvariantCultureIgnoreCase", 3), MCS_CONST_END
+    MCS_CONST("CurrentCulture", 0x53430000), MCS_CONST("CurrentCultureIgnoreCase", 0x53430001),
+    MCS_CONST("InvariantCulture", 0x53430002), MCS_CONST("InvariantCultureIgnoreCase", 0x53430003),
+    MCS_CONST("Ordinal", 0x53430004), MCS_CONST("OrdinalIgnoreCase", 0x53430005), MCS_CONST_END
 };
 static void const_module(mcs_vm_t* vm, const char* name, const mcs_const_t* k) {
     mcs_class_t* c = mcs_define_builtin_class(vm, name, NULL, CLS_STATIC);

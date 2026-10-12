@@ -48,8 +48,8 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **string** | instance | `Length` | `Substring(…)` `IndexOf(…)` `Contains(·)` `StartsWith(…)` `EndsWith(…)` `Trim(…)` `TrimStart(…)` `TrimEnd(…)` `ToUpper()` `ToLower()` `ToUpperInvariant()` `ToLowerInvariant()` `LastIndexOf(…)` `IndexOfAny(·)` `Replace(·, ·)` `PadLeft(…)` `PadRight(…)` `Split(…)` `ToCharArray()` `Insert(·, ·)` `Remove(…)` `CompareTo(·)` `Equals(·)` `Equals(·, ·)` `GetEnumerator()` `Clone()` | UTF-8, byte-indexed |
-| **string** | static | — | `IsNullOrEmpty(·)` `IsNullOrWhiteSpace(·)` `Join(…)` `Concat(…)` `Format(…)` `Compare(…)` `CompareOrdinal(·, ·)` `Equals(·, ·)` |  |
+| **string** | instance | `Length` | `Substring(…)` `IndexOf(…)` `Contains(…)` `StartsWith(…)` `EndsWith(…)` `Trim(…)` `TrimStart(…)` `TrimEnd(…)` `ToUpper()` `ToLower()` `ToUpperInvariant()` `ToLowerInvariant()` `LastIndexOf(…)` `IndexOfAny(·)` `Replace(…)` `PadLeft(…)` `PadRight(…)` `Split(…)` `ToCharArray()` `Insert(·, ·)` `Remove(…)` `CompareTo(·)` `Equals(·)` `Equals(·, ·)` `GetEnumerator()` `Clone()` | UTF-8, byte-indexed |
+| **string** | static | — | `IsNullOrEmpty(·)` `IsNullOrWhiteSpace(·)` `Join(…)` `Concat(…)` `Format(…)` `Compare(…)` `CompareOrdinal(·, ·)` `Equals(…)` |  |
 | **StringBuilder** | instance | `Length` `Capacity` | `Append(…)` `AppendLine(…)` `AppendFormat(…)` `ToString()` `ToString(·, ·)` `Clear()` `Insert(·, ·)` `Remove(·, ·)` `Replace(·, ·)` | `MCS_ENABLE_STRINGBUILDER` |
 
 ## Collections
@@ -171,6 +171,9 @@ from any of them; deep recursion raises a catchable `StackOverflowException`):
 `ArgumentException` `ArgumentNullException` `ArgumentOutOfRangeException` `ArithmeticException` `DirectoryNotFoundException` `DivideByZeroException` `Exception` `FileNotFoundException` `FormatException` `HttpRequestException` `IOException` `IndexOutOfRangeException` `InvalidCastException` `InvalidOperationException` `KeyNotFoundException` `MissingMemberException` `NotImplementedException` `NotSupportedException` `NullReferenceException` `ObjectDisposedException` `OutOfMemoryException` `OverflowException` `SocketException` `StackOverflowException` `SystemException` `TimeoutException` `UnauthorizedAccessException` `WebSocketException`
 
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
-(`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
+(`Ordinal`, `OrdinalIgnoreCase`, `CurrentCulture`, `CurrentCultureIgnoreCase`, `InvariantCulture`,
+`InvariantCultureIgnoreCase`; culture variants compare ordinally). A trailing `StringComparison` is honored by
+`IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
+its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
 _1141 members in 96 tables._

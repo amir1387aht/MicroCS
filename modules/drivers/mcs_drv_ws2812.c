@@ -85,7 +85,7 @@ NATIVE(ls_fill) {   /* Fill(color[, first, count]) */
     LS();
     uint32_t c = (uint32_t)mcs_to_int(vm, argv[0]);
     OPT_INT(1, first, 0); OPT_INT(2, n, s->count - first);
-    if (first < 0 || n < 0 || first + n > s->count) { mcs_raise(vm, "ArgumentOutOfRangeException", "first/count out of range"); return mcs_null(); }
+    if (first < 0 || n < 0 || (uint64_t)first + (uint64_t)n > (uint64_t)s->count) { mcs_raise(vm, "ArgumentOutOfRangeException", "first/count out of range"); return mcs_null(); }
     for (int i = first; i < first + n; i++) s->px[i] = c;
     return mcs_null();
 }

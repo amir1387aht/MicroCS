@@ -903,7 +903,7 @@ static void mark_roots(mcs_vm_t* vm) {
     for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) mark_obj(vm, (mcs_obj_t*)u);
     for (uint32_t i = 0; i < vm->global_count; i++) { mark_val(vm, vm->globals[i]); mark_obj(vm, (mcs_obj_t*)vm->global_names[i]); }
     mark_table(vm, &vm->tuple_classes);
-    for (int i = 0; i < vm->root_count; i++) mark_val(vm, vm->roots[i]);
+    for (int i = 0; i < vm->root_count; i++) mark_val(vm, *mcs_root_slot(vm, i));
     for (int i = 0; i < MCS_MAX_PINS; i++) mark_val(vm, vm->pins[i]);
     mark_val(vm, vm->exc_value);
     mark_val(vm, vm->order_last); mark_val(vm, vm->order_spec);

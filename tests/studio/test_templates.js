@@ -43,6 +43,7 @@ function run(t) {
   const queue = cs.filter((t) => !binds(t));
   await Promise.all(Array.from({ length: 8 }, async () => { while (queue.length) await run(queue.shift()); }));
   for (const t of cs.filter(binds)) await run(t);
+  for (const t of TEMPLATES) if (!t.src || !t.desc) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: no source file or description (run tools/studio/gen_templates.py)`); }
   const labels = new Set();
   for (const s of SNIPPETS) { if (labels.has(s.label)) { fails++; console.log('FAIL duplicate snippet ' + s.label); } labels.add(s.label); }
   console.log(`${cs.length} C# templates${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);

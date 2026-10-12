@@ -97,7 +97,7 @@ static int r_read(void* ctx, void* fh, void* buf, size_t len) {
     size_t avail = h->pos < h->n->len ? h->n->len - h->pos : 0;
     if (len > avail) len = avail;
     if (len > 0x7fffffff) len = 0x7fffffff;
-    memcpy(buf, h->n->data + h->pos, len);
+    if (len) memcpy(buf, h->n->data + h->pos, len);
     h->pos += len;
     return (int)len;
 }
@@ -121,7 +121,7 @@ static int r_write(void* ctx, void* fh, const void* buf, size_t len) {
         fs->used += cap - n->cap;
         n->data = d; n->cap = cap;
     }
-    memcpy(n->data + h->pos, buf, len);
+    if (len) memcpy(n->data + h->pos, buf, len);
     h->pos += len;
     if (h->pos > n->len) n->len = h->pos;
     return (int)len;
