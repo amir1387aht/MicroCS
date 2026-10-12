@@ -18,6 +18,7 @@
 #include "mcs_shell.h"
 #include "mcs_threads.h"
 #include "mcs_net.h"
+#include "mcs_ble.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,6 +26,9 @@
 #include <time.h>
 #if MCS_ENABLE_NET && MCS_NET_SIM
 static mcs_net_t g_net;
+#endif
+#if MCS_ENABLE_BLE && MCS_BLE_SIM
+static mcs_ble_t g_ble;
 #endif
 #if defined(_WIN32)
 #include <windows.h>
@@ -234,7 +238,7 @@ static void print_features(void) {
         { MCS_FEAT_COMPILER, "compiler" }, { MCS_FEAT_IMAGE_LOAD, "image-load" }, { MCS_FEAT_IMAGE_SAVE, "image-save" },
         { MCS_FEAT_FLOAT, "float" }, { MCS_FEAT_DOUBLE, "double" }, { MCS_FEAT_INT64, "int64" },
         { MCS_FEAT_LINES, "lines" }, { MCS_FEAT_DISASM, "disasm" }, { MCS_FEAT_LIST, "list" }, { MCS_FEAT_DICT, "dict" },
-        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" }, { MCS_FEAT_NET, "net" },
+        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" }, { MCS_FEAT_NET, "net" }, { MCS_FEAT_BLE, "ble" },
     };
     uint32_t m = mcs_features();
     printf("MicroCS %s, %d-bit values:", MCS_VERSION_STRING, (int)(sizeof(mcs_value_t) * 8));
@@ -270,6 +274,14 @@ static mcs_ramfs_t g_ramfs;
 #endif
 #if MCS_ENABLE_HAL
 static mcs_hal_t g_hal;
+#if MCS_ENABLE_BLE && MCS_BLE_SIM
+static int (*g_sim_poll)(void* ctx, mcs_hal_event_t* ev);
+/* the simulated BLE peers send their periodic notifications from the HAL poll */
+static int ble_sim_poll(void* ctx, mcs_hal_event_t* ev) {
+    mcs_ble_sim_tick(ticks(NULL));
+    return g_sim_poll ? g_sim_poll(ctx, ev) : 0;
+}
+#endif
 static mcs_hal_sim_t g_sim;
 static void sim_log(void* ud, const char* s, size_t n) { (void)ud; fwrite(s, 1, n, stderr); }
 static mcs_sim_oled_t g_oled;
@@ -408,6 +420,10 @@ int main(int argc, char** argv) {
         g_sim.log = sim_log_on ? sim_log : NULL;
         g_sim.clock_us = sim_virtual ? NULL : sim_clock_us;   /* virtual: 1 ms per event poll, deterministic */
         mcs_hal_sim_init(&g_hal, &g_sim);
+#if MCS_ENABLE_BLE && MCS_BLE_SIM
+        mcs_ble_sim_init(&g_ble); mcs_ble_set(&g_ble);          /* simulated Bluetooth LE radio */
+        g_sim_poll = g_hal.poll_event; g_hal.poll_event = ble_sim_poll;
+#endif
         if (oled) { g_oled.on_frame = oled_show; mcs_hal_sim_attach_oled(&g_sim, &g_oled); }
         mcs_hal_open_lib(vm, &g_hal);
     }
@@ -462,7 +478,7 @@ int main(int argc, char** argv) {
             char def[512];
             if (!out) { snprintf(def, sizeof def, "%s", in); char* dot = strrchr(def, '.'); if (dot) *dot = 0; strncat(def, ".mcsb", sizeof def - strlen(def) - 1); out = def; }
             FILE* f = fopen(out, "wb");
-            if (!f || fwrite(img, 1, n, f) != n) { fprintf(stderr, "mcs: cannot write '%s'\n", out); rc = 1; }
+            if (!f || !img || fwrite(img, 1, n, f) != n) { fprintf(stderr, "mcs: cannot write '%s'\n", out); rc = 1; }
             if (f) fclose(f);
             if (!rc) fprintf(stderr, "wrote %s (%zu bytes)\n", out, n);
         }

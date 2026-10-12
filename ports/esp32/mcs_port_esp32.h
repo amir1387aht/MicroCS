@@ -133,6 +133,21 @@ bool mcs_esp32_wifi_autoconnect(const char* ssid, const char* password);
 #ifndef MCS_ESP32_WIFI
 #define MCS_ESP32_WIFI 0
 #endif
+/* Bluetooth LE on NimBLE (MCS_ENABLE_BLE, menuconfig > MicroCS > Bluetooth LE; docs/BLE.md).
+ * mcs_esp32_hal_init registers the backend with mcs_ble_set(); the controller starts on the
+ * first Ble call that needs it (Ble.Enable, StartAdvertising, Scan ...). */
+#if MCS_ENABLE_BLE
+#include "sdkconfig.h"
+#if !CONFIG_BT_NIMBLE_ENABLED
+#error "MCS_ENABLE_BLE on ESP32 needs Bluetooth with the NimBLE host (CONFIG_BT_ENABLED + CONFIG_BT_NIMBLE_ENABLED)"
+#endif
+#define MCS_ESP32_BLE 1
+#include "mcs_ble.h"
+const mcs_ble_t* mcs_esp32_ble(void);
+#endif
+#ifndef MCS_ESP32_BLE
+#define MCS_ESP32_BLE 0
+#endif
 uint32_t mcs_esp32_ticks(void* ud);            /* milliseconds since boot */
 void mcs_esp32_delay(void* ud, uint32_t ms);   /* vTaskDelay, at least one tick */
 

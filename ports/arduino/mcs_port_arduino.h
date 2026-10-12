@@ -88,6 +88,13 @@ struct mcs_arduino_cfg_t {
 #endif
 
 void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg);
+#if MCS_ENABLE_BLE
+/* C# Ble on ArduinoBLE (tools/make_arduino.py --ble): mcs_arduino_hal_init registers it,
+ * the HAL event poll services BLE.poll(). */
+#include "mcs_ble.h"
+const mcs_ble_t* mcs_arduino_ble(void);
+void mcs_arduino_ble_poll(void);
+#endif
 /* CAN.Open(0) on ESP32 (TWAI controller + a transceiver on these GPIOs). */
 void mcs_arduino_can_pins(int tx, int rx);
 /* I2S.Open(bus) pins (-1 = unused). ESP32: any GPIOs, mclk optional.

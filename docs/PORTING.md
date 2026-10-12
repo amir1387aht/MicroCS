@@ -163,7 +163,9 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
 6. Optional: networking — fill an `mcs_net_t` (`include/mcs_net.h`: Wi-Fi, ESP-NOW, SNTP,
    mDNS, ping, TLS; leave the rest `NULL`) and call `mcs_net_set()` before the HAL library
    opens; with lwIP / BSD sockets `TcpClient`, `UdpClient` and `Http` work as they are
-   ([NETWORK.md](NETWORK.md#porting-a-network-backend)).
+   ([NETWORK.md](NETWORK.md#porting-a-network-backend)). Bluetooth LE — fill an `mcs_ble_t`
+   (`include/mcs_ble.h`), call `mcs_ble_set()` the same way and build with
+   `MCS_ENABLE_BLE=1` ([BLE.md](BLE.md#c-api-for-ports)).
 7. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
 8. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
    freely downloadable.

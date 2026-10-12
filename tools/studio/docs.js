@@ -1434,6 +1434,243 @@ const EventDown: int | Menu key: down
 .FontWidth: int | Font width in tiles
 .FontHeight: int | Font height in tiles
 
+@Ble | Bluetooth LE radio: advertising, scanning, GATT server, connections, security (opt-in firmware, docs/BLE.md; simulated with --sim)
+const ApiVersion: int | BLE API version
+Has(string feature): bool | "Ble", "Ble.Advertise", "Ble.Scan", "Ble.Server", "BleUart", "Ble.Central", "Ble.Client", "Ble.Security", "Ble.Bonds"
+Backend: string | "nimble", "btstack", "zephyr", "arduinoble" or "sim"
+Enable(): void | Starts the stack (automatic on first use)
+Disable(): void | Stops the stack (connections drop)
+Enabled: bool | The stack is running
+Name: string | GAP device name, advertised (at most 29 characters)
+Address: string | This board's address, "C0:11:22:33:44:55"
+AddressType: int | 0 public, 1 random
+TxPower: int | Transmit power (dBm)
+Mtu: int | Preferred ATT MTU
+Appearance: int | GAP appearance (0x0341 = heart-rate belt …)
+Phy: int | Preferred PHY: Ble.Phy1M, Phy2M, PhyCoded
+IoCapability: int | Pairing IO: Ble.IoNone (Just Works), IoDisplayOnly, IoDisplayYesNo, IoKeyboardOnly, IoKeyboardDisplay
+Bonding: bool | Store keys after pairing
+Mitm: bool | Require MITM protection (passkey / numeric comparison)
+SecureConnections: bool | LE Secure Connections
+Passkey: int | Fixed passkey 0..999999 (-1 = random)
+MaxConnections: int | Connections the firmware tracks
+Timeout: int | GATT client timeout (ms)
+AutoAdvertise: bool | Advertise again after a peripheral connection ends (default true)
+DroppedEvents: int | Events lost because the queue was full
+StartAdvertising(): void | Advertises Ble.Name and the added services' UUIDs
+StartAdvertising(string name): void | Advertises another name
+StartAdvertising(BleAdvertisement adv): void | Advertises your data (beacons, manufacturer data …)
+StopAdvertising(): void | Stops advertising
+Advertising: bool | Advertising now
+Scan(int ms, bool active = true): BleDevice[] | Scans and returns the devices found (scan responses merged)
+StartScan(Action<BleDevice> onDevice, bool active = true, bool duplicates = false): void | Reports devices in the background
+StopScan(): void | Stops a background scan
+Scanning: bool | Scanning now
+AddService(BleService service): void | Adds a local GATT service (while not advertising or connected)
+ClearServices(): void | Removes every local service
+Services: BleService[] | The local services
+Connect(string address, int timeoutMs = 10000, int addressType = 0): BleConnection | Connects as central (TimeoutException)
+Connections: BleConnection[] | Open connections
+Connected: bool | At least one connection
+OnConnect(Action<BleConnection> handler): void | A connection opened (either role)
+OnDisconnect(Action<BleConnection, int> handler): void | A connection closed: (connection, HCI reason)
+OnEvent(Action<int, int, int> handler): void | Every event: (Ble.Event*, connection handle, value)
+OnPasskey(Func<BleConnection, int, int, int> handler): void | Pairing: (connection, Ble.Passkey*, key) → key to enter, or 1 / 0 = accept / reject
+Poll(): void | Runs pending BLE callbacks now
+EventName(int ev): string | Name of a Ble.Event* value
+Bonds: string[] | Addresses of bonded peers
+RemoveBond(string address): void | Forgets a bonded peer
+ClearBonds(): void | Forgets every bond
+const EventConnect: int | event
+const EventDisconnect: int | event
+const EventConnectFailed: int | event
+const EventAdvertisingDone: int | event
+const EventScanDone: int | event
+const EventMtu: int | event: value = new MTU
+const EventSubscribe: int | event
+const EventEncrypted: int | event
+const EventPairingDone: int | event
+const EventConnectionUpdate: int | event
+const EventIndicateDone: int | event
+const EventPhy: int | event
+const IoDisplayOnly: int | IO capability
+const IoDisplayYesNo: int | IO capability
+const IoKeyboardOnly: int | IO capability
+const IoNone: int | IO capability (Just Works)
+const IoKeyboardDisplay: int | IO capability
+const PasskeyDisplay: int | OnPasskey kind: show the key
+const PasskeyEntry: int | OnPasskey kind: return the key the user typed
+const PasskeyCompare: int | OnPasskey kind: numeric comparison, return 1 / 0
+const PasskeyConfirm: int | OnPasskey kind: Just Works confirmation, return 1 / 0
+const SubscribeNotify: int | subscription flag
+const SubscribeIndicate: int | subscription flag
+const Phy1M: int | 1M PHY
+const Phy2M: int | 2M PHY
+const PhyCoded: int | Coded PHY (long range)
+
+@BleProperty | GATT characteristic properties and permissions (combine with |)
+const Broadcast: int | property
+const Read: int | property
+const WriteWithoutResponse: int | property
+const Write: int | property
+const Notify: int | property
+const Indicate: int | property
+const AuthenticatedSignedWrites: int | property
+const ExtendedProperties: int | property
+const Encrypted: int | permission: needs an encrypted link
+const Authenticated: int | permission: needs MITM-protected pairing
+
+@BleAdvertisement | Advertising data builder
+new() | Empty advertisement (Ble.Name is used)
+new(string name) | Advertises this name
+IBeacon(string uuid, int major, int minor, int measuredPower = -59): BleAdvertisement | Apple iBeacon
+EddystoneUrl(string url, int txPower = -20): BleAdvertisement | Eddystone-URL beacon
+EddystoneUid(string namespaceHex, string instanceHex, int txPower = -20): BleAdvertisement | Eddystone-UID beacon
+.Name: string | Advertised name
+.Connectable: bool | Accept connections
+.Interval: int | Advertising interval (ms)
+.Duration: int | Stop after (ms, 0 = forever)
+.IncludeTxPower: bool | Add the TX power field
+.Appearance: int | Appearance field
+.Flags: int | AD flags
+.AddServiceUuid(string uuid): void | Lists a service UUID
+.SetManufacturerData(int companyId, byte[] data): void | Manufacturer-specific data
+.AddServiceData(string uuid, byte[] data): void | Service data
+.Raw: byte[] | Your own advertising bytes (replaces the fields)
+.ScanResponse: byte[] | Your own scan response bytes
+.Build(): byte[] | The advertising bytes (max 31)
+.BuildScanResponse(): byte[] | The scan response bytes
+
+@BleDevice | An advertiser found by Ble.Scan / StartScan
+.Address: string | "C0:11:22:33:44:55"
+.AddressType: int | 0 public, 1 random
+.Name: string | Advertised name (null if none)
+.Rssi: int | Signal strength (dBm)
+.Connectable: bool | Accepts connections
+.TxPower: int | Advertised TX power
+.Appearance: int | Advertised appearance
+.Flags: int | AD flags
+.ServiceUuids: string[] | Advertised service UUIDs
+.HasService(string uuid): bool | Advertises this service
+.ManufacturerData: byte[] | Manufacturer data (after the company id)
+.CompanyId: int | Manufacturer company id (-1 if none)
+.ServiceData(string uuid): byte[] | Service data for the UUID
+.Data: byte[] | Raw advertising data
+.ScanResponse: byte[] | Raw scan response
+.IsIBeacon: bool | iBeacon frame
+.BeaconUuid: string | iBeacon UUID
+.BeaconMajor: int | iBeacon major
+.BeaconMinor: int | iBeacon minor
+.BeaconPower: int | iBeacon measured power
+.EddystoneUrl: string | Eddystone-URL (null if none)
+.Connect(int timeoutMs = 10000): BleConnection | Connects as central
+
+@BleService | Local GATT service (peripheral)
+new(string uuid) | Primary service: "180F" or a 128-bit UUID
+new(string uuid, bool primary) | Primary or secondary
+.AddCharacteristic(string uuid, int properties, object value = null, int maxLength = 0): BleCharacteristic | BleProperty flags; value byte[] or string
+.Uuid: string | Service UUID
+.Primary: bool | Primary service
+.Handle: int | Attribute handle (after advertising starts)
+.Characteristics: BleCharacteristic[] | Its characteristics
+
+@BleCharacteristic | Local characteristic
+.Uuid: string | UUID
+.Properties: int | BleProperty flags
+.Handle: int | Value handle
+.MaxLength: int | Largest value
+.Value: byte[] | What a read returns
+.SetValue(object value): void | byte[] or string
+.StringValue: string | Value as UTF-8 text
+.Subscribers: int | Connections subscribed
+.Notify(): int | Sends the current value to subscribers; returns how many
+.Notify(object value, BleConnection conn = null): int | Sets the value and notifies (one connection or all)
+.Indicate(object value = null, BleConnection conn = null): int | Like Notify, acknowledged by the peer
+.OnWrite(Action<byte[], BleConnection> handler): void | A peer wrote
+.OnSubscribe(Action<BleConnection, int> handler): void | A peer (un)subscribed: 0 off, 1 notify, 2 indicate
+.AddDescriptor(string uuid, object value, bool writable = false): BleDescriptor | Adds a descriptor
+.Description: string | User description (0x2901)
+
+@BleDescriptor | Local descriptor
+.Uuid: string | UUID
+.Handle: int | Handle
+.Value: byte[] | Value
+.StringValue: string | Value as text
+.OnWrite(Action<byte[], BleConnection> handler): void | A peer wrote
+
+@BleConnection | A Bluetooth LE link (either role)
+.Handle: int | Connection handle
+.Address: string | Peer address
+.AddressType: int | Peer address type
+.Role: string | This board's role: "central" or "peripheral"
+.Connected: bool | Still connected
+.Mtu: int | ATT MTU
+.Rssi: int | Signal strength (dBm)
+.Encrypted: bool | Link encrypted
+.Authenticated: bool | MITM-protected keys
+.Bonded: bool | Peer is bonded
+.Interval: int | Connection interval (1.25 ms units)
+.Latency: int | Peripheral latency
+.SupervisionTimeout: int | Supervision timeout (10 ms units)
+.Disconnect(): void | Closes the link
+.Pair(): void | Starts pairing / encryption
+.RequestMtu(): int | MTU exchange; returns the new MTU
+.UpdateParameters(int minInterval, int maxInterval, int latency, int timeout): void | Requests new parameters (1.25 ms / 10 ms units: 12, 24, 0, 400)
+.Services(): BleRemoteService[] | Discovers the peer's services (GATT client)
+.Service(string uuid): BleRemoteService | One service (null if missing)
+.Characteristic(string serviceUuid, string uuid): BleRemoteCharacteristic | One characteristic (null if missing)
+
+@BleRemoteService | A peer's GATT service
+.Uuid: string | UUID
+.Name: string | Bluetooth SIG name (null if unknown)
+.Handle: int | First handle
+.EndHandle: int | Last handle
+.Characteristics(): BleRemoteCharacteristic[] | Discovers its characteristics
+.Characteristic(string uuid): BleRemoteCharacteristic | One characteristic (null if missing)
+
+@BleRemoteCharacteristic | A peer's characteristic
+.Uuid: string | UUID
+.Name: string | Bluetooth SIG name (null if unknown)
+.Handle: int | Value handle
+.Properties: int | BleProperty flags
+.CanRead: bool | Readable
+.CanWrite: bool | Writable
+.CanNotify: bool | Notifies
+.CanIndicate: bool | Indicates
+.Read(): byte[] | Reads the value (long reads)
+.ReadString(): string | Reads as UTF-8 text
+.Write(object data, bool withResponse = true): void | Writes byte[] or string (long writes)
+.Subscribe(Action<byte[], BleConnection> handler, bool indicate = false): void | Notifications / indications
+.Unsubscribe(): void | Stops them
+.Descriptors(): BleRemoteDescriptor[] | Discovers its descriptors
+
+@BleRemoteDescriptor | A peer's descriptor
+.Uuid: string | UUID
+.Name: string | Bluetooth SIG name
+.Handle: int | Handle
+.Read(): byte[] | Reads the value
+.Write(object data): void | Writes the value
+
+@BleUart | Nordic UART Service: a serial port over BLE (peripheral)
+new() | Advertises Ble.Name
+new(string name) | Advertises this name
+.Start(): void | Adds the service and advertises
+.Write(object data): void | Sends byte[] or text (split into notifications)
+.WriteLine(object text): void | Sends text and a line ending
+.Available: int | Bytes received and not read
+.Read(): byte[] | Everything received
+.ReadString(): string | Everything received as text
+.ReadLine(): string | One line (null if none yet)
+.OnReceive(Action<string> handler): void | Data arrived
+.Connected: bool | A central is connected
+
+@BleUuid | UUID helpers
+Normalize(object uuid): string | "180d" / 0x180D → "180D"; 128-bit in upper case
+ToLong(object uuid): string | Full 128-bit form
+Equals(object a, object b): bool | Same UUID (16-bit vs base UUID too)
+IsValid(object uuid): bool | Parses as a UUID
+Name(object uuid): string | Bluetooth SIG name (null if unknown)
+
 @Exception | Base of every exception
 new() | Without a message
 new(string message) | With a message

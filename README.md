@@ -123,7 +123,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
-YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and the Pico W (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, `HttpServer`, `WebSocket`, NTP, mDNS, `Json`). Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and the Pico W (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, `HttpServer`, `WebSocket`, NTP, mDNS, `Json`). Opt-in [Bluetooth LE](docs/BLE.md) on ESP32 (NimBLE), Pico W (BTstack), Zephyr and ArduinoBLE: beacons, scanning, GATT server and client, pairing, `BleUart`. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
 </tr>
@@ -427,6 +427,30 @@ portal, MQTT publish, HTTPS download, ESP-NOW …).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
+## 🔵 Bluetooth LE
+
+Opt-in (never in the release images): ESP32 family on NimBLE, **Pico W / Pico 2 W** on
+BTstack, Zephyr boards (nRF52840 …) and Arduino boards with ArduinoBLE. Every role —
+advertiser (iBeacon, Eddystone), observer, peripheral with your own GATT services, central /
+GATT client — plus pairing, bonding and a Nordic UART serial port. `make mcs-ble` builds the PC
+CLI with a simulated radio and peers.
+
+```csharp
+var hr = new BleService("180D");                                // heart-rate peripheral
+var bpm = hr.AddCharacteristic("2A37", BleProperty.Notify);
+Ble.AddService(hr);
+Ble.StartAdvertising();
+bpm.Notify(new byte[] { 0, 72 });
+
+var sensor = Ble.Connect("C0:FF:EE:00:00:01");                  // central
+sensor.Characteristic("180D", "2A37").Subscribe(d => Console.WriteLine($"{d[1]} bpm"));
+```
+
+Turn it on (`sdkconfig.ble`, `-DMICROCS_BLE=ON`, `overlay-ble.conf`, `make_arduino.py --ble`)
+and find the whole API in [BLE.md](docs/BLE.md).
+
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
 ## 🧱 Works with every build system
 
 MicroCS is plain C99 files plus one include directory, so it builds anywhere. Ready-made
@@ -662,7 +686,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
       transfers (`DmaBuffer`, `SPI.WriteAsync`), Studio templates for every area
 - [x] **1.13** — Wi-Fi & networking on the ESP32 family: `Wifi` (station, AP, scan, events, saved networks),
       ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; simulated radio
-- [ ] BLE (ESP32, Pico W), Wi-Fi on the Pico W (CYW43) and Arduino cores, MQTT and WebSocket clients
+- [x] Bluetooth LE (ESP32 NimBLE, Pico W BTstack, Zephyr, ArduinoBLE; opt-in), Wi-Fi on the Pico W (CYW43)
+- [ ] Wi-Fi on Arduino cores, MQTT client
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
 - [ ] CAN FD payloads, `async`/`await` over hardware events

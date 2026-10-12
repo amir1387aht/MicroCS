@@ -115,6 +115,30 @@ menu "MicroCS"
             background at every boot. Wifi.Forget() removes them.
     endif
 
+    config MICROCS_BLE
+        bool "Bluetooth LE (C# Ble, BleService, BleConnection, BleUart on NimBLE)"
+        default n
+        depends on BT_NIMBLE_ENABLED
+        help
+            The C# Bluetooth Low Energy classes (docs/BLE.md): advertising and
+            beacons (iBeacon / Eddystone), scanning, a GATT server built from
+            C# (BleService / BleCharacteristic with notify / indicate), the
+            central role with a GATT client, pairing / bonding and BleUart
+            (Nordic UART Service). Needs Component config > Bluetooth enabled
+            with the NimBLE host (CONFIG_BT_ENABLED, CONFIG_BT_NIMBLE_ENABLED),
+            legacy advertising (CONFIG_BT_NIMBLE_EXT_ADV off). Not part of the
+            release firmware; costs ~110 KB of flash and ~40 KB of RAM.
+
+    config MICROCS_BLE_RESERVE_KB
+        int "RAM kept free for the Bluetooth stack (KB)"
+        depends on MICROCS_BLE
+        default 48
+        range 0 256
+        help
+            The example firmware sizes the C# heap so that this much RAM stays
+            free for NimBLE and the controller, which start on the first Ble
+            call. 0 = no reservation.
+
     config MICROCS_THREADS
         bool "Real threads on FreeRTOS tasks (C# Thread.Run / RunOn, both cores)"
         default n

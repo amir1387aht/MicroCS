@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
 `include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Network (modules/net)](#network-modulesnet) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Network (modules/net)](#network-modulesnet) · [Bluetooth (modules/ble)](#bluetooth-modulesble) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -150,6 +150,24 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **WebSocket** | instance | `IsOpen` `State` `CloseStatus` `CloseReason` `Id` `Path` `Url` `RemoteAddress` `Timeout` `IsTls` | `Connect(…)` `Send(·)` `SendText(·)` `SendBinary(·)` `Ping(…)` `Receive(…)` `Close(…)` `Dispose()` `OnMessage(·)` `Poll(…)` `ToString()` | `new WebSocket([url[, timeoutMs]])` client, or a server-side connection from `HttpServer.WebSocket` |
 | **DnsServer** | instance | `Running` `Queries` `Ttl` `Domain` `Address` `Port` | `Start(…)` `Stop()` `Dispose()` `Poll()` | `new DnsServer([address])` — captive portals |
 
+## Bluetooth (modules/ble)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **Ble** | static | `Enabled` `Backend` `Name` `Address` `AddressType` `TxPower` `Mtu` `Appearance` `IoCapability` `Bonding` `Mitm` `SecureConnections` `Phy` `Passkey` `MaxConnections` `Timeout` `AutoAdvertise` `DroppedEvents` `Advertising` `Scanning` `Services` `Connections` `Connected` `Bonds` | `Enable()` `Disable()` `Has(·)` `StartAdvertising(…)` `StopAdvertising()` `Scan(…)` `StartScan(…)` `StopScan()` `AddService(·)` `ClearServices()` `Connect(…)` `OnConnect(·)` `OnDisconnect(·)` `OnEvent(·)` `OnPasskey(·)` `Poll()` `EventName(·)` `RemoveBond(·)` `ClearBonds()` | opt-in (`MCS_ENABLE_BLE`); `Has(feature)`, `Event*`, `Io*`, `Passkey*`, `Phy*` consts ([BLE.md](BLE.md)) |
+| **BleAdvertisement** | instance | `Name` `Connectable` `Interval` `Duration` `IncludeTxPower` `Appearance` `Flags` `Raw` `ScanResponse` | `AddServiceUuid(·)` `SetManufacturerData(·, ·)` `AddServiceData(·, ·)` `Build()` `BuildScanResponse()` | `new BleAdvertisement([name])` — advertising data |
+| **BleAdvertisement** | static | — | `IBeacon(…)` `EddystoneUrl(…)` `EddystoneUid(…)` | beacon presets |
+| **BleDevice** | instance | `Address` `AddressType` `Name` `Rssi` `Connectable` `TxPower` `Appearance` `Flags` `ServiceUuids` `ManufacturerData` `CompanyId` `Data` `ScanResponse` `IsIBeacon` `BeaconUuid` `BeaconMajor` `BeaconMinor` `BeaconPower` `EddystoneUrl` | `HasService(·)` `ServiceData(·)` `Connect(…)` `ToString()` | returned by `Ble.Scan` / `Ble.StartScan` |
+| **BleService** | instance | `Uuid` `Primary` `Handle` `Characteristics` | `AddCharacteristic(…)` `ToString()` | `new BleService(uuid[, primary])` — local GATT service |
+| **BleCharacteristic** | instance | `Uuid` `Properties` `Handle` `MaxLength` `Value` `StringValue` `Subscribers` `Description` | `SetValue(·)` `Notify(…)` `Indicate(…)` `OnWrite(·)` `OnSubscribe(·)` `AddDescriptor(…)` `ToString()` | returned by `BleService.AddCharacteristic`; `BleProperty.*` flags |
+| **BleDescriptor** | instance | `Uuid` `Handle` `Value` `StringValue` | `OnWrite(·)` | returned by `BleCharacteristic.AddDescriptor` |
+| **BleConnection** | instance | `Handle` `Address` `AddressType` `Role` `Connected` `Mtu` `Rssi` `Encrypted` `Authenticated` `Bonded` `Interval` `Latency` `SupervisionTimeout` | `Disconnect()` `Pair()` `RequestMtu()` `UpdateParameters(·, ·, ·, ·)` `Services()` `Service(·)` `Characteristic(·, ·)` `ToString()` | a link in either role (`Ble.Connect`, `Ble.OnConnect`) |
+| **BleRemoteService** | instance | `Uuid` `Name` `Handle` `EndHandle` | `Characteristics()` `Characteristic(·)` `ToString()` | GATT client: `BleConnection.Services()` |
+| **BleRemoteCharacteristic** | instance | `Uuid` `Name` `Handle` `Properties` `CanRead` `CanWrite` `CanNotify` `CanIndicate` | `Read()` `ReadString()` `Write(…)` `Subscribe(…)` `Unsubscribe()` `Descriptors()` `ToString()` | GATT client |
+| **BleRemoteDescriptor** | instance | `Uuid` `Name` `Handle` | `Read()` `Write(·)` `ToString()` | GATT client |
+| **BleUart** | instance | `Available` `Connected` | `Write(·)` `WriteLine(…)` `Read()` `ReadString()` `ReadLine()` `OnReceive(·)` `Start(…)` | `new BleUart([name])` — Nordic UART Service |
+| **BleUuid** | static | — | `Normalize(·)` `ToLong(·)` `Equals(·, ·)` `IsValid(·)` `Name(·)` | UUID helpers |
+
 ## Threads (modules/threads)
 
 | Type | Kind | Properties | Methods | Notes |
@@ -176,4 +194,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1141 members in 96 tables._
+_1313 members in 109 tables._

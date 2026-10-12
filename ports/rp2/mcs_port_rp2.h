@@ -56,17 +56,23 @@ void mcs_rp2_delay(void* ud, uint32_t ms);
 /* The on-board QSPI flash as a mcs_flash_t (4 KB erase blocks), for
  * mcs_flashfs_mount() = TinyFS, LittleFS or YAFFS2 for scripts. offset/size = the
  * region (bytes from the start of flash, 4 KB aligned); 0, 0 = the default:
- * the last MCS_RP2_FS_SIZE bytes (Pico: 1 MB of 2 MB, Pico 2: 3 MB of 4 MB).
+ * the last MCS_RP2_FS_SIZE bytes (Pico: 1 MB of 2 MB, Pico 2: 3 MB of 4 MB; Pico W: 512 KB,
+ * Pico 2 W: 2.5 MB - the radio firmware needs more room; minus 8 KB of bonds with MICROCS_BLE).
  * Fails (MCS_FLASH_EINVAL) if the region overlaps the firmware. Erase/program
  * run through flash_safe_execute (interrupts and the other core paused). */
 #include "mcs_flash.h"
+#ifndef MCS_RP2_FW_RESERVE              /* flash kept for the firmware in front of the file system */
+#  if (defined(MCS_RP2_WIFI) && MCS_RP2_WIFI) || (defined(MCS_RP2_BLE) && MCS_RP2_BLE)
+#    define MCS_RP2_FW_RESERVE (1536u * 1024u)   /* Pico W / 2 W: the CYW43 firmware + lwIP / BTstack (~1.1-1.4 MB) */
+#  else
+#    define MCS_RP2_FW_RESERVE (1u << 20)
+#  endif
+#endif
 #ifndef MCS_RP2_FS_SIZE
 #  if MCS_INTFLASH_SIZE
 #    define MCS_RP2_FS_SIZE MCS_INTFLASH_SIZE
-#  elif defined(PICO_FLASH_SIZE_BYTES) && PICO_FLASH_SIZE_BYTES >= (4u << 20)
-#    define MCS_RP2_FS_SIZE (PICO_FLASH_SIZE_BYTES - (1u << 20))
-#  elif defined(PICO_FLASH_SIZE_BYTES)
-#    define MCS_RP2_FS_SIZE (PICO_FLASH_SIZE_BYTES / 2)
+#  elif defined(PICO_FLASH_SIZE_BYTES) && PICO_FLASH_SIZE_BYTES > MCS_RP2_FW_RESERVE
+#    define MCS_RP2_FS_SIZE (PICO_FLASH_SIZE_BYTES - MCS_RP2_FW_RESERVE)
 #  else
 #    define MCS_RP2_FS_SIZE (1u << 20)
 #  endif
@@ -90,6 +96,25 @@ int mcs_rp2_flash_init(mcs_rp2_flash_t* f, uint32_t offset, uint32_t size);
 #include "mcs_net.h"
 const mcs_net_t* mcs_rp2_net(void);
 int mcs_rp2_wl_gpio(int pin, int write, int v);     /* MCS_RP2_WL_PIN(0..2): write 0/1 or read */
+#endif
+
+/* Pico W / Pico 2 W Bluetooth LE on BTstack (-DMICROCS_BLE=ON; docs/BLE.md). mcs_rp2_hal_init
+ * registers it with mcs_ble_set(); the radio starts on Ble.Enable(). Bonds use BTstack's flash
+ * bank, the last 8 KB of flash: the default file system region ends below it. */
+#ifndef MCS_RP2_BLE
+#define MCS_RP2_BLE 0
+#endif
+#if MCS_RP2_BLE
+#include "mcs_ble.h"
+#ifndef MCS_RP2_BLE_MTU
+#define MCS_RP2_BLE_MTU 247            /* largest ATT MTU offered (l2cap_set_max_le_mtu) */
+#endif
+#define MCS_RP2_BLE_FLASH (8u * 1024u) /* PICO_FLASH_BANK_TOTAL_SIZE */
+const mcs_ble_t* mcs_rp2_ble(void);
+#if MCS_RP2_WIFI
+int mcs_rp2_radio_init(void);          /* cyw43_arch_init once, shared by Wi-Fi and Bluetooth */
+bool mcs_rp2_ble_started(void);        /* BTstack is set up on the chip (Wifi.Country can't restart it) */
+#endif
 #endif
 
 #ifdef __cplusplus

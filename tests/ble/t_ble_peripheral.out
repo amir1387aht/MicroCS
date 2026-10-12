@@ -1,0 +1,19 @@
+02-01-06-03-03-0F-18-08-09-4D-79-42-6F-61-72-64 / 
+connect connection 64 to 4C:57:A1:00:00:01 (we are peripheral) mtu 185
+event Connect 1
+event Mtu 185
+subscribed 1
+event Subscribe 1
+write hello from 4C:57:A1:00:00:01
+advertising False subs 1 cmd=hello
+notified 1
+handles 16 18 21
+disconnect 4C:57:A1:00:00:01 reason 22
+event Disconnect 22
+connect connection 64 to 4C:57:A1:00:00:01 (we are peripheral) mtu 185
+event Connect 1
+event Mtu 185
+subscribed 1
+event Subscribe 1
+write hello from 4C:57:A1:00:00:01
+advertising again False

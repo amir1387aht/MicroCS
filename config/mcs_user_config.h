@@ -428,6 +428,55 @@
 #define MCS_ESPNOW_MAX_PEERS      20    /* EspNow.Peers capacity */
 #endif
 
+/* ---- Bluetooth Low Energy (docs/BLE.md). Opt-in, never in the release firmware: ESP-IDF
+ * (NimBLE) and Zephyr CONFIG_MICROCS_BLE, Pico W CMake -DMICROCS_BLE=ON (BTstack),
+ * Arduino tools/make_arduino.py --ble (ArduinoBLE), host `make mcs-ble` (simulated radio). */
+#ifndef MCS_ENABLE_BLE
+#define MCS_ENABLE_BLE            0    /* C# Ble, BleService, BleConnection, BleUart ... (needs MCS_ENABLE_HAL) */
+#endif
+#ifndef MCS_BLE_SIM
+#define MCS_BLE_SIM               (MCS_ENABLE_BLE && MCS__NET_HOSTED && !MCS__NET_ESP)    /* simulated radio for `mcs --sim` */
+#endif
+#ifndef MCS_BLE_NAME
+#define MCS_BLE_NAME              "MicroCS"    /* default Ble.Name (GAP device name, advertised) */
+#endif
+#ifndef MCS_BLE_QUEUE
+#define MCS_BLE_QUEUE             2048    /* bytes of events / reports / writes waiting for the script */
+#endif
+#ifndef MCS_BLE_MAX_CONN
+#define MCS_BLE_MAX_CONN          4    /* simultaneous connections the front end tracks */
+#endif
+#ifndef MCS_BLE_MAX_SERVICES
+#define MCS_BLE_MAX_SERVICES      8    /* local GATT services */
+#endif
+#ifndef MCS_BLE_MAX_ATTRS
+#define MCS_BLE_MAX_ATTRS         32    /* local characteristics + descriptors */
+#endif
+#ifndef MCS_BLE_VALUE_POOL
+#define MCS_BLE_VALUE_POOL        2048    /* bytes for local attribute values (static) */
+#endif
+#ifndef MCS_BLE_MAX_VALUE
+#define MCS_BLE_MAX_VALUE         512    /* largest attribute value (the ATT limit) */
+#endif
+#ifndef MCS_BLE_SCAN_MAX
+#define MCS_BLE_SCAN_MAX          32    /* devices Ble.Scan returns */
+#endif
+#ifndef MCS_BLE_MAX_DISC
+#define MCS_BLE_MAX_DISC          32    /* services / characteristics / descriptors one discovery returns */
+#endif
+#ifndef MCS_BLE_MAX_SUBS
+#define MCS_BLE_MAX_SUBS          8    /* remote characteristics subscribed to at once */
+#endif
+#ifndef MCS_BLE_TIMEOUT
+#define MCS_BLE_TIMEOUT           5000    /* default Ble.Timeout for GATT client operations (ms) */
+#endif
+#ifndef MCS_BLE_CONNECT_TIMEOUT
+#define MCS_BLE_CONNECT_TIMEOUT   10000    /* Ble.Connect default timeout (ms) */
+#endif
+#ifndef MCS_BLE_UART_RX
+#define MCS_BLE_UART_RX           512    /* BleUart receive buffer (bytes) */
+#endif
+
 /* ---- OS threads (docs/THREADS.md). Off unless you choose an OS: MCS_OS_FREERTOS (headers on the
  * include path; CMake MICROCS_OS=freertos, ESP-IDF menuconfig), MCS_OS_ZEPHYR (CONFIG_MICROCS_THREADS),
  * MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect). MCS_OS_NONE: single-threaded, as always. */

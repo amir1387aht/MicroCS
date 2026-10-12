@@ -1,0 +1,20 @@
+# Bluetooth LE firmware (C# Ble, BleService, BleConnection, BleUart; docs/BLE.md).
+# Not in the release firmware. Build it with:
+#   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ble" set-target esp32s3 build
+# (or `rm sdkconfig` first when the project was configured before)
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_MICROCS_BLE=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=4
+CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
+# bonds survive a reset (NVS)
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+# keep the console for the REPL
+CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y
+# the original ESP32: Wi-Fi + Bluetooth + MicroCS overflow the IRAM - run the Wi-Fi
+# and lwIP fast paths from flash instead (a little slower networking)
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+CONFIG_LWIP_IRAM_OPTIMIZATION=n
+# Wi-Fi + TLS + Bluetooth + the full C# runtime: -Os keeps the app well inside its 2 MB partition
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y

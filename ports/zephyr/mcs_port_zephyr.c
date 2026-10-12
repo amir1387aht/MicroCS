@@ -997,6 +997,9 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     mcs_driver_register_default(&z_ws2812);       /* "ws2812" driver on the led-strip alias */
 #endif
     hal->cpu_hz = (uint32_t)sys_clock_hw_cycles_per_sec();
+#if MCS_ENABLE_BLE
+    mcs_ble_set(mcs_zephyr_ble());                /* C# Ble ... on the Zephyr host (CONFIG_MICROCS_BLE) */
+#endif
 }
 
 /* ------------------------------------------------------------------ raw flash partition */

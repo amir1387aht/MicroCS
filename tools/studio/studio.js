@@ -1423,7 +1423,7 @@ const plot = new Plot($("plot"));
 const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
 const TAG_RULES = [
   ["Wi-Fi", /\b(Wifi|Http|HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer|Ntp|Mdns|Ping|Dns)\b\s*[.(]|new (HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer)\b/],
-  ["ESP-NOW", /\bEspNow\./], ["OLED", /\bnew U8(g2|x8)\b/], ["files", /\b(File|Directory)\.\w+\(/],
+  ["ESP-NOW", /\bEspNow\./], ["BLE", /\bBle\.\w+|\bnew Ble(Service|Uart|Advertisement)\b/], ["OLED", /\bnew U8(g2|x8)\b/], ["files", /\b(File|Directory)\.\w+\(/],
   ["jobs", /\bScheduler\./], ["threads", /\bThread\.(Run|RunOn|Every)\b/],
   ["DMA", /\bDmaBuffer\b|\w+Async\(/], ["input", /\bConsole\.ReadLine\b/],
 ];

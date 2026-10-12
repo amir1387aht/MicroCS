@@ -32,6 +32,10 @@
 #                     + MICROCS_FREERTOS_PORT + MICROCS_FREERTOS_CONFIG_DIR
 #   MICROCS_WIFI      ON (RP2 only): Wi-Fi + lwIP sockets on a Pico W / Pico 2 W (PICO_BOARD=pico_w / pico2_w,
 #                     MICROCS_OS=freertos; ports/rp2/mcs_port_rp2_net.c, lwipopts.h from MICROCS_LWIPOPTS_DIR)
+#   MICROCS_BLE       ON: Bluetooth LE (C# Ble, BleService, BleConnection, BleUart; docs/BLE.md; default OFF,
+#                     never in the release builds). RP2: BTstack on a Pico W / Pico 2 W (PICO_BOARD=pico_w /
+#                     pico2_w; btstack_config.h from MICROCS_BTSTACK_CONFIG_DIR); host: the simulated radio
+#                     (mcs --sim). ESP-IDF: CONFIG_MICROCS_BLE; Zephyr: CONFIG_MICROCS_BLE
 #   MICROCS_U8G2      ON: C# U8g2 / U8x8 on olikraus' u8g2 library (docs/U8G2.md; default OFF, or ON when
 #                     mcs_user_config.h has #define MCS_ENABLE_U8G2 1). Sources: MICROCS_U8G2_DIR, a copy
 #                     found next to the project or -DMICROCS_U8G2_DOWNLOAD=ON; compiled in only the
@@ -111,6 +115,11 @@ if(ESP_PLATFORM)
         set(_mcs_net_srcs ports/esp32/mcs_port_esp32_net.c)
     endif()
     set(_mcs_net_reqs esp_wifi esp_netif esp_event nvs_flash lwip esp-tls mbedtls wpa_supplicant)
+    # menuconfig > MicroCS > Bluetooth LE (NimBLE host): C# Ble, BleService, BleConnection, BleUart
+    if(CONFIG_MICROCS_BLE)
+        list(APPEND _mcs_net_srcs ports/esp32/mcs_port_esp32_ble.c)
+    endif()
+    list(APPEND _mcs_net_reqs bt)
     # mDNS (C# Mdns) when the project has the espressif/mdns component:
     # idf.py add-dependency espressif/mdns   (or a copy in <project>/components/mdns)
     idf_build_get_property(_mcs_proj PROJECT_DIR)
@@ -126,6 +135,9 @@ if(ESP_PLATFORM)
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)
+    if(CONFIG_MICROCS_BLE)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_BLE=1)
+    endif()
     if(NOT CONFIG_MICROCS_WIFI)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_NET=0)
     elseif(_mcs_mdns)
@@ -205,6 +217,9 @@ endif()
 if(NOT DEFINED MICROCS_WIFI)
     option(MICROCS_WIFI "RP2: Wi-Fi + sockets on a Pico W / Pico 2 W (needs MICROCS_OS=freertos)" OFF)
 endif()
+if(NOT DEFINED MICROCS_BLE)
+    option(MICROCS_BLE "Bluetooth LE: RP2 Pico W / Pico 2 W (BTstack), host (simulated radio)" OFF)
+endif()
 if(NOT DEFINED MICROCS_OS)
     set(MICROCS_OS "none" CACHE STRING "OS for real C# threads: none (default, single-threaded), freertos, posix, auto")
 endif()
@@ -258,6 +273,9 @@ endif()
 if(NOT MICROCS_SERVO)
     target_compile_definitions(microcs PUBLIC MCS_ENABLE_SERVO=0)
 endif()
+if(MICROCS_BLE AND NOT MICROCS_PORT AND NOT CMAKE_CROSSCOMPILING)
+    target_compile_definitions(microcs PUBLIC MCS_ENABLE_BLE=1)   # host: the simulated radio (mcs --sim)
+endif()
 if(MICROCS_OS AND NOT MICROCS_OS STREQUAL "none")
     include(${MICROCS_DIR}/cmake/MicroCSOS.cmake)
     microcs_add_os(microcs "${MICROCS_OS}")
@@ -303,6 +321,30 @@ if(MICROCS_PORT STREQUAL "rp2")
         target_include_directories(microcs PUBLIC ${MICROCS_LWIPOPTS_DIR})
         target_link_libraries(microcs PUBLIC pico_cyw43_arch_lwip_sys_freertos pico_lwip_sntp pico_lwip_mdns)
         target_compile_definitions(microcs PUBLIC MCS_RP2_WIFI=1 MCS_ENABLE_NET=1 MCS_NET_LWIP=1 MCS_NET_SIM=0)
+    endif()
+    if(MICROCS_BLE)                                  # Pico W / Pico 2 W: Bluetooth LE on BTstack (docs/BLE.md)
+        if(NOT TARGET pico_btstack_cyw43 OR NOT TARGET pico_btstack_ble)
+            message(FATAL_ERROR "MICROCS_BLE=ON needs a board with the CYW43 radio (-DPICO_BOARD=pico_w or pico2_w) "
+                "and pico-sdk's lib/btstack + lib/cyw43-driver submodules")
+        endif()
+        target_sources(microcs PRIVATE ${MICROCS_DIR}/ports/rp2/mcs_port_rp2_ble.c)
+        if(NOT MICROCS_BTSTACK_CONFIG_DIR)
+            set(MICROCS_BTSTACK_CONFIG_DIR ${MICROCS_DIR}/ports/rp2/ble)   # btstack_config.h
+        endif()
+        target_include_directories(microcs PUBLIC ${MICROCS_BTSTACK_CONFIG_DIR})
+        target_link_libraries(microcs PUBLIC pico_btstack_ble pico_btstack_cyw43)
+        if(NOT MICROCS_WIFI)                         # the cyw43 driver without lwIP
+            if(_mcs_os_lc STREQUAL "freertos" AND TARGET pico_cyw43_arch_sys_freertos)
+                target_link_libraries(microcs PUBLIC pico_cyw43_arch_sys_freertos)
+                target_compile_definitions(microcs PUBLIC CYW43_LWIP=0)
+            elseif(_mcs_os_lc STREQUAL "freertos")
+                message(FATAL_ERROR "MICROCS_BLE=ON with MICROCS_OS=freertos needs pico-sdk's lib/lwip submodule "
+                    "(pico_cyw43_arch_sys_freertos is defined next to the lwIP targets)")
+            else()
+                target_link_libraries(microcs PUBLIC pico_cyw43_arch_none)   # threadsafe background, no lwIP
+            endif()
+        endif()
+        target_compile_definitions(microcs PUBLIC MCS_RP2_BLE=1 MCS_ENABLE_BLE=1)
     endif()
 elseif(MICROCS_PORT STREQUAL "stm32")
     # STM32CubeMX >= 6.11 generates an INTERFACE target with the HAL includes + defines

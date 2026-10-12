@@ -27,10 +27,13 @@ void app_main(void) {
     bool on_flash = mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx);
 
     /* VM heap: up to 192 KB, leaving 32 KB for the drivers and FreeRTOS
-     * (+ menuconfig > MicroCS > Wi-Fi > RAM kept free for the Wi-Fi driver) */
+     * (+ menuconfig > MicroCS > Wi-Fi > RAM kept free for the Wi-Fi driver, and the same for BLE) */
     size_t heap_size = 192 * 1024, reserve = 32 * 1024;
 #if MCS_ESP32_WIFI && defined(CONFIG_MICROCS_WIFI_RESERVE_KB)
     reserve += (size_t)CONFIG_MICROCS_WIFI_RESERVE_KB * 1024;
+#endif
+#if MCS_ESP32_BLE && defined(CONFIG_MICROCS_BLE_RESERVE_KB)
+    reserve += (size_t)CONFIG_MICROCS_BLE_RESERVE_KB * 1024;   /* NimBLE host + controller, started later */
 #endif
     size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
     size_t total = heap_caps_get_free_size(MALLOC_CAP_8BIT);

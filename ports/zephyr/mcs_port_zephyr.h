@@ -79,6 +79,13 @@ typedef struct { mcs_flash_t flash; const void* fa; } mcs_zephyr_flash_t;
 int mcs_zephyr_flash_area_init(mcs_zephyr_flash_t* f, int area_id);
 #endif
 
+#if MCS_ENABLE_BLE
+/* Bluetooth LE on the Zephyr host (CONFIG_MICROCS_BLE, docs/BLE.md); mcs_zephyr_hal_init
+ * registers it with mcs_ble_set(). */
+#include "mcs_ble.h"
+const mcs_ble_t* mcs_zephyr_ble(void);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

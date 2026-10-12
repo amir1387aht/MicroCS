@@ -53,7 +53,9 @@ if (mcs_rp2_flash_init(&flash, 0, 0) == 0 &&                        // last MCS_
 ```
 
 * Region: `MCS_RP2_FS_SIZE` bytes at the end of flash — 1 MB on 2 MB boards (Pico), all but
-  the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Override with `MCS_RP2_FS_SIZE` (in `mcs_user_config.h` or `-D`) or pass
+  the first 1 MB on 4 MB+ boards (Pico 2: 3 MB). Pico W / Pico 2 W builds with Wi-Fi or BLE keep
+  the first 1.5 MB for the firmware (`MCS_RP2_FW_RESERVE`: 512 KB of files on a Pico W), and BLE
+  bonds take the last 8 KB. Override with `MCS_RP2_FS_SIZE` (in `mcs_user_config.h` or `-D`) or pass
   an offset/size; the driver refuses a region that overlaps the firmware.
 * Erase/program go through `flash_safe_execute`, which pauses interrupts and the other core.
 * **Filesystem sources** are not bundled or downloaded silently: pass
@@ -109,7 +111,27 @@ without `MICROCS_OS=freertos` the radio stays off). The backend is
 [`wifi/lwipopts.h`](wifi/lwipopts.h) (`-DMICROCS_LWIPOPTS_DIR=` for your own). `Wifi.Save`
 keeps the network in the file `/.wifi`. No HTTPS, ESP-NOW, WPS or SmartConfig.
 
+## Bluetooth LE (Pico W, Pico 2 W)
+
+Opt-in, not in the release images: `-DMICROCS_BLE=ON` adds C# `Ble`, `BleService`,
+`BleConnection` and `BleUart` on BTstack ([docs/BLE.md](../../docs/BLE.md)) — with or without
+FreeRTOS, with or without Wi-Fi:
+
+```sh
+git -C $PICO_SDK_PATH submodule update --init lib/cyw43-driver lib/lwip lib/btstack
+cmake -S ports/rp2/example -B build/pico_w_ble -DPICO_BOARD=pico_w -DMICROCS_BLE=ON -DMICROCS_FS_DOWNLOAD=ON
+cmake --build build/pico_w_ble
+```
+
+BTstack settings are in [`ble/btstack_config.h`](ble/btstack_config.h) (2 connections,
+247-byte MTU, LE Secure Connections; `-DMICROCS_BTSTACK_CONFIG_DIR=` for your own). Bonds use
+the last 8 KB of flash. Backend: [`mcs_port_rp2_ble.c`](mcs_port_rp2_ble.c).
+
+**Flash layout**: with Wi-Fi or BLE the firmware (radio firmware included) gets the first
+1.5 MB and the filesystem the rest (`MCS_RP2_FW_RESERVE`; 1 MB without the radio).
+
 ## Checked in CI
 
 The example firmware is built for `pico` (RP2040, LittleFS) and `pico2` (RP2350, LittleFS and
-YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi.
+YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi, `pico_w` with BLE (no OS) and
+`pico2_w` with Wi-Fi + BLE.

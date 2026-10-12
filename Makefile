@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test
+test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -102,6 +102,24 @@ u8g2-test: mcs-u8g2
 	@$(CC) -std=gnu99 -Iinclude -DMCS_ENABLE_U8G2=1 -c modules/drivers/mcs_drv_u8g2.c -o build/x.o 2>&1 | grep -q "tools/u8g2.py fetch" \
 	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
 	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
+
+# Bluetooth LE (docs/BLE.md): opt-in, like on the boards - the default `mcs` (and every release
+# build) is without it. build/mcs_ble has the module and the simulated radio (--sim).
+BLE_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1
+mcs-ble: | build
+	$(CC) $(BLE_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble
+# tests/ble/*.cs against their .out on the simulated radio, the examples as smoke tests,
+# and the module without the simulator / without the HAL
+ble-test: mcs-ble
+	@for t in tests/ble/*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
+	  ./build/mcs_ble --sim $$o $$t > build/ble.txt 2>&1; \
+	  cmp -s build/ble.txt $${t%.cs}.out && echo "PASS $$t" || { echo "FAIL $$t"; diff build/ble.txt $${t%.cs}.out | head -40; exit 1; }; done
+	@for f in examples/ble/*.cs; do ./build/mcs_ble --sim --time-limit 4000 $$f > /dev/null 2>build/ble.err; rc=$$?; \
+	  if grep -q "Unhandled" build/ble.err || { [ $$rc -ne 0 ] && ! grep -q "time limit exceeded" build/ble.err; }; then \
+	  echo "FAIL $$f"; cat build/ble.err; exit 1; fi; done; echo "PASS examples/ble/*.cs (smoke, $$(ls examples/ble/*.cs | wc -l) scripts)"
+	@./build/mcs_ble --features | grep -q " ble" && ./mcs --features | grep -vq " ble" && echo "OK default mcs is without BLE, build/mcs_ble has it" || { echo "FAIL BLE feature bits"; exit 1; }
+	@for f in "-DMCS_BLE_SIM=0" "-DMCS_ENABLE_SCHED=0" "-DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4" "-DMCS_PROFILE=MCS_PROFILE_MCU"; do \
+	  $(CC) $(BLE_FLAGS) $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble_flags || { echo "BUILD FAIL BLE $$f"; exit 1; }; echo "OK BLE $$f"; done
 
 # Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
 # the CLI and the firmware runtime (pool heap, RAM filesystem, jobs.cfg `thread` jobs, C API).
@@ -262,7 +280,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

@@ -17,6 +17,8 @@ library (Arduino/libraries/MicroCS/src/), or bake the options in here:
     --profile NAME          full | auto | embedded | mcu | lowram | tiny | min | linux
     --no-ws2812             leave out the "ws2812" driver (C# LedStrip)
     --no-servo              leave out the "servo" driver (C# Servo)
+    --ble                   C# Ble (docs/BLE.md) on the ArduinoBLE library (Library Manager:
+                            "ArduinoBLE"; Nano 33 BLE / IoT, UNO R4 WiFi, Nano ESP32 ...)
     --u8g2                  C# U8g2 / U8x8 displays (docs/U8G2.md): needs the U8g2 library
                             (Library Manager: "U8g2"), which then is a dependency
     --u8g2-displays A,B     displays compiled in (python3 tools/u8g2.py displays)
@@ -141,6 +143,7 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "arduino"))
     ap.add_argument("--no-ws2812", action="store_true", help="leave out the ws2812 driver (C# LedStrip)")
     ap.add_argument("--no-servo", action="store_true", help="leave out the servo driver (C# Servo)")
+    ap.add_argument("--ble", action="store_true", help="C# Ble (docs/BLE.md): needs the ArduinoBLE library")
     ap.add_argument("--u8g2", action="store_true", help="C# U8g2 / U8x8 (needs the U8g2 library)")
     ap.add_argument("--u8g2-displays", help="comma list of u8g2 displays to compile in")
     ap.add_argument("--u8g2-fonts", help="comma list of U8g2 fonts in flash")
@@ -170,6 +173,8 @@ def main():
     defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else []) + (["MCS_ENABLE_SERVO=0"] if a.no_servo else [])
     if a.profile:
         defines.append("MCS_PROFILE=MCS_PROFILE_" + a.profile.upper())
+    if a.ble:
+        defines.append("MCS_ENABLE_BLE=1")
     if a.u8g2 or a.u8g2_displays or a.u8g2_fonts or a.u8x8_fonts:
         a.u8g2 = True
         defines += u8g2_defines(a.u8g2_displays, a.u8g2_fonts, a.u8x8_fonts)
@@ -223,7 +228,8 @@ category=Other
 url=https://github.com/amir1387aht/MicroCS
 architectures=*
 includes=MicroCS.h
-""" + ("depends=U8g2\n" if a.u8g2 else ""))
+""" + (("depends=" + ",".join(d for d, on in (("U8g2", a.u8g2), ("ArduinoBLE", a.ble)) if on) + "\n")
+       if a.u8g2 or a.ble else ""))
     zpath = os.path.join(a.out, f"MicroCS-{v}.zip")
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for base, _, names in os.walk(lib):
