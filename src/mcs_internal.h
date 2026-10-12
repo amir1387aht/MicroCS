@@ -431,10 +431,16 @@ static inline mcs_value_t mcs_undef(void) { mcs_value_t v; v.type = MCS_T_UNDEF;
 
 /* memory (mcs_object.c) */
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
-#define MCS_ALLOC(vm, T, n) ((T*)mcs_realloc(vm, NULL, 0, sizeof(T) * (n)))
-#define MCS_FREE(vm, T, p, n) mcs_realloc(vm, p, sizeof(T) * (n), 0)
-#define MCS_GROW(vm, T, p, o, n) ((T*)mcs_realloc(vm, p, sizeof(T) * (o), sizeof(T) * (n)))
 void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg);
+/* n * elem bytes, or an out-of-memory panic when that does not fit in size_t
+ * (on 32-bit MCUs `new int[int.MaxValue]` would otherwise wrap to a tiny block) */
+static inline size_t mcs_arr_bytes(mcs_vm_t* vm, size_t elem, uint64_t n) {
+    if (n > (uint64_t)(SIZE_MAX / elem)) mcs_panic(vm, MCS_ERR_MEMORY, "out of memory (allocation size overflow)");
+    return elem * (size_t)n;
+}
+#define MCS_ALLOC(vm, T, n) ((T*)mcs_realloc(vm, NULL, 0, mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))
+#define MCS_FREE(vm, T, p, n) mcs_realloc(vm, p, sizeof(T) * (n), 0)
+#define MCS_GROW(vm, T, p, o, n) ((T*)mcs_realloc(vm, p, sizeof(T) * (o), mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))
 void mcs_maybe_gc(mcs_vm_t* vm);
 void mcs_collect(mcs_vm_t* vm);
 void mcs_free_objects(mcs_vm_t* vm);

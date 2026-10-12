@@ -20,7 +20,28 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   device now asks before replacing it; added templates get a name no open tab uses
   (`hello-2.cs`); *Add* / *Insert at cursor* are disabled without a selection (and *Insert*
   for read-only tabs); the save dialog selects the name without the extension for any
-  extension (it assumed `.cs`) and accepts a relative path.
+  extension (it assumed `.cs`) and accepts a relative path. The *Wi-Fi and networking* folder
+  is `28-wifi-and-networking`; `test_templates.js` fails on a template without source or
+  description.
+* **Robustness pass** (ASan/UBSan, source + shell-protocol fuzzing of tests, examples and
+  templates):
+  * array / list / buffer allocations check `count * element size` for overflow — on 32-bit
+    MCUs `new int[int.MaxValue]` wrapped to a tiny block and then overflowed the heap; it now
+    fails with an out-of-memory error like any other too-large allocation;
+  * `StringComparison` is honored by `IndexOf`, `LastIndexOf`, `Contains`, `StartsWith`,
+    `EndsWith`, `Replace`, `Equals`, `string.Equals` and `string.Compare` (before,
+    `IndexOf("x", StringComparison.Ordinal)` took the enum for a start index and
+    `string.Compare(a, b, StringComparison.Ordinal)` ignored case);
+    added `CurrentCulture` / `InvariantCulture`; `StartsWith` / `EndsWith(v, ignoreCase, culture)`;
+  * `IndexOf(value, start, count)` honors `count`; `LastIndexOf(value, startIndex[, count])`
+    searches backwards from `startIndex` (both ignored the extra arguments);
+  * `Math.Round(x, digits)` returns huge values unchanged (`Math.Round(1e300, 15)` was
+    infinity);
+  * `StringBuilder.Remove` / `ToString(start, length)`, `LedStrip.Fill` and u8g2 rounded boxes
+    no longer overflow `int` in their range checks;
+  * `--sim-virtual`: the virtual clock advances on every `Hal.Micros` read, so
+    `GPIO.PulseIn` and other busy-waits no longer spin forever; RAM filesystem reads/writes
+    of 0 bytes no longer pass a null pointer to `memcpy`.
 
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 

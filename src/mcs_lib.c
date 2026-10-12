@@ -810,6 +810,8 @@ NATIVE(m_round) {
     if (argc >= 2) {
         mcs_int_t d = mcs_to_int(vm, argv[1]); CHECK();
         if (d < 0 || d > 15) { mcs_throw(vm, EXC_ARGRANGE, "Rounding digits must be between 0 and 15, inclusive. (Parameter 'digits')"); return mcs_null(); }
+        /* like .NET: values >= 1e16 have no fractional digits (and x * p could overflow to infinity) */
+        if (!(FM(fabs)(x) < (mcs_float_t)1e16)) return mcs_float(x);
         mcs_float_t p = FM(pow)((mcs_float_t)10, (mcs_float_t)d);
         return mcs_float(round_even(x * p) / p);
     }
