@@ -624,6 +624,33 @@ static mcs_value_t delegate_combine(mcs_vm_t* vm, mcs_value_t a, mcs_value_t b, 
     return res;
 }
 
+/* checked FOR_ITER (v[0] collection, v[1] index, v[2] version, v[3] current dictionary
+ * key): false when the List / Dictionary was modified since the previous step. Removed
+ * dictionary entries shift the later ones down, so *i is re-derived from the current key
+ * (or kept at its old position when the current key itself was removed). */
+static bool for_iter_check(mcs_value_t a, mcs_value_t* v, mcs_int_t* i) {
+#if MCS_ENABLE_DICT
+    mcs_dict_t* d = IS_KIND(a, MCS_O_DICT) ? AS_DICT(a) : NULL;
+#else   /* no Dictionary class: scripts cannot change a dictionary */
+    mcs_dict_t* d = NULL;
+#endif
+    if (!d && !IS_KIND(a, MCS_O_LIST)) return true;
+    mcs_int_t ver = d ? (mcs_int_t)DICT_VERSION(d) : (mcs_int_t)AS_LIST(a)->obj.aux, k = *i;
+    if (k == 0) v[2] = mcs_int(ver);
+    else if (v[2].as.i != ver) return false;
+    if (!d) return true;
+#if MCS_ENABLE_DICT
+    if (k > 0 && !((mcs_uint_t)(k - 1) < d->count && mcs_values_same(d->keys[k - 1], v[3]))) {
+        uint32_t p;
+        if (mcs_dict_pos(d, v[3], &p)) k = (mcs_int_t)p + 1;
+        else if ((mcs_uint_t)--k > d->count) k = (mcs_int_t)d->count;
+    }
+    v[3] = (mcs_uint_t)k < d->count ? d->keys[k] : mcs_null();
+    *i = k;
+#endif
+    return true;
+}
+
 static bool arith(mcs_vm_t* vm, int op, mcs_value_t a, mcs_value_t b, mcs_value_t* out) {
     if (is_intlike_v(a) && is_intlike_v(b)) {
         mcs_uint_t x = (mcs_uint_t)a.as.i, y = (mcs_uint_t)b.as.i;
@@ -1780,10 +1807,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         a = slots[s];
         mcs_int_t i = slots[s + 1].as.i;
         if (IS_KIND(a, MCS_O_ARRAY) || IS_KIND(a, MCS_O_LIST)) {
-            if (checked && IS_KIND(a, MCS_O_LIST)) {
-                if (i == 0) slots[s + 2] = mcs_int((mcs_int_t)AS_LIST(a)->obj.aux);
-                else if (slots[s + 2].as.i != (mcs_int_t)AS_LIST(a)->obj.aux) goto for_iter_modified;
-            }
+            if (checked && !for_iter_check(a, &slots[s], &i)) goto for_iter_modified;
             if ((mcs_uint_t)i < AS_LIST(a)->count) { PUSH(AS_LIST(a)->items[i]); slots[s + 1].as.i = i + 1; }
             else ip += o;
             DISPATCH();
@@ -1802,24 +1826,15 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         if (IS_KIND(a, MCS_O_DICT)) {
             mcs_dict_t* d = AS_DICT(a);
-            if (checked) {
-                if (i == 0) slots[s + 2] = mcs_int((mcs_int_t)DICT_VERSION(d));
-                else if (slots[s + 2].as.i != (mcs_int_t)DICT_VERSION(d)) goto for_iter_modified;
-                else if (!((mcs_uint_t)(i - 1) < d->count && mcs_values_same(d->keys[i - 1], slots[s + 3]))) {
-                    /* entries were removed (they shift down): continue after the current key,
-                     * or at its old position when the current key itself was removed */
-                    uint32_t p;
-                    if (mcs_dict_pos(d, slots[s + 3], &p)) i = (mcs_int_t)p + 1;
-                    else { i--; if ((mcs_uint_t)i > d->count) i = (mcs_int_t)d->count; }
-                }
-            }
+#if MCS_ENABLE_DICT
+            if (checked && !for_iter_check(a, &slots[s], &i)) goto for_iter_modified;
+#endif
             if ((mcs_uint_t)i < d->count) {
-                if (checked) slots[s + 3] = d->keys[i];
                 mcs_instance_t* kv = mcs_new_instance(vm, MCS_CLS(vm, kvp));
                 kv->fields[0] = d->keys[i]; kv->fields[1] = DICT_VAL(d, i);
                 PUSH(OBJ_VAL(kv));
                 slots[s + 1].as.i = i + 1;
-            } else { if (checked) slots[s + 3] = mcs_null(); ip += o; }
+            } else ip += o;
             DISPATCH();
         }
         SAVE();

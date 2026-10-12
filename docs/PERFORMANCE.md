@@ -61,8 +61,9 @@ no longer the bottleneck for those. `fib` is call/return-bound (~170 instruction
 
 The superinstruction handlers and caches cost about **8–11 KB** of Thumb code.
 `profiles/mcs_profile_min.h`
-sets `MCS_ENABLE_SUPEROPS=0` and `MCS_FIELD_CACHE=0` so the 64 KB-flash build keeps its margin
-(60.6 KB with this toolchain; Ubuntu's newlib adds ~0.9 KB); such VMs run
+sets `MCS_ENABLE_SUPEROPS=0`, `MCS_FIELD_CACHE=0` and `MCS_COMPUTED_GOTO=0` so the 64 KB-flash
+build keeps its margin (63.0 KB with Ubuntu 24.04's arm-none-eabi-gcc 13.2 and newlib-nano, the
+CI toolchain; switch dispatch costs the M0 ~3 % more instructions); such VMs run
 `-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
 same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 

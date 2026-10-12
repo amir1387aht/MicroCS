@@ -43,3 +43,5 @@ Json too deep FormatException
 20
 deep LINQ recursion StackOverflowException
 20
+const MinValue / -1 OverflowException
+const MinValue % -1 OverflowException

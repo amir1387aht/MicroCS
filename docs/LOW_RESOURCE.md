@@ -27,7 +27,7 @@ every other switch below goes into the same header or onto the command line
 | 64–96 KB RAM | `profiles/mcs_profile_mcu.h` | precompiled images only, all modules |
 | 32–64 KB RAM | `profiles/mcs_profile_lowram.h` + `mcs_exec_image_xip()` + a reduced `cfg.stdlib` | see [the example](../examples/lowram/) |
 | 16–32 KB RAM, ≥ 128 KB flash | lowram or tiny + a 12 KB pool | the [`examples/lowram`](../examples/lowram/) node runs in 16 KB (`m0-16k`) |
-| **16 KB RAM, 64 KB flash** | `profiles/mcs_profile_min.h` | reduced stdlib, tiny printf, no libm — whole firmware 60.6 KB (`m0-64k`; superinstructions and inline caches off, runs `-O0` images) |
+| **16 KB RAM, 64 KB flash** | `profiles/mcs_profile_min.h` | reduced stdlib, tiny printf, no libm — whole firmware 63.0 KB (`m0-64k`; superinstructions, inline caches and computed goto off, runs `-O0` images) |
 | < 16 KB RAM or < 64 KB flash | not supported | the auto profile and the STM32 device table stop the build (`MCS_ALLOW_SMALL_TARGET=1` to try anyway) |
 
 ## Measured configurations (Cortex-M0, emulated)
@@ -38,7 +38,7 @@ every other switch below goes into the same header or onto the command line
 | `m0-lowram` — lowram profile, all modules, full stdlib | 185.7 KB | 64 KB | 5.0 KB | `demo.cs` image, 4.49 M instr | 30.0 KB of 40 KB |
 | `m0-node` = [`examples/lowram`](../examples/lowram/) — lowram profile, no FS/HAL/scheduler, `MCS_LIB_CORE \| MCS_LIB_COLLECTIONS` | 146.7 KB | 48 KB | 1.7 KB | 24 `Node.Tick()` calls, 1.04 M instr | 14.3 KB of 32 KB |
 | `m0-16k` — the same node firmware in a **16 KB** part (12 KB pool, 2 KB C stack) | 146.7 KB | 16 KB | 1.7 KB | same, 1.03 M instr, 12 collections | 11.2 KB of 12 KB |
-| `m0-64k` — `min` profile, **64 KB flash / 16 KB RAM** | **60.6 KB** | 16 KB | 1.8 KB | same, 0.93 M instr, 4 collections | 10.4 KB of 12 KB |
+| `m0-64k` — `min` profile, **64 KB flash / 16 KB RAM** | **63.0 KB** | 16 KB | 1.8 KB | same, 0.96 M instr, 4 collections | 10.4 KB of 12 KB |
 
 Flash is the whole firmware: MicroCS, the script image, startup code and newlib-nano with
 float `printf`/`strtod` and libm (the `m0-64k` build uses MicroCS's built-in tiny printf
@@ -191,7 +191,9 @@ newlib-nano (see the `m0-64k` rule in [`ports/cortex-m/Makefile`](../ports/corte
 `MCS_ENABLE_DISASM`, `MCS_ENABLE_BYTECODE_SAVE`, `MCS_COMPUTED_GOTO`, `MCS_FIELD_CACHE` and the
 module flags (`MCS_ENABLE_FS`, `MCS_ENABLE_HAL`, `MCS_ENABLE_SCHED`, `MCS_ENABLE_SHELL`,
 `MCS_ENABLE_FLASH`) work the same way in every profile. `MCS_COMPUTED_GOTO` and
-`MCS_FIELD_CACHE` together cost only ~1.3 KB on the M0; keep them.
+`MCS_FIELD_CACHE` together cost ~2.3 KB on the M0: keep them where flash allows. The `min`
+profile turns both off (computed goto alone is ~1 KB of Thumb-1 code: one dispatch sequence
+per handler and a 4-byte label table, against a 2-byte `switch` table).
 
 ### 8b. Per-MCU settings: the auto profile
 `profiles/mcs_profile_auto.h` chooses a profile from the target's memory, so the same

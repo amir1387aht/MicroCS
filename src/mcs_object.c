@@ -625,7 +625,6 @@ bool mcs_dict_at(mcs_value_t v, uint32_t i, mcs_value_t* key, mcs_value_t* val) 
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d) {
     mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
     d->idx = NULL; d->icap = d->iused = 0;
-    if (d->count) d->obj.aux = (uint16_t)(d->obj.aux + DICT_VER_STEP);
     d->count = 0;
 }
 

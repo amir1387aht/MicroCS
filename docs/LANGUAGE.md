@@ -106,7 +106,7 @@ names in one program may get the wrong labels (positional `ItemN` access is alwa
   as in .NET (also for constants, which C# rejects at compile time) — `MinValue` of the
   shared integer representation, so with `MCS_INT64=1` `int.MinValue / -1` is `2147483648`.
 * `foreach` throws *Collection was modified* after a `List<T>` change or a `Dictionary` key
-  addition / `Clear` in the loop body, like .NET; removing dictionary entries is allowed.
+  addition in the loop body, like .NET 8; removing dictionary entries or `Clear` is allowed.
   `HashSet`, `Stack` and `Queue` are enumerated from a snapshot, so changing them does not throw.
 * `GroupBy` returns a `Dictionary<key, List<item>>`.
 * Index-out-of-range messages include the index and length.

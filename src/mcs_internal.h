@@ -203,8 +203,8 @@ typedef struct {
 } mcs_dict_t;
 /* obj.aux flag: keys-only dictionary (HashSet storage, vals == NULL) */
 #define DICT_KEYS_ONLY 1
-/* the other aux bits: version, bumped when a key is added or the dictionary is
- * cleared (as in .NET, Remove and overwriting a value keep foreach going) */
+/* the other aux bits: version, bumped when a key is added (as in .NET 8, Remove,
+ * Clear and overwriting a value keep foreach going) */
 #define DICT_VER_STEP 2
 #define DICT_VERSION(d) ((d)->obj.aux & (uint16_t)~DICT_KEYS_ONLY)
 #define DICT_VAL(d, i) ((d)->vals ? (d)->vals[i] : mcs_bool(true))

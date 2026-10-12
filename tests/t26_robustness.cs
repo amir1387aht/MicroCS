@@ -68,3 +68,7 @@ int Depth(int n) => n == 0 ? 0 : new List<int> { n }.Select(x => Depth(x - 1)).O
 Console.WriteLine(Depth(20));
 Try("deep LINQ recursion", () => Depth(100000));
 Console.WriteLine(Depth(20));
+
+// constant MinValue / -1 is not folded (C UB); the VM throws at run time (C# rejects it, CS0220)
+Try("const MinValue / -1", () => Console.WriteLine(-2147483648 / -1));
+Try("const MinValue % -1", () => Console.WriteLine(-2147483648 % -1));

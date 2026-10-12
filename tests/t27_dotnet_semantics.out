@@ -1,7 +1,6 @@
 div OverflowException: Arithmetic operation resulted in an overflow.
 mod OverflowException: Arithmetic operation resulted in an overflow.
 div= OverflowException: Arithmetic operation resulted in an overflow.
-const div OverflowException: Arithmetic operation resulted in an overflow.
 DivRem OverflowException: Arithmetic operation resulted in an overflow.
 1073741824 0
 loop -2 ok
@@ -40,7 +39,7 @@ remove earlier: a,b,c,d,e
 remove later: a,b,e
 dict add InvalidOperationException: Collection was modified; enumeration operation may not execute.
 dict Add InvalidOperationException: Collection was modified; enumeration operation may not execute.
-dict Clear InvalidOperationException: Collection was modified; enumeration operation may not execute.
+dict Clear ok
 empty Clear ok
 0
 Keys copy ok

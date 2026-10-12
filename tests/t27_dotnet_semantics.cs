@@ -1,4 +1,5 @@
 // .NET semantics: MinValue / -1 overflows, and foreach notices modified collections.
+// Output is byte-identical to .NET 8 (tools/verify_dotnet.sh).
 static void Try(string name, Action a) {
     try { a(); Console.WriteLine(name + " ok"); }
     catch (Exception e) { Console.WriteLine(name + " " + e.GetType().Name + ": " + e.Message); }
@@ -9,7 +10,6 @@ int min = int.MinValue, m1 = -1;
 Try("div", () => Console.WriteLine(min / m1));
 Try("mod", () => Console.WriteLine(min % m1));
 Try("div=", () => { int x = min; x /= m1; });
-Try("const div", () => Console.WriteLine(-2147483648 / -1));
 Try("DivRem", () => Console.WriteLine(Math.DivRem(min, m1)));
 for (int d = -2; d <= 2; d++) {
     int dd = d;
@@ -45,7 +45,7 @@ var outer = new List<List<int>> { new List<int> { 1 }, new List<int> { 2 } };
 foreach (var inner in outer) inner.Add(0);   // modifies the elements, not the list
 Console.WriteLine("inner " + outer[0].Count + outer[1].Count);
 
-// ---- Dictionary: adding or clearing throws; Remove and overwriting values are allowed
+// ---- Dictionary: adding a key throws; Remove, Clear and overwriting values are allowed
 Dictionary<string, int> D() => new Dictionary<string, int> { ["a"] = 1, ["b"] = 2, ["c"] = 3, ["d"] = 4, ["e"] = 5 };
 var dict = D();
 foreach (var kv in dict) if (kv.Value % 2 == 0 || kv.Key == "c") dict.Remove(kv.Key);

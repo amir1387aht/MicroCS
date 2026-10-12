@@ -33,6 +33,11 @@
 #ifndef MCS_FIELD_CACHE
 #define MCS_FIELD_CACHE 0
 #endif
+/* switch dispatch: ~1 KB less Thumb-1 code than computed goto (2-byte jump
+ * table entries, one shared dispatch sequence instead of one per handler) */
+#ifndef MCS_COMPUTED_GOTO
+#define MCS_COMPUTED_GOTO 0
+#endif
 #ifndef MCS_ENABLE_DISASM
 #define MCS_ENABLE_DISASM 0
 #endif
