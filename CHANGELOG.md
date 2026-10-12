@@ -41,7 +41,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
     no longer overflow `int` in their range checks;
   * `--sim-virtual`: the virtual clock advances on every `Hal.Micros` read, so
     `GPIO.PulseIn` and other busy-waits no longer spin forever; RAM filesystem reads/writes
-    of 0 bytes no longer pass a null pointer to `memcpy`.
+    of 0 bytes no longer pass a null pointer to `memcpy`;
+  * compiler: an unterminated string or char literal ending in `\` (or in an interpolation
+    hole) no longer moves the lexer past the end of the source (which then tried to allocate
+    gigabytes for the token array); `void.X` in an expression is a syntax error instead of a
+    null-pointer `strlen`; `mcs -c` prints each compile error once (it printed the last one twice).
 
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 

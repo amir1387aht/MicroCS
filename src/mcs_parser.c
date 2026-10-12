@@ -698,7 +698,7 @@ static node_t* parse_primary(parser_t* P) {
         return n;
     }
     default:
-        if (is_prim_kw(t->type) && PEEK(1)->type == TK_DOT) {
+        if (is_prim_kw(t->type) && PEEK(1)->type == TK_DOT && prim_class_name(t->type)) {
             adv(P);
             n = mk(P, N_NAME, t);
             n->name = prim_class_name(t->type); n->len = (uint32_t)strlen(n->name);

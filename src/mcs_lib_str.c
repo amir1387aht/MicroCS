@@ -45,19 +45,14 @@ static long find_in(const char* h, size_t hn, const char* nd, size_t nn, size_t 
     for (size_t i = from; i + nn <= hn; i++) if (eq_bytes(h + i, nd, nn, ic)) return (long)i;
     return -1;
 }
+#if MCS_ENABLE_STRING_EXTRA
 /* last match of nd lying entirely in h[lo, hi) */
 static long rfind_in(const char* h, size_t lo, size_t hi, const char* nd, size_t nn, bool ic) {
     if (hi < lo || nn > hi - lo) return -1;
     for (size_t i = hi - nn + 1; i-- > lo;) if (eq_bytes(h + i, nd, nn, ic)) return (long)i;
     return -1;
 }
-static long find_bytes(const char* h, size_t hn, const char* nd, size_t nn, size_t from) {
-    if (nn == 0) return from <= hn ? (long)from : -1;
-    if (nn > hn) return -1;
-    for (size_t i = from; i + nn <= hn; i++)
-        if (h[i] == nd[0] && memcmp(h + i, nd, nn) == 0) return (long)i;
-    return -1;
-}
+#endif
 
 static bool get_index(mcs_vm_t* vm, mcs_value_t v, size_t max, size_t* out, const char* param) {
     mcs_int_t i = mcs_to_int(vm, v);
@@ -493,7 +488,7 @@ NATIVE(sb_replace) {
     mcs_buf_t o; mcs_buf_init(&o, vm);
     size_t i = 0;
     for (;;) {
-        long k = find_bytes(b->data ? b->data : "", b->len, a.p, a.n, i);
+        long k = find_in(b->data ? b->data : "", b->len, a.p, a.n, i, false);
         if (k < 0) break;
         mcs_buf_putn(&o, b->data + i, (size_t)k - i);
         mcs_buf_putn(&o, r.p, r.n);

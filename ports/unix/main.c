@@ -455,7 +455,8 @@ int main(int argc, char** argv) {
         uint8_t* img; size_t n;
         mcs_result_t r = mcs_compile_image_ex(vm, in, src, (strip ? MCS_IMAGE_STRIP : 0u) | (no_opt ? MCS_IMAGE_NO_OPT : 0u), &img, &n);
         free(src);
-        if (r != MCS_OK) { fprintf(stderr, "%s\n", mcs_last_error(vm)); mcs_free(vm); return 2; }
+        /* compile errors were already reported through the error hook */
+        if (r != MCS_OK) { if (r != MCS_ERR_COMPILE) fprintf(stderr, "%s\n", mcs_last_error(vm)); mcs_free(vm); return 2; }
         if (compile_h) rc = write_header(out, name, img, n);
         else {
             char def[512];

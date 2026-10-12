@@ -213,6 +213,7 @@ static bool scan_string(lexer_t* L, bool verbatim, bool interp) {
         if (c == '\n') { if (!verbatim) { lex_err(L, "newline in string literal"); return false; } L->p++; newline(L); continue; }
         L->p++;
     }
+    L->p = L->end; /* a trailing backslash or hole may have stepped past the end */
     lex_err(L, "unterminated string literal");
     return false;
 }
@@ -243,7 +244,8 @@ static void lex_char(lexer_t* L) {
     const char* s = L->p;
     L->p++;
     uint32_t cp = 0;
-    if (L->p < L->end && *L->p == '\\') { L->p++; cp = mcs_decode_escape(&L->p, L->end); }
+    if (L->p + 1 < L->end && *L->p == '\\') { L->p++; cp = mcs_decode_escape(&L->p, L->end); }
+    else if (L->p < L->end && *L->p == '\\') L->p++; /* backslash at the end of the source */
     else if (L->p < L->end) {
         uint8_t c = (uint8_t)*L->p++;
         if (c < 0x80) cp = c;
