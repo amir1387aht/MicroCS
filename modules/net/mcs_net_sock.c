@@ -13,22 +13,7 @@
  */
 #include "mcs_net_internal.h"
 #if MCS_ENABLE_NET && MCS_ENABLE_SOCKETS
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#if defined(ESP_PLATFORM)
-#include "lwip/sockets.h"
-#else
-#include <netinet/tcp.h>
-#include <sys/ioctl.h>
-#endif
+#include "mcs_net_posix.h"
 #if MCS_ENABLE_FS
 #include "mcs_vfs.h"
 #endif
@@ -127,11 +112,7 @@ static int tcp_connect(mcs_vm_t* vm, const uint8_t ip[4], int port, uint32_t tim
 }
 
 /* ------------------------------------------------------------ connections (TCP or TLS) */
-typedef struct {
-    int fd;                      /* -1 = closed */
-    void* tls;                   /* TLS stream from net->tls_open */
-    const mcs_net_t* net;
-} conn_t;
+typedef mcs__conn_t conn_t;
 static void conn_close(conn_t* c) {
     if (c->tls && c->net && c->net->tls_close) c->net->tls_close(c->tls);
     if (c->fd >= 0) close(c->fd);
@@ -210,6 +191,30 @@ static int conn_open(mcs_vm_t* vm, conn_t* c, const char* host, int port, bool t
         return -1;
     }
     return 0;
+}
+
+/* ---- shared with mcs_net_srv.c (HttpServer, WebSocket, DnsServer) */
+int mcs__wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) { return wait_fd(vm, fd, wr, timeout_ms); }
+void mcs__sock_prep(int fd) { set_nonblock(fd); no_sigpipe(fd); }
+mcs_value_t mcs__sock_fail(mcs_vm_t* vm, const char* op, int e) { return sock_fail(vm, op, e); }
+void mcs__conn_close(mcs__conn_t* c) { conn_close(c); }
+int mcs__conn_write(mcs_vm_t* vm, mcs__conn_t* c, const uint8_t* p, size_t n, uint32_t timeout) { return conn_write(vm, c, p, n, timeout); }
+int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_t timeout) { return conn_read(vm, c, buf, n, timeout); }
+int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
+    return conn_open(vm, c, host, port, tls, timeout, ca, op);
+}
+int mcs__tcp_listen(mcs_vm_t* vm, const uint8_t ip[4], uint16_t* port, int backlog, const char* op) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) { sock_fail(vm, op, errno); return -1; }
+    int one = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    struct sockaddr_in a; mk_addr(&a, ip, *port);
+    if (bind(fd, (struct sockaddr*)&a, sizeof a) < 0 || listen(fd, backlog < 1 ? 1 : backlog) < 0) {
+        int e = errno; close(fd); sock_fail(vm, op, e); return -1;
+    }
+    set_nonblock(fd);
+    socklen_t al = sizeof a;
+    if (getsockname(fd, (struct sockaddr*)&a, &al) == 0) *port = ntohs(a.sin_port);
+    return fd;
 }
 
 /* ============================================================ TcpClient */
@@ -580,7 +585,7 @@ NATIVE(udp_rport) { UD(); return mcs_int(ntohs(u->from.sin_port)); }
 NATIVE(udp_lport) { UD(); return endpoint(vm, u->fd, false, true); }
 NATIVE(udp_available) {
     UD(); int k = 0;
-#if defined(ESP_PLATFORM)
+#if defined(ESP_PLATFORM) || MCS_NET_LWIP
     if (ioctl(u->fd, FIONREAD, &k) < 0) k = 0;
 #else
     if (ioctl(u->fd, FIONREAD, &k) < 0) k = 0;
@@ -661,7 +666,7 @@ NATIVE(dns_hostname) {
     char b[64] = "microcs";
     mcs__net_state_t* s = mcs__net_state(vm);
     if (s && s->net && s->net->str_get && s->net->str_get(s->net->ctx, MCS_WIFI_STR_HOSTNAME, b, sizeof b) >= 0 && b[0]) return mcs_string(vm, b);
-#if !defined(ESP_PLATFORM)
+#if !defined(ESP_PLATFORM) && !MCS_NET_LWIP
     if (gethostname(b, sizeof b) != 0) snprintf(b, sizeof b, "microcs");
     b[sizeof b - 1] = 0;
 #endif
@@ -1165,5 +1170,6 @@ void mcs__sock_open(mcs_vm_t* vm, const mcs_net_t* net) {
     mcs_register_class(vm, &resp_def);
     mcs_register_module(vm, "Dns", dns_fns);
     mcs_register_module(vm, "Http", http_fns);
+    mcs__srv_open(vm);
 }
 #endif

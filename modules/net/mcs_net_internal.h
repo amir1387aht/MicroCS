@@ -27,6 +27,8 @@ typedef struct {
     uint32_t http_timeout;           /* Http.Timeout (ms) */
     char user_agent[48];
     uint8_t no_redirect;             /* Http.FollowRedirects = false */
+    void* dns[2];                    /* started DnsServers, answered by HttpServer.Poll / Run too */
+    int ws_next_id;                  /* WebSocket.Id */
 } mcs__net_state_t;
 
 enum { MCS__NET_CB_WIFI = 0, MCS__NET_CB_ESPNOW = 1, MCS__NET_CB_COUNT };
@@ -49,6 +51,20 @@ bool mcs__net_wait(mcs_vm_t* vm, uint32_t ms);
 /* host name or dotted address -> IPv4 (".local" names through mDNS when the port has it) */
 int mcs__resolve4(mcs_vm_t* vm, const char* host, uint8_t ip[4], uint32_t timeout_ms);
 void mcs__sock_open(mcs_vm_t* vm, const mcs_net_t* net);
+/* a TCP or TLS stream (mcs_net_sock.c) */
+typedef struct { int fd; void* tls; const mcs_net_t* net; } mcs__conn_t;   /* fd -1 = closed */
+/* 1 ready, 0 timeout (0 ms = forever), -1 aborted */
+int mcs__wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms);
+void mcs__sock_prep(int fd);                                    /* non-blocking, no SIGPIPE */
+mcs_value_t mcs__sock_fail(mcs_vm_t* vm, const char* op, int e);   /* errno -> exception */
+void mcs__conn_close(mcs__conn_t* c);
+int mcs__conn_write(mcs_vm_t* vm, mcs__conn_t* c, const uint8_t* p, size_t n, uint32_t timeout);   /* bytes or -errno */
+int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_t timeout);        /* 0 = closed, -errno */
+int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op);
+/* bound, listening, non-blocking TCP socket (port 0: *port gets the one picked); -1 = raised */
+int mcs__tcp_listen(mcs_vm_t* vm, const uint8_t ip[4], uint16_t* port, int backlog, const char* op);
+/* HttpServer, WebSocket, DnsServer (mcs_net_srv.c) */
+void mcs__srv_open(mcs_vm_t* vm);
 #endif
 #endif
 #endif

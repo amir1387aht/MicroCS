@@ -1004,7 +1004,8 @@ bool mcs_net_has(const mcs_net_t* n, const char* f) {
     if (!f) return false;
     if (!strcmp(f, "Net")) return true;
     if (!strcmp(f, "Sockets") || !strcmp(f, "TcpClient") || !strcmp(f, "TcpListener") || !strcmp(f, "UdpClient")
-        || !strcmp(f, "Dns") || !strcmp(f, "Http")) return MCS_ENABLE_SOCKETS != 0;
+        || !strcmp(f, "Dns") || !strcmp(f, "Http") || !strcmp(f, "HttpServer") || !strcmp(f, "WebSocket")
+        || !strcmp(f, "DnsServer")) return MCS_ENABLE_SOCKETS != 0;
     if (!strcmp(f, "Ntp")) return true;
     if (!n) return false;
     if (!strcmp(f, "Wifi")) return n->wifi_set_mode != NULL && n->sta_connect != NULL;
