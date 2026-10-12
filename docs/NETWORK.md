@@ -1,9 +1,12 @@
 # Wi-Fi & networking
 
-MicroCS 1.13 brings the network to C# scripts: Wi-Fi (station, soft access point, both at
-once), scanning, events, static IP, saved credentials, power and radio options, ESP-NOW,
-SNTP time, mDNS, ping — plus `TcpClient`, `TcpListener`, `UdpClient`, `Dns`, an HTTP/1.1
-client with HTTPS, and a JSON library.
+MicroCS brings the network to C# scripts: Wi-Fi (station, soft access point, both at
+once), scanning, events, static IP, saved credentials, WPS / SmartConfig, power and radio
+options, ESP-NOW, SNTP time, mDNS, ping — plus `TcpClient`, `TcpListener`, `UdpClient`,
+`Dns`, an HTTP/1.1 client with HTTPS, an **HTTP server** with routes, files and
+**WebSockets**, a WebSocket client, a captive-portal `DnsServer` and a JSON library.
+1.13 added Wi-Fi on the ESP32; 1.14 adds the server side and the **Raspberry Pi Pico W /
+Pico 2 W**.
 
 ```csharp
 if (Wifi.Connect("MyNetwork", "secret-password"))
@@ -17,23 +20,26 @@ if (Wifi.Connect("MyNetwork", "secret-password"))
 | Where | What you get |
 |---|---|
 | **ESP32 family** (ESP-IDF port, firmware you build) — ESP32, S2, S3, C2, C3, C5, C6, C61 | everything: `Wifi`, `EspNow`, `Ntp` (SNTP), `Mdns`\*, `Ping`, sockets, `Http` + HTTPS |
+| **Raspberry Pi Pico W / Pico 2 W** (RP2 port with FreeRTOS, `-DMICROCS_WIFI=ON`) | `Wifi` (station, AP, scan, static IP, saved networks), `Ntp` (SNTP), `Mdns`, `Ping`, sockets, `Http` (no HTTPS), servers — see [Pico W](#pico-w-setup) |
 | **PC** (`./mcs`, Linux / macOS) | sockets, `Dns`, `Http` on the real network, `Ntp` = system clock |
-| **PC with `--sim`** | additionally a simulated Wi-Fi radio: networks, AP, ESP-NOW echo peer, mDNS, ping |
+| **PC with `--sim`** | additionally a simulated Wi-Fi radio: networks, AP, WPS / SmartConfig, ESP-NOW echo peer, mDNS, ping |
 | other ports | `Json` only, unless the port registers a backend (see [Porting](#porting-a-network-backend)) |
 
 \* `Mdns` needs the [`espressif/mdns`](https://components.espressif.com/components/espressif/mdns)
 component in the project (`idf.py add-dependency espressif/mdns`); MicroCS detects it.
 
-Check at run time with `Net.Has(...)`: `"Wifi"`, `"Wifi.AP"`, `"Wifi.Scan"`,
-`"Wifi.Enterprise"`, `"EspNow"`, `"Mdns"`, `"Ping"`, `"Tls"` / `"Https"`, `"Sockets"`,
-`"Http"`, `"Ntp"`, `"Ntp.Sntp"` (the same names work with `Hal.Has`). `Net.Backend` is
-`"esp32"`, `"sim"` or `"none"`.
+Check at run time with `Net.Has(...)`: `"Wifi"`, `"Wifi.AP"`, `"Wifi.Scan"`, `"Wifi.Save"`,
+`"Wifi.Wps"`, `"Wifi.SmartConfig"`, `"Wifi.Enterprise"`, `"EspNow"`, `"Mdns"`, `"Ping"`,
+`"Tls"` / `"Https"`, `"Sockets"`, `"Http"`, `"HttpServer"`, `"WebSocket"`, `"DnsServer"`,
+`"Ntp"`, `"Ntp.Sntp"` (the same names work with `Hal.Has`). `Net.Backend` is `"esp32"`,
+`"rp2"`, `"sim"` or `"none"`.
 
 **Contents:** [Wi-Fi](#wi-fi) · [Events](#events) · [Access point](#soft-access-point) ·
 [IP & options](#ip-configuration-and-radio-options) · [Saved networks](#saved-networks) ·
 [ESP-NOW](#esp-now) · [Time](#ntp-time) · [mDNS & ping](#mdns-and-ping) ·
-[TCP](#tcp) · [UDP](#udp) · [DNS](#dns) · [HTTP](#http-and-https) · [JSON](#json) ·
-[Errors](#errors-and-timeouts) · [ESP32 setup](#esp32-setup) · [Configuration](#configuration) ·
+[TCP](#tcp) · [UDP](#udp) · [DNS](#dns) · [HTTP](#http-and-https) ·
+[HTTP server](#http-server) · [WebSocket](#websocket) · [Captive portal](#captive-portal-and-dnsserver) ·
+[JSON](#json) · [Errors](#errors-and-timeouts) · [ESP32 setup](#esp32-setup) · [Pico W setup](#pico-w-setup) · [Configuration](#configuration) ·
 [Simulator](#the-simulator) · [Porting](#porting-a-network-backend) · [Limits](#limits)
 
 ---
@@ -157,6 +163,27 @@ Wifi.Forget();
 With **menuconfig → MicroCS → Wi-Fi → Connect at boot** the firmware joins the saved (or
 the menuconfig) network before `boot.cs` / `main.cs` run, so scripts find it online.
 
+Where the port has no credential store of its own (the Pico W, other lwIP ports) `Save`
+writes the file `/.wifi` on the script filesystem instead (`MCS_WIFI_CREDS_FILE`, needs
+`MCS_ENABLE_FS`); `Net.Has("Wifi.Save")` tells whether saving works.
+
+### WPS and SmartConfig
+
+Join a network without putting its password anywhere — the board learns it and saves it
+(pass `save: false` as the second argument to skip that):
+
+```csharp
+if (Wifi.SavedSsid != "" && Wifi.Connect()) return;          // known network
+if (Net.Has("Wifi.Wps") && Wifi.Wps(120000))                  // press the router's WPS button
+    Console.WriteLine("joined " + Wifi.Ssid);
+else if (Net.Has("Wifi.SmartConfig") && Wifi.SmartConfig(120000))   // ESP-Touch phone app
+    Console.WriteLine("joined " + Wifi.Ssid);
+```
+
+Both return `false` on timeout, need the station free (not connected) and are ESP32 only
+(WPS push button; SmartConfig: ESP-Touch and AirKiss). On boards without them use
+the [captive portal](#captive-portal-and-dnsserver).
+
 ## ESP-NOW
 
 Connectionless board-to-board packets (≈1 ms, up to `EspNow.MaxData` = 250 bytes per packet),
@@ -277,6 +304,86 @@ use `Download` for big files (written to `path.tmp`, renamed when complete).
 bundle (`CONFIG_MBEDTLS_CERTIFICATE_BUNDLE`, on by default). For a private CA pass its PEM
 to `TcpClient.ConnectTls(host, port, ms, caPem)`. `Net.Has("Tls")` is false on the PC.
 
+## HTTP server
+
+```csharp
+var web = new HttpServer(80);
+web.Get("/", req => "<h1>Hello</h1>");                                    // string → text/html
+web.Get("/api/temp", req => new Dictionary<string, object> { ["c"] = 21.5 });   // object → JSON
+web.Post("/led/{state}", req => { led.Write(req.Param("state") == "on"); return req.Redirect("/"); });
+web.ServeFiles("/static", "/www");                                        // files from flash
+web.NotFound(req => req.Send(404, "text/plain", "nothing at " + req.Path));
+web.Start();
+web.Run();                       // or call web.Poll(ms) from your own loop
+```
+
+| | |
+|---|---|
+| Routes | `Get`, `Post`, `Put`, `Delete`, `Patch` `(path, handler)`; `On([method, ]path, handler)`; `NotFound(handler)`; `ServeFiles(urlPrefix, folder)`; `WebSocket(path, onMessage[, onOpen[, onClose]])` — up to `MCS_HTTP_SERVER_MAX_ROUTES` (16) |
+| Paths | exact `"/api/status"`, parameters `"/notes/{id}"` (`req.Param("id")`), prefix `"/files/*"` |
+| Handler result | `string` → `text/html`, `byte[]` → binary, any other object → JSON, `null` → empty reply (unless the handler already sent one); `req.Status` sets the status |
+| Serving | `Start()`, `Poll(ms)` (returns how much was handled), `Run()` (until `Stop()`), `Stop()`; `Port`, `Running`, `Requests`, `Cors` (adds `Access-Control-Allow-*` and answers `OPTIONS`) |
+| `HttpRequest` | `Method`, `Path`, `Query`, `Url`, `Host`, `Headers`, `Header(name)`, `ContentType`, `ContentLength`, `Body`, `Bytes`, `Json`, `Param(name[, default])` (path → query → form fields), `HasParam`, `RemoteAddress` |
+| Replies | `Send(body)` / `Send(status, body)` / `Send(status, contentType, body)`, `SendJson(value[, status])`, `SendStatus(code)`, `SendFile(path[, contentType])`, `Redirect(url[, status])`, `SetHeader(name, value)`, `Authenticate(user, password[, realm])` (HTTP Basic; answers 401 and returns `false`) |
+
+`ServeFiles` maps `/` to `index.html`, picks the Content-Type from the extension and sends
+`file.gz` with `Content-Encoding: gzip` when it exists. One request is handled at a time
+(HTTP/1.1, `Connection: close`); a client gets `MCS_HTTP_SERVER_TIMEOUT` (3 s) to send its
+request and bodies above `MCS_HTTP_MAX_BODY` get a 413. An exception in a handler answers
+500. On the PC a port below 1024 that needs root moves to *port + 8000* (`:80` → `:8080`,
+a note goes to stderr) — `web.Port` tells the real one.
+
+## WebSocket
+
+Server side — an endpoint on an `HttpServer`; every browser gets a `WebSocket` object:
+
+```csharp
+web.WebSocket("/ws",
+    (ws, msg) => ws.Send("echo: " + msg),            // msg: string (text) or byte[] (binary)
+    ws => Console.WriteLine($"#{ws.Id} from {ws.RemoteAddress}"),
+    ws => Console.WriteLine($"#{ws.Id} closed {ws.CloseStatus}"));
+web.Broadcast("{\"t\":21.5}");                      // to every connected browser
+```
+
+Client side — `ws://` everywhere, `wss://` where `Net.Has("Tls")`:
+
+```csharp
+var ws = new WebSocket();
+ws.Connect("ws://192.168.1.10:8765/chat", 5000);     // optional third argument: extra headers
+ws.OnMessage(m => Console.WriteLine(m));
+ws.Send("hello");                                     // string → text frame, byte[] → binary
+while (ws.IsOpen) ws.Poll(100);                       // or: var m = ws.Receive(1000);
+ws.Close(1000, "bye");
+```
+
+`WebSocket`: `Connect`, `Send`, `SendText`, `SendBinary`, `Ping`, `Receive([ms])`,
+`OnMessage`, `Poll([ms])`, `Close([code[, reason]])`, `IsOpen`, `State`, `CloseStatus`,
+`CloseReason`, `Id`, `Path`, `RemoteAddress`, `Timeout`, `IsTls`. Pings are answered and
+fragmented messages joined by themselves; messages above `MCS_WS_MAX_MESSAGE` (8 KB) close
+the connection with 1009, and one server keeps up to `MCS_WS_MAX_CLIENTS` (4) browsers.
+Errors throw `WebSocketException` (an `IOException`).
+
+## Captive portal and DnsServer
+
+`DnsServer` answers every name (or only `Domain`) with one address, so a phone that joins
+the board's hotspot opens its setup page by itself:
+
+```csharp
+Wifi.StartAp("MicroCS-Setup", "");
+var dns = new DnsServer(Wifi.ApIp);      // default address: Wifi.ApIp
+dns.Start();                             // UDP port 53 (8053 on the PC)
+var web = new HttpServer(80);
+web.Get("/", req => "<form method=post action=/save>...</form>");
+web.Post("/save", req => { Wifi.Save(req.Param("ssid"), req.Param("pass", "")); return "saved"; });
+web.NotFound(req => req.Redirect("http://" + Wifi.ApIp + "/"));   // /generate_204, /hotspot-detect.html ...
+web.Start();
+while (true) web.Poll(100);              // also answers the DnsServer
+```
+
+`DnsServer`: `Start([address[, port]])`, `Stop()`, `Poll()`, `Running`, `Queries`, `Ttl`
+(60 s), `Domain` (`"*"`), `Address`, `Port`. The Studio template *Captive portal Wi-Fi
+setup* is a complete version with a network list.
+
 ## JSON
 
 Available on every port (with List + Dictionary; `MCS_ENABLE_JSON`).
@@ -333,6 +440,34 @@ espressif/mdns` for `Mdns`. Needs ESP-IDF 5.x (Enterprise: 5.1+); CI builds it w
 RAM: the driver uses ~50–70 KB (more with TLS: ~40 KB per HTTPS connection during the
 handshake). On the ESP32-C2 (272 KB) keep scripts small or lower `MCS_NET_MAX_READ`.
 
+## Pico W setup
+
+The RP2 port drives the CYW43439 radio of the **Pico W** and **Pico 2 W** through the Pico
+SDK's `pico_cyw43_arch_lwip_sys_freertos` (lwIP in its own FreeRTOS task), so Wi-Fi needs
+the FreeRTOS build:
+
+```sh
+cd ports/rp2/example
+cmake -B build -DPICO_BOARD=pico_w -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=...   # pico2_w for the Pico 2 W
+cmake --build build
+```
+
+`MICROCS_WIFI` turns on by itself for a `*_w` board with FreeRTOS (`-DMICROCS_WIFI=OFF`
+leaves it out); without an OS the radio stays off. The Pico SDK's
+`lib/cyw43-driver` and `lib/lwip` submodules must be checked out. The release page has
+ready-to-flash `pico_w` and `pico2_w` images.
+
+What works: station and access point (at once too), scan, events, static IP, hostname,
+country, power save, TX power, auto-reconnect, `Wifi.Save` (file `/.wifi`), DHCP server
+for AP clients (`MCS_RP2_DHCPS_LEASES`), SNTP, mDNS responder and `.local` lookups, ping,
+TCP / UDP / HTTP, `HttpServer`, `WebSocket` (`ws://`), `DnsServer`. Not available: HTTPS /
+`wss://`, ESP-NOW, WPS / SmartConfig, Enterprise, setting the MAC. The on-board LED is on
+the radio chip: use the pin name `"LED"` (or `"WL_GPIO0"`; `MCS_RP2_WL_PIN(n)` in C). In
+your own firmware call `mcs_net_set(mcs_rp2_net())` — `mcs_port_rp2_hal_init` does it when
+`MCS_RP2_WIFI` is 1. Options: `MCS_RP2_HOSTNAME`, `MCS_RP2_WIFI_RETRIES`,
+`MCS_RP2_RECONNECT_MS`, `MCS_RP2_DHCPS_LEASES`; lwIP settings in `ports/rp2/wifi/lwipopts.h`
+(`MICROCS_LWIPOPTS_DIR` to use your own).
+
 ## Configuration
 
 `config/mcs_user_config.h` → *Wi-Fi and networking*:
@@ -349,6 +484,11 @@ handshake). On the ESP32-C2 (272 KB) keep scripts small or lower `MCS_NET_MAX_RE
 | `MCS_HTTP_MAX_BODY` | 32768 | largest body kept in memory |
 | `MCS_HTTP_MAX_HEADER` | 2048 | response header bytes kept |
 | `MCS_HTTP_MAX_REDIRECTS` | 5 | redirects followed |
+| `MCS_HTTP_SERVER_MAX_ROUTES` | 16 | routes per `HttpServer` |
+| `MCS_HTTP_SERVER_TIMEOUT` | 3000 | time a client has to send its request (ms) |
+| `MCS_WS_MAX_MESSAGE` | 8192 | largest WebSocket message received |
+| `MCS_WS_MAX_CLIENTS` | 4 | WebSocket clients per `HttpServer` |
+| `MCS_WIFI_CREDS_FILE` | `"/.wifi"` | `Wifi.Save` file on ports without their own store |
 | `MCS_ESPNOW_MAX_PEERS` | 20 | peers tracked |
 | `MCS_NET_SLICE_MS` | 20 | how often blocking waits check for Stop |
 | `MCS_ESP32_WIFI_RETRIES` | 2 | extra attempts before `Connect` fails |
@@ -361,8 +501,9 @@ handshake). On the ESP32-C2 (272 KB) keep scripts small or lower `MCS_NET_MAX_RE
 the PC: networks **MicroCS-Lab** (WPA2, password `microcs123`), **CoffeeShop** (open),
 **Neighbor** (WPA3, `letmein99`) and a hidden **HiddenLab**; DHCP address 192.168.1.50,
 gateway 192.168.1.1; a phone that joins your soft AP; an ESP-NOW peer
-`24:0A:C4:00:00:99` that echoes packets; `printer.local` = 192.168.1.20; ping answers.
-Sockets and HTTP use the PC's real network. `tests/t24_net.cs` exercises all of it.
+`24:0A:C4:00:00:99` that echoes packets; `printer.local` = 192.168.1.20; ping answers;
+`Wifi.Wps` / `Wifi.SmartConfig` join MicroCS-Lab after ~1 s. Sockets, HTTP and the
+servers use the PC's real network (ports below 1024 move to port + 8000). `tests/t24_net.cs` and `tests/test_net_server.py` exercise all of it.
 
 ## Porting a network backend
 
@@ -370,14 +511,19 @@ A port fills a `mcs_net_t` table (`include/mcs_net.h`) — any `NULL` entry simp
 that feature unavailable — and calls `mcs_net_set(&table)` before the HAL library opens.
 Events from driver callbacks go through `mcs_net_post(MCS_NET_EV_*, value)` (ISR / task
 safe). Sockets use BSD / lwIP sockets directly, so a port with lwIP gets TCP, UDP, DNS and
-HTTP for free; HTTPS needs the four `tls_*` functions. `ports/esp32/mcs_port_esp32_net.c`
-is the reference implementation and `modules/net/mcs_net_sim.c` the smallest one.
+HTTP for free — and with them `HttpServer`, `WebSocket` and `DnsServer`; HTTPS / `wss://`
+need the four `tls_*` functions, WPS / SmartConfig the `provision` entry (API version 2).
+`ports/esp32/mcs_port_esp32_net.c` is the reference implementation,
+`ports/rp2/mcs_port_rp2_net.c` an lwIP one without vendor extras and
+`modules/net/mcs_net_sim.c` the smallest one.
 
 ## Limits
 
 * IPv4 sockets (IPv6 addresses are reported, not yet usable in sockets).
-* No server-side TLS (`TcpListener` is plain TCP); HTTP client is HTTP/1.1 without
-  keep-alive (one connection per request).
-* Wi-Fi Easy Connect (DPP), WPS, FTM and NAN are not exposed.
+* No server-side TLS (`TcpListener`, `HttpServer` are plain TCP); HTTP client and server
+  are HTTP/1.1 without keep-alive (one connection per request), the server handles one
+  request at a time.
+* Wi-Fi Easy Connect (DPP), WPS PIN mode, FTM and NAN are not exposed.
 * Wi-Fi is not available on chips without a radio (ESP32-H2, ESP32-P4 without a
-  companion chip), on the Arduino, Pico, STM32 and Zephyr ports yet.
+  companion chip), on the Arduino, STM32 and Zephyr ports yet; on the Pico W see
+  [Pico W setup](#pico-w-setup) for what is missing.

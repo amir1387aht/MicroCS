@@ -658,7 +658,8 @@ new(string url, int timeoutMs = 10000) | Connect at once
 .CloseStatus: int | Close code from the peer
 .CloseReason: string | Close reason from the peer
 .Id: int | Connection number (server side)
-.Path: string | Requested path / URL
+.Path: string | Requested path (server side) or URL
+.Url: string | Same as Path
 .RemoteAddress: string | Peer address
 .Timeout: int | Read / write timeout in ms
 .IsTls: bool | wss:// connection

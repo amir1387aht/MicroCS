@@ -130,8 +130,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **Net** | static | `Backend` | `Has(·)` | const `ApiVersion`; `Has(feature)`: `Wifi`, `EspNow`, `Tls`, … ([NETWORK.md](NETWORK.md)) |
-| **Wifi** | static | `Mode` `Status` `StatusName` `IsConnected` `DisconnectReason` `Ssid` `Bssid` `Rssi` `Auth` `Channel` `Ip` `Netmask` `Gateway` `Dns` `Dns2` `Ipv6` `Dhcp` `Mac` `ApMac` `Hostname` `Country` `AutoReconnect` `Persistent` `PowerSave` `TxPower` `Protocol` `ApProtocol` `Bandwidth` `MinAuth` `ListenInterval` `Band` `Antenna` `ApIp` `ApClientCount` `SavedSsid` | `Connect(…)` `Begin(…)` `ConnectEnterprise(…)` `Reconnect()` `WaitConnected(…)` `Disconnect()` `Off()` `ReasonName(…)` `EventName(·)` `AuthName(·)` `SetStaticIp(…)` `UseDhcp()` `Scan(…)` `StartAp(…)` `StopAp()` `SetApIp(…)` `ApClients()` `Save(…)` `Forget()` `OnEvent(·)` | consts `ModeOff ModeStation ModeAccessPoint ModeStationAp`, statuses `Idle Connecting Connected NoSsid WrongPassword ConnectFailed ConnectionLost Disconnected Stopped`, `Auth*`, `Power*`, `Proto*`, `Band*`, `Event*`, `Reason*` |
+| **Net** | static | `Backend` | `Has(·)` | const `ApiVersion`; `Has(feature)`: `Wifi`, `EspNow`, `Tls`, `HttpServer`, … ([NETWORK.md](NETWORK.md)) |
+| **Wifi** | static | `Mode` `Status` `StatusName` `IsConnected` `DisconnectReason` `Ssid` `Bssid` `Rssi` `Auth` `Channel` `Ip` `Netmask` `Gateway` `Dns` `Dns2` `Ipv6` `Dhcp` `Mac` `ApMac` `Hostname` `Country` `AutoReconnect` `Persistent` `PowerSave` `TxPower` `Protocol` `ApProtocol` `Bandwidth` `MinAuth` `ListenInterval` `Band` `Antenna` `ApIp` `ApClientCount` `SavedSsid` | `Connect(…)` `Begin(…)` `ConnectEnterprise(…)` `Reconnect()` `WaitConnected(…)` `Disconnect()` `Off()` `ReasonName(…)` `EventName(·)` `AuthName(·)` `SetStaticIp(…)` `UseDhcp()` `Scan(…)` `StartAp(…)` `StopAp()` `SetApIp(…)` `ApClients()` `Save(…)` `Forget()` `Wps(…)` `SmartConfig(…)` `OnEvent(·)` | consts `ModeOff ModeStation ModeAccessPoint ModeStationAp`, statuses `Idle Connecting Connected NoSsid WrongPassword ConnectFailed ConnectionLost Disconnected Stopped`, `Auth*`, `Power*`, `Proto*`, `Band*`, `Event*`, `Reason*` |
 | **WifiNetwork** | instance | `Ssid` `Bssid` `Rssi` `Channel` `Auth` `AuthName` `Secure` `Hidden` `Protocols` `Quality` | `ToString()` | returned by `Wifi.Scan()` |
 | **WifiClient** | instance | `Mac` `Rssi` `Ip` | `ToString()` | returned by `Wifi.ApClients()` |
 | **EspNow** | static | `Peers` | `Start()` `Stop()` `AddPeer(…)` `RemovePeer(·)` `SetPmk(·)` `Send(…)` `Broadcast(·)` `Receive(…)` `OnReceive(·)` | const `MaxData`; MACs as `"24:0A:C4:12:34:56"` |
@@ -145,6 +145,10 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **Dns** | static | `HostName` | `Resolve(·)` `GetHostAddresses(·)` |  |
 | **Http** | static | `Timeout` `UserAgent` `FollowRedirects` | `Get(…)` `Head(…)` `Delete(…)` `Post(…)` `Put(…)` `Patch(…)` `Request(…)` `GetString(…)` `Download(…)` `UrlEncode(·)` | headers: `Dictionary<string, string>`, `"Name: value"` lines or `string[]` |
 | **HttpResponse** | instance | `StatusCode` `Reason` `IsSuccess` `Body` `Bytes` `ContentLength` `ContentType` `Url` `Headers` | `Header(·)` `EnsureSuccess()` `ToString()` | returned by every `Http` request |
+| **HttpServer** | instance | `WebSockets` `Port` `Running` `Requests` `Cors` | `On(…)` `Get(·, ·)` `Post(·, ·)` `Put(·, ·)` `Delete(·, ·)` `Patch(·, ·)` `NotFound(·)` `WebSocket(…)` `ServeFiles(·, ·)` `Start()` `Stop()` `Dispose()` `Poll(…)` `Run()` `Broadcast(·)` | `new HttpServer([port])` or `(address, port)`; handlers return a string (HTML), `byte[]` or an object (JSON) |
+| **HttpRequest** | instance | `Method` `Path` `Query` `Url` `Body` `Bytes` `Json` `ContentType` `ContentLength` `Headers` `Host` `RemoteAddress` `Sent` `Status` | `Header(·)` `Param(…)` `HasParam(·)` `Send(…)` `SendJson(…)` `SendStatus(·)` `SendFile(…)` `Redirect(…)` `SetHeader(·, ·)` `Authenticate(…)` `ToString()` | passed to every `HttpServer` route |
+| **WebSocket** | instance | `IsOpen` `State` `CloseStatus` `CloseReason` `Id` `Path` `Url` `RemoteAddress` `Timeout` `IsTls` | `Connect(…)` `Send(·)` `SendText(·)` `SendBinary(·)` `Ping(…)` `Receive(…)` `Close(…)` `Dispose()` `OnMessage(·)` `Poll(…)` `ToString()` | `new WebSocket([url[, timeoutMs]])` client, or a server-side connection from `HttpServer.WebSocket` |
+| **DnsServer** | instance | `Running` `Queries` `Ttl` `Domain` `Address` `Port` | `Start(…)` `Stop()` `Dispose()` `Poll()` | `new DnsServer([address])` — captive portals |
 
 ## Threads (modules/threads)
 
@@ -164,9 +168,9 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 Exception classes (members `Message`, `InnerException`, `ToString()`; user classes can derive
 from any of them; deep recursion raises a catchable `StackOverflowException`):
 
-`ArgumentException` `ArgumentNullException` `ArgumentOutOfRangeException` `ArithmeticException` `DirectoryNotFoundException` `DivideByZeroException` `Exception` `FileNotFoundException` `FormatException` `HttpRequestException` `IOException` `IndexOutOfRangeException` `InvalidCastException` `InvalidOperationException` `KeyNotFoundException` `MissingMemberException` `NotImplementedException` `NotSupportedException` `NullReferenceException` `ObjectDisposedException` `OutOfMemoryException` `OverflowException` `SocketException` `StackOverflowException` `SystemException` `TimeoutException` `UnauthorizedAccessException`
+`ArgumentException` `ArgumentNullException` `ArgumentOutOfRangeException` `ArithmeticException` `DirectoryNotFoundException` `DivideByZeroException` `Exception` `FileNotFoundException` `FormatException` `HttpRequestException` `IOException` `IndexOutOfRangeException` `InvalidCastException` `InvalidOperationException` `KeyNotFoundException` `MissingMemberException` `NotImplementedException` `NotSupportedException` `NullReferenceException` `ObjectDisposedException` `OutOfMemoryException` `OverflowException` `SocketException` `StackOverflowException` `SystemException` `TimeoutException` `UnauthorizedAccessException` `WebSocketException`
 
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_1063 members in 92 tables._
+_1141 members in 96 tables._
