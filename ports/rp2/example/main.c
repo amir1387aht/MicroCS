@@ -15,6 +15,8 @@
 #include "task.h"
 #if PICO_RP2350
 static uint8_t heap[256 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps (520 KB SRAM) */
+#elif MCS_RP2_WIFI
+static uint8_t heap[96 * 1024] __attribute__((aligned(8)));    /* Pico W: lwIP + the Wi-Fi driver need ~60 KB */
 #else
 static uint8_t heap[128 * 1024] __attribute__((aligned(8)));   /* REPL VM + thread heaps (264 KB SRAM) */
 #endif
@@ -30,8 +32,12 @@ static mcs_flashfs_t flashfs;
 
 static void microcs_main(void) {
     mcs_rp2_cfg_t pins = MCS_RP2_CFG_DEFAULT;
-#if PICO_RP2350
+#if PICO_RP2350 && MCS_RP2_WIFI
+    pins.name = "Raspberry Pi Pico 2 W";
+#elif PICO_RP2350
     pins.name = "Raspberry Pi Pico 2";
+#elif MCS_RP2_WIFI
+    pins.name = "Raspberry Pi Pico W";
 #else
     pins.name = "Raspberry Pi Pico";
 #endif

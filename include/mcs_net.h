@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-#define MCS_NET_API_VERSION 1
+#define MCS_NET_API_VERSION 2   /* 2: provision (WPS, SmartConfig) */
 
 /* ---- Wi-Fi modes (Wifi.Mode) */
 enum { MCS_WIFI_OFF = 0, MCS_WIFI_STA = 1, MCS_WIFI_AP = 2, MCS_WIFI_APSTA = 3 };
@@ -103,6 +103,13 @@ enum { MCS_NET_IF_STA = 0, MCS_NET_IF_AP = 1 };
 
 /* ---- credentials store: creds(op) */
 enum { MCS_WIFI_CREDS_LOAD = 0, MCS_WIFI_CREDS_SAVE = 1, MCS_WIFI_CREDS_FORGET = 2 };
+
+/* ---- provisioning without a password in the script: provision(method, op, ...) */
+enum { MCS_WIFI_PROV_WPS = 1,            /* WPS push button: press the router's WPS key */
+       MCS_WIFI_PROV_SMARTCONFIG = 2 };  /* Espressif ESP-Touch / AirKiss: the phone app sends the network */
+enum { MCS_WIFI_PROV_QUERY = 0,          /* >= 0 when the method is available */
+       MCS_WIFI_PROV_START, MCS_WIFI_PROV_POLL,   /* POLL: 1 = ssid / pass filled, 0 = still waiting, < 0 failed */
+       MCS_WIFI_PROV_STOP };
 
 /* ---- mDNS: mdns(op, ...) */
 enum { MCS_MDNS_START = 1, MCS_MDNS_STOP, MCS_MDNS_ADD, MCS_MDNS_REMOVE };
@@ -213,6 +220,10 @@ typedef struct mcs_net {
     int (*tls_write)(void* conn, const uint8_t* data, size_t n);
     int (*tls_read)(void* conn, uint8_t* buf, size_t n, uint32_t timeout_ms);
     void (*tls_close)(void* conn);
+
+    /* ---------------- provisioning (NULL: Wifi.Wps / Wifi.SmartConfig not available; API 2).
+     * The station is on while it runs; POLL returns the credentials it received. */
+    int (*provision)(void* ctx, int method, int op, char ssid[33], char pass[65]);
 } mcs_net_t;
 
 #if MCS_ENABLE_NET

@@ -27,7 +27,7 @@ mcs_rp2_hal_init(&hal, &pins);
 
 | C# | RP2 |
 |---|---|
-| pins | GPIO numbers; `"GP15"`, `"GPIO15"`, `"LED"` (on-board LED where defined) |
+| pins | GPIO numbers; `"GP15"`, `"GPIO15"`, `"LED"` (on-board LED where defined; on a Pico W it is the radio's `"WL_GPIO0"`) |
 | `GPIO.OnChange` | GPIO IRQ callback |
 | `UART` | interrupt-driven receive ring |
 | `PWM.Set(gpio, ...)` | every GPIO can do PWM (channel = GPIO number) |
@@ -85,7 +85,31 @@ core 1, and `jobs.cfg` file jobs run on threads by default. Works on RP2040 and 
 `MICROCS_OS`, the firmware is single-threaded, as before. See
 [docs/THREADS.md](../../docs/THREADS.md).
 
+## Wi-Fi (Pico W, Pico 2 W)
+
+With FreeRTOS and a `*_w` board the example firmware gets Wi-Fi, lwIP sockets, `Http`,
+`HttpServer`, `WebSocket`, `DnsServer`, `Ntp`, `Mdns` and `Ping`
+([docs/NETWORK.md](../../docs/NETWORK.md#pico-w-setup)):
+
+```sh
+git -C $PICO_SDK_PATH submodule update --init lib/cyw43-driver lib/lwip
+cmake -S ports/rp2/example -B build/pico_w -DPICO_BOARD=pico_w -DMICROCS_OS=freertos \
+      -DFREERTOS_KERNEL_PATH=$PWD/FreeRTOS-Kernel -DMICROCS_FS_DOWNLOAD=ON   # or pico2_w
+cmake --build build/pico_w
+```
+
+```csharp
+if (Wifi.Connect("MyNetwork", "secret-password")) Console.WriteLine(Wifi.Ip);
+var led = new Pin("LED", GPIO.Output);        // the LED hangs on the radio chip
+```
+
+`MICROCS_WIFI` is on by default for these boards (`-DMICROCS_WIFI=OFF` to leave it out;
+without `MICROCS_OS=freertos` the radio stays off). The backend is
+[`mcs_port_rp2_net.c`](mcs_port_rp2_net.c), lwIP settings are in
+[`wifi/lwipopts.h`](wifi/lwipopts.h) (`-DMICROCS_LWIPOPTS_DIR=` for your own). `Wifi.Save`
+keeps the network in the file `/.wifi`. No HTTPS, ESP-NOW, WPS or SmartConfig.
+
 ## Checked in CI
 
 The example firmware is built for `pico` (RP2040, LittleFS) and `pico2` (RP2350, LittleFS and
-YAFFS2).
+YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi.

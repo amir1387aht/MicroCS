@@ -11,6 +11,8 @@
 #   -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=/path/to/FreeRTOS-Kernel   (Raspberry Pi's fork,
 #   github.com/raspberrypi/FreeRTOS-Kernel: SMP on RP2040 and RP2350; config in freertos/FreeRTOSConfig.h).
 #   The release .uf2 files are built this way. Default: no OS, single-threaded as always.
+# Wi-Fi: -DPICO_BOARD=pico_w (or pico2_w) together with -DMICROCS_OS=freertos -> C# Wifi, TcpClient,
+#   Http, HttpServer, WebSocket, Ntp, Mdns, Ping (pico-sdk with its lib/cyw43-driver and lib/lwip submodules).
 # Options: a mcs_user_config.h next to this file (template: MicroCS/config/mcs_user_config.h)
 #   is used automatically, e.g. #define MCS_RP2_FS_SIZE (512 * 1024); -D options win over it.
 cmake_minimum_required(VERSION 3.13)
@@ -39,6 +41,11 @@ if(MICROCS_OS STREQUAL "freertos")
   set(MICROCS_FREERTOS_CONFIG_DIR ${CMAKE_CURRENT_LIST_DIR}/freertos)
 endif()
 
+# Pico W / Pico 2 W: Wi-Fi, sockets, HTTP client + server, WebSocket ... (docs/NETWORK.md) whenever the
+# board has the CYW43 radio and FreeRTOS is on; -DMICROCS_WIFI=OFF leaves it out.
+if(NOT DEFINED MICROCS_WIFI AND PICO_CYW43_SUPPORTED AND MICROCS_OS STREQUAL "freertos")
+  set(MICROCS_WIFI ON)
+endif()
 set(MICROCS_PORT rp2)
 if(NOT DEFINED MICROCS_FS)
   set(MICROCS_FS littlefs)

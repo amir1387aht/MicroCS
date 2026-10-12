@@ -372,6 +372,7 @@ static const struct { const char* name; int8_t kind; int8_t parent; } exc_tbl[] 
     { "UnauthorizedAccessException", -1, 1 },
     { "SocketException", -1, 21 },                       /* networking (an IOException here) */
     { "HttpRequestException", -1, 0 },
+    { "WebSocketException", -1, 21 },                    /* an IOException, as in .NET (via Win32Exception) */
 };
 #define EXC_TBL_N ((int)(sizeof exc_tbl / sizeof exc_tbl[0]))
 

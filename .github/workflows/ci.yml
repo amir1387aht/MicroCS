@@ -164,6 +164,8 @@ jobs:
           - { board: waveshare_rp2040_zero, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
           - { board: pico2, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
           - { board: pico, fs: tinyfs, args: "-DMICROCS_U8G2=ON -DMICROCS_U8G2_DOWNLOAD=ON", name: " u8g2", tag: "-u8g2" }
+          - { board: pico_w, fs: littlefs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " Wi-Fi (FreeRTOS + lwIP)", tag: "-wifi", freertos: true, wifi: true }
+          - { board: pico2_w, fs: littlefs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " Wi-Fi (FreeRTOS + lwIP)", tag: "-wifi", freertos: true, wifi: true }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
@@ -172,6 +174,7 @@ jobs:
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
+          if [ "${{ matrix.wifi }}" = true ]; then git -C $HOME/pico-sdk submodule update --init --depth 1 lib/cyw43-driver lib/lwip; fi
       - name: FreeRTOS-Kernel (Raspberry Pi's fork, as in the release images; RP2040 + RP2350 SMP ports)
         if: ${{ matrix.freertos }}
         run: mkdir -p $HOME/FreeRTOS-Kernel && curl -sSL https://github.com/raspberrypi/FreeRTOS-Kernel/archive/4f7299d6ea746b27a9dd19e87af568e34bd65b15.tar.gz | tar xz --strip-components=1 -C $HOME/FreeRTOS-Kernel
@@ -190,6 +193,9 @@ jobs:
           cmake -S ports/rp2/example -B build/${{ matrix.board }} -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=${{ matrix.fs }} $FS_ARGS ${{ matrix.args }}
           cmake --build build/${{ matrix.board }}
           arm-none-eabi-size build/${{ matrix.board }}/microcs_pico.elf
+          if [ "${{ matrix.wifi }}" = true ]; then
+            arm-none-eabi-nm build/${{ matrix.board }}/microcs_pico.elf | grep -q ' mcs_rp2_net$' || { echo "::error::Wi-Fi backend missing"; exit 1; }
+          fi
       - name: Keep the firmware (download it from the run's Artifacts)
         uses: actions/upload-artifact@v4
         with:

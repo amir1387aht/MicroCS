@@ -468,6 +468,18 @@
 #ifndef MCS_HTTP_MAX_REDIRECTS
 #define MCS_HTTP_MAX_REDIRECTS 5   /* 301/302/303/307/308 followed by Http requests */
 #endif
+#ifndef MCS_HTTP_SERVER_MAX_ROUTES
+#define MCS_HTTP_SERVER_MAX_ROUTES 16 /* HttpServer routes (On / Get / Post / WebSocket / ServeFiles) per server */
+#endif
+#ifndef MCS_HTTP_SERVER_TIMEOUT
+#define MCS_HTTP_SERVER_TIMEOUT 3000 /* HttpServer: a client must send its request within this (ms) */
+#endif
+#ifndef MCS_WS_MAX_MESSAGE
+#define MCS_WS_MAX_MESSAGE 8192    /* largest WebSocket message received (bytes; bigger ones close with 1009) */
+#endif
+#ifndef MCS_WS_MAX_CLIENTS
+#define MCS_WS_MAX_CLIENTS 4       /* WebSocket clients one HttpServer keeps open */
+#endif
 #ifndef MCS_ESPNOW_MAX_PEERS
 #define MCS_ESPNOW_MAX_PEERS 20    /* EspNow.Peers capacity (the radio allows 20) */
 #endif

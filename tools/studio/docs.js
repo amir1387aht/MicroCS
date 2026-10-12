@@ -407,11 +407,11 @@ ToBoolean(byte[] bytes, int index = 0): bool | 1 byte → bool
 ToString(byte[] bytes): string | "01-AB-FF"
 
 @Net | Network library info (Wi-Fi, sockets, HTTP)
-Has(string feature): bool | "Wifi", "Wifi.AP", "Wifi.Scan", "Wifi.Enterprise", "EspNow", "Mdns", "Ping", "Tls", "Sockets", "Http", "Ntp"
-Backend: string | "esp32", "sim" or "none"
+Has(string feature): bool | "Wifi", "Wifi.AP", "Wifi.Scan", "Wifi.Save", "Wifi.Wps", "Wifi.SmartConfig", "Wifi.Enterprise", "EspNow", "Mdns", "Ping", "Tls", "Sockets", "Http", "HttpServer", "WebSocket", "DnsServer", "Ntp"
+Backend: string | "esp32", "rp2" (Pico W), "sim" or "none"
 const ApiVersion: int | Network backend API version
 
-@Wifi | Wi-Fi station + soft access point (ESP32; simulated with --sim)
+@Wifi | Wi-Fi station + soft access point (ESP32, Pico W; simulated with --sim)
 Connect(string ssid, string password = null, int timeoutMs = 15000): bool | Join a network and wait for an IP; false on failure (see StatusName / ReasonName)
 Connect(): bool | Join the saved network (Wifi.Save / menuconfig)
 Connect(string ssid, string password, int timeoutMs, string bssid, int channel = 0): bool | Join one specific access point
@@ -428,8 +428,10 @@ ApClients(): WifiClient[] | Stations connected to our access point
 SetApIp(string ip, string gateway, string netmask): void | Address of the access point network
 SetStaticIp(string ip, string gateway, string netmask, string dns1 = null, string dns2 = null): void | Fixed station address
 UseDhcp(): void | Back to automatic addressing
-Save(string ssid, string password): void | Store credentials in flash (NVS)
+Save(string ssid, string password): void | Store credentials in flash (NVS, or /.wifi on the filesystem)
 Forget(): void | Erase the stored credentials
+Wps(int timeoutMs = 120000, bool save = true): bool | Join by pressing the router's WPS button (Net.Has("Wifi.Wps"))
+SmartConfig(int timeoutMs = 120000, bool save = true): bool | Receive the network from the ESP-Touch phone app (Net.Has("Wifi.SmartConfig"))
 OnEvent(Action<int, int> handler): void | (event, value) callback: Wifi.EventConnected, EventGotIp, EventDisconnected (value = reason)...
 EventName(int ev): string | Name of an event code
 ReasonName(int reason): string | Text for a disconnect reason (no argument: the last one)
@@ -588,6 +590,93 @@ new(int port = 0) | Bind to a port (0 = any)
 Resolve(string host): string | First IPv4 address (".local" through mDNS)
 GetHostAddresses(string host): string[] | All IPv4 addresses
 HostName: string | Our host name
+
+@HttpServer | HTTP/1.1 server with routes, files and WebSocket endpoints
+new(int port = 80) | Server on all interfaces (simulator: ports < 1024 move to port + 8000)
+new(string address, int port) | Server on one address
+.Get(string path, Func<HttpRequest, object> handler): void | GET route; "/led/{id}" captures path parameters, "/files/*" a prefix
+.Post(string path, Func<HttpRequest, object> handler): void | POST route
+.Put(string path, Func<HttpRequest, object> handler): void | PUT route
+.Delete(string path, Func<HttpRequest, object> handler): void | DELETE route
+.Patch(string path, Func<HttpRequest, object> handler): void | PATCH route
+.On(string method, string path, Func<HttpRequest, object> handler): void | Route for any method (or On(path, handler) for all)
+.NotFound(Action<HttpRequest> handler): void | Answer requests no route matched
+.ServeFiles(string urlPrefix, string folder): void | Static files (index.html, .gz copies, MIME types)
+.WebSocket(string path, Action<WebSocket, object> onMessage, Action<WebSocket> onOpen = null, Action<WebSocket> onClose = null): void | WebSocket endpoint
+.Broadcast(object message): int | Send a string or byte[] to every WebSocket client; how many got it
+.Start(): void | Start listening
+.Stop(): void | Stop and close every connection
+.Poll(int timeoutMs = 0): int | Handle waiting requests and WebSocket frames (also DnsServer queries)
+.Run(): void | Serve until Stop() or the script ends
+.Port: int | Port actually bound
+.Running: bool | Listening
+.Requests: int | Requests answered so far
+.WebSockets: int | Open WebSocket clients
+.Cors: bool | Add Access-Control-Allow-* headers (and answer OPTIONS)
+.Dispose(): void | Same as Stop
+
+@HttpRequest | A request handed to an HttpServer route (return a string, byte[] or object = JSON)
+.Method: string | "GET", "POST", ...
+.Path: string | "/api/notes"
+.Query: string | Text after "?"
+.Url: string | Path plus query
+.Body: string | Body as text
+.Bytes: byte[] | Body as bytes
+.Json: object | Body parsed as JSON
+.ContentType: string | Content-Type header
+.ContentLength: int | Body size
+.Headers: string | All request headers
+.Header(string name): string | One header (case-insensitive), null when missing
+.Host: string | Host header
+.Param(string name, string fallback = null): string | Path parameter, query or form field
+.HasParam(string name): bool | The parameter exists
+.RemoteAddress: string | Client address
+.Status: int | Status for the returned value (default 200)
+.Sent: bool | A reply was sent already
+.Send(int status, string contentType, object body): void | Reply now (also Send(body), Send(status, body))
+.SendJson(object value, int status = 200): void | Reply with JSON
+.SendStatus(int status): void | Empty reply with a status
+.SendFile(string path, string contentType = null): bool | Reply with a file; false when missing
+.Redirect(string url, int status = 302): void | Send the browser elsewhere
+.SetHeader(string name, string value): void | Extra response header
+.Authenticate(string user, string password, string realm = null): bool | Basic auth; false after answering 401
+
+@WebSocket | WebSocket client (ws://, wss://) and server-side connection
+new() | Not connected yet: call Connect
+new(string url, int timeoutMs = 10000) | Connect at once
+.Connect(string url, int timeoutMs = 10000, object headers = null): void | Open ws://host[:port]/path or wss://
+.Send(object message): void | Text for a string, binary for byte[]
+.SendText(string text): void | Text frame
+.SendBinary(byte[] data): void | Binary frame
+.Ping(object data = null): void | Ping frame
+.Receive(int timeoutMs = -1): object | Next message (string / byte[]), null on timeout or close
+.OnMessage(Action<object> handler): void | Callback run by Poll
+.Poll(int timeoutMs = 0): int | Handle waiting frames; messages handed to OnMessage
+.Close(int code = 1000, string reason = ""): void | Close handshake
+.IsOpen: bool | Connection is open
+.State: string | "None", "Open" or "Closed"
+.CloseStatus: int | Close code from the peer
+.CloseReason: string | Close reason from the peer
+.Id: int | Connection number (server side)
+.Path: string | Requested path (server side) or URL
+.Url: string | Same as Path
+.RemoteAddress: string | Peer address
+.Timeout: int | Read / write timeout in ms
+.IsTls: bool | wss:// connection
+.Dispose(): void | Same as Close
+
+@DnsServer | Answers every name with one address (captive portals)
+new(string address = null) | Address to hand out (default: Wifi.ApIp)
+.Start(string address = null, int port = 53): void | Start answering (simulator: port 8053)
+.Stop(): void | Stop answering
+.Poll(): int | Answer waiting queries (HttpServer.Poll does this too)
+.Running: bool | Answering
+.Queries: int | Queries answered
+.Ttl: int | Seconds clients may cache the answer
+.Domain: string | "*" = every name, or only this one
+.Address: string | Address in the answers
+.Port: int | Port bound
+.Dispose(): void | Same as Stop
 
 @Http | HTTP/1.1 client (https:// when Net.Has("Tls"))
 Get(string url, object headers = null): HttpResponse | GET request (headers: Dictionary<string,string>, "Name: value" lines or string[])

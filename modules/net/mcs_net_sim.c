@@ -347,6 +347,18 @@ static int ping(void* ctx, const uint8_t ip[4], uint32_t timeout) {
     return MCS_HAL_ETIMEOUT;
 }
 
+/* WPS / SmartConfig: the "router" (or phone) answers after ten polls (~1 s) with MicroCS-Lab */
+static int sim_prov_polls;
+static int provision(void* ctx, int method, int op, char ssid[33], char pass[65]) {
+    (void)ctx;
+    if (method != MCS_WIFI_PROV_WPS && method != MCS_WIFI_PROV_SMARTCONFIG) return MCS_HAL_ENOTSUP;
+    if (op == MCS_WIFI_PROV_QUERY || op == MCS_WIFI_PROV_STOP) return 0;
+    if (!(g_s.mode & MCS_WIFI_STA)) set_mode(NULL, g_s.mode | MCS_WIFI_STA);
+    if (op == MCS_WIFI_PROV_START) { sim_prov_polls = 0; return 0; }
+    if (++sim_prov_polls < 10) return 0;
+    snprintf(ssid, 33, "MicroCS-Lab"); snprintf(pass, 65, "microcs123");
+    return 1;
+}
 void mcs_net_sim_init(mcs_net_t* n) {
     memset(&g_s, 0, sizeof g_s);
     g_s.ap = -1; g_s.status = MCS_WIFI_STOPPED;
@@ -370,5 +382,6 @@ void mcs_net_sim_init(mcs_net_t* n) {
     n->espnow_recv = en_recv; n->espnow_pmk = en_pmk; n->espnow_peers = en_peers;
     n->ntp_start = ntp_start; n->ntp_synced = ntp_synced;
     n->mdns = mdns; n->mdns_resolve = mdns_resolve; n->ping = ping;
+    n->provision = provision;
 }
 #endif

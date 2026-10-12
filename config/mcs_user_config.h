@@ -409,6 +409,21 @@
 #ifndef MCS_HTTP_MAX_REDIRECTS
 #define MCS_HTTP_MAX_REDIRECTS    5    /* redirects followed by Http calls */
 #endif
+#ifndef MCS_HTTP_SERVER_MAX_ROUTES
+#define MCS_HTTP_SERVER_MAX_ROUTES 16    /* HttpServer routes per server */
+#endif
+#ifndef MCS_HTTP_SERVER_TIMEOUT
+#define MCS_HTTP_SERVER_TIMEOUT   3000    /* HttpServer: time a client has to send its request (ms) */
+#endif
+#ifndef MCS_WS_MAX_MESSAGE
+#define MCS_WS_MAX_MESSAGE        8192    /* largest WebSocket message received (bytes) */
+#endif
+#ifndef MCS_WS_MAX_CLIENTS
+#define MCS_WS_MAX_CLIENTS        4    /* WebSocket clients one HttpServer keeps open */
+#endif
+#ifndef MCS_WIFI_CREDS_FILE
+#define MCS_WIFI_CREDS_FILE       "/.wifi"    /* Wifi.Save file on ports without their own store (needs MCS_ENABLE_FS) */
+#endif
 #ifndef MCS_ESPNOW_MAX_PEERS
 #define MCS_ESPNOW_MAX_PEERS      20    /* EspNow.Peers capacity */
 #endif
@@ -524,6 +539,19 @@
 //                                               (default: half of 2 MB, all but 1 MB of >= 4 MB) */
 #ifndef MCS_RP2_LEDSTRIPS
 #define MCS_RP2_LEDSTRIPS         4    /* LedStrips on different pins (PIO state machines); also Arduino-Pico */
+#endif
+//#define MCS_RP2_WIFI             1    /* Pico W / Pico 2 W Wi-Fi (CMake: -DMICROCS_WIFI=ON, FreeRTOS) */
+#ifndef MCS_RP2_HOSTNAME
+#define MCS_RP2_HOSTNAME          "microcs"    /* Pico W: DHCP / mDNS host name until Wifi.Hostname is set */
+#endif
+#ifndef MCS_RP2_WIFI_RETRIES
+#define MCS_RP2_WIFI_RETRIES      2    /* Pico W: extra attempts before Wifi.Connect reports a failure */
+#endif
+#ifndef MCS_RP2_RECONNECT_MS
+#define MCS_RP2_RECONNECT_MS      5000    /* Pico W: Wifi.AutoReconnect retry interval (ms) */
+#endif
+#ifndef MCS_RP2_DHCPS_LEASES
+#define MCS_RP2_DHCPS_LEASES      8    /* Pico W: soft-AP clients that get an address */
 #endif
 
 /* ---- STM32 (STM32Cube HAL, ports/stm32) */

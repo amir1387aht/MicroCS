@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.13.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.14.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -48,7 +48,7 @@
 MicroCS is a compact **C# compiler + bytecode VM** written in portable C99 — no dependencies,
 no `malloc` or OS required. It gives a microcontroller a real, modern C#: classes, generics, lambdas,
 LINQ, tuples, pattern matching, exceptions, plus a complete peripheral API and — on the
-ESP32 family — Wi-Fi, ESP-NOW, sockets, HTTPS and JSON.
+ESP32 family and the Pico W — Wi-Fi, sockets, HTTP(S), a web server with WebSockets, ESP-NOW and JSON.
 
 Embed it as a **library** in the firmware you already have, or flash it as a **MicroPython-style
 REPL device**. Scripts run from source on the device, or as precompiled, optimized bytecode
@@ -123,7 +123,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
-YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, NTP, mDNS, `Json`). Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and the Pico W (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, `HttpServer`, `WebSocket`, NTP, mDNS, `Json`). Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
 </tr>
@@ -257,7 +257,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.13.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.14.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -279,7 +279,7 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 180+ templates (boot scripts, peripheral settings, DMA, U8g2 displays, Wi-Fi and networking,
+hover, find/replace, format) that saves to and runs on the device, 190+ templates (boot scripts, every peripheral with its settings, DMA, U8g2 displays, Wi-Fi and networking,
 scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
@@ -288,11 +288,11 @@ scheduler, sensors, displays, motors, every peripheral, console games), a serial
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
 **Ready-to-flash firmware** in every [release](https://github.com/amir1387aht/MicroCS/releases/latest):
-Raspberry Pi Pico / Pico 2 / RP2040-Zero (`.uf2`), ESP32 / S3 / C2 / C3 / C6 (`.bin`) and the STM32
+Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W (with Wi-Fi) / RP2040-Zero (`.uf2`), ESP32 / S3 / C2 / C3 / C6 (`.bin`) and the STM32
 boards Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI and Black Pill F411CE
 (`.bin` / `.hex`, [details](ports/stm32/firmware/README.md)).
 
-Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2),
+Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2 / Pico W),
 [`ports/esp32/example`](ports/esp32/example) (ESP-IDF), [`ports/stm32/example_main.c`](ports/stm32/example_main.c)
 (any CubeMX project), [`ports/zephyr/example`](ports/zephyr/example),
 [`ports/arduino/examples/MicroCS_REPL`](ports/arduino/examples/MicroCS_REPL).
@@ -384,9 +384,11 @@ wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data log
 
 ## 📶 Wi-Fi & networking
 
-On every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6) C# scripts get the network —
-station and soft access point, scanning, events, static IP, saved credentials, ESP-NOW, SNTP,
-mDNS, ping, TCP / UDP sockets, an HTTP/1.1 client with HTTPS, and JSON. On the PC the same
+On every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6) and on the Raspberry Pi
+**Pico W / Pico 2 W** C# scripts get the network — station and soft access point, scanning,
+events, static IP, saved credentials, WPS / SmartConfig, ESP-NOW, SNTP, mDNS, ping, TCP / UDP
+sockets, an HTTP/1.1 client with HTTPS, an HTTP server with routes, files and WebSockets, a
+WebSocket client, a captive-portal DNS server, and JSON. On the PC the same
 sockets and HTTP use the real network, and `--sim` adds a simulated radio so Wi-Fi scripts
 run without a board.
 
@@ -398,25 +400,30 @@ var r = Http.Get("https://api.open-meteo.com/v1/forecast?latitude=52.5&longitude
 var weather = Json.Parse(r.Body);
 Console.WriteLine($"{Ntp.LocalTime}: {weather["current"]["temperature_2m"]} °C");
 
-var server = new TcpListener(80);                              // a web server in a few lines
-server.Start();
+var web = new HttpServer(80);                                  // a web server in a few lines
+web.Get("/", req => $"<h1>{Ntp.LocalTime}</h1>");
+web.WebSocket("/ws", (ws, msg) => ws.Send("echo: " + msg));
+web.Start();
 EspNow.Start();                                                // board-to-board, no router
 EspNow.Broadcast("hello");
 ```
 
 | | C# API |
 |---|---|
-| Wi-Fi | `Wifi.Connect` / `Begin` / `ConnectEnterprise`, `Scan`, `StartAp`, `ApClients`, `OnEvent`, `SetStaticIp`, `Save` / `Forget`, `Hostname`, `TxPower`, `PowerSave`, `Protocol`, `Country`, … |
+| Wi-Fi | `Wifi.Connect` / `Begin` / `ConnectEnterprise`, `Scan`, `StartAp`, `ApClients`, `OnEvent`, `SetStaticIp`, `Save` / `Forget`, `Wps` / `SmartConfig`, `Hostname`, `TxPower`, `PowerSave`, `Protocol`, `Country`, … |
 | Board to board | `EspNow`: peers, encryption keys, `Send` with delivery report, `Broadcast`, `OnReceive` |
 | Services | `Ntp` (time zones), `Mdns` (`name.local`, services), `Ping`, `Dns` |
 | Sockets | `TcpClient` (+ TLS), `TcpListener`, `UdpClient` (broadcast, multicast) |
 | HTTP | `Http.Get` / `Post` / `Put` / `Patch` / `Delete` / `Request` / `Download`, headers, redirects, chunked, `HttpResponse` |
+| Servers | `HttpServer` (routes with `{params}`, JSON replies, forms, Basic auth, CORS, `ServeFiles`), `WebSocket` server + client, `DnsServer` (captive portal) |
 | Data | `Json.Parse` / `Json.Stringify`, `JsonSerializer` |
 
-Wi-Fi is part of the firmware you build from `ports/esp32/example` (the ready-to-flash release
-images leave it out). Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
-and find every method, event and option in [NETWORK.md](docs/NETWORK.md). Studio has 16
-ready-to-run networking templates (web server, MQTT publish, HTTPS download, ESP-NOW …).
+On the ESP32 Wi-Fi is part of the firmware you build from `ports/esp32/example` (the
+ready-to-flash release images leave it out); the Pico W / Pico 2 W release images have it
+([Pico W setup](docs/NETWORK.md#pico-w-setup)). Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
+and find every method, event and option in [NETWORK.md](docs/NETWORK.md). Studio has 25
+ready-to-run networking templates (web pages, REST API, live WebSocket dashboard, captive
+portal, MQTT publish, HTTPS download, ESP-NOW …).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -434,7 +441,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.13.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.14.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -456,7 +463,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 |---|---|---|
 | **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile; [ready-to-flash firmware](ports/stm32/firmware/README.md) for 7 boards built, the F4 and H743 images booted in the Renode emulator (REPL, files in internal flash) |
 | **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
-| **RP2040 / RP2350** (Pico, Pico 2, Pico W…) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico` and `pico2` |
+| **RP2040 / RP2350** (Pico, Pico 2, Pico W, Pico 2 W — Wi-Fi on the W boards) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico`, `pico2`, and `pico_w` / `pico2_w` with Wi-Fi |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
@@ -524,7 +531,7 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
 | DMA / background transfers | ✅ `DmaBuffer`, `SPI.WriteAsync` … | port-specific | — |
 | Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
-| Wi-Fi / networking | ✅ ESP32 family: station + AP, ESP-NOW, TCP/UDP, HTTP(S), NTP, mDNS, JSON | ✅ | ✅ |
+| Wi-Fi / networking | ✅ ESP32 family + Pico W: station + AP, ESP-NOW, TCP/UDP, HTTP(S), web server + WebSocket, NTP, mDNS, JSON | ✅ | ✅ |
 | Bluetooth LE | ❌ not yet ([roadmap](#%EF%B8%8F-roadmap)) | ✅ | ✅ |
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
