@@ -1,0 +1,32 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Web server and WebSocket
+
+[web_led.cs] Web page that switches an LED
+HttpServer with routes: a page with On / Off buttons and a JSON status; open http://<board-ip>/.
+
+[web_api.cs] REST API with JSON, forms and a password
+GET / POST / DELETE routes, query and form parameters, JSON bodies, Basic auth, 404 page and
+CORS.
+
+[ws_dashboard.cs] Live dashboard over WebSocket
+A page that opens a WebSocket: the board pushes a reading every 500 ms to every browser and gets
+button clicks back.
+
+[ws_client.cs] WebSocket client
+Connect to a ws:// or wss:// server, send text and bytes, receive with a callback, close
+cleanly.
+
+[captive_portal.cs] Captive portal Wi-Fi setup
+No password in the script: open a hotspot, every page leads to a setup form, the board saves the
+network and joins it.
+
+[web_files.cs] Serve files from flash
+ServeFiles maps a URL prefix to a folder: HTML, CSS, JS and images (index.html, .gz copies)
+straight from the filesystem.
+
+[wifi_provision.cs] Wi-Fi setup with WPS or SmartConfig
+Join a network without typing the password: press the router's WPS button, or send it from the
+ESP-Touch phone app.

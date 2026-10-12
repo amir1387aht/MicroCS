@@ -1,0 +1,14 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: DMA
+
+[dma_buffer.cs] DmaBuffer basics
+DMA-capable memory: index, fill, copy, convert.
+
+[dma_double_buffer.cs] Double-buffered display loop
+Draw the next frame while the last one is sent over SPI DMA.
+
+[dma_memory.cs] Memory copy and fill (Dma)
+Dma.Copy / Fill / CopyAsync / FillAsync and WaitAll.

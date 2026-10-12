@@ -1,0 +1,73 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: U8g2 displays
+
+[oled_hello.cs] Hello OLED (U8g2)
+SSD1306 128x64 on I2C: begin, a font, text and a circle, then SendBuffer.
+
+[oled_wiring.cs] Connect a display: I2C, SPI, software buses
+Every way to create a display: I2C (address, reset), SoftI2C, SPI, SoftSPI, 3-wire, 8080 / 6800,
+KS0108.
+
+[oled_shapes.cs] Shapes: every drawing primitive
+Pixels, lines, boxes, rounded boxes, circles and quadrants, ellipses, arcs, triangles, polygons.
+
+[oled_text.cs] Text, fonts and alignment
+DrawStr / DrawUTF8 / DrawGlyph, 2x text, centring with GetStrWidth, font metrics, position and
+direction.
+
+[oled_font_files.cs] Fonts from files (2000+ u8g2 fonts)
+Load any u8g2 font from /fonts by name, by path or from a byte[], with a fallback to the
+built-in fonts.
+
+[oled_bitmaps.cs] Bitmaps and icons (XBM)
+DrawXBM / DrawXBMP / DrawBitmap, transparent bitmaps and the built-in icon font.
+
+[oled_settings.cs] Display settings: rotation, contrast, sleep, clip
+SetDisplayRotation, SetFlipMode, SetContrast, Sleep / Wake, draw colours (XOR), clip windows.
+
+[oled_page_mode.cs] Page mode: big displays on little RAM
+_1 / _2 page buffers with Draw(() => ...) or FirstPage / NextPage - 128 bytes instead of 1 KB.
+
+[oled_print.cs] Arduino-style Print and Println
+SetCursor / Print / Println like the Arduino U8g2 library, with CursorX / CursorY and Home.
+
+[oled_ui_text.cs] Buttons, text bars and centred lines
+DrawButtonUTF8 / DrawButtonFrame styles, DrawUTF8Line (bars, inverted), DrawUTF8Lines (centred
+lines).
+
+[oled_menu.cs] Menus with buttons (selection list, message, number)
+UserInterfaceSelectionList / Message / InputValue on 3 buttons; scripted keys so it also runs in
+the simulator.
+
+[oled_custom_menu.cs] Your own menu with a rotary encoder or buttons
+Draw your own list and read keys with GetMenuEvent or SetMenuInput (encoder, touch, remote).
+
+[oled_log.cs] Scrolling log terminal (u8log)
+LogBegin / Log / LogLine: a terminal that scrolls by itself, or DrawLog inside your own screen.
+
+[oled_dashboard.cs] Sensor dashboard: big value, bar and graph
+A live screen with a large number, a bar gauge and a scrolling graph of an ADC input.
+
+[oled_clock.cs] Analog clock face
+A round clock with hands from Math.Sin / Math.Cos, arcs and a digital time below.
+
+[oled_animation.cs] Bouncing ball animation (frames per second)
+A smooth animation with ClearBuffer / SendBuffer and a frame-rate counter; UpdateDisplayArea for
+partial updates.
+
+[oled_buffer.cs] Screenshot: read and save the frame buffer
+GetPixel, GetBuffer / SetBuffer, Dump as text, WriteBufferPBM / XBM to the console.
+
+[u8x8_text.cs] U8x8: text display with no frame buffer
+U8x8 draws 8x8 tiles directly: normal, 1x2 and 2x2 text, inverse, ClearLine, custom tiles - a
+few bytes of RAM.
+
+[u8x8_status.cs] U8x8 status screen for a sensor
+A clean label / value layout with U8x8, updating only the values that change.
+
+[oled_two_displays.cs] Two displays at once
+Two OLEDs on one I2C bus (0x3C and 0x3D), or one on I2C and one on SPI; free memory with
+Dispose.

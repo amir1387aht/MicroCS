@@ -1,0 +1,23 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Getting started
+
+[program.cs] Empty C# file
+An empty script with a comment header.
+
+[hello.cs] Hello world
+Print a greeting and the uptime.
+
+[loop.cs] Main loop (Arduino style)
+setup() once, then loop() forever - Stop ends it.
+
+[format.cs] Console output and formatting
+Write, WriteLine, interpolation, alignment and number formats.
+
+[input.cs] Read input from the console
+Ask a question with Console.ReadLine (type the answer in the console).
+
+[timing.cs] Uptime and timing
+Environment.TickCount, Stopwatch and Thread.Sleep.

@@ -1,0 +1,44 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: C# language
+
+[classes.cs] Classes and interfaces
+Interfaces, inheritance, virtual/override and properties.
+
+[driver.cs] A driver class
+Wrap a sensor in a class with IDisposable and properties.
+
+[collections.cs] Collections
+List, Dictionary, HashSet, Queue and Stack.
+
+[linq.cs] LINQ
+Where, Select, OrderBy, GroupBy, aggregates.
+
+[strings.cs] Strings and StringBuilder
+Common string operations and building text efficiently.
+
+[patterns.cs] Pattern matching and switch
+Switch expressions, relational patterns and type patterns.
+
+[tuples.cs] Tuples and deconstruction
+Return several values; swap with tuples.
+
+[events_cs.cs] Delegates, lambdas and events
+Action, Func, closures and C# events.
+
+[generics.cs] Generics
+A generic ring buffer class for samples.
+
+[enums.cs] Enums and structs
+Enums for states, flags arithmetic and a small struct.
+
+[exceptions.cs] Exceptions
+try / catch / finally, filters and custom exceptions.
+
+[math.cs] Math and random numbers
+Math functions, rounding, clamping and Random.
+
+[parse.cs] Parsing and conversion
+int.Parse, TryParse, Convert and bytes <-> text.

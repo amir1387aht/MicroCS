@@ -1,0 +1,32 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Scheduler
+
+[jobs.cs] Background jobs (Every / After)
+Jobs keep running after the script ends - like a firmware main loop.
+
+[cancel.cs] Cancel jobs
+Stop one job by id, or all of them, from another job.
+
+[retry.cs] Failure policy (maxFailures)
+A job that throws is stopped after N failures in a row.
+
+[logger_job.cs] Sensor logger job
+Sample the ADC every second and append CSV rows to a file; rotate when large.
+
+[traffic.cs] State machine with jobs
+A traffic light driven by After() - no blocking, no Thread.Sleep.
+
+[debounce.cs] Debounced button + job
+Interrupt marks the press, a scheduled job handles it after the bounce.
+
+[wdt_job.cs] Watchdog fed by a job
+Keep the watchdog happy from a background job while the app runs.
+
+[timeout.cs] Timeout with After
+Wait for an event, give up after a deadline.
+
+[jobstats.cs] Periodic report of all jobs
+Count runs of several jobs and print a summary.

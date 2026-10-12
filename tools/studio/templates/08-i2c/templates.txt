@@ -1,0 +1,29 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: I2C
+
+[i2c_scan.cs] I2C bus scan
+List every device that answers on an I2C bus.
+
+[i2c_reg.cs] Read a register
+Read and write registers with the static I2C API.
+
+[tmp102.cs] Temperature sensor (TMP102)
+Read a TMP102 / LM75-style sensor with I2cDevice.
+
+[eeprom.cs] EEPROM (24Cxx) read and write
+Write a string to an I2C EEPROM and read it back.
+
+[bme280.cs] BME280 / BMP280 chip id
+Identify a Bosch environmental sensor and read raw temperature.
+
+[oled.cs] OLED display (SSD1306)
+Initialise a 128x64 SSD1306 and draw a pattern.
+
+[i2c_pins.cs] I2C on your own pins (I2cConfig)
+Choose SDA/SCL, speed, pull-ups and timeout at run time, then scan.
+
+[i2c_async.cs] I2C sensor read without blocking
+I2C.WriteReadAsync into a DmaBuffer; errors arrive when the transfer ends.

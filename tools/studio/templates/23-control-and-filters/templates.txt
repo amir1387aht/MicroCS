@@ -1,0 +1,17 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Control and filters
+
+[pid.cs] PID controller
+A reusable PID class driving a simulated heater to a set point.
+
+[filters.cs] Moving average and median filters
+Smooth noisy readings: moving average, median of 5, exponential.
+
+[thermostat.cs] Thermostat with hysteresis
+On/off control with a dead band so the relay doesn't chatter.
+
+[kalman.cs] Kalman filter (1-D)
+A one-dimensional Kalman filter for a slowly changing value.

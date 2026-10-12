@@ -75,6 +75,8 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright-core@1
       - name: tools/studio against the host device shell
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs
+      - name: templates.js is generated from tools/studio/templates/
+        run: python3 tools/studio/gen_templates.py --check
       - name: every Studio template compiles and runs on the simulated board
         run: node tests/studio/test_templates.js ./mcs
 

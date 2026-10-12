@@ -1,0 +1,38 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: GPIO
+
+[blink.cs] Blink an LED
+Toggle an output pin with the Pin object.
+
+[gpio.cs] Static GPIO calls
+GPIO.Mode / Write / Read / Toggle without objects.
+
+[pinnames.cs] Pin names
+Resolve board pin names to numbers with GPIO.Pin.
+
+[button_poll.cs] Read a button (polling)
+Poll an input and detect presses with edge detection.
+
+[button.cs] Button interrupt
+React to a button with OnChange - callbacks run safely between statements.
+
+[multi_irq.cs] Interrupts on several pins
+One handler for several pins with GPIO.OnChange(pin, edge, (pin, level) => ...).
+
+[ultrasonic.cs] Ultrasonic distance (HC-SR04)
+Trigger pulse + GPIO.PulseIn to measure distance.
+
+[chaser.cs] Knight rider (LED chaser)
+Run a light back and forth over several LEDs.
+
+[button_config.cs] Button: pull-up + Schmitt trigger (GpioConfig)
+A clean button input with GpioConfig and an interrupt callback.
+
+[led_config.cs] LED: start on, strong drive (GpioConfig)
+Set the level before the pin drives (no glitch), drive strength and speed.
+
+[open_drain.cs] Open-drain bus line with GpioConfig
+Open drain with no internal pull, then change the settings later.

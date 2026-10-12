@@ -1,0 +1,14 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: Serial plotter
+
+[plot_sine.cs] Plot a sine and cosine
+Named values on each line - open Console → Plotter to see them live.
+
+[plot_adc.cs] Plot analog inputs
+Stream two ADC channels to the plotter.
+
+[plot_step.cs] Plot a step response
+A second-order system reacting to a set-point step - classic control demo.

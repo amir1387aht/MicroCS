@@ -1,0 +1,23 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+category: UART
+
+[uart.cs] Serial port: send and receive
+Open a UART, write a line and wait for an answer.
+
+[uart_echo.cs] Serial echo with OnReceive
+Echo everything received on a UART, event-driven.
+
+[gps.cs] GPS (NMEA) reader
+Parse $GPGGA sentences from a GPS module.
+
+[uart_packet.cs] Binary packets with checksum
+Build and parse framed packets with BitConverter.
+
+[uart_config.cs] UART with pins, parity and buffers (UartConfig)
+UartConfig: pins, framing, receive buffer; RS-485 shown as an option.
+
+[uart_async.cs] UART receive with timeout and cancel
+UART.ReadAsync completes when the buffer is full; Wait(ms) and Cancel.
