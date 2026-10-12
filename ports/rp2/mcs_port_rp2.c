@@ -703,6 +703,9 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
 #if MCS_RP2_WIFI && MCS_ENABLE_NET
     mcs_net_set(mcs_rp2_net());                    /* C# Wifi, Ntp, Mdns, Ping; sockets over lwIP */
 #endif
+#if MCS_RP2_BLE && MCS_ENABLE_BLE
+    mcs_ble_set(mcs_rp2_ble());                    /* C# Ble, BleService, BleConnection, BleUart (BTstack) */
+#endif
 }
 
 /* ------------------------------------------------------------------ internal flash */
@@ -757,7 +760,12 @@ static int rp2_fl_erase(mcs_flash_t* f, uint32_t block) {
     return rp2_flash_run(&op);
 }
 int mcs_rp2_flash_init(mcs_rp2_flash_t* d, uint32_t offset, uint32_t size) {
-    if (!offset && !size) { size = MCS_RP2_FS_SIZE; offset = PICO_FLASH_SIZE_BYTES - size; }
+    if (!offset && !size) {
+        size = MCS_RP2_FS_SIZE; offset = PICO_FLASH_SIZE_BYTES - size;
+#if MCS_RP2_BLE
+        size -= MCS_RP2_BLE_FLASH;                 /* BTstack's bond store: the last 8 KB */
+#endif
+    }
     if (!size || offset % FLASH_SECTOR_SIZE || size % FLASH_SECTOR_SIZE || (uint64_t)offset + size > PICO_FLASH_SIZE_BYTES)
         return MCS_FLASH_EINVAL;
     uint32_t fw_end = (uint32_t)((uintptr_t)&__flash_binary_end - XIP_BASE);

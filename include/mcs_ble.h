@@ -241,6 +241,11 @@ typedef struct mcs_ble {
     int (*passkey_reply)(void* ctx, int conn, int kind, int32_t value);   /* ENTRY: key; COMPARE / CONFIRM: 0/1 */
     /* bonds: COUNT returns the number; LIST fills up to max addresses; DELETE addr; CLEAR all */
     int (*bonds)(void* ctx, int op, mcs_ble_addr_t* addrs, int max);
+
+    /* ---------------- optional: stacks that keep the local values themselves (ArduinoBLE)
+     * the script set the value of local attribute `id` (gatts_set ids); NULL = every read
+     * comes through mcs_ble_attr_read() */
+    int (*gatts_value)(void* ctx, uint16_t id, const uint8_t* data, size_t n);
 } mcs_ble_t;
 
 #if MCS_ENABLE_BLE

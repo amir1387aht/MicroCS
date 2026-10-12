@@ -1054,6 +1054,7 @@ static bool attr_set(mcs_vm_t* vm, int id, mcs_value_t v) {
     memcpy(g_pool + a->off, tmp, n);
     a->len = (uint16_t)n;
     unlock();
+    if (g_ble && g_ble->gatts_value) g_ble->gatts_value(g_ble->ctx, (uint16_t)id, tmp, n);
     return true;
 }
 static mcs_value_t attr_value(mcs_vm_t* vm, int id) {

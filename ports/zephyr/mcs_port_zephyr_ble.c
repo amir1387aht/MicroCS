@@ -17,6 +17,7 @@
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/bluetooth/l2cap.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/hci.h>
 #if defined(CONFIG_BT_SETTINGS)
@@ -249,12 +250,12 @@ static z_uuid_t z_uuid[MCS_BLE_MAX_SERVICES + MCS_BLE_MAX_ATTRS * 2];
 static struct bt_gatt_service z_svc[MCS_BLE_MAX_SERVICES];
 static struct bt_gatt_attr* z_val[MCS_BLE_MAX_ATTRS];   /* by front-end id */
 static int z_nsvc;
-static ssize_t z_read(struct bt_conn* conn, const struct bt_gatt_attr* attr, void* buf, uint16_t len, uint16_t offset) {
+static ssize_t z_attr_read(struct bt_conn* conn, const struct bt_gatt_attr* attr, void* buf, uint16_t len, uint16_t offset) {
     int n = mcs_ble_attr_read((uint16_t)(uintptr_t)attr->user_data, connh(conn), offset, buf, len, NULL);
     if (n < 0) return BT_GATT_ERR(MCS_BLE_IS_ATT_ERR(n) ? MCS_BLE_ATT_CODE(n) : BT_ATT_ERR_UNLIKELY);
     return n;
 }
-static ssize_t z_write(struct bt_conn* conn, const struct bt_gatt_attr* attr, const void* buf, uint16_t len, uint16_t offset, uint8_t flags) {
+static ssize_t z_attr_write(struct bt_conn* conn, const struct bt_gatt_attr* attr, const void* buf, uint16_t len, uint16_t offset, uint8_t flags) {
     if (flags & BT_GATT_WRITE_FLAG_PREPARE) return 0;
     int rc = mcs_ble_attr_write((uint16_t)(uintptr_t)attr->user_data, connh(conn), offset, buf, len);
     if (rc < 0) return BT_GATT_ERR(MCS_BLE_IS_ATT_ERR(rc) ? MCS_BLE_ATT_CODE(rc) : BT_ATT_ERR_UNLIKELY);
@@ -301,7 +302,7 @@ static int z_gatts_set(void* ctx, mcs_ble_svc_def_t* svcs, int n) {
             z_attr[ai++] = (struct bt_gatt_attr)BT_GATT_ATTRIBUTE(BT_UUID_GATT_CHRC, BT_GATT_PERM_READ, bt_gatt_attr_read_chrc, NULL, &z_chrc[ci]);
             ci++;
             bool rd = cd->props & MCS_BLE_PROP_READ, wr = cd->props & (MCS_BLE_PROP_WRITE | MCS_BLE_PROP_WRITE_NR);
-            z_attr[ai] = (struct bt_gatt_attr)BT_GATT_ATTRIBUTE(&z_uuid[ui].u, perm_of(cd->props, rd, wr), rd ? z_read : NULL, wr ? z_write : NULL,
+            z_attr[ai] = (struct bt_gatt_attr)BT_GATT_ATTRIBUTE(&z_uuid[ui].u, perm_of(cd->props, rd, wr), rd ? z_attr_read : NULL, wr ? z_attr_write : NULL,
                                                                 (void*)(uintptr_t)cd->id);
             if (cd->id < MCS_BLE_MAX_ATTRS) z_val[cd->id] = &z_attr[ai];
             ai++; ui++;
@@ -315,7 +316,7 @@ static int z_gatts_set(void* ctx, mcs_ble_svc_def_t* svcs, int n) {
                 if (mcs_ble_uuid_short(&dd->uuid) == 0x2902) continue;   /* the CCC above */
                 uuid_out(&z_uuid[ui], &dd->uuid);
                 bool drd = dd->flags & MCS_BLE_DSC_READ, dwr = dd->flags & MCS_BLE_DSC_WRITE;
-                z_attr[ai++] = (struct bt_gatt_attr)BT_GATT_DESCRIPTOR(&z_uuid[ui].u, perm_of(dd->flags, drd, dwr), drd ? z_read : NULL, dwr ? z_write : NULL,
+                z_attr[ai++] = (struct bt_gatt_attr)BT_GATT_DESCRIPTOR(&z_uuid[ui].u, perm_of(dd->flags, drd, dwr), drd ? z_attr_read : NULL, dwr ? z_attr_write : NULL,
                                                                        (void*)(uintptr_t)dd->id);
                 ui++;
             }

@@ -1,7 +1,7 @@
 /* MicroCS on a Raspberry Pi Pico / Pico 2: the whole firmware is this file.
  * Connect a serial terminal (or MicroCS Studio) to the USB port and type C#
  * at the "> " prompt. Scripts and files live in LittleFS on the on-board
- * flash (the last 1 MB on a Pico, 3 MB on a Pico 2) and survive resets and
+ * flash (the last 1 MB on a Pico, 3 MB on a Pico 2, 512 KB on a Pico W) and survive resets and
  * firmware updates; build with -DMICROCS_FS=yaffs2 for YAFFS2 or
  * -DMICROCS_FS= for a RAM disk. With -DMICROCS_OS=freertos (RP2040 / RP2350) the runtime runs
  * in a FreeRTOS SMP task on core 0 and C# threads can use core 1 (docs/THREADS.md). */
@@ -32,11 +32,11 @@ static mcs_flashfs_t flashfs;
 
 static void microcs_main(void) {
     mcs_rp2_cfg_t pins = MCS_RP2_CFG_DEFAULT;
-#if PICO_RP2350 && MCS_RP2_WIFI
+#if PICO_RP2350 && (MCS_RP2_WIFI || MCS_RP2_BLE)
     pins.name = "Raspberry Pi Pico 2 W";
 #elif PICO_RP2350
     pins.name = "Raspberry Pi Pico 2";
-#elif MCS_RP2_WIFI
+#elif MCS_RP2_WIFI || MCS_RP2_BLE
     pins.name = "Raspberry Pi Pico W";
 #else
     pins.name = "Raspberry Pi Pico";

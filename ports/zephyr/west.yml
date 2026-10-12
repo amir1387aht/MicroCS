@@ -22,3 +22,5 @@ manifest:
           - hal_rpi_pico
           - hal_stm32
           - littlefs
+          # Bluetooth LE (overlay-ble.conf): BT_ECC / BT_CRYPTO use PSA crypto
+          - mbedtls

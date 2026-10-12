@@ -104,6 +104,9 @@ static int init_radio(void) {
     g.inited = 1;
     return 0;
 }
+#if MCS_RP2_BLE
+int mcs_rp2_radio_init(void) { return init_radio(); }
+#endif
 
 /* ------------------------------------------------------------ DHCP server (soft-AP) */
 static struct udp_pcb* dhcps;
@@ -670,6 +673,9 @@ static int str_set(void* ctx, int opt, const char* v) {
         char cc[3] = { (char)(v[0] >= 'a' && v[0] <= 'z' ? v[0] - 32 : v[0]), (char)(v[1] >= 'a' && v[1] <= 'z' ? v[1] - 32 : v[1]), 0 };
         if (!strcmp(cc, g.country)) return 0;
         memcpy(g.country, cc, 3);
+#if MCS_RP2_BLE
+        if (g.inited && mcs_rp2_ble_started()) return MCS_HAL_EBUSY;   /* Bluetooth runs on the chip: set Country before Ble.Enable */
+#endif
         if (g.inited && !(g.mode & MCS_WIFI_STA) && !g.ap_on) {   /* the driver takes the country at power-up */
             md_detach();
             cyw43_arch_deinit();

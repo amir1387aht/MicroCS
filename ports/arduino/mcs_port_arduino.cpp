@@ -532,6 +532,9 @@ static int g_uart_seen[MCS_ARDUINO_UARTS];
 static uint32_t g_can_seen;
 #endif
 static int a_poll_event(void*, mcs_hal_event_t* ev) {
+#if MCS_ENABLE_BLE
+    mcs_arduino_ble_poll();          /* ArduinoBLE has no thread: callbacks run from BLE.poll() */
+#endif
     /* UART.OnReceive / CAN.OnReceive: report newly arrived data (polled - Arduino has no RX hook) */
     for (int p = 0; p < MCS_ARDUINO_UARTS; p++) {
         if (!g_cfg.uart[p].stream) continue;
@@ -688,6 +691,9 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     hal->timer_start = a_timer_start;
     hal->timer_stop = a_timer_stop;
     hal->poll_event = a_poll_event;
+#if MCS_ENABLE_BLE
+    mcs_ble_set(mcs_arduino_ble());  /* C# Ble, BleService, BleConnection ... (ArduinoBLE) */
+#endif
 #if defined(ARDUINO_ARCH_AVR) || defined(MCS_ARDUINO_WDT)
     hal->wdt_start = a_wdt_start;
     hal->wdt_feed = a_wdt_feed;
