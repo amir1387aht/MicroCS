@@ -41,6 +41,7 @@ real sockets + HTTP on the PC. Reference: [docs/NETWORK.md](docs/NETWORK.md).
 * **`Json`** (every port, `MCS_ENABLE_JSON`) — `Json.Parse` → `Dictionary<string, object>` /
   `List<object>` / numbers / strings, `Json.Stringify(value[, indent])` for collections, values
   and script objects, `Json.Escape`, and `JsonSerializer.Serialize` / `Deserialize`.
+  Off in the `min` profile and in the 256 KB-flash Cortex-M0 reference firmware (`-DMCS_ENABLE_JSON=0`).
 * **Simulator** — `./mcs --sim` adds a simulated radio (networks, wrong-password / not-found
   paths, AP clients, ESP-NOW echo peer, mDNS, ping); sockets and HTTP use the PC's network.
 * **ESP32 port** — `ports/esp32/mcs_port_esp32_net.c`; menuconfig *MicroCS → Wi-Fi and
