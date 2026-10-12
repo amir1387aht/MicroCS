@@ -483,6 +483,56 @@
 #ifndef MCS_ESPNOW_MAX_PEERS
 #define MCS_ESPNOW_MAX_PEERS 20    /* EspNow.Peers capacity (the radio allows 20) */
 #endif
+/* Bluetooth Low Energy (docs/BLE.md): C# Ble, BleAdvertisement, BleService, BleCharacteristic,
+ * BleConnection, BleUart ... on the port's mcs_ble_t table (ESP32 NimBLE, Pico W BTstack, Zephyr,
+ * ArduinoBLE). Opt-in: off by default everywhere and in the release firmware - turn it on with
+ * CONFIG_MICROCS_BLE (ESP-IDF / Zephyr), -DMICROCS_BLE=ON (Pico W), MICROCS_BLE (Arduino) or
+ * `make mcs-ble` (host CLI with the simulated radio). */
+#ifndef MCS_ENABLE_BLE
+#define MCS_ENABLE_BLE 0           /* C# Ble / BleService / BleConnection ... (include/mcs_ble.h) */
+#endif
+#ifndef MCS_BLE_SIM
+#define MCS_BLE_SIM (MCS_ENABLE_BLE && MCS__NET_HOSTED && !MCS__NET_ESP) /* simulated radio for the host CLI (--sim) */
+#endif
+#ifndef MCS_BLE_NAME
+#define MCS_BLE_NAME "MicroCS"     /* default Ble.Name (GAP device name, advertised) */
+#endif
+#ifndef MCS_BLE_QUEUE
+#define MCS_BLE_QUEUE 2048         /* bytes of events / reports / writes waiting for the script */
+#endif
+#ifndef MCS_BLE_MAX_CONN
+#define MCS_BLE_MAX_CONN 4         /* simultaneous connections the front end tracks */
+#endif
+#ifndef MCS_BLE_MAX_SERVICES
+#define MCS_BLE_MAX_SERVICES 8     /* local GATT services */
+#endif
+#ifndef MCS_BLE_MAX_ATTRS
+#define MCS_BLE_MAX_ATTRS 32       /* local characteristics + descriptors */
+#endif
+#ifndef MCS_BLE_VALUE_POOL
+#define MCS_BLE_VALUE_POOL 2048    /* bytes for local attribute values (static) */
+#endif
+#ifndef MCS_BLE_MAX_VALUE
+#define MCS_BLE_MAX_VALUE 512      /* largest attribute value (the ATT limit) */
+#endif
+#ifndef MCS_BLE_SCAN_MAX
+#define MCS_BLE_SCAN_MAX 32        /* devices Ble.Scan returns */
+#endif
+#ifndef MCS_BLE_MAX_DISC
+#define MCS_BLE_MAX_DISC 32        /* services / characteristics / descriptors one discovery returns */
+#endif
+#ifndef MCS_BLE_MAX_SUBS
+#define MCS_BLE_MAX_SUBS 8         /* remote characteristics subscribed to at once */
+#endif
+#ifndef MCS_BLE_TIMEOUT
+#define MCS_BLE_TIMEOUT 5000       /* default Ble.Timeout for GATT client operations (ms) */
+#endif
+#ifndef MCS_BLE_CONNECT_TIMEOUT
+#define MCS_BLE_CONNECT_TIMEOUT 10000 /* Ble.Connect default timeout (ms) */
+#endif
+#ifndef MCS_BLE_UART_RX
+#define MCS_BLE_UART_RX 512        /* BleUart receive buffer (bytes) */
+#endif
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
 #endif

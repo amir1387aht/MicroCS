@@ -369,6 +369,7 @@ mcs_result_t mcs_fail(mcs_vm_t* vm, mcs_result_t code, const char* fmt, ...);
 #define MCS_FEAT_LIST        0x0100u
 #define MCS_FEAT_DICT        0x0200u
 #define MCS_FEAT_NET         0x0400u   /* Wi-Fi / sockets module (mcs_net.h) */
+#define MCS_FEAT_BLE         0x0800u   /* Bluetooth LE module (mcs_ble.h) */
 #define MCS_FEAT_FS          0x1000u
 #define MCS_FEAT_HAL         0x2000u
 #define MCS_FEAT_SCHED       0x4000u
@@ -378,7 +379,7 @@ uint32_t mcs_features(void);
 /* Per-VM extension slots. Optional modules (filesystem, HAL, scheduler, shell)
  * keep their context here so their natives can find it from `vm`. */
 enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
-       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT__COUNT };
+       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT_BLE, MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
 

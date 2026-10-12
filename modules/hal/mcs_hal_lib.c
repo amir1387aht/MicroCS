@@ -11,6 +11,7 @@
 #include "mcs_driver.h"
 #include "mcs_hal_internal.h"
 #include "mcs_net.h"
+#include "mcs_ble.h"
 #if MCS_ENABLE_HAL
 #include <string.h>
 #include <stdio.h>
@@ -1433,6 +1434,9 @@ static bool has(const mcs_hal_t* h, const char* n) {
 #if MCS_ENABLE_NET
     if (mcs_net_has(mcs_net_get(), n)) return true;
 #endif
+#if MCS_ENABLE_BLE
+    if (mcs_ble_has(mcs_ble_get(), n)) return true;
+#endif
 #if MCS_ENABLE_HAL_DMA
     /* DMA: transfers that really run in the background (the async API works everywhere) */
     if (!strcmp(n, "DMA")) return h->dma_channels > 0 || h->dma_copy || h->spi_transfer_async || h->i2c_transfer_async
@@ -1628,6 +1632,9 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
 #endif
 #if MCS_ENABLE_NET
     mcs_net_open_lib(vm, mcs_net_get());          /* Wifi, EspNow, sockets, Http, Ntp ... (mcs_net.h) */
+#endif
+#if MCS_ENABLE_BLE
+    mcs_ble_open_lib(vm, mcs_ble_get());          /* Ble, BleService, BleConnection ... (mcs_ble.h) */
 #endif
 }
 #endif
