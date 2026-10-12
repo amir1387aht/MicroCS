@@ -2,6 +2,54 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
+
+The server side of the network, Wi-Fi on the Raspberry Pi Pico W / Pico 2 W, and Studio
+templates regrouped by peripheral. Reference: [docs/NETWORK.md](docs/NETWORK.md).
+
+* **`HttpServer`** — `new HttpServer([address, ]port)`; routes `Get` / `Post` / `Put` /
+  `Delete` / `Patch` / `On([method, ]path, handler)` with `{param}` and `*` prefix paths,
+  `NotFound`, `ServeFiles(urlPrefix, folder)` (index.html, MIME types, `.gz` copies), `Cors`,
+  `Start` / `Poll(ms)` / `Run` / `Stop`, `Port`, `Requests`. Handlers return a string (HTML),
+  `byte[]` or any object (JSON) — or answer through **`HttpRequest`**: `Method`, `Path`,
+  `Query`, `Headers`, `Header(name)`, `Body` / `Bytes` / `Json`, `Param(name[, default])` (path,
+  query and form fields), `Send`, `SendJson`, `SendStatus`, `SendFile`, `Redirect`,
+  `SetHeader`, `Authenticate` (HTTP Basic).
+* **`WebSocket`** — endpoints on an `HttpServer` (`web.WebSocket(path, onMessage[, onOpen[,
+  onClose]])`, `Broadcast`) and a client (`Connect("ws://…" / "wss://…")`, `Send` text or
+  binary, `Receive`, `OnMessage` + `Poll`, `Ping`, `Close(code, reason)`, `CloseStatus`);
+  fragmented messages, pings and close handshakes handled; new `WebSocketException`.
+* **`DnsServer`** — answers every name (or one `Domain`) with the board's address for
+  captive portals; served by `HttpServer.Poll` too.
+* **`Wifi.Wps([timeout[, save]])`** (push button) and **`Wifi.SmartConfig(...)`** (ESP-Touch /
+  AirKiss) on the ESP32 and in the simulator; network backends get an optional `provision`
+  entry (`MCS_NET_API_VERSION` 2).
+* **Raspberry Pi Pico W / Pico 2 W** — new backend `ports/rp2/mcs_port_rp2_net.c` on
+  `pico_cyw43_arch_lwip_sys_freertos`: station + AP, scan, events, static IP, hostname,
+  country, power save, TX power, auto-reconnect, DHCP server for AP clients, SNTP, mDNS,
+  ping, sockets, `Http`, the servers and WebSocket. CMake option `MICROCS_WIFI` (on by
+  default for `*_w` boards with `MICROCS_OS=freertos`), `ports/rp2/wifi/lwipopts.h`, the
+  on-board LED as pin `"LED"` / `"WL_GPIO0"`, RTC through `settimeofday`. CI builds and the
+  release page get `pico_w` and `pico2_w` firmware.
+* **Saved networks without NVS** — `Wifi.Save` / `Forget` / `SavedSsid` fall back to the file
+  `/.wifi` (`MCS_WIFI_CREDS_FILE`) on ports without their own store; `Net.Has("Wifi.Save")`.
+* New `Net.Has` names `"HttpServer"`, `"WebSocket"`, `"DnsServer"`, `"Wifi.Wps"`,
+  `"Wifi.SmartConfig"`, `"Wifi.Save"`; `Net.Backend` `"rp2"`. Options
+  `MCS_HTTP_SERVER_MAX_ROUTES`, `MCS_HTTP_SERVER_TIMEOUT`, `MCS_WS_MAX_MESSAGE`,
+  `MCS_WS_MAX_CLIENTS`, `MCS_RP2_HOSTNAME`, `MCS_RP2_WIFI_RETRIES`, `MCS_RP2_RECONNECT_MS`,
+  `MCS_RP2_DHCPS_LEASES`.
+* **PC** — servers bind ports below 1024 at *port + 8000* when that needs root (`:80` →
+  `:8080`, noted on stderr); `tests/test_net_server.py` tests the HTTP, WebSocket and DNS
+  servers against Python clients.
+* **Studio** — templates regrouped by peripheral: GPIO, PWM, ADC, UART, I2C and SPI each
+  carry their settings and async versions, new categories *QSPI*, *I2S audio*, *CAN*,
+  *Board and system*; new **Web server and WebSocket** category (LED web page, REST API,
+  live WebSocket dashboard, WebSocket client, captive portal, files from flash, WPS /
+  SmartConfig) and **ESP-NOW** (messages, broadcast, encrypted peers) — 194 templates;
+  snippets `httpserver`, `route`, `wsserver`, `wsclient`, `captive`, `wps`; completions,
+  hover and parameter info for `HttpServer`, `HttpRequest`, `WebSocket`, `DnsServer` and
+  the new `Wifi` methods. Template tests run the server templates one at a time.
+
 ## 1.13.0 — Wi-Fi & networking
 
 C# scripts get the network on every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6), and
