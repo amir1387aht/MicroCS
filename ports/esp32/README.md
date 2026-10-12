@@ -1,7 +1,9 @@
 # MicroCS for ESP32 (ESP-IDF 5.x)
 
-ESP32, ESP32-S2, S3, C2, C3, C5, C6, H2 and P4. Peripherals only — Wi-Fi and Bluetooth are not
-used (and not required), so the port works on every variant including the H2 and P4.
+ESP32, ESP32-S2, S3, C2, C3, C5, C6, H2 and P4: every peripheral, plus **Wi-Fi and networking**
+from C# on the chips with a radio (`Wifi`, ESP-NOW, SNTP, mDNS, ping, TCP/UDP sockets, HTTP +
+HTTPS) — see [NETWORK.md](../../docs/NETWORK.md). Chips without Wi-Fi (H2, P4) build the same
+port without it; Bluetooth is not used.
 
 ## Quick start — MicroCS as the whole firmware
 
@@ -145,10 +147,37 @@ Optional C# `U8g2` / `U8x8` for OLED and LCD panels: menuconfig → *MicroCS* �
 (`CONFIG_MICROCS_U8G2=y`, plus the displays and fonts to build in). Step by step:
 [ESP32-C3 + OLED](../../docs/guides/ESP32_C3_OLED.md); reference: [U8G2.md](../../docs/U8G2.md).
 
+## Wi-Fi and networking
+
+On by default wherever the chip has Wi-Fi: menuconfig → *MicroCS* → *Wi-Fi and networking*
+(`CONFIG_MICROCS_WIFI`).
+
+```csharp
+Wifi.Connect("MyNetwork", "secret-password");
+Console.WriteLine(Wifi.Ip + " " + Http.Get("https://example.com/").StatusCode);
+```
+
+* **Connect at boot**: set *network name* / *password* in menuconfig
+  (`CONFIG_MICROCS_WIFI_SSID` / `_PASSWORD`), or save one once from C# with
+  `Wifi.Save(ssid, password)` (NVS) — `CONFIG_MICROCS_WIFI_AUTOCONNECT` then joins it before
+  `/main.cs` runs. Your own firmware calls `mcs_esp32_wifi_autoconnect(ssid, password)`.
+* **RAM**: `CONFIG_MICROCS_WIFI_RESERVE_KB` (72 KB, 56 KB on the C2) stays outside the VM heap
+  for the Wi-Fi driver, lwIP and TLS. The driver itself starts only when a script first uses
+  Wi-Fi; `Wifi.Off()` stops it again.
+* **Flash**: Wi-Fi + TLS make the image ~1.6 MB, hence the 2 MB app partition.
+* **mDNS**: `idf.py add-dependency espressif/mdns` — the component is detected and `Mdns`
+  appears (`Net.Has("Mdns")`).
+* **HTTPS** uses esp-tls with the ESP-IDF certificate bundle; ESP-NOW, SNTP and ping need
+  nothing extra. WPA2/WPA3-Enterprise needs IDF 5.1+.
+
+The backend is [`mcs_port_esp32_net.c`](mcs_port_esp32_net.c); the C# API, events, options and
+limits are in [docs/NETWORK.md](../../docs/NETWORK.md).
+
 ## Memory
 
 The example allocates up to 192 KB for the VM with `heap_caps_malloc`, clamped to the largest
-free block minus a 32 KB reserve for drivers and FreeRTOS (~120 KB on the C2); a RAM disk (a
+free block minus a 32 KB reserve for drivers and FreeRTOS, plus the Wi-Fi reserve when Wi-Fi is
+built in (~90 KB on the C2); a RAM disk (a
 sixth of the heap) is only used when there is no `storage` partition; 96 KB is plenty
 for the REPL on the C3. On boards with PSRAM you can pass `MALLOC_CAP_SPIRAM`.
 
@@ -173,7 +202,8 @@ idf.py set-target esp32c2 && idf.py build flash monitor
 ```
 
 * **Memory**: 272 KB SRAM (~180 KB free after boot) → embedded profile
-  (`sdkconfig.defaults.esp32c2`), ~120 KB VM heap incl. a ~20 KB RAM disk.
+  (`sdkconfig.defaults.esp32c2`), ~90 KB VM heap with Wi-Fi (~120 KB with
+  `CONFIG_MICROCS_WIFI=n`).
 * **printf**: IDF enables the ROM "nano" formatter on the C2 by default
   (`CONFIG_NEWLIB_NANO_FORMAT`), which cannot print floats — MicroCS formats `double` with
   `snprintf`, so the example turns it off. The port prints a `#warning` if it is on with
@@ -210,4 +240,4 @@ is single-threaded, as before. See [docs/THREADS.md](../../docs/THREADS.md).
 
 The example is built the way a user builds it (copied to a new folder, MicroCS in
 `components/MicroCS`) with the `espressif/idf:v5.3.2` image for ESP32, ESP32-S3, ESP32-C2,
-ESP32-C3 and ESP32-C6.
+ESP32-C3 and ESP32-C6 — Wi-Fi and networking included.

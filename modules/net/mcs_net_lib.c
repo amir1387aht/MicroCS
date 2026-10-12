@@ -183,6 +183,7 @@ mcs__net_state_t* mcs__net_state(mcs_vm_t* vm) { return (mcs__net_state_t*)mcs_g
 #define NEED(fn, op) if (!NET() || !NET()->fn) return mcs__net_fail(vm, op, MCS_HAL_ENOTSUP)
 #define CALL(op, expr) do { int rc_ = (expr); if (rc_ < 0) return mcs__net_fail(vm, op, rc_); } while (0)
 
+#if MCS_ENABLE_HAL   /* callbacks run from the HAL event queue */
 static mcs_value_t cb_get(mcs_vm_t* vm, mcs__net_state_t* s, int i) { return mcs_index(mcs_pinned(vm, s->cb_pin), (uint32_t)i); }
 static int call_cb(mcs_vm_t* vm, mcs_value_t fn, const mcs_value_t* args, int full) {
     int a = mcs_arity(fn);
@@ -190,6 +191,7 @@ static int call_cb(mcs_vm_t* vm, mcs_value_t fn, const mcs_value_t* args, int fu
     mcs_result_t r = mcs_call_value(vm, fn, argc, args, NULL);
     return r == MCS_OK ? 1 : -(int)r;
 }
+#endif
 
 /* ============================================================ Wifi */
 typedef struct { mcs_wifi_ap_info_t i; } wnet_t;
@@ -752,6 +754,7 @@ static mcs_value_t en_next(mcs_vm_t* vm, mcs__net_state_t* s) {
     memcpy(m->data, buf, m->len);
     return o;
 }
+#if MCS_ENABLE_HAL
 static int en_drain(mcs_vm_t* vm, mcs__net_state_t* s) {
     mcs_value_t fn = cb_get(vm, s, MCS__NET_CB_ESPNOW);
     if (mcs_is_null(fn) || !NET() || !NET()->espnow_recv) return 0;
@@ -775,6 +778,7 @@ static int en_drain(mcs_vm_t* vm, mcs__net_state_t* s) {
     }
     return ran;
 }
+#endif
 #define EN(fn, op) ST(); NEED(fn, op)
 NATIVE(en_start) {
     EN(espnow_start, "EspNow.Start");

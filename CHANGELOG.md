@@ -2,6 +2,71 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.13.0 — Wi-Fi & networking
+
+C# scripts get the network on every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6), and
+real sockets + HTTP on the PC. Reference: [docs/NETWORK.md](docs/NETWORK.md).
+
+* **`Wifi`** — station, soft access point and both at once: `Connect(ssid, password[, timeout[,
+  bssid, channel]])` (returns `false` with `StatusName` / `ReasonName()` instead of throwing),
+  `Begin` + `WaitConnected` (non-blocking), `ConnectEnterprise` (WPA2/WPA3-Enterprise, IDF 5.1+),
+  `Reconnect`, `Disconnect`, `Off`; `Scan([hidden])` → `WifiNetwork` (SSID, BSSID, RSSI, channel,
+  security, protocols, quality); `StartAp` / `StopAp` / `ApClients` (MAC, IP, RSSI) / `SetApIp`;
+  `SetStaticIp` / `UseDhcp`, `Ip`, `Netmask`, `Gateway`, `Dns`, `Dns2`, `Ipv6`, `Mac` / `ApMac`;
+  options `Hostname`, `Country`, `TxPower`, `PowerSave`, `Protocol` / `ApProtocol` (incl. LR and
+  11ax), `Bandwidth`, `Band` (5 GHz on dual-band chips), `MinAuth`, `ListenInterval`,
+  `AutoReconnect`, `Persistent`, `Antenna`; WPA3-SAE and PMF automatically.
+* **Events** — `Wifi.OnEvent((ev, value) => …)` on the script thread: connected, got/lost IP,
+  disconnected (with reason), scan done, AP start/stop, station joined/left/assigned, ESP-NOW,
+  NTP sync. They travel through the HAL event ring (`MCS_HAL_EV_NET`).
+* **Saved networks** — `Wifi.Save` / `Forget` / `SavedSsid` in NVS; `Wifi.Connect()` joins it.
+  menuconfig *Connect at boot* (`CONFIG_MICROCS_WIFI_SSID` / `_PASSWORD` /
+  `_AUTOCONNECT`) joins before `/main.cs` runs (`mcs_esp32_wifi_autoconnect()` for your own
+  firmware).
+* **`EspNow`** — `Start`, `AddPeer(mac[, channel[, key]])`, `RemovePeer`, `SetPmk`, `Send` with
+  delivery report, `Broadcast`, `Receive` → `EspNowMessage`, `OnReceive((mac, data) => …)`.
+* **`Ntp`** (SNTP, POSIX time zones, `LocalTime` / `UtcTime` / `UtcOffset`), **`Mdns`** (host
+  name, services, `.local` lookups — with the `espressif/mdns` component, detected
+  automatically), **`Ping`**, **`Net.Has(feature)`** / `Net.Backend` (also via `Hal.Has`).
+* **Sockets** — `TcpClient` (connect timeout, `ConnectTls`, `Write` / `WriteLine` / `Read` /
+  `ReadLine` / `ReadToEnd` / `ReadByte`, `Timeout`, `NoDelay`, `KeepAlive`, endpoints),
+  `TcpListener` (`AcceptTcpClient(timeout)` → `null`, `Pending`, port 0), `UdpClient`
+  (`Send` / `Receive(timeout)`, broadcast, multicast), `Dns`. New exceptions `SocketException`
+  (an `IOException`) and `HttpRequestException`.
+* **`Http`** — HTTP/1.1 client: `Get`, `Head`, `Delete`, `Post`, `Put`, `Patch`, `Request`,
+  `GetString`, `Download` (streamed to a file, atomic rename), `UrlEncode`; headers as
+  `Dictionary<string, string>`, lines or `string[]`; redirects, chunked bodies, `Timeout`,
+  `UserAgent`; `HttpResponse` (`StatusCode`, `Body`, `Bytes`, `Header(name)`,
+  `EnsureSuccess()` …). **HTTPS** through esp-tls and the ESP-IDF certificate bundle (or your CA).
+* **`Json`** (every port, `MCS_ENABLE_JSON`) — `Json.Parse` → `Dictionary<string, object>` /
+  `List<object>` / numbers / strings, `Json.Stringify(value[, indent])` for collections, values
+  and script objects, `Json.Escape`, and `JsonSerializer.Serialize` / `Deserialize`.
+* **Simulator** — `./mcs --sim` adds a simulated radio (networks, wrong-password / not-found
+  paths, AP clients, ESP-NOW echo peer, mDNS, ping); sockets and HTTP use the PC's network.
+* **ESP32 port** — `ports/esp32/mcs_port_esp32_net.c`; menuconfig *MicroCS → Wi-Fi and
+  networking* (`CONFIG_MICROCS_WIFI`, on by default on chips with Wi-Fi;
+  `CONFIG_MICROCS_WIFI_RESERVE_KB` keeps RAM for the driver). The driver starts only when a
+  script first uses Wi-Fi. **The example's `partitions.csv` now has a 2 MB app partition**
+  (Wi-Fi + TLS ≈ 1.6 MB) and ~1.9 MB LittleFS — reflashing it re-formats the `storage`
+  partition, so copy your scripts off first (or keep your old table with `CONFIG_MICROCS_WIFI=n`).
+* **Studio** — 16 *Wi-Fi and networking* templates (connect, events, scan, soft AP, options,
+  saved network, HTTP GET/POST JSON, HTTPS download, web server, TCP, UDP, NTP clock, ESP-NOW,
+  mDNS + ping, MQTT publish), 10 new snippets, completions for every new class.
+* **Config** — `MCS_ENABLE_NET`, `MCS_ENABLE_SOCKETS`, `MCS_NET_SIM`, `MCS_NET_TIMEOUT`,
+  `MCS_WIFI_CONNECT_TIMEOUT`, `MCS_WIFI_SCAN_MAX`, `MCS_NET_MAX_READ`, `MCS_HTTP_MAX_BODY`,
+  `MCS_HTTP_MAX_HEADER`, `MCS_HTTP_MAX_REDIRECTS`, `MCS_ESPNOW_MAX_PEERS`, `MCS_NET_SLICE_MS`,
+  `MCS_ESP32_WIFI_RETRIES`, `MCS_ESP32_ESPNOW_QUEUE`, `MCS_ENABLE_JSON` — all in the
+  `config/mcs_user_config.h` template.
+* **Fixes** — when a native stops early because the run must end (Ctrl-C, Studio *Stop*,
+  `--time-limit`), the run now ends with the abort instead of a follow-up error such as a
+  `NullReferenceException` on the native's result. New public C API `mcs_dict_len` /
+  `mcs_dict_at` for modules.
+* **Docs** — new [NETWORK.md](docs/NETWORK.md); README, ESP32 port README and guide,
+  ARCHITECTURE, HAL, PORTING, CONFIGURATION, TESTING and STDLIB (now also listing the
+  network, threads and U8g2 classes) updated.
+* **Tests** — `t24_net` (whole network API on the simulated radio, TCP/UDP over loopback),
+  `t25_json`, `tests/test_net.py` (25 HTTP checks against a local server, part of `make test`).
+
 ## 1.12.1 — Reliable uploads on ESP32 native USB; Studio templates for U8g2, peripheral settings and DMA
 
 * **Reliable uploads on ESP32 USB-Serial-JTAG (ESP32-C3 / C6 / S3 / H2 native USB).** Saving a

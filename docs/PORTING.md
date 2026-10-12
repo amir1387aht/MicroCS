@@ -78,7 +78,7 @@ port, `arduino` → Arduino port, `stm32cube` → STM32 port, `zephyr` → Zephy
 
 ### Arduino IDE
 ```sh
-python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.12.1.zip
+python3 tools/make_arduino.py          # → dist/arduino/MicroCS/ and dist/arduino/MicroCS-1.13.0.zip
 ```
 Sketch → Include Library → Add .ZIP Library, then open *File → Examples → MicroCS*.
 The Arduino IDE has no per-library `-D` flags, so options live in the packaged
@@ -160,8 +160,12 @@ script at the next safe point. Peripheral events from ISRs go through `mcs_hal_p
    Zephyr already have theirs. Drivers — fill the template's `ws2812_write` backend for
    `LedStrip` (`Servo` uses the HAL PWM, nothing to add), or add your own driver
    ([DRIVERS.md](DRIVERS.md)).
-6. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
-7. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
+6. Optional: networking — fill an `mcs_net_t` (`include/mcs_net.h`: Wi-Fi, ESP-NOW, SNTP,
+   mDNS, ping, TLS; leave the rest `NULL`) and call `mcs_net_set()` before the HAL library
+   opens; with lwIP / BSD sockets `TcpClient`, `UdpClient` and `Http` work as they are
+   ([NETWORK.md](NETWORK.md#porting-a-network-backend)).
+7. Run `examples/hardware/*.cs` on the board — they are the acceptance tests for a port.
+8. Send a pull request: add a `tools/check_ports.sh`-style compile check if the SDK headers are
    freely downloadable.
 
 ## 5. Bare-metal Cortex-M reference (`ports/cortex-m/`)

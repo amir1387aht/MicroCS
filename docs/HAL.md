@@ -137,7 +137,7 @@ Optional arguments are shown in `[brackets]`.
 | `Watchdog.Start(timeoutMs)` · `Watchdog.Feed()` | once started, the script must feed it |
 | `RTC.Now` → Unix seconds · `RTC.Set(seconds)` | |
 | `Hal.Board`, `Hal.ApiVersion`, `Hal.CpuHz`, `Hal.UniqueId` (hex string), `Hal.Micros` | |
-| `Hal.Has(name)`, `Hal.Poll()`, `Hal.Run([ms])`, `Hal.DelayMicroseconds(us)`, `Hal.Reset()` | |
+| `Hal.Has(name)`, `Hal.Poll()`, `Hal.Run([ms])`, `Hal.DelayMicroseconds(us)`, `Hal.Reset()` | `Hal.Has` also answers the network names (`"Wifi"`, `"EspNow"`, `"Tls"`, …, see [NETWORK.md](NETWORK.md)) |
 | `Hal.Options([peripheral])` → `List<string>` | board-specific options for configuration objects |
 | `Hal.OnEvent(n, fn(source, value))`, `Hal.Post(n[, source, value])`, `Hal.DroppedEvents` | user events |
 

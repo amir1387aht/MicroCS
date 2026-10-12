@@ -13,7 +13,7 @@ options (U8g2 displays, pins, filesystem, profile) you choose.
    (`--port COM5` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS):
 
    ```sh
-   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.12.1-esp32c3.bin
+   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.13.0-esp32c3.bin
    ```
 
    If esptool cannot connect: hold **BOOT**, tap **RESET** (EN), release BOOT, try again.
@@ -84,6 +84,20 @@ idf.py build flash monitor          # Ctrl-] leaves the monitor
 ```
 
 Press Enter for the `> ` prompt.
+
+## Go online
+
+Wi-Fi is built in. Save your network once, and every later boot joins it by itself:
+
+```csharp
+Wifi.Save("MyNetwork", "secret-password");
+Console.WriteLine(Wifi.Connect() + " " + Wifi.Ip);
+Console.WriteLine(Http.Get("https://example.com/").StatusCode);
+```
+
+Or set *MicroCS → Wi-Fi and networking → Connect at boot* in menuconfig. Scanning, a soft
+access point, ESP-NOW between boards, NTP time, a web server and more:
+[NETWORK.md](../NETWORK.md) and Studio's *Wi-Fi and networking* templates.
 
 ## Your program on the board
 

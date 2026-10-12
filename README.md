@@ -10,8 +10,8 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.12.1-8b5cf6?style=flat-square)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-55%20script%20runs%20·%20184%20unit%20·%20protocol-22c55e?style=flat-square)](docs/TESTING.md)
+[![Version](https://img.shields.io/badge/version-1.13.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
 
@@ -20,6 +20,7 @@
 [**Hardware API**](docs/HAL.md) ·
 [**Peripheral settings & DMA**](docs/PERIPHERALS.md) ·
 [**Drivers**](docs/DRIVERS.md) ·
+[**Wi-Fi & networking**](docs/NETWORK.md) ·
 [**Examples**](examples/README.md) ·
 [**Porting**](docs/PORTING.md) ·
 [**Language**](docs/LANGUAGE.md) ·
@@ -46,7 +47,8 @@
 
 MicroCS is a compact **C# compiler + bytecode VM** written in portable C99 — no dependencies,
 no `malloc` or OS required. It gives a microcontroller a real, modern C#: classes, generics, lambdas,
-LINQ, tuples, pattern matching, exceptions, plus a complete peripheral API.
+LINQ, tuples, pattern matching, exceptions, plus a complete peripheral API and — on the
+ESP32 family — Wi-Fi, ESP-NOW, sockets, HTTPS and JSON.
 
 Embed it as a **library** in the firmware you already have, or flash it as a **MicroPython-style
 REPL device**. Scripts run from source on the device, or as precompiled, optimized bytecode
@@ -73,9 +75,9 @@ Scheduler.Every(1000, () => {
 
 <div align="center">
 
-| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **15 peripheral classes** | 🧱 **8 build systems** |
-|:---:|:---:|:---:|:---:|:---:|
-| smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 📶 **Wi-Fi · HTTPS · ESP-NOW** | 🧱 **8 build systems** |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | ESP32 family: station + AP, TCP/UDP, HTTP(S), NTP, mDNS, JSON | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
 
 </div>
 
@@ -91,7 +93,7 @@ Scheduler.Every(1000, () => {
 - [Why MicroCS](#-why-microcs)
 - [Two ways to use it](#-two-ways-to-use-it) — [① library](#-option-1--drop-the-library-into-an-existing-project) · [② REPL firmware](#-option-2--build-a-complete-c-firmware-with-a-repl)
 - [Try it on your PC](#-try-it-on-your-pc-one-minute)
-- [Hardware in C#](#-hardware-in-c) · [Build systems](#-works-with-every-build-system) · [Targets](#-supported-targets)
+- [Hardware in C#](#-hardware-in-c) · [Wi-Fi & networking](#-wi-fi--networking) · [Build systems](#-works-with-every-build-system) · [Targets](#-supported-targets)
 - [Language at a glance](#-language-at-a-glance) · [vs MicroPython / nanoFramework](#%EF%B8%8F-microcs-vs-micropython-vs-net-nanoframework)
 - [Architecture](#%EF%B8%8F-architecture) · [Performance & footprint](#-performance--footprint)
 - [Status](#-status) · [Roadmap](#%EF%B8%8F-roadmap) · [Repository layout](#-repository-layout) · [Contributing](#-contributing)
@@ -121,7 +123,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
-YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, NTP, mDNS, `Json`). Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
 </tr>
@@ -255,7 +257,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.12.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.13.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -277,7 +279,7 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 160+ templates (boot scripts, peripheral settings, DMA, U8g2 displays,
+hover, find/replace, format) that saves to and runs on the device, 180+ templates (boot scripts, peripheral settings, DMA, U8g2 displays, Wi-Fi and networking,
 scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
@@ -380,6 +382,43 @@ wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data log
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
+## 📶 Wi-Fi & networking
+
+On every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6) C# scripts get the network —
+station and soft access point, scanning, events, static IP, saved credentials, ESP-NOW, SNTP,
+mDNS, ping, TCP / UDP sockets, an HTTP/1.1 client with HTTPS, and JSON. On the PC the same
+sockets and HTTP use the real network, and `--sim` adds a simulated radio so Wi-Fi scripts
+run without a board.
+
+```csharp
+Wifi.Connect("MyNetwork", "secret-password");                 // or Wifi.Save(...) once + Wifi.Connect()
+Ntp.Sync();
+
+var r = Http.Get("https://api.open-meteo.com/v1/forecast?latitude=52.5&longitude=13.4&current=temperature_2m");
+var weather = Json.Parse(r.Body);
+Console.WriteLine($"{Ntp.LocalTime}: {weather["current"]["temperature_2m"]} °C");
+
+var server = new TcpListener(80);                              // a web server in a few lines
+server.Start();
+EspNow.Start();                                                // board-to-board, no router
+EspNow.Broadcast("hello");
+```
+
+| | C# API |
+|---|---|
+| Wi-Fi | `Wifi.Connect` / `Begin` / `ConnectEnterprise`, `Scan`, `StartAp`, `ApClients`, `OnEvent`, `SetStaticIp`, `Save` / `Forget`, `Hostname`, `TxPower`, `PowerSave`, `Protocol`, `Country`, … |
+| Board to board | `EspNow`: peers, encryption keys, `Send` with delivery report, `Broadcast`, `OnReceive` |
+| Services | `Ntp` (time zones), `Mdns` (`name.local`, services), `Ping`, `Dns` |
+| Sockets | `TcpClient` (+ TLS), `TcpListener`, `UdpClient` (broadcast, multicast) |
+| HTTP | `Http.Get` / `Post` / `Put` / `Patch` / `Delete` / `Request` / `Download`, headers, redirects, chunked, `HttpResponse` |
+| Data | `Json.Parse` / `Json.Stringify`, `JsonSerializer` |
+
+Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
+and find every method, event and option in [NETWORK.md](docs/NETWORK.md). Studio has 16
+ready-to-run networking templates (web server, MQTT publish, HTTPS download, ESP-NOW …).
+
+<p align="right"><a href="#readme-top">back to top ↑</a></p>
+
 ## 🧱 Works with every build system
 
 MicroCS is plain C99 files plus one include directory, so it builds anywhere. Ready-made
@@ -394,7 +433,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.12.1.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.13.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -415,12 +454,12 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | Target | Port | Verified in CI |
 |---|---|---|
 | **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile; [ready-to-flash firmware](ports/stm32/firmware/README.md) for 7 boards built, the F4 and H743 images booted in the Renode emulator (REPL, files in internal flash) |
-| **ESP32** · S2 · S3 · C2 · C3 · C6 · H2 · P4 (no Wi-Fi/BLE needed) | [`ports/esp32`](ports/esp32) | example firmware built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
+| **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W…) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico` and `pico2` |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
-| Linux / macOS host (CLI, REPL, simulator board) | [`ports/unix`](ports/unix) | full test suite |
+| Linux / macOS host (CLI, REPL, simulator board + radio, real sockets / HTTP) | [`ports/unix`](ports/unix) | full test suite |
 | Your chip | [`ports/template`](ports/template) | fill in one table of function pointers |
 
 ## 🧩 Language at a glance
@@ -442,7 +481,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 - exceptions, filters, `finally`, `using`, `foreach`, top-level statements
 - string interpolation with alignment & format specifiers
 - LINQ: `Where Select OrderBy GroupBy Zip Chunk Aggregate …`
-- `Encoding.UTF8`, `BitConverter`, `BinaryPrimitives`, Base64 / hex `Convert`, `StringBuilder`, `Stopwatch`, `Random`
+- `Encoding.UTF8`, `BitConverter`, `BinaryPrimitives`, Base64 / hex `Convert`, `StringBuilder`, `Stopwatch`, `Random`, `Json`
 
 </td>
 <td valign="top">
@@ -482,8 +521,10 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
+| DMA / background transfers | ✅ `DmaBuffer`, `SPI.WriteAsync` … | port-specific | — |
 | Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
-| Wi-Fi / BLE / networking | ❌ not yet ([roadmap](#%EF%B8%8F-roadmap)) | ✅ | ✅ |
+| Wi-Fi / networking | ✅ ESP32 family: station + AP, ESP-NOW, TCP/UDP, HTTP(S), NTP, mDNS, JSON | ✅ | ✅ |
+| Bluetooth LE | ❌ not yet ([roadmap](#%EF%B8%8F-roadmap)) | ✅ | ✅ |
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
@@ -507,7 +548,7 @@ within 3–4× of C.
 Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
 nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve
 the device, and C# developers get a REPL on a $4 board. Where it does not (yet): heap use
-on small scripts, networking stacks, a step debugger and the size of the ecosystem.
+on small scripts, Bluetooth and Wi-Fi beyond the ESP32 family, a step debugger and the size of the ecosystem.
 Method, all numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
 · reproduce: [`bench/compare/`](bench/compare).
 
@@ -522,7 +563,7 @@ flowchart LR
     FN --> VM["stack VM<br/>computed goto"]
     VM <--> GC["mark & sweep GC<br/>pool heap"]
     VM <--> LIB["stdlib natives<br/>Console · Math · string<br/>List · Dictionary · LINQ"]
-    VM <--> MOD["modules<br/>fs · hal · sched · shell · runtime"]
+    VM <--> MOD["modules<br/>fs · hal · net · sched · shell · runtime"]
     MOD <--> PORT["ports<br/>STM32 · ESP32 · RP2 · Zephyr · Arduino"]
     PORT <--> SDK["your SDK drivers"]
     classDef opt stroke-dasharray: 4 3
@@ -578,14 +619,15 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
-| Hardware API v2 (14 classes, callbacks, events) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
+| Hardware API v3 (14 classes, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
+| Wi-Fi & networking (ESP32 family, host sockets) | 🧪 | `t24_net` (every `Wifi` / `EspNow` / `Ntp` / `Mdns` / `Ping` call on the simulated radio, TCP / UDP over loopback), `tests/test_net.py` (HTTP client against a local server), 16 Studio templates run in CI, ESP-IDF builds for 5 chips — reports from real boards welcome |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |
-| Wi-Fi/BLE, debugger, signed images | 🗓️ | [roadmap](#%EF%B8%8F-roadmap) |
+| BLE, Pico W Wi-Fi, debugger, signed images | 🗓️ | [roadmap](#%EF%B8%8F-roadmap) |
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -599,9 +641,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
       `auto` profile per MCU, ESP32-C2, LittleFS + YAFFS2 on SPI NOR / NAND
 - [x] **1.6** — fast images: bytecode optimizer + superinstructions, method/constructor caches,
       compact image format v3
-- [x] **next** — LittleFS or YAFFS2 on the internal flash of every port example (STM32, RP2040/RP2350, ESP32,
-      Zephyr; Arduino uses its core's LittleFS) with one call, `mcs_flashfs_mount()`; Base64 / hex / `BinaryPrimitives`
-      in the core library
+- [x] **1.7–1.8** — device drivers (`LedStrip`), LittleFS / YAFFS2 on the internal flash of every port
+      example with one call (`mcs_flashfs_mount()`), Base64 / hex / `BinaryPrimitives`, project config header
 - [x] **1.9** — TinyFS: a built-in power-fail-safe filesystem for a few KB of the MCU's own flash (no
       external chip), selectable like LittleFS / YAFFS2, flash port for new MCUs (`mcs_flash_port_t`);
       `Servo` driver; config header with every default set; CI on 18 STM32 boards
@@ -609,8 +650,12 @@ optimized with superinstructions, `-O0` = plain bytecode):
       `Every`, `Channel`s, `thread core=1` jobs in `jobs.cfg`; ESP32 and RP2040 second core
 - [x] **1.11** — optional u8g2 displays: C# `U8g2` / `U8x8` (365 displays, every font built in or from a file),
       found or downloaded by every build, `--oled` simulator
-- [ ] Wi-Fi + BLE modules (ESP32, Pico W), sockets, HTTP, MQTT
-- [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed SPI/I²S streaming
+- [x] **1.12** — HAL API v3: peripheral settings objects (`GpioConfig`, `SpiConfig` …), DMA and background
+      transfers (`DmaBuffer`, `SPI.WriteAsync`), Studio templates for every area
+- [x] **1.13** — Wi-Fi & networking on the ESP32 family: `Wifi` (station, AP, scan, events, saved networks),
+      ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; simulated radio
+- [ ] BLE (ESP32, Pico W), Wi-Fi on the Pico W (CYW43) and Arduino cores, MQTT and WebSocket clients
+- [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
@@ -622,10 +667,11 @@ optimized with superinstructions, `-O0` = plain bytecode):
 ## 📁 Repository layout
 
 ```
-include/        public API: MicroCS.h, mcs.h, mcs_hal.h, mcs_runtime.h, mcs_config.h (defaults), profiles/
+include/        public API: MicroCS.h, mcs.h, mcs_hal.h, mcs_net.h, mcs_runtime.h, mcs_config.h (defaults), profiles/
 config/         mcs_user_config.h: the project config header (every option at its default)
 src/            core: lexer, parser, compiler, bytecode, VM, GC, stdlib
-modules/        optional: fs/ (VFS, RAM, POSIX, TinyFS, LittleFS, YAFFS2, SPI NOR/NAND) hal/ drivers/ sched/ shell/ runtime/
+modules/        optional: fs/ (VFS, RAM, POSIX, TinyFS, LittleFS, YAFFS2, SPI NOR/NAND) hal/ drivers/ net/ (Wi-Fi, sockets, HTTP)
+                sched/ shell/ runtime/ threads/ os/
 ports/          stm32 · esp32 · rp2 · zephyr · arduino · cortex-m · unix · template
 examples/       hardware/ scripts, quickstart_embed.c, firmware_example.c, lowram/
 tests/          *.cs with expected .out, C unit tests, protocol tests
