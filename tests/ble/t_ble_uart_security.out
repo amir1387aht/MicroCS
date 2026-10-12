@@ -1,0 +1,18 @@
+connected True avail 5
+got 'hello'
+line 'PING'
+rx ABC
+denied: Read: insufficient encryption (ATT 0x0F)
+passkey kind 3 value 123456
+paired True enc True auth True bonded True
+humidity 4500
+descriptor 2902 (Client Characteristic Configuration) @4 = 
+descriptor 2901 (Characteristic User Description) @5 = Temperature
+bonds C0:FF:EE:00:00:05
+mtu 247 rssi -80
+echo hi there
+got 1 conns 2
+Ble.Connect: 12:34:56:78:9A:BC did not answer
+02-01-06-1A-FF-4C-00-02-15-E2-C5-6D-B5-DF-FB-48-D2-B0-60-D0-F5-A7-10-96-E0-00-07-00-09-C5
+02-01-06-03-03-AA-FE-0F-16-AA-FE-10-EC-01-65-78-61-6D-70-6C-65-01-78
+Heart Rate 0000180D-0000-1000-8000-00805F9B34FB True

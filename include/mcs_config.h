@@ -491,6 +491,9 @@
 #ifndef MCS_ENABLE_BLE
 #define MCS_ENABLE_BLE 0           /* C# Ble / BleService / BleConnection ... (include/mcs_ble.h) */
 #endif
+#if MCS_ENABLE_BLE && !MCS_ENABLE_HAL
+#error "MCS_ENABLE_BLE needs MCS_ENABLE_HAL (BLE events are delivered through the HAL event loop)"
+#endif
 #ifndef MCS_BLE_SIM
 #define MCS_BLE_SIM (MCS_ENABLE_BLE && MCS__NET_HOSTED && !MCS__NET_ESP) /* simulated radio for the host CLI (--sim) */
 #endif

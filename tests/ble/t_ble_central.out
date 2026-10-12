@@ -1,0 +1,27 @@
+sim True
+24:0A:C4:BE:EE:01 MicroCS
+C0:FF:EE:00:00:01 MicroCS-HRM (-49 dBm, connectable)
+  services: 180D,180F beacon=False url=
+C0:FF:EE:00:00:02 UART-Echo (-60 dBm, connectable)
+  services: 6E400001-B5A3-F393-E0A9-E50E24DCCA9E beacon=False url=
+12:34:56:78:9A:BC <iBeacon> (-69 dBm)
+  services:  beacon=True url=
+DE:AD:BE:EF:00:04 <no name> (-73 dBm)
+  services: FEAA beacon=False url=https://github.com
+C0:FF:EE:00:00:05 Thermo (-84 dBm, connectable)
+  services: 181A beacon=False url=
+connection 1 to C0:FF:EE:00:00:01 (we are central)
+service 1800 (Generic Access) [1..3]
+   characteristic 2A00 (Device Name) @3 [ read]
+service 180D (Heart Rate) [4..9]
+   characteristic 2A37 (Heart Rate Measurement) @6 [ notify]
+   characteristic 2A38 (Body Sensor Location) @9 [ read]
+service 180F (Battery) [10..13]
+   characteristic 2A19 (Battery Level) @12 [ read notify]
+service 180A (Device Information) [14..18]
+   characteristic 2A29 (Manufacturer Name) @16 [ read]
+   characteristic 2A24 (Model Number) @18 [ read]
+battery ok True
+bpm 73
+bpm 74
+connected False

@@ -1,0 +1,19 @@
+True False True
+180D 2A37
+bad uuid: 'nope' is not a UUID ("180D" or "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+built 3 rsp 31
+02-01-06-06-FF-59-00-01-02-03
+enabled False adv False conns 0
+D2-04 20 10
+70-11-01-00
+txt
+InvalidOperationException: Notify: the characteristic has no BleProperty.Notify
+ArgumentException: AddCharacteristic: give at least one property (BleProperty.Read, Write, Notify ...)
+services 1 enabled False
+ArgumentException: 'zz' is not a Bluetooth address (C0:11:22:33:44:55)
+TimeoutException: Ble.Connect: 11:22:33:44:55:66 did not answer
+4 100 833 Connect Unknown
+scan 5 first C0:FF:EE:00:00:01 name MicroCS-HRM has180D True
+E2C56DB5-DFFB-48D2-B060-D0F5A71096E0 1 42 -59 company 76
+callback scan saw >= 5: True scanning False
+after disable False

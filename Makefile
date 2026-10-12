@@ -118,7 +118,7 @@ ble-test: mcs-ble
 	  if grep -q "Unhandled" build/ble.err || { [ $$rc -ne 0 ] && ! grep -q "time limit exceeded" build/ble.err; }; then \
 	  echo "FAIL $$f"; cat build/ble.err; exit 1; fi; done; echo "PASS examples/ble/*.cs (smoke, $$(ls examples/ble/*.cs | wc -l) scripts)"
 	@./build/mcs_ble --features | grep -q " ble" && ./mcs --features | grep -vq " ble" && echo "OK default mcs is without BLE, build/mcs_ble has it" || { echo "FAIL BLE feature bits"; exit 1; }
-	@for f in "-DMCS_BLE_SIM=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4" "-DMCS_PROFILE=MCS_PROFILE_MCU"; do \
+	@for f in "-DMCS_BLE_SIM=0" "-DMCS_ENABLE_SCHED=0" "-DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4" "-DMCS_PROFILE=MCS_PROFILE_MCU"; do \
 	  $(CC) $(BLE_FLAGS) $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble_flags || { echo "BUILD FAIL BLE $$f"; exit 1; }; echo "OK BLE $$f"; done
 
 # Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
