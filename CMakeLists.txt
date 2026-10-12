@@ -111,6 +111,11 @@ if(ESP_PLATFORM)
         set(_mcs_net_srcs ports/esp32/mcs_port_esp32_net.c)
     endif()
     set(_mcs_net_reqs esp_wifi esp_netif esp_event nvs_flash lwip esp-tls mbedtls wpa_supplicant)
+    # menuconfig > MicroCS > Bluetooth LE (NimBLE host): C# Ble, BleService, BleConnection, BleUart
+    if(CONFIG_MICROCS_BLE)
+        list(APPEND _mcs_net_srcs ports/esp32/mcs_port_esp32_ble.c)
+    endif()
+    list(APPEND _mcs_net_reqs bt)
     # mDNS (C# Mdns) when the project has the espressif/mdns component:
     # idf.py add-dependency espressif/mdns   (or a copy in <project>/components/mdns)
     idf_build_get_property(_mcs_proj PROJECT_DIR)
@@ -126,6 +131,9 @@ if(ESP_PLATFORM)
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)
+    if(CONFIG_MICROCS_BLE)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_BLE=1)
+    endif()
     if(NOT CONFIG_MICROCS_WIFI)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_NET=0)
     elseif(_mcs_mdns)

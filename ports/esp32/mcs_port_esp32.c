@@ -112,8 +112,8 @@ static void IRAM_ATTR post_isr(uint8_t type, uint16_t source, int32_t value) {
     if (g_events) xQueueSendFromISR(g_events, &ev, &woken);
     if (woken) portYIELD_FROM_ISR();
 }
-#if MCS_ESP32_WIFI
-/* network events come from the Wi-Fi / lwIP tasks, not from an ISR */
+#if MCS_ESP32_WIFI || MCS_ESP32_BLE
+/* network / Bluetooth events come from the Wi-Fi, lwIP or NimBLE tasks, not from an ISR */
 static bool post_task(int type, int source, int32_t value) {
     mcs_hal_event_t ev = { (uint8_t)type, 0, (uint16_t)source, value };
     return g_events && xQueueSend(g_events, &ev, 0) == pdTRUE;
@@ -1533,5 +1533,9 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
 #if MCS_ESP32_WIFI
     mcs_net_set_poster(post_task);
     mcs_net_set(mcs_esp32_net());           /* C# Wifi, EspNow, Ntp, Mdns, Ping, Http (TLS) */
+#endif
+#if MCS_ESP32_BLE
+    mcs_ble_set_poster(post_task);
+    mcs_ble_set(mcs_esp32_ble());           /* C# Ble, BleService, BleConnection ... (NimBLE) */
 #endif
 }
