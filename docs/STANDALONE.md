@@ -143,7 +143,7 @@ click **Connect** and pick the board's port. It speaks the protocol above, like 
 
 Offline, open [`tools/studio/index.html`](../tools/studio/index.html) from a clone or the
 release zip — double-click is enough, no server. The page is plain HTML/CSS/JS split by job
-(`studio.css` look, `studio.js` app, `templates.js` templates and snippets, `docs.js`
+(`studio.css` look, `studio.js` app, `templates/` templates — one folder per category, bundled into `templates.js` — `snippets.js`, `docs.js`
 signatures, `lang.js` language service, `api.js` member names, see
 [tools/studio/README.md](../tools/studio/README.md)); the published copy is
 updated from `main` by `.github/workflows/pages.yml`. The look follows Visual Studio 2022
@@ -190,7 +190,10 @@ Dark (Light via the theme button).
   encrypted peers — they run on the simulated radio
   too, see [NETWORK.md](NETWORK.md)), games, benchmarks and C# language
   features. *Add* opens one as a new file, *Insert at cursor* pastes it into the current one.
-  CI compiles and runs each one on the simulated board (`tests/studio/test_templates.js`).
+  Search matches every word in names, descriptions and code, *Recent* keeps the last ones used,
+  the preview shows tags (*Wi-Fi*, *OLED*, *jobs* …) and links the source file. The templates are
+  plain files in [`tools/studio/templates/`](../tools/studio/templates/README.md), one folder per
+  category; CI compiles and runs each one on the simulated board (`tests/studio/test_templates.js`).
 * **Console** — the C# REPL (variables survive between lines and file operations; `↑`/`↓`
   history, `Shift+Enter` for multi-line input) or raw shell commands (`jobs`, `cat`, `help` …).
   Output of background jobs and the boot log appear here too; `Ctrl+C` stops a script.

@@ -695,7 +695,7 @@ first. The short version: `make check` must stay green, new language features ne
 whose output matches .NET (`tools/verify_dotnet.sh`), and docs must describe what the code does.
 
 Good places to start: [issues labelled *good first issue*](https://github.com/amir1387aht/MicroCS/labels/good%20first%20issue),
-a new [Studio template](tools/studio/templates.js), a [driver](docs/DRIVERS.md) for a sensor you own, or a
+a new [Studio template](tools/studio/templates/README.md), a [driver](docs/DRIVERS.md) for a sensor you own, or a
 [port](docs/PORTING.md) for your board. Questions and show-and-tell are welcome in the issues too.
 
 If MicroCS is useful to you, a ⭐ helps other people find it.
