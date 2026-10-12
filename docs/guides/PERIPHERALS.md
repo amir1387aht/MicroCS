@@ -9,9 +9,10 @@ You need MicroCS 1.12 or newer on a board, or just the PC simulator
 ([Try MicroCS on the PC](PC_SIMULATOR.md)): `mcs --sim --sim-virtual script.cs` accepts and checks
 every setting.
 
-In [MicroCS Studio](../STANDALONE.md) open **Templates** (`Alt+T`) → *Peripheral settings* for
-ten ready-to-run versions of the examples below (button, LED, open drain, I2C / SPI / UART on
-your own pins, PWM, ADC, board options), or type the snippets `gpiocfg`, `i2ccfg`, `spicfg`,
+In [MicroCS Studio](../STANDALONE.md) open **Templates** (`Alt+T`): each peripheral's category
+(*GPIO*, *PWM*, *ADC*, *UART*, *I2C*, *SPI*, *Board and system*) has ready-to-run versions of the
+examples below (button, LED, open drain, I2C / SPI / UART on your own pins, PWM, ADC, board
+options), or type the snippets `gpiocfg`, `i2ccfg`, `spicfg`,
 `uartcfg`.
 
 ## 1. Ask the board what it supports

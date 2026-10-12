@@ -207,12 +207,26 @@ int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_
 int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
     return conn_open(vm, c, host, port, tls, timeout, ca, op);
 }
+/* PC simulator: ports below 1024 need root there, so HttpServer(80) / DnsServer (53) move to
+ * port + 8000 (8080, 8053) with a note instead of failing. Boards never get here. */
+bool mcs__host_port(int err, uint16_t* port) {
+#if !defined(ESP_PLATFORM) && !MCS_NET_LWIP
+    if (err != EACCES || *port == 0 || *port >= 1024) return false;
+    fprintf(stderr, "[net] port %u needs root on this PC: using %u\n", (unsigned)*port, (unsigned)(*port + 8000));
+    *port = (uint16_t)(*port + 8000);
+    return true;
+#else
+    (void)err; (void)port; return false;
+#endif
+}
 int mcs__tcp_listen(mcs_vm_t* vm, const uint8_t ip[4], uint16_t* port, int backlog, const char* op) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) { sock_fail(vm, op, errno); return -1; }
     int one = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     struct sockaddr_in a; mk_addr(&a, ip, *port);
-    if (bind(fd, (struct sockaddr*)&a, sizeof a) < 0 || listen(fd, backlog < 1 ? 1 : backlog) < 0) {
+    int b = bind(fd, (struct sockaddr*)&a, sizeof a);
+    if (b < 0 && mcs__host_port(errno, port)) { mk_addr(&a, ip, *port); b = bind(fd, (struct sockaddr*)&a, sizeof a); }
+    if (b < 0 || listen(fd, backlog < 1 ? 1 : backlog) < 0) {
         int e = errno; close(fd); sock_fail(vm, op, e); return -1;
     }
     set_nonblock(fd);

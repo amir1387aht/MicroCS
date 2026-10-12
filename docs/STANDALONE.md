@@ -167,23 +167,27 @@ Dark (Light via the theme button).
   signature or type; `using System.C` completes namespaces. Types are inferred from
   `var x = new T()`, declarations, method return types (`var found = I2C.Scan(0)` →
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
-  methods and local functions of the open file are completed too. 71 snippets such as `cw`,
-  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`, `wifi`, `httpget`, `json`.
-* **Templates** (`Alt+T`) — 185 ready-to-run templates and examples in an *Add New Item* dialog
+  methods and local functions of the open file are completed too. 77 snippets such as `cw`,
+  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`, `wifi`, `httpget`, `json`,
+  `httpserver`, `wsserver`, `wsclient`, `captive`.
+* **Templates** (`Alt+T`) — 194 ready-to-run templates and examples in an *Add New Item* dialog
   with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
   `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
   (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), every
-  API — GPIO, PWM, ADC/DAC, UART, I2C, SPI, timers, events, watchdog, RTC, I2S, CAN, QSPI,
-  files — plus **peripheral settings** (`GpioConfig`, `I2cConfig`, `SpiConfig`,
-  `UartConfig`, `PwmConfig`, `AdcConfig`, board options), **DMA** (`DmaBuffer`, `SPI.WriteAsync`,
+  API grouped by peripheral — GPIO, PWM, ADC/DAC, UART, I2C, SPI, QSPI, I2S, CAN, timers, events,
+  watchdog, RTC, files, board and system — each with its settings (`GpioConfig`, `I2cConfig`,
+  `SpiConfig`, `UartConfig`, `PwmConfig`, `AdcConfig`, board options) and async variants, **DMA** (`DmaBuffer`, `SPI.WriteAsync`,
   double-buffered displays, async I2C / UART / QSPI reads, `Dma.Copy`), **sensors** (MPU6050, DS3231, ADS1115, INA219, AHT20/SHT31, DHT22, BH1750),
   **displays** (SSD1306, MAX7219, LCD1602, TM1637), **U8g2 displays** (20 scripts covering the
   whole `U8g2` / `U8x8` API: buses, shapes, fonts, bitmaps, page mode, menus, log, U8x8 —
   firmware built with [u8g2](U8G2.md)), **motors** (H-bridge, steppers, servo),
   **input devices** (rotary encoder, keypad, button gestures), **control** (PID, filters,
   Kalman), **protocols** (CRC, Modbus RTU, NMEA, Base64), **Wi-Fi and networking** (connect, events,
-  scan, soft AP, static IP, saved networks, HTTP GET / POST JSON, HTTPS download, a web server,
-  TCP, UDP, NTP clock, ESP-NOW, mDNS + ping, MQTT publish — they run on the simulated radio
+  scan, soft AP, static IP, saved networks, HTTP GET / POST JSON, HTTPS download,
+  TCP, UDP, NTP clock, mDNS + ping, MQTT publish), **web server and WebSocket** (`HttpServer`
+  pages and REST APIs, files from flash, live WebSocket dashboard, WebSocket client, captive
+  portal with `DnsServer`, WPS / SmartConfig setup), **ESP-NOW** (messages, broadcast,
+  encrypted peers — they run on the simulated radio
   too, see [NETWORK.md](NETWORK.md)), games, benchmarks and C# language
   features. *Add* opens one as a new file, *Insert at cursor* pastes it into the current one.
   CI compiles and runs each one on the simulated board (`tests/studio/test_templates.js`).

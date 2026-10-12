@@ -626,7 +626,9 @@ NATIVE(dns_start) {     /* ([address[, port]]) */
     int one = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
     struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
     sa.sin_family = AF_INET; sa.sin_port = htons(d->port);
-    if (bind(fd, (struct sockaddr*)&sa, sizeof sa) < 0) { int e = errno; close(fd); return mcs__sock_fail(vm, "DnsServer.Start", e); }
+    int b = bind(fd, (struct sockaddr*)&sa, sizeof sa);
+    if (b < 0 && mcs__host_port(errno, &d->port)) { sa.sin_port = htons(d->port); b = bind(fd, (struct sockaddr*)&sa, sizeof sa); }
+    if (b < 0) { int e = errno; close(fd); return mcs__sock_fail(vm, "DnsServer.Start", e); }
     mcs__sock_prep(fd);
     d->fd = fd;
     mcs__net_state_t* s = mcs__net_state(vm);

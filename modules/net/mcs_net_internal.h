@@ -62,6 +62,7 @@ int mcs__conn_write(mcs_vm_t* vm, mcs__conn_t* c, const uint8_t* p, size_t n, ui
 int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_t timeout);        /* 0 = closed, -errno */
 int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op);
 /* bound, listening, non-blocking TCP socket (port 0: *port gets the one picked); -1 = raised */
+bool mcs__host_port(int err, uint16_t* port);
 int mcs__tcp_listen(mcs_vm_t* vm, const uint8_t ip[4], uint16_t* port, int backlog, const char* op);
 /* HttpServer, WebSocket, DnsServer (mcs_net_srv.c) */
 void mcs__srv_open(mcs_vm_t* vm);
