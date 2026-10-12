@@ -1924,10 +1924,10 @@ static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
 
 /* protects against OOM panics */
 #define GUARD_BEGIN(vm) jmp_buf _jb; jmp_buf* _prev = (vm)->panic; mcs_value_t* _sp = (vm)->sp; int _fc = (vm)->frame_count; \
-    int _hc = (vm)->handler_count; int _gp = (vm)->gc_pause; int _rd = (vm)->run_depth; int _code; \
+    int _hc = (vm)->handler_count; int _gp = (vm)->gc_pause; int _rd = (vm)->run_depth; int _rc = (vm)->root_count; int _code; \
     (vm)->panic = &_jb; \
     if ((_code = setjmp(_jb)) != 0) { (vm)->panic = _prev; (vm)->sp = _sp; (vm)->frame_count = _fc; (vm)->handler_count = _hc; \
-        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; close_upvalues(vm, _sp); (vm)->has_exc = false; \
+        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; (vm)->root_count = _rc; close_upvalues(vm, _sp); (vm)->has_exc = false; \
         mcs_report_error(vm, "fatal: %s\n", (vm)->error); return (mcs_result_t)_code; }
 #define GUARD_END(vm) (vm)->panic = _prev
 
@@ -2173,9 +2173,22 @@ mcs_result_t mcs_exec_auto(mcs_vm_t* vm, const char* name, const void* data, siz
 }
 
 /* ================================================================ roots */
+/* The first MCS_MAX_ROOTS roots live in the VM; deeper ones (e.g. recursion through LINQ
+ * callbacks, where every level holds a root) spill into a heap block that grows on demand
+ * instead of ending the script with a fatal error. */
 void mcs_push_root(mcs_vm_t* vm, mcs_value_t v) {
-    if (vm->root_count >= MCS_MAX_ROOTS) mcs_panic(vm, MCS_ERR_MEMORY, "too many temporary roots");
-    vm->roots[vm->root_count++] = v;
+    if (vm->root_count < MCS_MAX_ROOTS) { vm->roots[vm->root_count++] = v; return; }
+    int k = vm->root_count - MCS_MAX_ROOTS;
+    if (k >= vm->roots_more_cap) {
+        int nc = vm->roots_more_cap ? vm->roots_more_cap * 2 : 16;
+        vm->roots_more = MCS_GROW(vm, mcs_value_t, vm->roots_more, vm->roots_more_cap, nc);
+        vm->roots_more_cap = nc;
+    }
+    vm->roots_more[k] = v;
+    vm->root_count++;
+}
+mcs_value_t* mcs_root_slot(mcs_vm_t* vm, int i) {
+    return i < MCS_MAX_ROOTS ? &vm->roots[i] : &vm->roots_more[i - MCS_MAX_ROOTS];
 }
 void mcs_pop_root(mcs_vm_t* vm, int n) { vm->root_count -= n; if (vm->root_count < 0) vm->root_count = 0; }
 int mcs_pin(mcs_vm_t* vm, mcs_value_t v) {
@@ -2276,6 +2289,7 @@ void mcs_free(mcs_vm_t* vm) {
     MCS_FREE(vm, mcs_string_t*, vm->global_names, vm->global_cap);
     if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->cfg.stack_slots);
     if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->cfg.max_frames);
+    if (vm->roots_more) MCS_FREE(vm, mcs_value_t, vm->roots_more, vm->roots_more_cap);
     if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, vm, sizeof(mcs_vm_t), 0);
     else mcs_sys_realloc(NULL, vm, sizeof(mcs_vm_t), 0);
 }

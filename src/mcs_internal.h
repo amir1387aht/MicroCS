@@ -253,6 +253,8 @@ struct mcs_vm {
     bool gc_wanted;
     uint32_t cls_epoch;   /* bumped when a class's members change (invalidates INVOKE caches) */
     mcs_value_t roots[MCS_MAX_ROOTS];
+    mcs_value_t* roots_more; /* overflow beyond MCS_MAX_ROOTS (natives nested through script callbacks) */
+    int roots_more_cap;
     int root_count;
     mcs_value_t pins[MCS_MAX_PINS];
     mcs_value_t order_last, order_spec; /* OrderBy result + [sel, desc, ...] for ThenBy */
@@ -432,6 +434,7 @@ static inline mcs_value_t mcs_undef(void) { mcs_value_t v; v.type = MCS_T_UNDEF;
 /* memory (mcs_object.c) */
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
 void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg);
+mcs_value_t* mcs_root_slot(mcs_vm_t* vm, int i); /* i-th temporary root (mcs_push_root) */
 /* n * elem bytes, or an out-of-memory panic when that does not fit in size_t
  * (on 32-bit MCUs `new int[int.MaxValue]` would otherwise wrap to a tiny block) */
 static inline size_t mcs_arr_bytes(mcs_vm_t* vm, size_t elem, uint64_t n) {

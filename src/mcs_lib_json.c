@@ -131,7 +131,6 @@ static bool jp_value(jp_t* p, mcs_value_t* out) {
         if (++p->depth > MCS_JSON_MAX_DEPTH) return jp_fail(p, "nested too deep");
         bool obj = c == '{';
         mcs_value_t box = obj ? OBJ_VAL(mcs_new_dict(vm)) : mcs_new_list(vm);
-        mcs_push_root(vm, box);
         p->i++;
         jp_ws(p);
         char close = obj ? '}' : ']';
@@ -142,9 +141,8 @@ static bool jp_value(jp_t* p, mcs_value_t* out) {
                 jp_ws(p);
                 if (p->i >= p->n || p->s[p->i] != '"') { jp_fail(p, "expected a \"key\""); break; }
                 if (!jp_string(p, &key)) break;
-                mcs_push_root(vm, key);
                 jp_ws(p);
-                if (p->i >= p->n || p->s[p->i] != ':') { mcs_pop_root(vm, 1); jp_fail(p, "expected ':'"); break; }
+                if (p->i >= p->n || p->s[p->i] != ':') { jp_fail(p, "expected ':'"); break; }
                 p->i++;
             }
             bool ok = jp_value(p, &v);
@@ -152,7 +150,6 @@ static bool jp_value(jp_t* p, mcs_value_t* out) {
                 if (obj) mcs_dict_set(vm, AS_DICT(box), key, v);
                 else mcs_list_add(vm, box, v);
             }
-            if (obj) mcs_pop_root(vm, 1);
             if (!ok) break;
             jp_ws(p);
             if (p->i < p->n && p->s[p->i] == ',') { p->i++; continue; }
@@ -160,7 +157,6 @@ static bool jp_value(jp_t* p, mcs_value_t* out) {
             jp_fail(p, obj ? "expected ',' or '}'" : "expected ',' or ']'");
             break;
         }
-        mcs_pop_root(vm, 1);
         p->depth--;
         *out = box;
         return !p->failed;
@@ -178,7 +174,13 @@ static mcs_value_t json_parse_str(mcs_vm_t* vm, mcs_value_t text) {
     jp_t p = { vm, AS_CSTR(text), AS_STRING(text)->len, 0, 0, false };
     if (p.n >= 3 && (unsigned char)p.s[0] == 0xEF && (unsigned char)p.s[1] == 0xBB && (unsigned char)p.s[2] == 0xBF) p.i = 3;
     mcs_value_t v = mcs_null();
-    if (!jp_value(&p, &v)) return mcs_null();
+    /* nothing runs a script while parsing, so the GC is simply held off instead of rooting
+     * every open container and key (two roots per nesting level overflowed MCS_MAX_ROOTS
+     * at 16 nested objects, a fatal error) */
+    vm->gc_pause++;
+    bool ok = jp_value(&p, &v);
+    vm->gc_pause--;
+    if (!ok) return mcs_null();
     jp_ws(&p);
     if (p.i != p.n) { jp_fail(&p, "unexpected data after the value"); return mcs_null(); }
     return v;

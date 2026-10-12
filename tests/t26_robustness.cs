@@ -50,3 +50,21 @@ Try("BitConverter", () => BitConverter.ToInt32(new byte[4], int.MaxValue));
 Console.WriteLine(Math.Round(1e300, 15) == 1e300);
 Console.WriteLine(Math.Round(2.345, 2));
 Console.WriteLine(Math.Round(1e17, 3) == 1e17);
+
+// Enumerable.Range: start + count - 1 must fit in int
+Try("Range", () => Enumerable.Range(int.MaxValue, 2).ToList());
+Console.WriteLine(Enumerable.Range(int.MaxValue, 1).First());
+
+// 16+ nested JSON objects used to exhaust the native GC roots (a fatal, uncatchable error)
+var deep = "";
+for (int i = 0; i < 15; i++) deep += "{\"a\":";
+deep += "1";
+for (int i = 0; i < 15; i++) deep += "}";
+Console.WriteLine(Json.Stringify(Json.Parse(deep)).Length);
+Try("Json too deep", () => Json.Parse(new string('[', 1000)));
+
+// recursion through LINQ callbacks: each level holds native roots; now a catchable StackOverflowException
+int Depth(int n) => n == 0 ? 0 : new List<int> { n }.Select(x => Depth(x - 1)).OrderBy(x => x).First() + 1;
+Console.WriteLine(Depth(20));
+Try("deep LINQ recursion", () => Depth(100000));
+Console.WriteLine(Depth(20));

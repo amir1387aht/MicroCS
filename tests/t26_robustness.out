@@ -36,3 +36,10 @@ BitConverter ArgumentOutOfRangeException
 True
 2.35
 True
+Range ArgumentOutOfRangeException
+2147483647
+91
+Json too deep FormatException
+20
+deep LINQ recursion StackOverflowException
+20

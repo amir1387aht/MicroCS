@@ -298,7 +298,7 @@
 #define MCS_MAX_HANDLERS 32        /* nested try blocks (dynamic) */
 #endif
 #ifndef MCS_MAX_ROOTS
-#define MCS_MAX_ROOTS 32           /* temporary GC roots for natives */
+#define MCS_MAX_ROOTS 32           /* temporary GC roots for natives kept in the VM (deeper nesting spills to the heap) */
 #endif
 /* Debug: run a full collection on every allocation (very slow). */
 #ifndef MCS_GC_STRESS

@@ -46,6 +46,16 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
     hole) no longer moves the lexer past the end of the source (which then tried to allocate
     gigabytes for the token array); `void.X` in an expression is a syntax error instead of a
     null-pointer `strlen`; `mcs -c` prints each compile error once (it printed the last one twice).
+  * native GC roots beyond `MCS_MAX_ROOTS` spill to the heap: recursion through LINQ
+    callbacks (or `Sort` comparers ...) ended the script with an uncatchable
+    *fatal: too many temporary roots*; it now reaches the normal, catchable
+    `StackOverflowException`. A panic also restores the root count (in the REPL every later
+    native call failed after one such error);
+  * `Json.Parse` no longer roots every open object (16 nested objects were fatal); nesting
+    deeper than 32 is a `FormatException` as documented;
+  * `Enumerable.Range(start, count)` throws when `start + count - 1` overflows `int`;
+  * `tools/fuzz.py` (run in CI) also mutates the examples and every Studio template, and
+    alternates `--sim` / `--sim-virtual` runs with compile-only runs.
 
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 

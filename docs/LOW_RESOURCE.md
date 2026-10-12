@@ -118,7 +118,7 @@ break 64-bit hosts. On `m0-runtime` it saved another 1.9 KB right after `mcs_new
 | `MCS_DEFAULT_STACK` (or `cfg.stack_slots`) | 1024 | 128 | 128 | one value per slot |
 | `MCS_DEFAULT_FRAMES` (or `cfg.max_frames`) | 64 | 24 | 24 | ~24 B per frame |
 | `MCS_MAX_HANDLERS` | 32 | 12 | 12 | nested `try` blocks |
-| `MCS_MAX_ROOTS` | 32 | 16 | 16 | C-side GC roots |
+| `MCS_MAX_ROOTS` | 32 | 16 | 16 | C-side GC roots held in the VM; more spill to the heap |
 | `MCS_ERROR_SIZE` | 256 | 128 | 96 | last-error text buffer |
 | `MCS_MAX_PINS` | 16 | 8 | 8 | C-held handles (`mcs_pin`) |
 
