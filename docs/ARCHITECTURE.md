@@ -39,7 +39,7 @@ flowchart TB
   string-intern table is rehashed in place when it fills with tombstones and shrunk after a
   collection when it is mostly empty.
 * **Images.** `.mcsb` = serialised functions/constants with global names re-linked at load
-  time; versioned (`IMG_VERSION` 2, v1 still accepted) and validated. See [BYTECODE.md](BYTECODE.md).
+  time; versioned (`IMG_VERSION` 4, v1–v3 still accepted) and validated. See [BYTECODE.md](BYTECODE.md).
   With **execute in place** (`mcs_exec_image_xip`) a function's `code` points into the image
   buffer; such functions are flagged `FN_XIP` (a runtime-only flag, masked out of image
   flags) and carry a `gmap` (image global index → VM global slot) that `GET/SET_GLOBAL`

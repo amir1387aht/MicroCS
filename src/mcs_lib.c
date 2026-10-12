@@ -772,6 +772,10 @@ NATIVE(m_clamp) {
 NATIVE(m_divrem_floor) { /* Math.DivRem(a, b) -> a / b (remainder unsupported w/o out) */
     if (!check_nums(vm, 2, argv)) return mcs_null();
     if (argv[1].as.i == 0) { mcs_throw(vm, EXC_DIVZERO, "Attempted to divide by zero."); return mcs_null(); }
+    if (argv[1].as.i == -1) {
+        if ((mcs_uint_t)argv[0].as.i == (mcs_uint_t)1 << (sizeof(mcs_int_t) * 8 - 1)) { mcs_throw(vm, EXC_OVERFLOW, "Arithmetic operation resulted in an overflow."); return mcs_null(); }
+        return mcs_int((mcs_int_t)(0 - (mcs_uint_t)argv[0].as.i));
+    }
     return mcs_int(argv[0].as.i / argv[1].as.i);
 }
 

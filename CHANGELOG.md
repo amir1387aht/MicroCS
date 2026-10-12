@@ -56,6 +56,21 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   * `Enumerable.Range(start, count)` throws when `start + count - 1` overflows `int`;
   * `tools/fuzz.py` (run in CI) also mutates the examples and every Studio template, and
     alternates `--sim` / `--sim-virtual` runs with compile-only runs.
+* **.NET semantics** (`tests/t27_dotnet_semantics.cs`):
+  * `int.MinValue / -1` and `int.MinValue % -1` (and `Math.DivRem`) throw `OverflowException`
+    like .NET instead of returning `MinValue` / `0`; the compiler no longer folds such constants;
+  * `foreach` over a `List<T>` throws `InvalidOperationException` *Collection was modified;
+    enumeration operation may not execute.* when the loop body changed the list (`Add`,
+    `Insert`, `Remove*`, `Clear`, `Sort`, `Reverse`, an indexer store …); over a `Dictionary`
+    when a key was added. Removing entries or clearing the dictionary during `foreach` (allowed
+    in .NET 8) no longer skips the entry after a removed one. Arrays never throw, as in .NET.
+    `t27` runs in the .NET 8 parity job, so its output is checked against the real runtime;
+  * bytecode images are **version 4**: the checked `FOR_ITER` form marks its slot byte with
+    bit 7 and uses two more hidden locals. Version 1–3 images still load and run their loops
+    unchecked; older VMs reject v4 images, so recompile `.mcsb` files for them.
+* **`min` profile** uses `switch` dispatch (`MCS_COMPUTED_GOTO=0`): ~1 KB less Thumb-1 code for
+  ~3 % more instructions, so the `m0-64k` firmware keeps ~1 KB of its 64 KB flash free (it had
+  264 B left with the CI toolchain).
 
 ## 1.14.0 — Web server, WebSockets and Pico W Wi-Fi
 

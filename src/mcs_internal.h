@@ -184,6 +184,9 @@ typedef struct {            /* used for both arrays and List<T> */
     uint32_t count, cap;
     mcs_value_t* items;
 } mcs_list_t;
+/* List<T> obj.aux: modification version (bumped by every mutation, read by
+ * foreach, which throws InvalidOperationException when it changes) */
+#define MCS_LIST_TOUCH(l) ((l)->obj.aux++)
 
 /* Dictionary / HashSet: insertion-ordered keys[]/vals[] arrays plus a compact
  * open-addressing index of positions (CPython-style). Index slots are 1, 2 or
@@ -200,6 +203,10 @@ typedef struct {
 } mcs_dict_t;
 /* obj.aux flag: keys-only dictionary (HashSet storage, vals == NULL) */
 #define DICT_KEYS_ONLY 1
+/* the other aux bits: version, bumped when a key is added (as in .NET 8, Remove,
+ * Clear and overwriting a value keep foreach going) */
+#define DICT_VER_STEP 2
+#define DICT_VERSION(d) ((d)->obj.aux & (uint16_t)~DICT_KEYS_ONLY)
 #define DICT_VAL(d, i) ((d)->vals ? (d)->vals[i] : mcs_bool(true))
 
 /* --------------------------------------------------------------- VM */
@@ -481,6 +488,7 @@ mcs_dict_t* mcs_new_dict(mcs_vm_t* vm);
 bool mcs_dict_get(mcs_dict_t* d, mcs_value_t key, mcs_value_t* out);
 void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v);
 bool mcs_dict_remove(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key);
+bool mcs_dict_pos(const mcs_dict_t* d, mcs_value_t key, uint32_t* pos);
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d);
 void mcs_class_add_field(mcs_vm_t* vm, mcs_class_t* cls, mcs_string_t* name, mcs_value_t def);
 void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super);

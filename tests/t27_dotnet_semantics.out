@@ -1,0 +1,45 @@
+div OverflowException: Arithmetic operation resulted in an overflow.
+mod OverflowException: Arithmetic operation resulted in an overflow.
+div= OverflowException: Arithmetic operation resulted in an overflow.
+DivRem OverflowException: Arithmetic operation resulted in an overflow.
+1073741824 0
+loop -2 ok
+loop -1 OverflowException: Arithmetic operation resulted in an overflow.
+loop 0 DivideByZeroException: Attempted to divide by zero.
+-2147483648 0
+loop 1 ok
+-1073741824 0
+loop 2 ok
+-7 0 -3 -1 2147483647
+Add InvalidOperationException: Collection was modified; enumeration operation may not execute.
+Remove InvalidOperationException: Collection was modified; enumeration operation may not execute.
+RemoveAt InvalidOperationException: Collection was modified; enumeration operation may not execute.
+Insert InvalidOperationException: Collection was modified; enumeration operation may not execute.
+indexer InvalidOperationException: Collection was modified; enumeration operation may not execute.
++= InvalidOperationException: Collection was modified; enumeration operation may not execute.
+Sort InvalidOperationException: Collection was modified; enumeration operation may not execute.
+Reverse InvalidOperationException: Collection was modified; enumeration operation may not execute.
+Clear InvalidOperationException: Collection was modified; enumeration operation may not execute.
+add after last InvalidOperationException: Collection was modified; enumeration operation may not execute.
+no-op Remove ok
+RemoveAll none ok
+RemoveRange 0 ok
+break then Add ok
+30
+read only ok
+10
+modify copy ok
+3
+array write ok
+nested 100
+inner 22
+remove some: a,e
+remove all: a,b,c,d,e left 0
+remove earlier: a,b,c,d,e
+remove later: a,b,e
+dict add InvalidOperationException: Collection was modified; enumeration operation may not execute.
+dict Add InvalidOperationException: Collection was modified; enumeration operation may not execute.
+dict Clear ok
+empty Clear ok
+0
+Keys copy ok

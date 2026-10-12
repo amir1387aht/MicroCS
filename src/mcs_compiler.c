@@ -336,8 +336,11 @@ static bool fold(comp_t* c, node_t* n, mcs_value_t* out) {
             case TK_PLUS: r = (mcs_int_t)(x + y); break;
             case TK_MINUS: r = (mcs_int_t)(x - y); break;
             case TK_STAR: r = (mcs_int_t)(x * y); break;
-            case TK_SLASH: if (b.as.i == 0) return false; r = a.as.i / b.as.i; break;
-            case TK_PERCENT: if (b.as.i == 0) return false; r = a.as.i % b.as.i; break;
+            /* x / 0 and MinValue / -1 are left to the VM, which throws at run time */
+            case TK_SLASH: if (b.as.i == 0 || (b.as.i == -1 && x == ((mcs_uint_t)1 << (sizeof(mcs_int_t) * 8 - 1)))) return false;
+                r = a.as.i / b.as.i; break;
+            case TK_PERCENT: if (b.as.i == 0 || (b.as.i == -1 && x == ((mcs_uint_t)1 << (sizeof(mcs_int_t) * 8 - 1)))) return false;
+                r = a.as.i % b.as.i; break;
             case TK_AMP: r = (mcs_int_t)(x & y); break;
             case TK_PIPE: r = (mcs_int_t)(x | y); break;
             case TK_CARET: r = (mcs_int_t)(x ^ y); break;
@@ -1178,8 +1181,20 @@ static void compile_foreach(comp_t* c, node_t* n) {
     int coll = declare_local(c, "$coll", 5, PT_ANY, 0xff);
     emit_op8(c, OP_INT8, 0);
     declare_local(c, "$idx", 4, PT_INT, 0xff);
+    /* checked form (slot byte bit 7, image v4+): two more hidden locals hold the
+     * collection version and the current dictionary key, so modifying a List or
+     * adding to a Dictionary inside the loop throws like .NET and removing
+     * dictionary entries does not skip any */
+    uint8_t sb = (uint8_t)coll;
+    if (coll < 128) {
+        emit_op8(c, OP_INT8, 0);
+        declare_local(c, "$ver", 4, PT_INT, 0xff);
+        emit_op(c, OP_NULL);
+        declare_local(c, "$cur", 4, PT_ANY, 0xff);
+        sb |= 0x80;
+    }
     uint32_t start = here(c);
-    emit(c, OP_FOR_ITER); emit(c, (uint8_t)coll); emit(c, 0xff); emit(c, 0xff);
+    emit(c, OP_FOR_ITER); emit(c, sb); emit(c, 0xff); emit(c, 0xff);
     uint32_t exit_at = here(c) - 2;
     loop_t L; push_loop(c, &L, start, false);
     begin_scope(c);
