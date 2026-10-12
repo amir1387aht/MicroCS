@@ -1,4 +1,4 @@
-sim api 1 wifi=True ap=True tls=False
+sim api 2 wifi=True ap=True tls=False
 mode 0 status Stopped
   MicroCS-Lab (-48 dBm, ch 6, WPA2_PSK) q=100 secure=True
   CoffeeShop (-67 dBm, ch 1, OPEN) q=66 secure=False
