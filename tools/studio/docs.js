@@ -406,6 +406,228 @@ ToDouble(byte[] bytes, int index = 0): double | 8 bytes → double
 ToBoolean(byte[] bytes, int index = 0): bool | 1 byte → bool
 ToString(byte[] bytes): string | "01-AB-FF"
 
+@Net | Network library info (Wi-Fi, sockets, HTTP)
+Has(string feature): bool | "Wifi", "Wifi.AP", "Wifi.Scan", "Wifi.Enterprise", "EspNow", "Mdns", "Ping", "Tls", "Sockets", "Http", "Ntp"
+Backend: string | "esp32", "sim" or "none"
+const ApiVersion: int | Network backend API version
+
+@Wifi | Wi-Fi station + soft access point (ESP32; simulated with --sim)
+Connect(string ssid, string password = null, int timeoutMs = 15000): bool | Join a network and wait for an IP; false on failure (see StatusName / ReasonName)
+Connect(): bool | Join the saved network (Wifi.Save / menuconfig)
+Connect(string ssid, string password, int timeoutMs, string bssid, int channel = 0): bool | Join one specific access point
+Begin(string ssid, string password = null): void | Start connecting in the background; watch Wifi.OnEvent / WaitConnected
+ConnectEnterprise(string ssid, string identity, string username, string password, int timeoutMs = 15000, string caPem = null): bool | WPA2/WPA3-Enterprise (PEAP / TTLS)
+WaitConnected(int timeoutMs): bool | Wait until the station has an IP address
+Reconnect(): void | Connect again with the last settings
+Disconnect(): void | Leave the network (the radio stays on)
+Off(): void | Stop Wi-Fi completely (saves power)
+Scan(bool showHidden = false, int timeoutMs = 0): WifiNetwork[] | Nearby access points, strongest first
+StartAp(string ssid, string password = "", int channel = 1, bool hidden = false, int maxClients = 4): void | Run a soft access point (password: 8+ characters or empty = open)
+StopAp(): void | Stop the access point
+ApClients(): WifiClient[] | Stations connected to our access point
+SetApIp(string ip, string gateway, string netmask): void | Address of the access point network
+SetStaticIp(string ip, string gateway, string netmask, string dns1 = null, string dns2 = null): void | Fixed station address
+UseDhcp(): void | Back to automatic addressing
+Save(string ssid, string password): void | Store credentials in flash (NVS)
+Forget(): void | Erase the stored credentials
+OnEvent(Action<int, int> handler): void | (event, value) callback: Wifi.EventConnected, EventGotIp, EventDisconnected (value = reason)...
+EventName(int ev): string | Name of an event code
+ReasonName(int reason): string | Text for a disconnect reason (no argument: the last one)
+AuthName(int auth): string | "WPA2-PSK", "Open", ...
+Mode: int | ModeOff, ModeStation, ModeAccessPoint, ModeStationAp
+Status: int | Idle, Connecting, Connected, NoSsid, WrongPassword, ConnectFailed, ConnectionLost, Disconnected, Stopped
+StatusName: string | Status as text
+IsConnected: bool | Connected with an IP address
+DisconnectReason: int | Reason code of the last disconnect
+Ssid: string | Network name of the current link
+Bssid: string | MAC of the access point
+Rssi: int | Signal strength in dBm
+Channel: int | Current channel (settable while not connected)
+Auth: int | Security of the current link (Wifi.Auth*)
+Ip: string | Station IPv4 address
+Netmask: string | Station netmask
+Gateway: string | Default gateway
+Dns: string | Primary DNS server
+Dns2: string | Secondary DNS server
+Ipv6: string | Link-local IPv6 address (when enabled)
+Dhcp: bool | True when the address came from DHCP
+Mac: string | Station MAC address (settable)
+ApMac: string | Access point MAC address (settable)
+ApIp: string | Access point IPv4 address
+ApClientCount: int | Number of connected stations
+SavedSsid: string | Stored network name ("" when none)
+Hostname: string | DHCP / mDNS host name
+Country: string | Country code ("DE", "US", "01" = world safe)
+AutoReconnect: bool | Reconnect by itself after the link drops
+Persistent: bool | Let the driver keep its own config in flash
+PowerSave: int | PowerNone, PowerMin, PowerMax
+TxPower: int | Transmit power in dBm (2..20)
+Protocol: int | Proto11b | Proto11g | Proto11n | ProtoLR | Proto11ax (station)
+ApProtocol: int | Protocols of the access point
+Bandwidth: int | 20 or 40 MHz
+MinAuth: int | Weakest security the station accepts
+ListenInterval: int | Beacons between wake-ups in power save
+Band: int | Band2G, Band5G, BandAuto (dual-band chips)
+Antenna: int | Antenna selection (boards with two antennas)
+
+@WifiNetwork | One scan result
+.Ssid: string | Network name ("" when hidden)
+.Bssid: string | Access point MAC
+.Rssi: int | Signal in dBm
+.Channel: int | Channel
+.Auth: int | Security (Wifi.Auth*)
+.AuthName: string | Security as text
+.Secure: bool | Needs a password
+.Hidden: bool | Hidden network
+.Protocols: int | Wifi.Proto* bits
+.Quality: int | Signal 0..100 %
+
+@WifiClient | A station connected to our access point
+.Mac: string | Its MAC address
+.Ip: string | Address it was given
+.Rssi: int | Signal in dBm
+
+@EspNow | Board-to-board packets without a router (ESP32)
+Start(): void | Start ESP-NOW (turns the station on)
+Stop(): void | Stop ESP-NOW
+AddPeer(string mac, int channel = 0, string key = null): void | Allow sending to a board (key: 16 chars = encrypted)
+RemovePeer(string mac): void | Remove a peer
+SetPmk(string key): void | Primary master key (16 characters)
+Send(string mac, object data, int timeoutMs = 1000): bool | Send a string or byte[] (max MaxData bytes); true when acknowledged
+Broadcast(object data): bool | Send to every board in range
+Receive(int timeoutMs = 0): EspNowMessage | Next packet or null
+OnReceive(Action<string, byte[]> handler): void | (mac, data) callback
+Peers: string[] | MACs of the added peers
+const MaxData: int | Largest payload (250 bytes)
+
+@EspNowMessage | A received ESP-NOW packet
+.Mac: string | Sender MAC
+.Data: byte[] | Payload
+.Text: string | Payload as UTF-8 text
+.Length: int | Payload size
+.Rssi: int | Signal in dBm
+
+@Ntp | Network time (SNTP)
+Start(string server1 = "pool.ntp.org", string server2 = null, string server3 = null): void | Start background time sync
+Sync(string server = "pool.ntp.org", int timeoutMs = 10000): bool | Sync and wait for the first answer
+Sync(int timeoutMs): bool | Sync with pool.ntp.org
+Synced: bool | The clock has been set
+Time: int | Unix time (seconds)
+LocalTime: string | "yyyy-MM-dd HH:mm:ss" in Ntp.Timezone
+UtcTime: string | "yyyy-MM-dd HH:mm:ss" UTC
+Timezone: string | POSIX TZ string, e.g. "CET-1CEST,M3.5.0,M10.5.0/3"
+UtcOffset: int | Local minus UTC in seconds
+
+@Mdns | Multicast DNS: name.local (ESP32 with the espressif/mdns component)
+Start(string hostname, string instanceName = null): void | Answer as hostname.local
+Stop(): void | Stop answering
+AddService(string service, string protocol, int port, string[] txt = null): void | Advertise e.g. ("_http", "_tcp", 80)
+RemoveService(string service, string protocol): void | Stop advertising a service
+Resolve(string host, int timeoutMs = 2000): string | IPv4 of a .local name or null
+
+@Ping | ICMP echo
+Send(string host, int timeoutMs = 1000): int | Round trip in ms, -1 = no answer
+
+@TcpClient | TCP connection (System.Net.Sockets)
+new() | Not connected yet: call Connect
+new(string host, int port, int timeoutMs = 10000) | Connect at once (SocketException when refused)
+.Connect(string host, int port, int timeoutMs = 10000): void | Open the connection
+.ConnectTls(string host, int port, int timeoutMs = 10000, string caPem = null): void | TLS connection (certificate bundle when caPem is null)
+.Write(object data): void | Send a string or byte[]
+.WriteLine(string line): void | Send text plus "\r\n"
+.Flush(): void | Nothing buffered: kept for .NET habits
+.Read(int max = 1024): byte[] | Up to max bytes (empty at end of stream)
+.ReadString(int max = 1024): string | Up to max bytes as text
+.ReadByte(): int | One byte, -1 at end of stream
+.ReadLine(): string | One line without the line ending, null at end of stream
+.ReadToEnd(): string | Everything until the peer closes
+.Available: int | Bytes waiting
+.Connected: bool | Still connected
+.Timeout: int | Read / write timeout in ms (0 = forever)
+.NoDelay: bool | Disable Nagle (send small writes at once)
+.KeepAlive: bool | TCP keep-alive probes
+.RemoteAddress: string | Peer address
+.RemotePort: int | Peer port
+.LocalAddress: string | Our address
+.LocalPort: int | Our port
+.IsTls: bool | Connection is encrypted
+.Close(): void | Close the connection
+.Dispose(): void | Same as Close (using blocks)
+
+@TcpListener | TCP server
+new(int port) | Listen on all interfaces
+new(string address, int port) | Listen on one address (port 0 = any free port)
+.Start(int backlog = 4): void | Start listening
+.Stop(): void | Stop listening
+.Pending(): bool | A client is waiting
+.AcceptTcpClient(int timeoutMs = -1): TcpClient | Next client, null on timeout
+.Accept(int timeoutMs = -1): TcpClient | Same as AcceptTcpClient
+.LocalPort: int | Port actually bound
+.Active: bool | Listening
+.Dispose(): void | Same as Stop
+
+@UdpClient | UDP datagrams
+new(int port = 0) | Bind to a port (0 = any)
+.Connect(string host, int port): void | Default destination for Send(data)
+.Send(object data): void | Send to the connected destination
+.Send(object data, string host, int port): void | Send one datagram
+.Receive(int timeoutMs = -1): byte[] | Next datagram, null on timeout
+.ReceiveString(int timeoutMs = -1): string | Next datagram as text, null on timeout
+.RemoteAddress: string | Sender of the last datagram
+.RemotePort: int | Sender port of the last datagram
+.LocalPort: int | Bound port
+.Available: int | Bytes waiting
+.EnableBroadcast: bool | Allow 255.255.255.255 / subnet broadcast
+.JoinMulticastGroup(string group): void | Receive a multicast group
+.DropMulticastGroup(string group): void | Leave a multicast group
+.Timeout: int | Default receive timeout in ms
+.Close(): void | Close the socket
+.Dispose(): void | Same as Close
+
+@Dns | Name resolution
+Resolve(string host): string | First IPv4 address (".local" through mDNS)
+GetHostAddresses(string host): string[] | All IPv4 addresses
+HostName: string | Our host name
+
+@Http | HTTP/1.1 client (https:// when Net.Has("Tls"))
+Get(string url, object headers = null): HttpResponse | GET request (headers: Dictionary<string,string>, "Name: value" lines or string[])
+Head(string url, object headers = null): HttpResponse | HEAD request
+Delete(string url, object headers = null): HttpResponse | DELETE request
+Post(string url, object body, string contentType = null, object headers = null): HttpResponse | POST a string or byte[] (JSON / text detected)
+Put(string url, object body, string contentType = null, object headers = null): HttpResponse | PUT request
+Patch(string url, object body, string contentType = null, object headers = null): HttpResponse | PATCH request
+Request(string method, string url, object body = null, string contentType = null, object headers = null): HttpResponse | Any method
+GetString(string url, object headers = null): string | Body of a GET (HttpRequestException unless 2xx)
+Download(string url, string path, object headers = null): int | Stream a body to a file; bytes written
+UrlEncode(string text): string | Percent-encode for URLs / forms
+Timeout: int | Request timeout in ms
+UserAgent: string | User-Agent header
+FollowRedirects: bool | Follow 301/302/303/307/308
+
+@HttpResponse | Reply of an Http request
+.StatusCode: int | 200, 404, ...
+.Reason: string | "OK", "Not Found", ...
+.IsSuccess: bool | Status 200..299
+.Body: string | Body as text
+.Bytes: byte[] | Body as bytes
+.ContentLength: int | Body size
+.ContentType: string | Content-Type header
+.Url: string | Final URL (after redirects)
+.Headers: string | All response headers
+.Header(string name): string | One header (case-insensitive), null when missing
+.EnsureSuccess(): HttpResponse | Throws HttpRequestException unless 2xx
+
+@Json | JSON text ↔ objects
+Parse(string json): object | Dictionary<string, object>, List<object>, int, double, string, bool or null (FormatException on bad input)
+Stringify(object value, bool indent = false): string | Dictionaries, lists, arrays, numbers, strings, objects' fields
+Deserialize(string json): object | Same as Parse
+Serialize(object value, bool indent = false): string | Same as Stringify
+Escape(string text): string | Quoted JSON string
+
+@JsonSerializer | System.Text.Json names for Json
+Serialize(object value, bool indent = false): string | Object → JSON text
+Deserialize(string json): object | JSON text → Dictionary / List / value
+
 @Encoding | Text ↔ bytes (System.Text)
 UTF8: Encoding | UTF-8 encoding
 ASCII: Encoding | ASCII encoding

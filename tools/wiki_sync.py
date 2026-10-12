@@ -47,6 +47,7 @@ SECTIONS = [
         ("docs/PERIPHERALS.md", "Peripheral-Configuration"),
         ("docs/DMA.md", "DMA"),
         ("docs/DRIVERS.md", "Device-Drivers"),
+        ("docs/NETWORK.md", "Wi-Fi-and-Networking"),
         ("docs/U8G2.md", "U8g2-Displays"),
         ("docs/FILESYSTEM.md", "Filesystem"),
         ("docs/THREADS.md", "Threads"),
