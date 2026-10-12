@@ -183,6 +183,32 @@ mcs__net_state_t* mcs__net_state(mcs_vm_t* vm) { return (mcs__net_state_t*)mcs_g
 #define NEED(fn, op) if (!NET() || !NET()->fn) return mcs__net_fail(vm, op, MCS_HAL_ENOTSUP)
 #define CALL(op, expr) do { int rc_ = (expr); if (rc_ < 0) return mcs__net_fail(vm, op, rc_); } while (0)
 
+int mcs__keep(mcs_vm_t* vm, mcs_value_t v) {
+    mcs__net_state_t* s = mcs__net_state(vm);
+    if (!s) { mcs_raise(vm, "InvalidOperationException", "network library not opened"); return -1; }
+    mcs_value_t list = mcs_pinned(vm, s->cb_pin);
+    uint32_t n = mcs_len(list);
+    for (uint32_t i = MCS__NET_CB_COUNT; i < n; i++)
+        if (mcs_is_null(mcs_index(list, i))) { mcs_set_index(list, i, v); return (int)i; }
+    mcs_push_root(vm, v);
+    mcs_list_add(vm, list, v);
+    mcs_pop_root(vm, 1);
+    if (mcs_has_exception(vm) || mcs_len(list) != n + 1) return -1;
+    return (int)n;
+}
+mcs_value_t mcs__kept(mcs_vm_t* vm, int slot) {
+    mcs__net_state_t* s = mcs__net_state(vm);
+    if (!s || slot < MCS__NET_CB_COUNT) return mcs_null();
+    mcs_value_t list = mcs_pinned(vm, s->cb_pin);
+    return (uint32_t)slot < mcs_len(list) ? mcs_index(list, (uint32_t)slot) : mcs_null();
+}
+void mcs__unkeep(mcs_vm_t* vm, int slot) {
+    mcs__net_state_t* s = mcs__net_state(vm);
+    if (!s || slot < MCS__NET_CB_COUNT) return;
+    mcs_value_t list = mcs_pinned(vm, s->cb_pin);
+    if ((uint32_t)slot < mcs_len(list)) mcs_set_index(list, (uint32_t)slot, mcs_null());
+}
+
 #if MCS_ENABLE_HAL   /* callbacks run from the HAL event queue */
 static mcs_value_t cb_get(mcs_vm_t* vm, mcs__net_state_t* s, int i) { return mcs_index(mcs_pinned(vm, s->cb_pin), (uint32_t)i); }
 static int call_cb(mcs_vm_t* vm, mcs_value_t fn, const mcs_value_t* args, int full) {
@@ -1086,6 +1112,7 @@ void mcs_net_open_lib(mcs_vm_t* vm, const mcs_net_t* net) {
     if (mcs_net_has(net, "Ping")) mcs_register_module(vm, "Ping", ping_fns);
 #if MCS_ENABLE_SOCKETS
     mcs__sock_open(vm, net);
+    mcs__web_open(vm);
 #endif
 #if MCS_ENABLE_HAL
     mcs_hal_set_event_handler(MCS_HAL_EV_NET, net_event);

@@ -49,6 +49,25 @@ bool mcs__net_wait(mcs_vm_t* vm, uint32_t ms);
 /* host name or dotted address -> IPv4 (".local" names through mDNS when the port has it) */
 int mcs__resolve4(mcs_vm_t* vm, const char* host, uint8_t ip[4], uint32_t timeout_ms);
 void mcs__sock_open(mcs_vm_t* vm, const mcs_net_t* net);
+/* a TCP or TLS stream */
+typedef struct {
+    int fd;                      /* -1 = closed */
+    void* tls;                   /* TLS stream from net->tls_open */
+    const mcs_net_t* net;
+} mcs__conn_t;
+void mcs__set_nonblock(int fd);
+void mcs__no_sigpipe(int fd);
+int mcs__wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms);   /* 1 ready, 0 timeout, -1 aborted */
+mcs_value_t mcs__sock_fail(mcs_vm_t* vm, const char* op, int e);       /* raises, returns null */
+int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op);
+int mcs__conn_write(mcs_vm_t* vm, mcs__conn_t* c, const uint8_t* p, size_t n, uint32_t timeout);   /* bytes or -errno */
+int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_t timeout);        /* bytes, 0 closed, -errno */
+void mcs__conn_close(mcs__conn_t* c);
+void mcs__web_open(mcs_vm_t* vm);    /* HttpServer, HttpRequest, WebSocket, DnsServer (mcs_net_web.c) */
+/* keep a value alive for a native object (slot in the state's pinned list) */
+int mcs__keep(mcs_vm_t* vm, mcs_value_t v);
+mcs_value_t mcs__kept(mcs_vm_t* vm, int slot);
+void mcs__unkeep(mcs_vm_t* vm, int slot);
 #endif
 #endif
 #endif

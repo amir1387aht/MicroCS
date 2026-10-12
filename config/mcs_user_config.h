@@ -376,6 +376,9 @@
 
 /* ---- Wi-Fi and networking (docs/NETWORK.md). On where BSD sockets exist: ESP-IDF (lwIP)
  * and Linux / macOS hosts; elsewhere 0. On ESP-IDF: menuconfig > MicroCS > Wi-Fi. */
+#ifndef MCS_NET_LWIP
+#define MCS_NET_LWIP              0    /* 1: BSD sockets from lwIP's headers (STM32 / RP2 + lwIP + FreeRTOS) */
+#endif
 #ifndef MCS_ENABLE_NET
 #define MCS_ENABLE_NET            MCS__NET_HOSTED    /* C# Wifi, EspNow, Ntp, Mdns, Ping, Http ... */
 #endif
@@ -408,6 +411,21 @@
 #endif
 #ifndef MCS_HTTP_MAX_REDIRECTS
 #define MCS_HTTP_MAX_REDIRECTS    5    /* redirects followed by Http calls */
+#endif
+#ifndef MCS_HTTPD_MAX_HEADER
+#define MCS_HTTPD_MAX_HEADER      2048    /* HttpServer: request line + headers kept per request (bytes) */
+#endif
+#ifndef MCS_HTTPD_MAX_BODY
+#define MCS_HTTPD_MAX_BODY        16384    /* HttpServer.MaxBody default: larger request bodies get 413 */
+#endif
+#ifndef MCS_HTTPD_TIMEOUT
+#define MCS_HTTPD_TIMEOUT         5000    /* HttpServer.Timeout default: one request must arrive within (ms) */
+#endif
+#ifndef MCS_HTTPD_MAX_WS
+#define MCS_HTTPD_MAX_WS          8    /* WebSocket clients one HttpServer keeps */
+#endif
+#ifndef MCS_WS_MAX_MESSAGE
+#define MCS_WS_MAX_MESSAGE        8192    /* largest WebSocket message received (bytes) */
 #endif
 #ifndef MCS_ESPNOW_MAX_PEERS
 #define MCS_ESPNOW_MAX_PEERS      20    /* EspNow.Peers capacity */

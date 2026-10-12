@@ -427,7 +427,12 @@
 #else
 #define MCS__NET_ESP 0
 #endif
+#ifndef MCS_NET_LWIP
+#define MCS_NET_LWIP 0             /* 1: sockets from lwIP's own headers (STM32 / RP2 + lwIP + FreeRTOS ...) */
+#endif
 #if defined(ESP_PLATFORM) && !defined(ARDUINO)
+#define MCS__NET_HOSTED 1
+#elif MCS_NET_LWIP
 #define MCS__NET_HOSTED 1
 #elif (defined(__linux__) || defined(__APPLE__)) && !defined(__ZEPHYR__) && !defined(ARDUINO)
 #define MCS__NET_HOSTED 1
@@ -467,6 +472,21 @@
 #endif
 #ifndef MCS_HTTP_MAX_REDIRECTS
 #define MCS_HTTP_MAX_REDIRECTS 5   /* 301/302/303/307/308 followed by Http requests */
+#endif
+#ifndef MCS_HTTPD_MAX_HEADER
+#define MCS_HTTPD_MAX_HEADER 2048    /* HttpServer: request line + headers kept per request (bytes) */
+#endif
+#ifndef MCS_HTTPD_MAX_BODY
+#define MCS_HTTPD_MAX_BODY 16384    /* HttpServer.MaxBody default: larger request bodies get 413 */
+#endif
+#ifndef MCS_HTTPD_TIMEOUT
+#define MCS_HTTPD_TIMEOUT 5000    /* HttpServer.Timeout default: one request must arrive within (ms) */
+#endif
+#ifndef MCS_HTTPD_MAX_WS
+#define MCS_HTTPD_MAX_WS 8    /* WebSocket clients one HttpServer keeps */
+#endif
+#ifndef MCS_WS_MAX_MESSAGE
+#define MCS_WS_MAX_MESSAGE 8192    /* largest WebSocket message received (bytes) */
 #endif
 #ifndef MCS_ESPNOW_MAX_PEERS
 #define MCS_ESPNOW_MAX_PEERS 20    /* EspNow.Peers capacity (the radio allows 20) */

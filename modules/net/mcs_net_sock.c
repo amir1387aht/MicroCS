@@ -13,39 +13,24 @@
  */
 #include "mcs_net_internal.h"
 #if MCS_ENABLE_NET && MCS_ENABLE_SOCKETS
-#include <stdlib.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#if defined(ESP_PLATFORM)
-#include "lwip/sockets.h"
-#else
-#include <netinet/tcp.h>
-#include <sys/ioctl.h>
-#endif
+#include "mcs_net_sys.h"
 #if MCS_ENABLE_FS
 #include "mcs_vfs.h"
 #endif
-
-#ifndef MCS_NET_SLICE_MS
-#define MCS_NET_SLICE_MS 20
-#endif
-#ifdef MSG_NOSIGNAL
-#define SEND_FLAGS MSG_NOSIGNAL
-#else
-#define SEND_FLAGS 0
-#endif
+#define SEND_FLAGS MCS__SEND_FLAGS
+#define set_nonblock mcs__set_nonblock
+#define no_sigpipe mcs__no_sigpipe
+#define wait_fd mcs__wait_fd
+#define sock_fail mcs__sock_fail
+#define conn_close mcs__conn_close
+#define conn_write mcs__conn_write
+#define conn_read mcs__conn_read
+#define conn_open mcs__conn_open
 #define RBUF 512
 
 /* ------------------------------------------------------------ low level */
-static void set_nonblock(int fd) { int f = fcntl(fd, F_GETFL, 0); if (f >= 0) fcntl(fd, F_SETFL, f | O_NONBLOCK); }
-static void no_sigpipe(int fd) {
+void mcs__set_nonblock(int fd) { int f = fcntl(fd, F_GETFL, 0); if (f >= 0) fcntl(fd, F_SETFL, f | O_NONBLOCK); }
+void mcs__no_sigpipe(int fd) {
 #ifdef SO_NOSIGPIPE
     int one = 1; setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one);
 #else
@@ -53,7 +38,7 @@ static void no_sigpipe(int fd) {
 #endif
 }
 /* wait until fd is readable / writable: 1 ready, 0 timeout (timeout_ms 0 = forever), -1 aborted */
-static int wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) {
+int mcs__wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) {
     uint32_t t0 = mcs_ticks(vm);
     for (;;) {
         uint32_t left = MCS_NET_SLICE_MS;
@@ -70,7 +55,7 @@ static int wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) {
         if (mcs_safepoint(vm)) return -1;
     }
 }
-static mcs_value_t sock_fail(mcs_vm_t* vm, const char* op, int e) {
+mcs_value_t mcs__sock_fail(mcs_vm_t* vm, const char* op, int e) {
     if (e == ETIMEDOUT || e == EAGAIN || e == EWOULDBLOCK) mcs_raise(vm, "TimeoutException", "%s: timed out", op);
     else mcs_raise(vm, "SocketException", "%s: %s (errno %d)", op, strerror(e), e);
     return mcs_null();
@@ -127,18 +112,14 @@ static int tcp_connect(mcs_vm_t* vm, const uint8_t ip[4], int port, uint32_t tim
 }
 
 /* ------------------------------------------------------------ connections (TCP or TLS) */
-typedef struct {
-    int fd;                      /* -1 = closed */
-    void* tls;                   /* TLS stream from net->tls_open */
-    const mcs_net_t* net;
-} conn_t;
-static void conn_close(conn_t* c) {
+typedef mcs__conn_t conn_t;
+void mcs__conn_close(conn_t* c) {
     if (c->tls && c->net && c->net->tls_close) c->net->tls_close(c->tls);
     if (c->fd >= 0) close(c->fd);
     c->tls = NULL; c->fd = -1;
 }
 /* bytes written, or -errno */
-static int conn_write(mcs_vm_t* vm, conn_t* c, const uint8_t* p, size_t n, uint32_t timeout) {
+int mcs__conn_write(mcs_vm_t* vm, conn_t* c, const uint8_t* p, size_t n, uint32_t timeout) {
     size_t done = 0;
     while (done < n) {
         if (c->tls) {
@@ -158,7 +139,7 @@ static int conn_write(mcs_vm_t* vm, conn_t* c, const uint8_t* p, size_t n, uint3
     return (int)done;
 }
 /* bytes read (0 = closed), or -errno (-ETIMEDOUT) */
-static int conn_read(mcs_vm_t* vm, conn_t* c, uint8_t* buf, size_t n, uint32_t timeout) {
+int mcs__conn_read(mcs_vm_t* vm, conn_t* c, uint8_t* buf, size_t n, uint32_t timeout) {
     if (c->fd < 0 && !c->tls) return 0;
     if (c->tls) {
         uint32_t t0 = mcs_ticks(vm);
@@ -181,7 +162,7 @@ static int conn_read(mcs_vm_t* vm, conn_t* c, uint8_t* buf, size_t n, uint32_t t
         return -errno;
     }
 }
-static int conn_open(mcs_vm_t* vm, conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
+int mcs__conn_open(mcs_vm_t* vm, conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
     mcs__net_state_t* s = mcs__net_state(vm);
     c->fd = -1; c->tls = NULL; c->net = s ? s->net : NULL;
     if (tls) {
@@ -661,7 +642,7 @@ NATIVE(dns_hostname) {
     char b[64] = "microcs";
     mcs__net_state_t* s = mcs__net_state(vm);
     if (s && s->net && s->net->str_get && s->net->str_get(s->net->ctx, MCS_WIFI_STR_HOSTNAME, b, sizeof b) >= 0 && b[0]) return mcs_string(vm, b);
-#if !defined(ESP_PLATFORM)
+#if !defined(MCS__NET_NO_GETHOSTNAME)
     if (gethostname(b, sizeof b) != 0) snprintf(b, sizeof b, "microcs");
     b[sizeof b - 1] = 0;
 #endif

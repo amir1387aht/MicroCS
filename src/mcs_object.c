@@ -611,6 +611,10 @@ bool mcs_dict_at(mcs_value_t v, uint32_t i, mcs_value_t* key, mcs_value_t* val) 
     return true;
 }
 
+mcs_value_t mcs_new_dictionary(mcs_vm_t* vm) { return OBJ_VAL(mcs_new_dict(vm)); }
+void mcs_dict_put(mcs_vm_t* vm, mcs_value_t v, mcs_value_t key, mcs_value_t val) { if (IS_KIND(v, MCS_O_DICT)) mcs_dict_set(vm, AS_DICT(v), key, val); }
+bool mcs_dict_find(mcs_value_t v, mcs_value_t key, mcs_value_t* val) { return IS_KIND(v, MCS_O_DICT) && mcs_dict_get(AS_DICT(v), key, val); }
+
 void mcs_dict_clear(mcs_vm_t* vm, mcs_dict_t* d) {
     mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
     d->idx = NULL; d->icap = d->iused = 0;

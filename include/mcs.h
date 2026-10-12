@@ -242,6 +242,9 @@ void mcs_register_function(mcs_vm_t* vm, const char* name, mcs_native_fn fn, int
  * ("ArgumentException", "InvalidOperationException", ...). */
 void mcs_raise(mcs_vm_t* vm, const char* exc_class, const char* fmt, ...);
 bool mcs_has_exception(mcs_vm_t* vm);
+/* Catch the pending exception (a native that keeps going after a callback threw, like
+ * HttpServer answering 500): "Type: message" into msg, clears it. false: none / aborting. */
+bool mcs_take_exception(mcs_vm_t* vm, char* msg, size_t cap);
 
 /* Userdata access for native classes */
 void* mcs_userdata(mcs_value_t v);                  /* NULL if not userdata */
@@ -292,6 +295,13 @@ void mcs_list_add(mcs_vm_t* vm, mcs_value_t list, mcs_value_t x);
 /* Dictionary<K,V> entries in insertion order (HashSet: val = true); false past the end */
 uint32_t mcs_dict_len(mcs_value_t dict);
 bool mcs_dict_at(mcs_value_t dict, uint32_t i, mcs_value_t* key, mcs_value_t* val);
+/* a new Dictionary<object, object> (string keys work like Dictionary<string, ...>) */
+mcs_value_t mcs_new_dictionary(mcs_vm_t* vm);
+void mcs_dict_put(mcs_vm_t* vm, mcs_value_t dict, mcs_value_t key, mcs_value_t val);
+bool mcs_dict_find(mcs_value_t dict, mcs_value_t key, mcs_value_t* val);   /* false: no such key */
+/* Json.Parse / Json.Stringify from C (MCS_ENABLE_JSON; else NotSupportedException) */
+mcs_value_t mcs_json_parse(mcs_vm_t* vm, mcs_value_t text);
+mcs_value_t mcs_json_stringify(mcs_vm_t* vm, mcs_value_t value, int indent);
 /* Script objects: get/set a field or property by name */
 mcs_value_t mcs_get_field(mcs_vm_t* vm, mcs_value_t obj, const char* name);
 void mcs_set_field(mcs_vm_t* vm, mcs_value_t obj, const char* name, mcs_value_t v);

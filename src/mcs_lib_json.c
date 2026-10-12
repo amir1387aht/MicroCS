@@ -312,17 +312,23 @@ static bool js_value(mcs_vm_t* vm, mcs_buf_t* b, mcs_value_t v, int indent, int 
 }
 
 /* ------------------------------------------------------------ natives */
+mcs_value_t mcs_json_parse(mcs_vm_t* vm, mcs_value_t text) { return json_parse_str(vm, text); }
+mcs_value_t mcs_json_stringify(mcs_vm_t* vm, mcs_value_t value, int indent) {
+    if (indent < 0) indent = 0;
+    if (indent > 8) indent = 8;
+    mcs_buf_t b; mcs_buf_init(&b, vm);
+    if (!js_value(vm, &b, value, indent, 0)) { mcs_buf_free(&b); return mcs_null(); }
+    return OBJ_VAL(mcs_buf_to_string(&b));
+}
 NATIVE(json_parse) { return json_parse_str(vm, argv[0]); }
 NATIVE(json_stringify) {
     if (argc < 1 || argc > 2) { mcs_throw(vm, EXC_ARGUMENT, "Json.Stringify(value[, indent])"); return mcs_null(); }
     int indent = 0;
     if (argc > 1) {
         if (mcs_is_bool(argv[1])) indent = argv[1].as.b ? 2 : 0;
-        else { indent = (int)mcs_to_int(vm, argv[1]); CHECK(); if (indent < 0) indent = 0; if (indent > 8) indent = 8; }
+        else { indent = (int)mcs_to_int(vm, argv[1]); CHECK(); }
     }
-    mcs_buf_t b; mcs_buf_init(&b, vm);
-    if (!js_value(vm, &b, argv[0], indent, 0)) { mcs_buf_free(&b); return mcs_null(); }
-    return OBJ_VAL(mcs_buf_to_string(&b));
+    return mcs_json_stringify(vm, argv[0], indent);
 }
 NATIVE(json_escape) {
     if (mcs_is_null(argv[0])) return mcs_string(vm, "null");
@@ -347,6 +353,8 @@ void mcs_lib_json_make(mcs_vm_t* vm, int id) {
     mcs_add_regs(vm, c, json_fns, true);
 }
 #else
+mcs_value_t mcs_json_parse(mcs_vm_t* vm, mcs_value_t text) { (void)text; mcs_raise(vm, "NotSupportedException", "Json is not compiled in (MCS_ENABLE_JSON)"); return mcs_null(); }
+mcs_value_t mcs_json_stringify(mcs_vm_t* vm, mcs_value_t value, int indent) { (void)value; (void)indent; mcs_raise(vm, "NotSupportedException", "Json is not compiled in (MCS_ENABLE_JSON)"); return mcs_null(); }
 const mcs_lib_entry_t mcs_lib_json_entries[] = { { NULL, 0, 0 } };
 void mcs_lib_json_make(mcs_vm_t* vm, int id) { (void)vm; (void)id; }
 #endif /* MCS_ENABLE_JSON */

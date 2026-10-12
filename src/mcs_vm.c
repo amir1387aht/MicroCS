@@ -1904,6 +1904,19 @@ static void report_uncaught(mcs_vm_t* vm) {
     mcs_report_error(vm, "%s\n%s", head, trace);
 }
 
+bool mcs_take_exception(mcs_vm_t* vm, char* msg, size_t cap) {
+    if (!vm->has_exc || vm->abort_req) return false;
+    mcs_value_t e = vm->exc_value;
+    const char* m = "";
+    if (IS_KIND(e, MCS_O_INSTANCE)) {
+        mcs_value_t v; mcs_instance_t* in = AS_INSTANCE(e);
+        if (mcs_table_get_s(&in->cls->fields, vm->s_message, &v) && IS_STRING(in->fields[v.as.i])) m = AS_CSTR(in->fields[v.as.i]);
+    } else if (IS_STRING(e)) m = AS_CSTR(e);
+    if (msg && cap) snprintf(msg, cap, "%s: %s", mcs_type_name(vm, e), m);
+    vm->has_exc = false; vm->exc_value = mcs_null();
+    return true;
+}
+
 static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
     if (r == MCS_ERR_RUNTIME && vm->has_exc) report_uncaught(vm);
     if (r == MCS_ERR_ABORTED) {
