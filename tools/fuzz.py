@@ -24,7 +24,9 @@ N = int(argv[2]) if len(argv) > 2 else 2000
 SEED = int(argv[3]) if len(argv) > 3 else 1
 rnd = random.Random(SEED)
 here = os.path.dirname(os.path.abspath(__file__))
-corpus = [open(f, encoding="utf-8").read() for f in sorted(glob.glob(os.path.join(here, "..", "tests", "*.cs")))]
+# corpus: the test scripts, the examples and every Studio template (hardware code runs on --sim)
+corpus = [open(f, encoding="utf-8").read() for pat in ("tests/*.cs", "examples/*.cs", "tools/studio/templates/*/*.cs")
+          for f in sorted(glob.glob(os.path.join(here, "..", pat)))]
 out_dir = os.path.join(here, "..", "build", "fuzz")
 os.makedirs(out_dir, exist_ok=True)
 TOKENS = ["(", ")", "{", "}", "[", "]", ";", ",", ".", "=", "==", "=>", "?", ":", "??", "?.",
@@ -90,10 +92,12 @@ for it in range(N):
         with open(path, "w", encoding="utf-8", errors="replace") as f:
             f.write(mutate(rnd.choice(corpus)))
     try:
-        cmd = [MCS, "-d", path] if IMAGE else [MCS, "--step-limit", "200000", "--time-limit", "2000", "--heap", "262144",
-                            "--ramfs", "16384", "--sim", "--run-for", "300", path]
-        r = subprocess.run(cmd, capture_output=True, timeout=20) if IMAGE else subprocess.run([MCS, "--step-limit", "200000", "--time-limit", "2000", "--heap", "262144",
-                            "--ramfs", "16384", "--sim", "--run-for", "300", path], capture_output=True, timeout=20)
+        if IMAGE: cmd = [MCS, "-d", path]
+        elif it % 4 == 3: cmd = [MCS, "-c", path, "-o", os.devnull]   # compiler + optimizer + image writer only
+        else:   # every other run on the virtual clock (deterministic timers, busy-waits must still end)
+            cmd = [MCS, "--step-limit", "200000", "--time-limit", "2000", "--heap", "262144", "--ramfs", "16384",
+                   "--sim-virtual" if it % 2 else "--sim", "--run-for", "300", path]
+        r = subprocess.run(cmd, capture_output=True, timeout=20)
         out = (r.stdout + r.stderr).decode("utf-8", "replace")
         bad = r.returncode < 0 or BAD.search(out)
     except subprocess.TimeoutExpired:
