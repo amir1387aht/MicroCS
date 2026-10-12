@@ -478,7 +478,7 @@ int main(int argc, char** argv) {
             char def[512];
             if (!out) { snprintf(def, sizeof def, "%s", in); char* dot = strrchr(def, '.'); if (dot) *dot = 0; strncat(def, ".mcsb", sizeof def - strlen(def) - 1); out = def; }
             FILE* f = fopen(out, "wb");
-            if (!f || fwrite(img, 1, n, f) != n) { fprintf(stderr, "mcs: cannot write '%s'\n", out); rc = 1; }
+            if (!f || !img || fwrite(img, 1, n, f) != n) { fprintf(stderr, "mcs: cannot write '%s'\n", out); rc = 1; }
             if (f) fclose(f);
             if (!rc) fprintf(stderr, "wrote %s (%zu bytes)\n", out, n);
         }
