@@ -22,6 +22,5 @@ service 180A (Device Information) [14..18]
    characteristic 2A29 (Manufacturer Name) @16 [ read]
    characteristic 2A24 (Model Number) @18 [ read]
 battery ok True
-bpm 73
-bpm 74
+bpm in range True, next True
 connected False
