@@ -162,6 +162,8 @@ def main():
     for f in files:
         if os.path.basename(f) == "mcs_vfs_posix.c":
             continue                     # host only
+        if os.path.basename(os.path.dirname(f)) == "net":
+            continue                     # Wi-Fi / sockets: ESP-IDF and host only, not in the Arduino library
         shutil.copy(f, src)
     for f in glob.glob(os.path.join(ROOT, "include", "profiles", "*.h")):
         shutil.copy(f, os.path.join(src, "profiles"))

@@ -102,11 +102,33 @@ if(ESP_PLATFORM)
         set(_mcs_u8g2_srcs ${MICROCS_U8G2_SRCS})
         set(_mcs_u8g2_incs ${MICROCS_U8G2_INC})
     endif()
+    # menuconfig > MicroCS > Wi-Fi: C# Wifi, EspNow, TcpClient, Http (HTTPS), Ntp, Ping, Mdns
+    # (requirements cannot depend on Kconfig: the components are always listed, the sources not)
+    set(_mcs_net_srcs "")
+    if(CONFIG_MICROCS_WIFI)
+        set(_mcs_net_srcs ports/esp32/mcs_port_esp32_net.c)
+    endif()
+    set(_mcs_net_reqs esp_wifi esp_netif esp_event nvs_flash lwip esp-tls mbedtls wpa_supplicant)
+    # mDNS (C# Mdns) when the project has the espressif/mdns component:
+    # idf.py add-dependency espressif/mdns   (or a copy in <project>/components/mdns)
+    idf_build_get_property(_mcs_proj PROJECT_DIR)
+    set(_mcs_mdns "")
+    if(EXISTS "${_mcs_proj}/managed_components/espressif__mdns")
+        set(_mcs_mdns espressif__mdns)
+    elseif(EXISTS "${_mcs_proj}/components/mdns")
+        set(_mcs_mdns mdns)
+    endif()
+    list(APPEND _mcs_net_reqs ${_mcs_mdns})
     idf_component_register(
-        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
+        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
-        REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs
+        REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)
+    if(NOT CONFIG_MICROCS_WIFI)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_NET=0)
+    elseif(_mcs_mdns)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ESP32_MDNS=1)
+    endif()
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-unused-parameter -Wno-missing-field-initializers)
     if(NOT CONFIG_MICROCS_WS2812)       # menuconfig > MicroCS > WS2812 / NeoPixel driver
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_WS2812=0)
@@ -183,7 +205,7 @@ if(NOT DEFINED MICROCS_OS)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.12.1 LANGUAGES C)
+    project(MicroCS VERSION 1.13.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})

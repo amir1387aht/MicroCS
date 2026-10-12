@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 12
-#define MCS_VERSION_PATCH 1
-#define MCS_VERSION_STRING "1.12.1"
+#define MCS_VERSION_MINOR 13
+#define MCS_VERSION_PATCH 0
+#define MCS_VERSION_STRING "1.13.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -289,6 +289,9 @@ uint32_t mcs_len(mcs_value_t v);                      /* array/list/string */
 mcs_value_t mcs_index(mcs_value_t v, uint32_t i);     /* unchecked */
 void mcs_set_index(mcs_value_t v, uint32_t i, mcs_value_t x);
 void mcs_list_add(mcs_vm_t* vm, mcs_value_t list, mcs_value_t x);
+/* Dictionary<K,V> entries in insertion order (HashSet: val = true); false past the end */
+uint32_t mcs_dict_len(mcs_value_t dict);
+bool mcs_dict_at(mcs_value_t dict, uint32_t i, mcs_value_t* key, mcs_value_t* val);
 /* Script objects: get/set a field or property by name */
 mcs_value_t mcs_get_field(mcs_vm_t* vm, mcs_value_t obj, const char* name);
 void mcs_set_field(mcs_vm_t* vm, mcs_value_t obj, const char* name, mcs_value_t v);
@@ -365,6 +368,7 @@ mcs_result_t mcs_fail(mcs_vm_t* vm, mcs_result_t code, const char* fmt, ...);
 #define MCS_FEAT_DISASM      0x0080u
 #define MCS_FEAT_LIST        0x0100u
 #define MCS_FEAT_DICT        0x0200u
+#define MCS_FEAT_NET         0x0400u   /* Wi-Fi / sockets module (mcs_net.h) */
 #define MCS_FEAT_FS          0x1000u
 #define MCS_FEAT_HAL         0x2000u
 #define MCS_FEAT_SCHED       0x4000u
@@ -374,7 +378,7 @@ uint32_t mcs_features(void);
 /* Per-VM extension slots. Optional modules (filesystem, HAL, scheduler, shell)
  * keep their context here so their natives can find it from `vm`. */
 enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
-       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT__COUNT };
+       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
 

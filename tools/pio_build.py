@@ -9,7 +9,7 @@ Import("env")  # noqa: F821  (provided by PlatformIO)
 
 PORTS = {               # framework -> (source filter, port folder)
     "arduino": ("+<ports/arduino/*.cpp>", "arduino"),
-    "espidf": ("+<ports/esp32/mcs_port_esp32.c>", "esp32"),
+    "espidf": ("+<ports/esp32/mcs_port_esp32.c> +<ports/esp32/mcs_port_esp32_net.c>", "esp32"),
     "stm32cube": ("+<ports/stm32/mcs_port_stm32.c>", "stm32"),
     "zephyr": ("+<ports/zephyr/mcs_port_zephyr.c>", "zephyr"),
 }

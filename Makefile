@@ -49,6 +49,7 @@ test: mcs build/test_modules build/test_flash test-config config-check tinyfs-te
 	./build/test_modules
 	./build/test_flash
 	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_shell.py ./mcs; else echo "SKIP shell tests (no python3)"; fi
+	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_net.py ./mcs; else echo "SKIP network tests (no python3)"; fi
 	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }
 	@./mcs --sim --run-for 600 examples/blink.cs > /dev/null && echo "PASS examples/blink.cs (smoke)" || { echo "FAIL examples/blink.cs"; exit 1; }
 	@./mcs --sim --ramfs 32768 --run-for 1200 examples/sensor_logger.cs > /dev/null && echo "PASS examples/sensor_logger.cs (smoke)" || { echo "FAIL examples/sensor_logger.cs"; exit 1; }

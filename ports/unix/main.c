@@ -17,11 +17,15 @@
 #include "mcs_sched.h"
 #include "mcs_shell.h"
 #include "mcs_threads.h"
+#include "mcs_net.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#if MCS_ENABLE_NET && MCS_NET_SIM
+static mcs_net_t g_net;
+#endif
 #if defined(_WIN32)
 #include <windows.h>
 #else
@@ -230,7 +234,7 @@ static void print_features(void) {
         { MCS_FEAT_COMPILER, "compiler" }, { MCS_FEAT_IMAGE_LOAD, "image-load" }, { MCS_FEAT_IMAGE_SAVE, "image-save" },
         { MCS_FEAT_FLOAT, "float" }, { MCS_FEAT_DOUBLE, "double" }, { MCS_FEAT_INT64, "int64" },
         { MCS_FEAT_LINES, "lines" }, { MCS_FEAT_DISASM, "disasm" }, { MCS_FEAT_LIST, "list" }, { MCS_FEAT_DICT, "dict" },
-        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" },
+        { MCS_FEAT_FS, "fs" }, { MCS_FEAT_HAL, "hal" }, { MCS_FEAT_SCHED, "sched" }, { MCS_FEAT_SHELL, "shell" }, { MCS_FEAT_NET, "net" },
     };
     uint32_t m = mcs_features();
     printf("MicroCS %s, %d-bit values:", MCS_VERSION_STRING, (int)(sizeof(mcs_value_t) * 8));
@@ -396,6 +400,9 @@ int main(int argc, char** argv) {
 #else
     (void)fs_dir; (void)ramfs; (void)no_fs; (void)ro;
 #endif
+#if MCS_ENABLE_NET && MCS_NET_SIM
+    if (sim) { mcs_net_sim_init(&g_net); mcs_net_set(&g_net); }      /* simulated Wi-Fi radio */
+#endif
 #if MCS_ENABLE_HAL
     if (sim) {
         g_sim.log = sim_log_on ? sim_log : NULL;
@@ -406,6 +413,13 @@ int main(int argc, char** argv) {
     }
 #else
     (void)sim; (void)sim_log_on; (void)sim_virtual; (void)oled;
+#endif
+#if MCS_ENABLE_NET
+#if MCS_ENABLE_HAL
+    if (!sim) mcs_net_open_lib(vm, NULL);          /* sockets, Dns, Http on the host network */
+#else
+    mcs_net_open_lib(vm, mcs_net_get());
+#endif
 #endif
 #if MCS_ENABLE_SCHED
 #if MCS_ENABLE_FS

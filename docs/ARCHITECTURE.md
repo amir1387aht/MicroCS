@@ -13,7 +13,7 @@ flowchart TB
     VM <--> GC["precise mark & sweep<br/>(safepoints only)"]
     VM <--> STD["stdlib natives"]
     VM <--> API["public API include/mcs.h<br/>+ extension slots"]
-    API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell] & RT[modules/runtime]
+    API --- FS[modules/fs] & HAL[modules/hal] & SCH[modules/sched] & SH[modules/shell] & RT[modules/runtime] & NET[modules/net]
 ```
 
 ## Core (`src/`)
@@ -95,6 +95,13 @@ optional at link time. Each one registers C# classes with `mcs_register_module`/
 * `hal`: one `mcs_hal_t` function table per board; NULL entries hide the C# class.
   ISR-safe event ring + callback dispatch at safe points, simulator backend for tests.
   Vendor bindings live in `ports/` (STM32, ESP32, RP2, Zephyr, Arduino). See HAL.md.
+* `net`: Wi-Fi, ESP-NOW, NTP, mDNS and ping over one `mcs_net_t` backend table per port
+  (`include/mcs_net.h`; NULL entries hide the feature), radio events through the HAL event
+  ring (`MCS_HAL_EV_NET`), plus BSD / lwIP sockets for `TcpClient`, `TcpListener`,
+  `UdpClient`, `Dns` and the `Http` client (TLS through the backend). A simulated radio
+  (`mcs_net_sim.c`) backs `--sim` and the tests. The ESP-IDF backend lives in
+  `ports/esp32/mcs_port_esp32_net.c`. See NETWORK.md. (`Json` is part of the core stdlib,
+  `src/mcs_lib_json.c`.)
 * `sched`: fixed table of jobs (file or delegate), polled by the host. See SCHEDULER.md.
 * `shell`: boot sequence, interactive C# REPL and line protocol over any byte transport.
 * `runtime`: wires VM + pool heap + filesystem + HAL + scheduler + shell into a complete

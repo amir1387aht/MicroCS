@@ -1,0 +1,49 @@
+sim api 1 wifi=True ap=True tls=False
+mode 0 status Stopped
+  MicroCS-Lab (-48 dBm, ch 6, WPA2_PSK) q=100 secure=True
+  CoffeeShop (-67 dBm, ch 1, OPEN) q=66 secure=False
+  Neighbor (-81 dBm, ch 11, WPA3_PSK) q=38 secure=True
+hidden too: 4
+False WrongPassword AUTH_FAIL
+False NoSsid NO_AP_FOUND
+ArgumentException Wi-Fi password: 8..64 characters (WPA) or 5 / 13 (WEP)
+True True 3
+MicroCS-Lab 24:0A:C4:11:22:33 -48 dBm ch 6 WPA2_PSK
+192.168.1.50 / 255.255.255.0 gw 192.168.1.1 dns 192.168.1.1 8.8.8.8 dhcp True
+mac 24:0A:C4:00:00:01 ap mac 24:0A:C4:00:00:02 ipv6 fe80::260a:c4ff:fe00:1
+greenhouse DE tx 13 ps 2 bw 40 proto 7
+no 5 GHz
+tx power out of range
+auto False
+static 192.168.1.77 dns 1.1.1.1 dhcp False
+dhcp 192.168.1.50
+saved CoffeeShop
+True CoffeeShop OPEN
+saved ''
+True
+mode True ap 192.168.4.1 clients 1
+  AA:BB:CC:00:00:01 192.168.4.2 (-40 dBm)
+peers 1 max 250
+sent True
+24:0A:C4:00:00:99 'ping' 4 rssi -52
+not a peer: ArgumentException
+callback bytes 3
+ntp True synced True sane True
+tz UTC0 offset 0 len 19
+mdns 192.168.1.50 192.168.1.20 True
+ping gw 1 ms, 10.9.9.9 -1
+StaStart,ScanDone,ScanDone,Disconnected,Disconnected,Connected,GotIp,GotIp,LostIp,Disconnected,Connected,GotIp,LostIp,Disconnected,Connected,GotIp,ApStart,ApJoined,ApAssigned,ApLeft,ApStop,EspNowSent,EspNowRecv,EspNowSent,EspNowRecv,NtpSync
+off: mode 0 Stopped
+pending True
+server got 'GET /status' 'AB' from 127.0.0.1
+client: HTTP/1.0 200 OK |  | hello
+closed: True 0 -1
+accept timeout null: True
+read timeout
+refused, IOException: True
+not connected
+udp 'datagram' from 127.0.0.1 back to sender: True
+udp bytes 3 sum 24, nothing more: True
+dns 127.0.0.1 10.1.2.3 127.0.0.1
+a%20b%26c%3Dd%2Fx timeout 10000 redirects True
+Http: only http:// and https:// URLs ('ftp://example.com/')

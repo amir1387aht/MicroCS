@@ -70,6 +70,51 @@ menu "MicroCS"
             channel per strip. Turn it off to save ~3 KB of flash when no
             addressable LEDs are used (Hal.Has("LedStrip") is then false).
 
+    menuconfig MICROCS_WIFI
+        bool "Wi-Fi and networking (C# Wifi, EspNow, TcpClient, UdpClient, Http, Ntp)"
+        default y
+        depends on SOC_WIFI_SUPPORTED
+        help
+            The C# networking classes (docs/NETWORK.md): Wifi (station, soft-AP,
+            scan, static IP, power save, TX power, WPA2/WPA3-Enterprise, saved
+            networks), EspNow, Ntp, Ping, Dns, TcpClient / TcpListener /
+            UdpClient on lwIP sockets and Http with HTTPS through esp-tls and the
+            certificate bundle. Mdns appears when the project has the
+            espressif/mdns component. The Wi-Fi driver is only started by the
+            first Wifi / EspNow call (or the boot connection below). Off: ~150 KB
+            less flash.
+
+    if MICROCS_WIFI
+    config MICROCS_WIFI_RESERVE_KB
+        int "RAM kept free for the Wi-Fi driver (KB)"
+        default 56 if IDF_TARGET_ESP32C2
+        default 72
+        range 0 256
+        help
+            The example firmware sizes the C# heap so that this much RAM stays
+            free for the Wi-Fi driver, lwIP and TLS (an HTTPS connection needs
+            ~40 KB while it is open). 0 = no reservation.
+
+    config MICROCS_WIFI_SSID
+        string "Connect at boot: network name (SSID)"
+        default ""
+        help
+            Join this network in the background at boot. Empty: use the network
+            saved with Wifi.Save(ssid, password) (see the next option).
+
+    config MICROCS_WIFI_PASSWORD
+        string "Connect at boot: password"
+        default ""
+
+    config MICROCS_WIFI_AUTOCONNECT
+        bool "Connect at boot to the network saved with Wifi.Save()"
+        default y
+        help
+            With an empty SSID above: if a C# script stored credentials with
+            Wifi.Save(ssid, password) (NVS), the firmware joins that network in the
+            background at every boot. Wifi.Forget() removes them.
+    endif
+
     config MICROCS_THREADS
         bool "Real threads on FreeRTOS tasks (C# Thread.Run / RunOn, both cores)"
         default n

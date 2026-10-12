@@ -71,7 +71,7 @@ Jobs, timers and interrupt callbacks keep running while the REPL waits for input
 ## 3. The REPL
 
 ```text
-MicroCS 1.12.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.13.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var adc = ADC.ReadMillivolts(0);
 > adc
 1650
@@ -167,9 +167,9 @@ Dark (Light via the theme button).
   signature or type; `using System.C` completes namespaces. Types are inferred from
   `var x = new T()`, declarations, method return types (`var found = I2C.Scan(0)` →
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
-  methods and local functions of the open file are completed too. 61 snippets such as `cw`,
-  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`.
-* **Templates** (`Alt+T`) — 169 ready-to-run templates and examples in an *Add New Item* dialog
+  methods and local functions of the open file are completed too. 71 snippets such as `cw`,
+  `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`, `wifi`, `httpget`, `json`.
+* **Templates** (`Alt+T`) — 185 ready-to-run templates and examples in an *Add New Item* dialog
   with categories, search and preview: getting started, **boot scripts** (`boot.cs`,
   `main.cs` with safe mode / settings / watchdog, `jobs.cfg` and job scripts), **scheduler**
   (`Every`/`After`/`Cancel`, failure policy, state machines, debouncing, timeouts), every
@@ -181,7 +181,10 @@ Dark (Light via the theme button).
   whole `U8g2` / `U8x8` API: buses, shapes, fonts, bitmaps, page mode, menus, log, U8x8 —
   firmware built with [u8g2](U8G2.md)), **motors** (H-bridge, steppers, servo),
   **input devices** (rotary encoder, keypad, button gestures), **control** (PID, filters,
-  Kalman), **protocols** (CRC, Modbus RTU, NMEA, Base64), games, benchmarks and C# language
+  Kalman), **protocols** (CRC, Modbus RTU, NMEA, Base64), **Wi-Fi and networking** (connect, events,
+  scan, soft AP, static IP, saved networks, HTTP GET / POST JSON, HTTPS download, a web server,
+  TCP, UDP, NTP clock, ESP-NOW, mDNS + ping, MQTT publish — they run on the simulated radio
+  too, see [NETWORK.md](NETWORK.md)), games, benchmarks and C# language
   features. *Add* opens one as a new file, *Insert at cursor* pastes it into the current one.
   CI compiles and runs each one on the simulated board (`tests/studio/test_templates.js`).
 * **Console** — the C# REPL (variables survive between lines and file operations; `↑`/`↓`

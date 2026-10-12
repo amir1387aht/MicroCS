@@ -1,0 +1,21 @@
+1 2.5 -300 12345678901 4
+{"a":1,"b":[true,null,2.5,"xé\n"],"c":{"d":-300},"big":12345678901}
+{
+  "a": 1,
+  "b": [
+    true,
+    null,
+    2.5,
+    "xé\n"
+  ],
+  "c": {
+    "d": -300
+  },
+  "big": 12345678901
+}
+{"Name":"x","Age":3,"L":[1,2]}
+[1,2][]{}"q\"\t"
+invalid JSON at offset 5: unexpected character
+invalid JSON at offset 6: unexpected data after the value
+"😀" null "c"
+{}[1,2][]

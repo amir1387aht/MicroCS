@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
 `include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Network (modules/net)](#network-modulesnet) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -42,6 +42,7 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 | **Stopwatch** | static | — | `StartNew()` |  |
 | **Delegate / Action / Func** | instance | — | `Invoke(…)` `DynamicInvoke(…)` |  |
 | **ValueTuple** | instance | — | `ToString()` | `Item1..Item7` and element names are fields |
+| **Json** | static | — | `Parse(·)` `Deserialize(·)` `Stringify(…)` `Serialize(…)` `Escape(·)` | `Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent])`; also as `JsonSerializer.Serialize` / `Deserialize` ([NETWORK.md](NETWORK.md#json)) |
 
 ## Strings
 
@@ -116,6 +117,42 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Servo** | instance | `Angle` `Pulse` `Attached` `MinPulse` `MaxPulse` `MaxAngle` `Channel` | `Write(·)` `Read()` `WritePulse(·)` `MoveTo(·, ·)` `Attach()` `Detach()` `Stop()` `Dispose()` | `servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases |
 
+## Displays (modules/drivers, optional U8g2)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **U8g2** | instance | `BusClock` `I2CAddress` `Display` `Bus` `Rows` `Cols` `Font` `CursorX` `CursorY` `LogRedrawOnNewline` `LogLineHeightOffset` `BufferTileWidth` `BufferTileHeight` `BufferCurrTileRow` `BufferSize` `FullBuffer` `Ascent` `Descent` `MaxCharHeight` `MaxCharWidth` `DrawColor` `Width` `Height` | `Begin(…)` `InitDisplay()` `ClearDisplay()` `Clear()` `SetPowerSave(·)` `Sleep()` `Wake()` `SetContrast(·)` `SetFlipMode(·)` `RefreshDisplay()` `SetBusClock(·)` `SetI2CAddress(·)` `SetFont(·)` `SetCursor(·, ·)` `Home()` `Print(·)` `Println(…)` `UserInterfaceSelectionList(·, ·, ·)` `UserInterfaceMessage(·, ·, ·, ·)` `UserInterfaceInputValue(·, ·, ·, ·, ·, ·, ·)` `GetMenuEvent()` `SetMenuInput(·)` `LogBegin(…)` `Log(·)` `LogLine(…)` `DrawLog(·, ·)` `Dispose()` `ClearBuffer()` `SendBuffer()` `FirstPage()` `NextPage()` `Draw(·)` `UpdateDisplay()` `UpdateDisplayArea(·, ·, ·, ·)` `SetAutoPageClear(·)` `SetDisplayRotation(·)` `GetBuffer()` `SetBuffer(·)` `GetPixel(·, ·)` `Dump()` `WriteBufferPBM()` `WriteBufferXBM()` `DrawPixel(·, ·)` `DrawHLine(·, ·, ·)` `DrawVLine(·, ·, ·)` `DrawHVLine(·, ·, ·, ·)` `DrawLine(·, ·, ·, ·)` `DrawBox(·, ·, ·, ·)` `DrawFrame(·, ·, ·, ·)` `DrawRBox(·, ·, ·, ·, ·)` `DrawRFrame(·, ·, ·, ·, ·)` `DrawCircle(·, ·, ·)` `DrawCircle(·, ·, ·, ·)` `DrawDisc(·, ·, ·)` `DrawDisc(·, ·, ·, ·)` `DrawEllipse(·, ·, ·, ·)` `DrawEllipse(·, ·, ·, ·, ·)` `DrawFilledEllipse(·, ·, ·, ·)` `DrawFilledEllipse(·, ·, ·, ·, ·)` `DrawArc(·, ·, ·, ·, ·)` `DrawTriangle(·, ·, ·, ·, ·, ·)` `DrawPolygon(·)` `DrawXBM(·, ·, ·, ·, ·)` `DrawXBMP(·, ·, ·, ·, ·)` `DrawBitmap(·, ·, ·, ·, ·)` `DrawGlyph(·, ·, ·)` `DrawGlyphX2(·, ·, ·)` `DrawStr(·, ·, ·)` `DrawStrX2(·, ·, ·)` `DrawUTF8(·, ·, ·)` `DrawUTF8X2(·, ·, ·)` `DrawUTF8Lines(·, ·, ·, ·, ·)` `DrawUTF8Line(·, ·, ·, ·, ·, ·)` `DrawButtonUTF8(·, ·, ·, ·, ·, ·, ·)` `DrawButtonFrame(·, ·, ·, ·, ·, ·)` `GetStrWidth(·)` `GetUTF8Width(·)` `GetXOffsetUTF8(·)` `GetXOffsetGlyph(·)` `IsGlyph(·)` `GetGlyphWidth(·)` `SetFontMode(·)` `SetFontDirection(·)` `SetFontPosBaseline()` `SetFontPosBottom()` `SetFontPosTop()` `SetFontPosCenter()` `SetFontRefHeightAll()` `SetFontRefHeightExtendedText()` `SetFontRefHeightText()` `SetDrawColor(·)` `SetBitmapMode(·)` `SetClipWindow(·, ·, ·, ·)` `SetMaxClipWindow()` `IsIntersection(·, ·, ·, ·)` | `new U8g2(display[, bus/pins])` — frame-buffer graphics ([U8G2.md](U8G2.md)) |
+| **U8g2** | static | `Displays` `Fonts` | `I2C(…)` `SoftI2C(…)` `SPI(…)` `SoftSPI(…)` `Soft3WireSPI(…)` `Parallel8080(…)` `Parallel6800(…)` `KS0108(…)` |  |
+| **U8x8** | instance | `BusClock` `I2CAddress` `Display` `Bus` `Rows` `Cols` `Font` `CursorX` `CursorY` `LogRedrawOnNewline` `LogLineHeightOffset` `FontWidth` `FontHeight` | `Begin(…)` `InitDisplay()` `ClearDisplay()` `Clear()` `SetPowerSave(·)` `Sleep()` `Wake()` `SetContrast(·)` `SetFlipMode(·)` `RefreshDisplay()` `SetBusClock(·)` `SetI2CAddress(·)` `SetFont(·)` `SetCursor(·, ·)` `Home()` `Print(·)` `Println(…)` `UserInterfaceSelectionList(·, ·, ·)` `UserInterfaceMessage(·, ·, ·, ·)` `UserInterfaceInputValue(·, ·, ·, ·, ·, ·, ·)` `GetMenuEvent()` `SetMenuInput(·)` `LogBegin(…)` `Log(·)` `LogLine(…)` `DrawLog(·, ·)` `Dispose()` `ClearLine(·)` `FillDisplay()` `DrawGlyph(·, ·, ·)` `Draw1x2Glyph(·, ·, ·)` `Draw2x2Glyph(·, ·, ·)` `DrawString(·, ·, ·)` `DrawUTF8(·, ·, ·)` `Draw1x2String(·, ·, ·)` `Draw1x2UTF8(·, ·, ·)` `Draw2x2String(·, ·, ·)` `Draw2x2UTF8(·, ·, ·)` `DrawTile(·, ·, ·, ·)` `SetInverseFont(·)` `GetUTF8Len(·)` | `new U8x8(display)` — 8×8 text without a frame buffer |
+| **U8x8** | static | `Displays` `Fonts` | `I2C(…)` `SoftI2C(…)` `SPI(…)` `SoftSPI(…)` `Soft3WireSPI(…)` `Parallel8080(…)` `Parallel6800(…)` `KS0108(…)` |  |
+
+## Network (modules/net)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **Net** | static | `Backend` | `Has(·)` | const `ApiVersion`; `Has(feature)`: `Wifi`, `EspNow`, `Tls`, … ([NETWORK.md](NETWORK.md)) |
+| **Wifi** | static | `Mode` `Status` `StatusName` `IsConnected` `DisconnectReason` `Ssid` `Bssid` `Rssi` `Auth` `Channel` `Ip` `Netmask` `Gateway` `Dns` `Dns2` `Ipv6` `Dhcp` `Mac` `ApMac` `Hostname` `Country` `AutoReconnect` `Persistent` `PowerSave` `TxPower` `Protocol` `ApProtocol` `Bandwidth` `MinAuth` `ListenInterval` `Band` `Antenna` `ApIp` `ApClientCount` `SavedSsid` | `Connect(…)` `Begin(…)` `ConnectEnterprise(…)` `Reconnect()` `WaitConnected(…)` `Disconnect()` `Off()` `ReasonName(…)` `EventName(·)` `AuthName(·)` `SetStaticIp(…)` `UseDhcp()` `Scan(…)` `StartAp(…)` `StopAp()` `SetApIp(…)` `ApClients()` `Save(…)` `Forget()` `OnEvent(·)` | consts `ModeOff ModeStation ModeAccessPoint ModeStationAp`, statuses `Idle Connecting Connected NoSsid WrongPassword ConnectFailed ConnectionLost Disconnected Stopped`, `Auth*`, `Power*`, `Proto*`, `Band*`, `Event*`, `Reason*` |
+| **WifiNetwork** | instance | `Ssid` `Bssid` `Rssi` `Channel` `Auth` `AuthName` `Secure` `Hidden` `Protocols` `Quality` | `ToString()` | returned by `Wifi.Scan()` |
+| **WifiClient** | instance | `Mac` `Rssi` `Ip` | `ToString()` | returned by `Wifi.ApClients()` |
+| **EspNow** | static | `Peers` | `Start()` `Stop()` `AddPeer(…)` `RemovePeer(·)` `SetPmk(·)` `Send(…)` `Broadcast(·)` `Receive(…)` `OnReceive(·)` | const `MaxData`; MACs as `"24:0A:C4:12:34:56"` |
+| **EspNowMessage** | instance | `Mac` `Data` `Text` `Rssi` `Length` | `ToString()` | returned by `EspNow.Receive()` |
+| **Ntp** | static | `Synced` `Time` `LocalTime` `UtcTime` `Timezone` `UtcOffset` | `Start(…)` `Sync(…)` | SNTP; `Timezone` = POSIX TZ string |
+| **Mdns** | static | — | `Start(…)` `Stop()` `AddService(…)` `RemoveService(·, ·)` `Resolve(…)` | ESP32 with the `espressif/mdns` component |
+| **Ping** | static | — | `Send(…)` | round trip in ms, -1 = no answer |
+| **TcpClient** | instance | `Available` `Connected` `Timeout` `NoDelay` `KeepAlive` `RemoteAddress` `RemotePort` `LocalAddress` `LocalPort` `IsTls` | `Connect(…)` `ConnectTls(…)` `Write(·)` `WriteLine(…)` `Flush()` `Read(…)` `ReadString(…)` `ReadByte()` `ReadLine()` `ReadToEnd()` `Close()` `Dispose()` | `new TcpClient()` or `(host, port[, timeoutMs])` |
+| **TcpListener** | instance | `LocalPort` `Active` | `Start(…)` `Stop()` `Pending()` `AcceptTcpClient(…)` `Accept(…)` `Dispose()` | `new TcpListener(port)` or `(address, port)` |
+| **UdpClient** | instance | `RemoteAddress` `RemotePort` `LocalPort` `Available` `EnableBroadcast` `Timeout` | `Connect(·, ·)` `Send(…)` `Receive(…)` `ReceiveString(…)` `JoinMulticastGroup(·)` `DropMulticastGroup(·)` `Close()` `Dispose()` | `new UdpClient([port])` |
+| **Dns** | static | `HostName` | `Resolve(·)` `GetHostAddresses(·)` |  |
+| **Http** | static | `Timeout` `UserAgent` `FollowRedirects` | `Get(…)` `Head(…)` `Delete(…)` `Post(…)` `Put(…)` `Patch(…)` `Request(…)` `GetString(…)` `Download(…)` `UrlEncode(·)` | headers: `Dictionary<string, string>`, `"Name: value"` lines or `string[]` |
+| **HttpResponse** | instance | `StatusCode` `Reason` `IsSuccess` `Body` `Bytes` `ContentLength` `ContentType` `Url` `Headers` | `Header(·)` `EnsureSuccess()` `ToString()` | returned by every `Http` request |
+
+## Threads (modules/threads)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **Worker** | instance | `IsAlive` `Id` `Core` `Runs` `State` `Error` `Result` | `Join(…)` `Stop()` | returned by `Thread.Run` / `RunOn` / `Every` ([THREADS.md](THREADS.md)) |
+| **Channel** | instance | `Count` `Capacity` `Name` | `Send(…)` `TrySend(·)` `Receive(…)` `TryReceive()` | `new Channel(name[, capacity])` — messages between threads |
+
 ## Scheduler (modules/sched)
 
 | Type | Kind | Properties | Methods | Notes |
@@ -127,9 +164,9 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 Exception classes (members `Message`, `InnerException`, `ToString()`; user classes can derive
 from any of them; deep recursion raises a catchable `StackOverflowException`):
 
-`ArgumentException` `ArgumentNullException` `ArgumentOutOfRangeException` `ArithmeticException` `DirectoryNotFoundException` `DivideByZeroException` `Exception` `FileNotFoundException` `FormatException` `IOException` `IndexOutOfRangeException` `InvalidCastException` `InvalidOperationException` `KeyNotFoundException` `MissingMemberException` `NotImplementedException` `NotSupportedException` `NullReferenceException` `ObjectDisposedException` `OutOfMemoryException` `OverflowException` `StackOverflowException` `SystemException` `TimeoutException` `UnauthorizedAccessException`
+`ArgumentException` `ArgumentNullException` `ArgumentOutOfRangeException` `ArithmeticException` `DirectoryNotFoundException` `DivideByZeroException` `Exception` `FileNotFoundException` `FormatException` `HttpRequestException` `IOException` `IndexOutOfRangeException` `InvalidCastException` `InvalidOperationException` `KeyNotFoundException` `MissingMemberException` `NotImplementedException` `NotSupportedException` `NullReferenceException` `ObjectDisposedException` `OutOfMemoryException` `OverflowException` `SocketException` `StackOverflowException` `SystemException` `TimeoutException` `UnauthorizedAccessException`
 
 Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `StringComparison`
 (`Ordinal`, `OrdinalIgnoreCase`, `CurrentCultureIgnoreCase`, `InvariantCultureIgnoreCase`).
 
-_676 members in 70 tables._
+_1063 members in 92 tables._

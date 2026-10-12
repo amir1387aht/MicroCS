@@ -54,4 +54,7 @@ void lib_define_native_class(mcs_vm_t* vm, const mcs_class_def_t* def);
 extern const mcs_lib_entry_t mcs_lib_bytes_entries[];
 void mcs_lib_bytes_make(mcs_vm_t* vm, int id);
 extern const mcs_reg_t* const mcs_lib_convert_bytes_fns;
+/* JSON (mcs_lib_json.c): Json / JsonSerializer */
+extern const mcs_lib_entry_t mcs_lib_json_entries[];
+void mcs_lib_json_make(mcs_vm_t* vm, int id);
 #endif

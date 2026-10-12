@@ -26,10 +26,17 @@ void app_main(void) {
     /* files on flash; without a "storage" partition: a RAM disk (lost on reset) */
     bool on_flash = mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx);
 
-    /* VM heap: up to 192 KB, leaving 32 KB for the drivers and FreeRTOS */
-    size_t heap_size = 192 * 1024;
+    /* VM heap: up to 192 KB, leaving 32 KB for the drivers and FreeRTOS
+     * (+ menuconfig > MicroCS > Wi-Fi > RAM kept free for the Wi-Fi driver) */
+    size_t heap_size = 192 * 1024, reserve = 32 * 1024;
+#if MCS_ESP32_WIFI && defined(CONFIG_MICROCS_WIFI_RESERVE_KB)
+    reserve += (size_t)CONFIG_MICROCS_WIFI_RESERVE_KB * 1024;
+#endif
     size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-    if (largest < heap_size + 32 * 1024) heap_size = largest > 64 * 1024 ? (largest - 32 * 1024) & ~(size_t)1023 : largest / 2;
+    size_t total = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    if (heap_size + reserve > total) heap_size = total > reserve + 64 * 1024 ? total - reserve : total / 2;
+    if (heap_size + 8 * 1024 > largest) heap_size = largest > 72 * 1024 ? largest - 8 * 1024 : largest / 2;
+    heap_size &= ~(size_t)1023;
     uint8_t* heap = heap_caps_malloc(heap_size, MALLOC_CAP_8BIT);
 
     cfg.heap = heap;
@@ -40,6 +47,11 @@ void app_main(void) {
         printf("MicroCS: %s on flash, %u of %u KB free\n", sf.format, (unsigned)(sf.free / 1024), (unsigned)(sf.total / 1024));
     else if (!on_flash)
         printf("MicroCS: no \"storage\" partition - files are kept in RAM only\n");
+#if MCS_ESP32_WIFI && defined(CONFIG_MICROCS_WIFI)
+    /* menuconfig > MicroCS > Wi-Fi: join a network in the background (Wifi.Save remembers one) */
+    if (CONFIG_MICROCS_WIFI_SSID[0] || CONFIG_MICROCS_WIFI_AUTOCONNECT)
+        mcs_esp32_wifi_autoconnect(CONFIG_MICROCS_WIFI_SSID, CONFIG_MICROCS_WIFI_PASSWORD);
+#endif
     cfg.console = mcs_esp32_console();
     cfg.ticks = mcs_esp32_ticks;
     cfg.delay = mcs_esp32_delay;

@@ -193,6 +193,9 @@
 #ifndef MCS_ENABLE_BYTES
 #define MCS_ENABLE_BYTES 1         /* Encoding.UTF8/ASCII, BitConverter, BinaryPrimitives, Convert.To/FromBase64String, To/FromHexString */
 #endif
+#ifndef MCS_ENABLE_JSON
+#define MCS_ENABLE_JSON 1          /* Json.Parse / Json.Stringify (+ JsonSerializer); needs List + Dictionary (~4 KB) */
+#endif
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT 1       /* the Convert class (ToInt32/ToString(x, base)/ToBoolean/...) */
 #endif
@@ -414,6 +417,59 @@
 #endif
 #ifndef MCS_U8G2_I2C_BUF
 #define MCS_U8G2_I2C_BUF 34        /* I2C transfer buffer per display (u8x8 sends <= 33 bytes) */
+#endif
+/* Wi-Fi and networking (docs/NETWORK.md): C# Wifi, EspNow, Dns, Ping, TcpClient, TcpListener,
+ * UdpClient, Http, Ntp, Mdns. On by default where a BSD socket API exists - ESP-IDF (lwIP) and
+ * Linux / macOS hosts (the CLI simulates the Wi-Fi radio with --sim); elsewhere off. The Wi-Fi
+ * radio itself comes from the port's mcs_net_t table (ports/esp32: every ESP32 with Wi-Fi). */
+#if defined(ESP_PLATFORM)
+#define MCS__NET_ESP 1
+#else
+#define MCS__NET_ESP 0
+#endif
+#if defined(ESP_PLATFORM) && !defined(ARDUINO)
+#define MCS__NET_HOSTED 1
+#elif (defined(__linux__) || defined(__APPLE__)) && !defined(__ZEPHYR__) && !defined(ARDUINO)
+#define MCS__NET_HOSTED 1
+#else
+#define MCS__NET_HOSTED 0
+#endif
+#ifndef MCS_ENABLE_NET
+#define MCS_ENABLE_NET MCS__NET_HOSTED /* C# Wifi / EspNow / Ntp / Mdns / Http ... (include/mcs_net.h) */
+#endif
+#ifndef MCS_ENABLE_SOCKETS
+#define MCS_ENABLE_SOCKETS MCS_ENABLE_NET /* TcpClient, TcpListener, UdpClient, Dns, Http over BSD sockets */
+#endif
+#if MCS_ENABLE_SOCKETS && !MCS_ENABLE_NET
+#undef MCS_ENABLE_SOCKETS
+#define MCS_ENABLE_SOCKETS 0
+#endif
+#ifndef MCS_NET_SIM
+#define MCS_NET_SIM (MCS_ENABLE_NET && !MCS__NET_ESP) /* simulated Wi-Fi radio for the host CLI (--sim) and tests */
+#endif
+#ifndef MCS_NET_TIMEOUT
+#define MCS_NET_TIMEOUT 10000      /* default timeout of sockets, DNS and HTTP (ms) */
+#endif
+#ifndef MCS_WIFI_CONNECT_TIMEOUT
+#define MCS_WIFI_CONNECT_TIMEOUT 15000 /* Wifi.Connect waits this long for an IP address (ms) */
+#endif
+#ifndef MCS_WIFI_SCAN_MAX
+#define MCS_WIFI_SCAN_MAX 24       /* networks returned by Wifi.Scan (strongest first) */
+#endif
+#ifndef MCS_NET_MAX_READ
+#define MCS_NET_MAX_READ 4096      /* largest single socket Read / datagram (bytes, C stack + VM heap) */
+#endif
+#ifndef MCS_HTTP_MAX_BODY
+#define MCS_HTTP_MAX_BODY 32768    /* largest HTTP response body kept in memory (Http.Download streams to a file) */
+#endif
+#ifndef MCS_HTTP_MAX_HEADER
+#define MCS_HTTP_MAX_HEADER 2048   /* response header bytes kept (HttpResponse.Headers) */
+#endif
+#ifndef MCS_HTTP_MAX_REDIRECTS
+#define MCS_HTTP_MAX_REDIRECTS 5   /* 301/302/303/307/308 followed by Http requests */
+#endif
+#ifndef MCS_ESPNOW_MAX_PEERS
+#define MCS_ESPNOW_MAX_PEERS 20    /* EspNow.Peers capacity (the radio allows 20) */
 #endif
 #ifndef MCS_ENABLE_SHELL
 #define MCS_ENABLE_SHELL MCS_ENABLE_FS /* standalone runtime / script manager */
