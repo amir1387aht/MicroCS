@@ -1,0 +1,7 @@
+{
+  "old_size": 1601,
+  "new_size": 1595,
+  "old_prefix": 60,
+  "new_prefix": 48,
+  "scope": "all other bytes exactly equal; restore only after full gate successful exit"
+}

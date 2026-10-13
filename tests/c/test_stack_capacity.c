@@ -71,6 +71,32 @@ static mcs_value_t cancel(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t 
     mcs_request_abort(vm);
     return mcs_int(42);
 }
+static unsigned callback_mode;
+static uint32_t fake_now;
+static uint32_t ticks(void *ud) {
+    (void)ud;
+    return fake_now;
+}
+static int hook(mcs_vm_t *vm, void *ud) {
+    (void)vm;
+    (void)ud;
+    return callback_mode == 4;
+}
+static mcs_value_t advance(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv) {
+    (void)vm;
+    (void)self;
+    (void)argc;
+    (void)argv;
+    fake_now++;
+    return mcs_null();
+}
+static mcs_value_t invoke_callback(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv) {
+    (void)self;
+    (void)argc;
+    mcs_value_t result = mcs_null();
+    mcs_invoke(vm, argv[0], "Run", 0, NULL, &result);
+    return result;
+}
 static const mcs_reg_t methods[] = {MCS_FN("Echo", echo, 1), MCS_FN("Cancel", cancel, 0),
                                     MCS_REG_END};
 static mcs_vm_t *create(unsigned slots) {
@@ -78,6 +104,8 @@ static mcs_vm_t *create(unsigned slots) {
     mcs_config_default(&cfg);
     cfg.stack_slots = slots;
     cfg.heap_limit = 0;
+    cfg.ticks_fn = ticks;
+    cfg.hook_fn = hook;
     cfg.realloc_fn = allocate;
     cfg.write_fn = write_output;
     cfg.error_fn = quiet;
@@ -89,6 +117,8 @@ static mcs_vm_t *create(unsigned slots) {
         mcs_register_function(vm, "Echo", echo, 1);
         mcs_register_function(vm, "Callback", callback, 1);
         mcs_register_function(vm, "Cancel", cancel, 0);
+        mcs_register_function(vm, "Advance", advance, 0);
+        mcs_register_function(vm, "RelayInvoke", invoke_callback, 1);
         mcs_register_module(vm, "Native", methods);
     }
     return vm;
@@ -171,15 +201,31 @@ static void catch_source(char *dst, size_t cap, bool nested) {
              "{ Console.WriteLine(\"caught\"); } Console.WriteLine(saved());",
              nested ? "Callback(Work)" : "Work()");
 }
+static const char *invoke_source(bool request) {
+    return request
+               ? "var kept = () => 0; class Runner { public int Run() { int x = 42; kept = () => "
+                 "x; "
+                 "try { Cancel(); } catch { Console.WriteLine(\"inner-caught\"); } return x; } } "
+                 "Console.WriteLine(\"begin\"); try { RelayInvoke(new Runner()); } "
+                 "catch { Console.WriteLine(\"outer-caught\"); } Console.WriteLine(\"tail\");"
+               : "var kept = () => 0; class Runner { public int Run() { int x = 42; kept = () => "
+                 "x; "
+                 "try { while (true) Advance(); } catch { Console.WriteLine(\"inner-caught\"); } "
+                 "return x; } } "
+                 "Console.WriteLine(\"begin\"); try { RelayInvoke(new Runner()); } "
+                 "catch { Console.WriteLine(\"outer-caught\"); } Console.WriteLine(\"tail\");";
+}
 #endif
 #if MCS_ENABLE_COMPILER && MCS_ENABLE_BYTECODE_SAVE
 static int emit(const char *dir) {
     mcs_vm_t *vm = create(1024);
     if (!vm)
         return 1;
-    for (unsigned i = 0; i < 7; i++) {
+    for (unsigned i = 0; i < 9; i++) {
         char text[8192];
-        if (i >= 5)
+        if (i >= 7)
+            snprintf(text, sizeof text, "%s", invoke_source(i == 7));
+        else if (i >= 5)
             catch_source(text, sizeof text, i == 6);
         else
             source(text, sizeof text, i);
@@ -284,6 +330,54 @@ static void executions(const char *dir) {
         }
     }
 }
+static void invoke_cancellation(const char *dir) {
+    const mcs_abort_reason_t reasons[] = {MCS_ABORT_NONE, MCS_ABORT_REQUEST, MCS_ABORT_STEPS,
+                                          MCS_ABORT_TIME, MCS_ABORT_HOOK};
+    for (unsigned kind = 1; kind <= 4; kind++) {
+        for (unsigned noopt = MCS_ENABLE_SUPEROPS ? 0 : 1; noopt < 2; noopt++) {
+            size_t length = 0;
+            uint8_t *bytes = read_image(dir, kind == 1 ? 7 : 8, noopt, &length);
+            if (!bytes)
+                continue;
+            for (unsigned mode = 0; mode < 3; mode++) {
+#if !MCS_ENABLE_COMPILER
+                if (mode == 0)
+                    continue;
+#endif
+                callback_mode = kind;
+                fake_now = 0;
+                mcs_vm_t *vm = create(512);
+                if (!vm)
+                    continue;
+                mcs_limits_t limits = {kind == 3 ? 50 : 0, kind == 2 ? 5000 : 0};
+                mcs_set_limits(vm, &limits);
+                mcs_result_t result;
+#if MCS_ENABLE_COMPILER
+                if (mode == 0)
+                    result = mcs_exec_source(vm, "callback-stop.cs", invoke_source(kind == 1));
+                else
+#endif
+                    result = mode == 1 ? mcs_exec_image(vm, bytes, length)
+                                       : mcs_exec_image_xip(vm, bytes, length);
+                CHECK(result == MCS_ERR_ABORTED);
+                CHECK(mcs_abort_reason(vm) == reasons[kind]);
+                CHECK(!strcmp(output, "begin\n"));
+                clean_stack(vm);
+                callback_mode = 0;
+                limits.time_ms = 0;
+                limits.steps = 0;
+                mcs_set_limits(vm, &limits);
+                mcs_gc(vm);
+                mcs_value_t kept = mcs_get_global(vm, "kept"), value = mcs_null();
+                CHECK(mcs_call_value(vm, kept, 0, NULL, &value) == MCS_OK);
+                CHECK(mcs_is_int(value) && value.as.i == 42);
+                ordinary_call(vm);
+                destroy(vm);
+            }
+            free(bytes);
+        }
+    }
+}
 int main(int argc, char **argv) {
 #if MCS_ENABLE_COMPILER && MCS_ENABLE_BYTECODE_SAVE
     if (argc == 3 && !strcmp(argv[1], "--emit"))
@@ -295,6 +389,7 @@ int main(int argc, char **argv) {
     }
     api_calls();
     executions(argv[1]);
+    invoke_cancellation(argv[1]);
     printf("%u checks, %u failures (trusted-source resource limits; not image verification)\n",
            checks, failures);
     return failures ? 1 : 0;

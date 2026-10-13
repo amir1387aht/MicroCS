@@ -36,7 +36,8 @@ XIP storage remains valid until every referencing VM is freed. No handcrafted
 or mutated image is executed, and the runner must not be used against an
 unpatched runtime to reproduce memory corruption.
 
-Seven trusted-source cases cover ordinary literal/local/global arithmetic and
+Nine trusted-source cases (seven capacity cases plus two method-invocation
+cancellation cases) cover ordinary literal/local/global arithmetic and
 sequence/string indexing tails, catch-and-continue, captured-local restoration,
 and nested native callbacks. Eight stack capacities exercise shortages and
 adequate room. Each run checks output or controlled failure, clean stack/frame/
@@ -44,6 +45,14 @@ handler/run-depth state, collection, a valid C call afterward and complete
 allocator teardown. C API tests separately check invalid argument contracts,
 large counts with a short argument array, result aliasing, a native return near
 the existing margin boundary, and Stop followed by valid calls.
+
+Nested `mcs_invoke` now re-arms pending cancellation just like nested `mcs_call`.
+A native bridge cannot swallow Stop merely by ignoring its C API return value;
+script catch blocks must not turn request, step, time or hook cancellation into
+normal execution. The new method-callback tests check all four reasons with
+optimized/unoptimized trusted images, copied/XIP/source paths, captured-local
+survival, clean runtime state and successful calls after cancellation. Fake
+clock ticks make time limits deterministic; there is no wall-time timing claim.
 
 The runner records the exact source/header hashes, compiler commands, fixture
 hashes and completed configurations. Default, GC stress, compiler OFF, XIP OFF,

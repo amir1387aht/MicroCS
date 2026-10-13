@@ -1,0 +1,23 @@
+{
+  "base_remote": "b1c5a07716290f7b436eff902cf9525376a2cdfe",
+  "base_local": "655485e1cd4abb15e4b36c12c057c49bf31ec45b",
+  "source_sha256": {
+    "src/mcs_vm.c": "8ff0cb3d792019311c7563db32f7a17738cb69e973f0a3a185546396692fcf59",
+    "tests/c/test_stack_capacity.c": "906da2a78b8c8a38d75718da04ab220886ad902b4242fb9b5eca998bccb8beab",
+    "tools/test_stack_capacity.py": "6cb9f414400a88424b3bea0f52be2c067f1f7148409a492b48243cfe6d7de7b5",
+    "Makefile": "d5e39cfceaadd761b22d00793bf6cffbfc281f5dd5e54cc0cdd52493f8911111"
+  },
+  "compiler": "cc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "host": "Linux-6.18.49-x86_64-with-glibc2.34",
+  "binaries_sha256": {
+    "mcs": "cc67696f31ae14031a0d692ebd02ec673994c80a3452612f1a102ef4a311a4e1",
+    "build/callback29-host/mcs": "4c037697ac4bd7642782f8930cff08feb4f7a0ff43b2e97f4ecaf6f772ded113",
+    "build/callback29-tft/test_sprite": "6e39637657e93f18f1c5523d65dbbe9b0aa3b461c9413031a44f96455cda328e"
+  },
+  "dependencies": {
+    "lvgl-8.4.0": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
+    "lvgl-9.4.0": "c016f72d4c125098287be5e83c0f1abed4706ee5",
+    "TFT_eSPI-upstream": "16e37595040eac69cd628e4bffb56fc30cad6299"
+  },
+  "scope": "Trusted-source cancellation correctness/resource-limit regression. No memory-corruption reproducer or hostile image execution; not full verifier, performance or physical hardware evidence. Studio changes are separate checkpoint30."
+}

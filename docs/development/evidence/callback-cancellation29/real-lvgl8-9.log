@@ -1,0 +1,55 @@
+4495f428630cc1741bd8bfd977f080e8460e8e8d
+CMake Warning (dev) at /data/deps/lvgl-8.4.0/env_support/cmake/custom.cmake:66 (install):
+  Policy CMP0177 is not set: install() DESTINATION paths are normalized.  Run
+  "cmake --help-policy CMP0177" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  /data/deps/lvgl-8.4.0/CMakeLists.txt:16 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- MicroCS: EXPLICIT LVGL8 decoder unsigned-mask fix, build-local copy only; original=310ec9757ce6e5196a9246b4aa7d8e6a0209c89dc8c07c34f6209efdc7443a72, fixed=1b508ed5748d95cb94d9a67cf8630ea9a4fcebaa46608b83bb668e550198ecb8
+-- MicroCS LVGL 8.4.0: /data/deps/lvgl-8.4.0, config /data/MicroCS-v2-next/tests/lvgl/lv_conf8_fonts.h, library lvgl; no physical display inferred
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/MicroCS-v2-next/build/stack-lvgl8
+[  2%] Building C object microcs-lvgl/CMakeFiles/lvgl.dir/__/microcs-lvgl-compat/lv_font_fmt_txt.c.o
+[  2%] Linking C static library ../lib/liblvgl.a
+[ 80%] Built target lvgl
+[ 82%] Building C object CMakeFiles/microcs.dir/src/mcs_vm.c.o
+[ 82%] Linking C static library libmicrocs.a
+[ 98%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 80%] Built target lvgl
+[ 98%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 8.4.0 real headless: 887 checks, 0 failures
+PASS LVGL8 basic golden
+PASS LVGL8 pointer golden
+PASS LVGL8 constructors golden
+PASS LVGL8 widgets golden
+PASS LVGL8 fonts golden
+c016f72d4c125098287be5e83c0f1abed4706ee5
+-- /data/MicroCS-v2-next/tests/lvgl/lv_conf9_fonts.h
+-- Using configuration: /data/MicroCS-v2-next/tests/lvgl/lv_conf9_fonts.h
+-- MicroCS LVGL 9.4.0: /data/deps/lvgl-9.4.0, config /data/MicroCS-v2-next/tests/lvgl/lv_conf9_fonts.h, library lvgl; no physical display inferred
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/MicroCS-v2-next/build/stack-lvgl9
+[ 91%] Built target lvgl
+[ 91%] Building C object CMakeFiles/microcs.dir/src/mcs_vm.c.o
+[ 91%] Linking C static library libmicrocs.a
+[100%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 91%] Built target lvgl
+[ 99%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 9.4.0 real headless: 887 checks, 0 failures
+PASS LVGL9 basic golden
+PASS LVGL9 pointer golden
+PASS LVGL9 constructors golden
+PASS LVGL9 widgets golden
+PASS LVGL9 fonts golden

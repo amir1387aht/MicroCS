@@ -1946,6 +1946,15 @@ static bool check_call_args(mcs_vm_t* vm, int argc, const mcs_value_t* argv, mcs
     }
     return true;
 }
+/* Cancellation from a nested interpreter must reach the outer run, even if a
+ * native callback ignores its C API result. It must not become catchable. */
+static void keep_abort_pending(mcs_vm_t* vm, mcs_result_t result) {
+    if (result == MCS_ERR_ABORTED && vm->run_depth > 0) {
+        vm->abort_req = true;
+        vm->abort_hint = vm->abort_reason;
+        vm->hook_counter = 1;
+    }
+}
 mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     if (!check_call_args(vm, argc, argv, result)) return MCS_ERR_RUNTIME;
     mcs_value_t* base = vm->sp;
@@ -1967,13 +1976,7 @@ mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t sel
         vm->handler_count = base_handlers;
     }
     vm->sp = base;
-    /* A callback can abort a nested interpreter run. Keep cancellation pending for
-     * the outer run; it must not become a catchable handler exception. */
-    if (res == MCS_ERR_ABORTED && vm->run_depth > 0) {
-        vm->abort_req = true;
-        vm->abort_hint = vm->abort_reason;
-        vm->hook_counter = 1;
-    }
+    keep_abort_pending(vm, res);
     return res;
 }
 
@@ -2079,6 +2082,7 @@ mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int ar
     if (result) *result = r == MCS_OK ? vm->sp[-1] : mcs_null();
     if (r != MCS_OK) { close_upvalues(vm, base); vm->frame_count = base_frame; vm->handler_count = base_handlers; }
     vm->sp = base;
+    keep_abort_pending(vm, r);
     GUARD_END(vm);
     if (vm->run_depth > 0) return r;
     return finish(vm, r);

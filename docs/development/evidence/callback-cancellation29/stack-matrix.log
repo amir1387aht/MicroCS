@@ -1,0 +1,29 @@
+BUILD default
+default 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD gc-stress
+gc-stress 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD compiler-off
+compiler-off 3560 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD xip-off
+xip-off 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD superops-off
+superops-off 2670 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD source-opt
+source-opt 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD switch
+switch 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD compact
+compact 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD int64
+int64 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD float32
+float32 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD no-float
+no-float 5208 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD min
+min 1846 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD lowram
+lowram 3560 checks, 0 failures (trusted-source resource limits; not image verification)
+BUILD mcu
+mcu 3560 checks, 0 failures (trusted-source resource limits; not image verification)
+PASS: 14 functional stack configurations; full v2 gates remain separate

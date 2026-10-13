@@ -945,3 +945,37 @@ profiler text has a terminal blank line. Whitespace check initially reported
 those raw-output formats; bounded .gitattributes rules preserve byte-exact raw
 CSV/report evidence, analogous to existing raw-log rules. No sample/report was
 rewritten to appear cleaner; source/documentation whitespace checks still apply.
+
+## Checkpoint29 — nested method-callback Stop propagation
+
+Predecessor28 REMOTE b1c5a07716290f7b436eff902cf9525376a2cdfe, tree verified
+37f9a676201f6b031fe7c1e75b4a008aa135f7e5. Its 92 exact-head CI jobs are now
+completed SUCCESS; recorded separately, not misattributed to this new source.
+`mcs_invoke` now re-arms pending cancellation through a shared helper also used
+by `mcs_call_internal`. Native code ignoring a nested API return must not swallow
+request/steps/time/hook abort or make it catchable. No API/opcode/image changes.
+
+Two new trusted-source method-callback fixtures add optimized/unoptimized,
+source/copy/XIP, all four reasons, captured-local/GC, clean frame/stack/handler/
+run-depth, subsequent valid call and complete teardown checks. Benign baseline
+on28:5208 checks/48 failed output/status assertions, NO sanitizer errors or
+memory-corruption reproduction. Fixed14-config sanitizer matrix EXIT0; most
+5208 checks, compiler-off/lowram/MCU3560, superops-off2670, min1846, ALL0fail.
+Fresh host85 sanitizer EXIT0. Actual LVGL8+9 EACH887+fivegoldens, TFT131557+
+20undisposedteardowns/GCstress/physicalIOguard, all completed EXIT0. Sources
+frozen for validation; exact hashes/configs/dependency pins/commands retained.
+
+Initial fullmakecheck failed unchanged UDP lifecycle assertion; raw log retained,
+no assertion suppressed. Targeted unchanged-source retry EXIT0, then WHOLE
+fullmakecheck retry EXIT0 including all11 alternateconfigurations EACH85/85.
+Root cause of initial failure NOT established; do not claim it was fixed.
+Generatedlowramheader1601->1595B only debugpathname ../../->relative and prefix
+60->48(NULinclusive), allotherbytes equal; backedup/restoredONLYthatpath AFTER
+successful wholegate exit. Runtime/source docs validated. Evidence in
+`docs/development/evidence/callback-cancellation29/`; backups/cumulative+staged
+patches and NOTES retained locally. Push/fetch/treeverify then record remoteSHA.
+
+Uncommitted Studio project/nav work is NOT included in29; validate/push separately
+as30. Full original v2 work, broad API/OOM/peak/verifier/security/graphics/Studio/
+core/roadmap/benchmarks/hardware/independentreview gates remain blocking. No
+hostile bytecode execution, merge/tag/release/provisioning or irreversible action.

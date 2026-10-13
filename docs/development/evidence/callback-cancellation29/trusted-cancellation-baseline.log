@@ -1,0 +1,12 @@
+BUILD default
+Traceback (most recent call last):
+  File "/vercel/sandbox/data/MicroCS-v2-next/tools/test_stack_capacity.py", line 76, in <module>
+    main()
+    ~~~~^^
+  File "/vercel/sandbox/data/MicroCS-v2-next/tools/test_stack_capacity.py", line 69, in main
+    subprocess.run([str(binary), str(fixtures)], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/vercel/sandbox/data/MicroCS-v2-next/build/callback29-baseline/default', '/vercel/sandbox/data/MicroCS-v2-next/build/callback29-baseline/fixtures']' returned non-zero exit status 1.
