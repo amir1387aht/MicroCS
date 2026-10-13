@@ -1653,7 +1653,10 @@ static bool capability_hw(mcs_vm_t* vm, const char* name) {
 }
 static bool capability_net(mcs_vm_t* vm, const char* name) {
 #if MCS_ENABLE_NET
-    return mcs_global_exists(vm, "Net") && mcs_net_has(mcs_net_get(), name);
+    if (!mcs_global_exists(vm, "Net")) return false;
+    const mcs_net_t* net = mcs_net_get();
+    if (!strcmp(name, "Wifi.Save")) return net && (net->creds || (MCS_ENABLE_FS && mcs_get_ext(vm, MCS_EXT_VFS) && net->wifi_set_mode));
+    return mcs_net_has(net, name);
 #else
     (void)vm; (void)name; return false;
 #endif

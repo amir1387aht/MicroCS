@@ -154,7 +154,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **Ble** | static | `Enabled` `Backend` `Name` `Address` `AddressType` `TxPower` `Mtu` `Appearance` `IoCapability` `Bonding` `Mitm` `SecureConnections` `Phy` `Passkey` `MaxConnections` `Timeout` `AutoAdvertise` `DroppedEvents` `Advertising` `Scanning` `Services` `Connections` `Connected` `Bonds` | `Enable()` `Disable()` `Has(·)` `StartAdvertising(…)` `StopAdvertising()` `Scan(…)` `StartScan(…)` `StopScan()` `AddService(·)` `ClearServices()` `Connect(…)` `OnConnect(·)` `OnDisconnect(·)` `OnEvent(·)` `OnPasskey(·)` `Poll()` `EventName(·)` `RemoveBond(·)` `ClearBonds()` | opt-in (`MCS_ENABLE_BLE`); `Has(feature)`, `Event*`, `Io*`, `Passkey*`, `Phy*` consts ([BLE.md](BLE.md)) |
+| **Ble** | static | `Enabled` `OptionNames` `ScanInterval` `ScanWindow` `Backend` `Name` `Address` `AddressType` `TxPower` `Mtu` `Appearance` `IoCapability` `Bonding` `Mitm` `SecureConnections` `Phy` `Passkey` `MaxConnections` `Timeout` `AutoAdvertise` `DroppedEvents` `Advertising` `Scanning` `Services` `Connections` `Connected` `Bonds` | `Enable()` `Disable()` `Reset()` `CanReadOption(·)` `CanSetOption(·)` `Has(·)` `StartAdvertising(…)` `StopAdvertising()` `Scan(…)` `StartScan(…)` `StopScan()` `AddService(·)` `ClearServices()` `Connect(…)` `OnConnect(·)` `OnDisconnect(·)` `OnEvent(·)` `OnPasskey(·)` `Poll()` `EventName(·)` `RemoveBond(·)` `ClearBonds()` | opt-in (`MCS_ENABLE_BLE`); `Has(feature)`, `Event*`, `Io*`, `Passkey*`, `Phy*` consts ([BLE.md](BLE.md)) |
 | **BleAdvertisement** | instance | `Name` `Connectable` `Interval` `Duration` `IncludeTxPower` `Appearance` `Flags` `Raw` `ScanResponse` | `AddServiceUuid(·)` `SetManufacturerData(·, ·)` `AddServiceData(·, ·)` `Build()` `BuildScanResponse()` | `new BleAdvertisement([name])` — advertising data |
 | **BleAdvertisement** | static | — | `IBeacon(…)` `EddystoneUrl(…)` `EddystoneUid(…)` | beacon presets |
 | **BleDevice** | instance | `Address` `AddressType` `Name` `Rssi` `Connectable` `TxPower` `Appearance` `Flags` `ServiceUuids` `ManufacturerData` `CompanyId` `Data` `ScanResponse` `IsIBeacon` `BeaconUuid` `BeaconMajor` `BeaconMinor` `BeaconPower` `EddystoneUrl` | `HasService(·)` `ServiceData(·)` `Connect(…)` `ToString()` | returned by `Ble.Scan` / `Ble.StartScan` |
@@ -194,4 +194,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1313 members in 109 tables._
+_1319 members in 109 tables._

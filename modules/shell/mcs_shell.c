@@ -377,7 +377,7 @@ static int cmd_df(mcs_shell_t* sh, const char* path) {
 static void cmd_help(mcs_shell_t* sh) {
     out(sh, "ls [dir] | cat <f> | put <f> <len> [win] | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
             "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
-            "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
+            "mem | info | caps | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
 }
 
@@ -404,7 +404,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     int argc = 0;
     for (char* p = strtok(line, " "); p && argc < 4; p = strtok(NULL, " ")) argv[argc++] = p;
     const char* c = argv[0];
-    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
+    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "caps") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
     if (need_fs && !sh->vfs) { err(sh, "no filesystem"); return; }
     int e;
     if (!strcmp(c, "help")) cmd_help(sh);

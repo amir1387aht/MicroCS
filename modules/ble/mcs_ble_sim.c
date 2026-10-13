@@ -508,6 +508,9 @@ void mcs_ble_sim_init(mcs_ble_t* b) {
     g.bpm = 72; g.batt = 87;
     memset(b, 0, sizeof *b);
     b->name = "sim"; b->ctx = &g;
+    b->readable_options = MCS_BLE_OPTIONS_ALL;
+    b->writable_options = MCS_BLE_OPTIONS_ALL & ~MCS_BLE_OPTION(MCS_BLE_OPT_MAX_CONN);
+    b->features = MCS_BLE_FEATURE_SCAN_PARAMETERS;
     b->enable = s_enable; b->address = s_address; b->set_name = s_set_name; b->opt_get = s_opt_get; b->opt_set = s_opt_set;
     b->adv_start = s_adv_start; b->adv_stop = s_adv_stop; b->scan_start = s_scan_start; b->scan_stop = s_scan_stop;
     b->gatts_set = s_gatts_set; b->gatts_notify = s_gatts_notify;

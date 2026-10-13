@@ -5,6 +5,7 @@ if (!Hal.Has("Ble") || !Hal.Has("Ble.Server") || !Hal.Has("Ble.Advertise"))
     Console.WriteLine("This firmware lacks: Ble, Ble.Server, Ble.Advertise. Enable the needed modules or use a supported board.");
     return;
 }
+Ble.Reset();
 Ble.Name = "MicroCS-HR";
 Ble.Appearance = 0x0341; // Heart Rate Sensor: Belt
 

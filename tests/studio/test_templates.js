@@ -25,7 +25,7 @@ function failure(message) {
     message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A'));
 }
 const all = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)) && (ONLY !== 'ble' || isBle(t)));
-const cs = all.filter((t) => HAS_BLE || !isBle(t));   // no Ble classes in this build
+const cs = all; // BLE examples must return cleanly when the module / radio is missing
 function run(t) {
   return new Promise((done) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcs-tpl-'));
@@ -56,7 +56,7 @@ function run(t) {
   for (const t of TEMPLATES) if (!t.src || !t.desc) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: no source file or description (run tools/studio/gen_templates.py)`); }
   const labels = new Set();
   for (const s of SNIPPETS) { if (labels.has(s.label)) { fails++; console.log('FAIL duplicate snippet ' + s.label); } labels.add(s.label); }
-  if (ONLY === 'ble' && !cs.length) { fails++; console.log('FAIL no Bluetooth LE templates ran (build with make mcs-ble)'); }
+  if (ONLY === 'ble' && (!HAS_BLE || !cs.length)) { fails++; console.log('FAIL no Bluetooth LE templates ran (build with make mcs-ble)'); }
   const skipped = all.length - cs.length;
   console.log(`${cs.length} C# templates${skipped ? ` (${skipped} Bluetooth LE skipped: no ble in this build)` : ''}${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);
   process.exit(fails ? 1 : 0);

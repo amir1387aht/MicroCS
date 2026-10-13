@@ -196,6 +196,19 @@ menu "MicroCS"
         default 8
         range 1 32
 
+    config MICROCS_BLE_SCAN_INTERVAL
+        int "Default scan interval (ms)"
+        default 100
+        range 5 10240
+
+    config MICROCS_BLE_SCAN_WINDOW
+        int "Default scan window (ms)"
+        default 50
+        range 5 MICROCS_BLE_SCAN_INTERVAL
+        help
+            Radio receive time per interval. Lower values reduce scan duty cycle.
+            Scripts can override these with Ble.ScanInterval and Ble.ScanWindow.
+
     config MICROCS_BLE_TIMEOUT
         int "GATT operation timeout (ms)"
         default 5000

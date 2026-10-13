@@ -36,6 +36,11 @@ def main():
         assert value("MICROCS_BLE_NAME") == "MicroCS"
         assert value("MICROCS_BLE_QUEUE") == "2048"
         assert value("MICROCS_BLE_RESERVE_KB") == "48"
+        assert value("MICROCS_BLE_SCAN_INTERVAL") == "100" and value("MICROCS_BLE_SCAN_WINDOW") == "50"
+        setv("MICROCS_BLE_SCAN_INTERVAL", "200"); setv("MICROCS_BLE_SCAN_WINDOW", "75")
+        assert value("MICROCS_BLE_SCAN_WINDOW") == "75"
+        setv("MICROCS_BLE_SCAN_WINDOW", "201")
+        assert value("MICROCS_BLE_SCAN_WINDOW") == "50"  # invalid range restores default
         for r in ROLES: assert value("BT_NIMBLE_ROLE_" + r) == "y"
         setv("MICROCS_BLE_QUEUE", "4096")
         setv("MICROCS_BLE_NAME", "S3 Test")

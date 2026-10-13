@@ -748,7 +748,7 @@ static int b_opt_set(void* ctx, int opt, int32_t v) {
         g_opt[opt] = v;
         if (g_on) { LOCK(); gap_random_address_set_mode(v == MCS_BLE_ADDR_RANDOM ? GAP_RANDOM_ADDRESS_TYPE_STATIC : GAP_RANDOM_ADDRESS_TYPE_OFF); UNLOCK(); }
         return 0;
-    case MCS_BLE_OPT_PHY: if (v <= 0 || v > 7) return MCS_HAL_EINVAL; g_opt[opt] = v; return 0;
+    case MCS_BLE_OPT_PHY: return MCS_HAL_ENOTSUP; /* No preferred-PHY operation implemented. */
     default: return MCS_HAL_ENOTSUP;
     }
     if (g_stack_init) { LOCK(); apply_auth(); UNLOCK(); }
@@ -759,6 +759,9 @@ static void b_unlock(void* ctx) { (void)ctx; critical_section_exit(&g_cs); }
 
 static const mcs_ble_t g_ble = {
     .name = "btstack",
+    .readable_options = MCS_BLE_OPTIONS_ALL & ~MCS_BLE_OPTION(MCS_BLE_OPT_TX_POWER),
+    .writable_options = MCS_BLE_OPTIONS_ALL & ~(MCS_BLE_OPTION(MCS_BLE_OPT_TX_POWER) | MCS_BLE_OPTION(MCS_BLE_OPT_MAX_CONN) | MCS_BLE_OPTION(MCS_BLE_OPT_PHY)),
+    .features = MCS_BLE_FEATURE_SCAN_PARAMETERS,
     .enable = b_enable, .address = b_address, .set_name = b_set_name, .opt_get = b_opt_get, .opt_set = b_opt_set,
     .lock = b_lock, .unlock = b_unlock,
     .adv_start = b_adv_start, .adv_stop = b_adv_stop,

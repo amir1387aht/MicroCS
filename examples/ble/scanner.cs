@@ -6,6 +6,7 @@ if (!Hal.Has("Ble") || !Hal.Has("Ble.Scan"))
     Console.WriteLine("This firmware lacks: Ble, Ble.Scan. Enable the needed modules or use a supported board.");
     return;
 }
+Ble.Reset();
 Console.WriteLine("BLE scanner on " + Ble.Backend + ", our address " + Ble.Address);
 while (true) {
     var devices = Ble.Scan(2000, true);

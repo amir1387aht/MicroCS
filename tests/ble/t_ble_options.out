@@ -1,0 +1,13 @@
+API 2 enabled False
+options 11 mtu True max False
+unknown False radio False
+roles True True True
+scan 200/50 radio False
+window rejected
+interval rejected
+passkey 123456 radio True
+callback reset rejected
+reset radio False services 0 connections 0
+old service invalidated
+scan preferences kept 200/50
+reruns clean True

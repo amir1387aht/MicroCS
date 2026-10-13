@@ -46,6 +46,44 @@ conn.Characteristic("180D", "2A37").Subscribe(data => Console.WriteLine("bpm " +
 `"Ble.Security"`, `"Ble.Bonds"`. A call the board lacks throws `NotSupportedException`.
 `Ble.Backend` names the stack (`"nimble"`, `"btstack"`, `"zephyr"`, `"arduinoble"`, `"sim"`).
 
+## Supported settings and safe reruns (API v2)
+
+`Ble.OptionNames`, `Ble.CanReadOption(name)` and `Ble.CanSetOption(name)` discover exact
+property support **without enabling the radio**. Names are case-sensitive: `TxPower`, `Mtu`,
+`Appearance`, `IoCapability`, `Bonding`, `Mitm`, `SecureConnections`, `Passkey`, `AddressType`,
+`MaxConnections`, `Phy`. Unknown names return false. Reading hardware properties or setting
+a supported hardware option may enable the stack; an option report is not a promise that any
+value is valid. `MaxConnections` is read-only. `AddressType` reads the address-kind string
+and accepts `0` (public) / `1` (static random) on backends supporting its setter.
+
+| Backend | Writable settings | Not runtime configurable |
+|---|---|---|
+| ESP NimBLE | TX power, MTU, appearance, address type; security with SMP; PHY with BLE 5 enabled | actual PHY/range depends on chip and host configuration |
+| Pico BTstack | MTU (clamped to port maximum), appearance, security, address type | TX power, preferred PHY |
+| Zephyr | IO capability, bonding, MITM with SMP; appearance with dynamic appearance; passkey with fixed-passkey config | MTU, preferred PHY, Secure Connections build policy, TX power, address type |
+| ArduinoBLE | appearance | MTU negotiates internally; TX power/security/PHY settings not exposed |
+| Host simulator | all except maximum connections | no physical radio validation |
+
+`Ble.ScanInterval` / `Ble.ScanWindow` are milliseconds, default **100 / 50**. Configure
+`5 <= window <= interval <= 10240`, while scanning is stopped. Timing setters require
+`Hal.Has("Ble.ScanParameters")` (ESP, Pico, Zephyr and simulator; not ArduinoBLE). These
+preferences do not enable the radio. Passive scanning (`Ble.StartScan(callback, false, true)`)
+reduces transmitted scan requests; the last argument enables duplicate reports.
+
+`Ble.Reset()` turns off the radio, drops links, clears services, subscriptions, callbacks and
+queued reports, invalidating old GATT objects. Call it at the start of a new standalone BLE
+example to avoid accumulating services/callbacks when rerunning in the same VM. It preserves
+stored bonds, the device name and scan preferences; do not call it inside a BLE callback or
+an in-progress operation. Use `Ble.ClearBonds()` only when intentionally deleting saved keys.
+`Ble.Disable()` alone does not discard the service definitions or registered callbacks.
+Passkey writes now apply before first use and propagate backend errors rather than silently
+caching an unsupported value.
+
+Studio now includes diagnostics, passive scan timing, manufacturer/service-data advertising,
+device-information/descriptors, GATT exploration, connection timing/RSSI and safe bond
+inspection, alongside scanner, beacons, heart rate, LED, UART, central and pairing examples.
+All have explicit role requirements and runtime guards. New examples are also in `examples/ble`.
+
 ## Try it on the PC
 
 ```sh
@@ -318,6 +356,8 @@ Set them in your `mcs_user_config.h` ([CONFIGURATION.md](CONFIGURATION.md)):
 | `MCS_BLE_VALUE_POOL` | 2048 | bytes for local attribute values |
 | `MCS_BLE_MAX_VALUE` | 512 | largest attribute value |
 | `MCS_BLE_SCAN_MAX` | 32 | devices `Ble.Scan` returns |
+| `MCS_BLE_SCAN_INTERVAL` | 100 | default scan interval (ms) |
+| `MCS_BLE_SCAN_WINDOW` | 50 | default scan window (ms, no greater than interval) |
 | `MCS_BLE_MAX_DISC` | 32 | services / characteristics / descriptors one discovery returns |
 | `MCS_BLE_MAX_SUBS` | 8 | remote characteristics subscribed to at once |
 | `MCS_BLE_TIMEOUT` | 5000 | default `Ble.Timeout` (ms) |
@@ -344,7 +384,11 @@ adds about 50 KB of flash (Cortex-M4, `-Os`, including the Bluetooth SIG name ta
 ## C API (for ports)
 
 `include/mcs_ble.h` documents the table. A port fills what its stack supports and leaves the
-rest `NULL`:
+rest `NULL`. API v2 appends `readable_options`, `writable_options` (bits from
+`MCS_BLE_OPTION(MCS_BLE_OPT_*)`) and `features` (`MCS_BLE_FEATURE_SCAN_PARAMETERS`). Fill
+these truthfully; zero means unknown/unsupported for discovery. Existing custom backends
+must be recompiled and add masks to participate in option-aware examples. Do not claim a
+setter merely because it caches a value without applying it to the stack:
 
 | Group | Members |
 |---|---|

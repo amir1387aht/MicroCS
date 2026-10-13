@@ -43,7 +43,7 @@
 extern "C" {
 #endif
 
-#define MCS_BLE_API_VERSION 1
+#define MCS_BLE_API_VERSION 2
 
 #define MCS_HAL_EV_BLE 7           /* HAL event type of the BLE queue (source = MCS_BLE_EV_*) */
 
@@ -108,6 +108,12 @@ enum { MCS_BLE_OPT_TX_POWER = 1,     /* dBm (advertising / default) */
        MCS_BLE_OPT_MAX_CONN,         /* read only: links the controller allows */
        MCS_BLE_OPT_PHY,              /* preferred PHY bits: 1 = 1M, 2 = 2M, 4 = Coded */
        MCS_BLE_OPT__COUNT };
+/* Option support is reported without enabling the radio. Bit zero is reserved. */
+#define MCS_BLE_OPTION(opt) (1u << (opt))
+#define MCS_BLE_OPTIONS_ALL ((1u << MCS_BLE_OPT__COUNT) - 2u)
+#define MCS_BLE_OPTIONS_SECURITY (MCS_BLE_OPTION(MCS_BLE_OPT_IO_CAP) | MCS_BLE_OPTION(MCS_BLE_OPT_BONDING) | MCS_BLE_OPTION(MCS_BLE_OPT_MITM) | MCS_BLE_OPTION(MCS_BLE_OPT_SC) | MCS_BLE_OPTION(MCS_BLE_OPT_PASSKEY))
+#define MCS_BLE_FEATURE_SCAN_PARAMETERS 1u
+
 enum { MCS_BLE_IO_DISPLAY_ONLY = 0, MCS_BLE_IO_DISPLAY_YESNO = 1, MCS_BLE_IO_KEYBOARD_ONLY = 2,
        MCS_BLE_IO_NONE = 3, MCS_BLE_IO_KEYBOARD_DISPLAY = 4 };    /* SMP values */
 
@@ -246,6 +252,10 @@ typedef struct mcs_ble {
      * the script set the value of local attribute `id` (gatts_set ids); NULL = every read
      * comes through mcs_ble_attr_read() */
     int (*gatts_value)(void* ctx, uint16_t id, const uint8_t* data, size_t n);
+    /* API v2: advertise only options actually implemented. Zero = unknown / unsupported;
+     * old custom ports can still call properties but cannot claim support in templates. */
+    uint32_t readable_options, writable_options;
+    uint32_t features;             /* MCS_BLE_FEATURE_* */
 } mcs_ble_t;
 
 #if MCS_ENABLE_BLE
