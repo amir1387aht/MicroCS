@@ -181,6 +181,9 @@ bool mcs__net_wait(mcs_vm_t* vm, uint32_t ms) {
 static const mcs_class_def_t state_def = { "__NetState", sizeof(mcs__net_state_t), NULL, NULL, NULL, NULL };
 mcs__net_state_t* mcs__net_state(mcs_vm_t* vm) { return (mcs__net_state_t*)mcs_get_ext(vm, MCS_EXT_NET); }
 int mcs__net_yield(mcs_vm_t* vm) {
+    /* Error replies may write while a route exception is pending. Do not run
+     * script callbacks then, or mistake that exception for cancellation. */
+    if (mcs_has_exception(vm)) return mcs_safepoint(vm);
     void* ud;
     mcs_idle_fn idle = mcs_get_idle(vm, &ud);
     if (idle) idle(vm, ud);

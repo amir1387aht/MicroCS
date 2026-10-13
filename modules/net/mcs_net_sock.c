@@ -519,7 +519,8 @@ NATIVE(lst_accept) {    /* ([timeoutMs]) -> TcpClient, null on timeout (default:
         if (mcs_new_object(vm, "TcpClient", 0, NULL, &o) != MCS_OK) { close(fd); return mcs_null(); }
         tcp_t* t = (tcp_t*)mcs_userdata(o);
         t->c.fd = fd;
-    mcs__net_track(vm, &t->resource, t, tcp_fin); t->c.net = mcs__net_state(vm) ? mcs__net_state(vm)->net : NULL;
+        mcs__net_track(vm, &t->resource, t, tcp_fin);
+        t->c.net = mcs__net_state(vm) ? mcs__net_state(vm)->net : NULL;
         return o;
     }
 }
