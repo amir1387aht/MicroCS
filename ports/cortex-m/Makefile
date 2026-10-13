@@ -18,8 +18,9 @@ M4  := -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 
 # target: cpu flags, profile flags, flash, ram
-# the 256 KB-flash Cortex-M0 targets leave out the Json library (~4 KB) to keep flash headroom
-M0_SLIM := -DMCS_ENABLE_JSON=0
+# The 256 KB-flash M0 targets already omit JSON. LTO keeps the configured API intact
+# while recovering flash headroom across GCC/newlib versions (Ubuntu 13.2 vs Arm 13.3).
+M0_SLIM := -DMCS_ENABLE_JSON=0 -flto
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
 m0-runtime_F := $(M0)  $(RUNTIME) $(M0_SLIM) -DMCS_ENABLE_HAL_DMA=0 -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
@@ -112,7 +113,7 @@ $(OUT)/m4-bench.elf: $(BENCH_SRC) $(OUT)/bench_scripts.h cm.ld Makefile
 	  -Wl,--defsym=FLASH_SIZE=512K -Wl,--defsym=RAM_SIZE=192K -Wl,--defsym=STACK_SIZE=8K -Wl,--defsym=SBRK_SIZE=2K
 	@$(SIZE) $@
 $(OUT)/m0-bench.elf: $(BENCH_SRC) $(OUT)/bench_scripts.h cm.ld Makefile
-	$(CC) $(CFLAGS) $(M0) $(RUNTIME) $(BENCH_CFLAGS) -DCM_TARGET='"m0-bench"' -DCM_HEAP_SIZE=65536 $(BENCH_SRC) -o $@ $(LDFLAGS) \
+	$(CC) $(CFLAGS) $(M0) $(RUNTIME) -flto $(BENCH_CFLAGS) -DCM_TARGET='"m0-bench"' -DCM_HEAP_SIZE=65536 $(BENCH_SRC) -o $@ $(LDFLAGS) \
 	  -Wl,--defsym=FLASH_SIZE=256K -Wl,--defsym=RAM_SIZE=128K -Wl,--defsym=STACK_SIZE=8K -Wl,--defsym=SBRK_SIZE=2K
 	@$(SIZE) $@
 .PHONY: bench

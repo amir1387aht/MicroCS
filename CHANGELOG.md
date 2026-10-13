@@ -4,6 +4,9 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Bluetooth LE, Studio templates as files
 
+* **Cortex-M flash budget** — shared capability lookup / direct peripheral predicates;
+  LTO on the 256 KB Cortex-M0 reference targets and benchmark preserves configured
+  features while accommodating GCC/newlib size differences.
 * **Capability-aware templates** — allocation-free shell `caps` and expanded `Hal.Has`,
   explicit `requires:` metadata for every template, connected-board filtering with offline
   browsing and conservative older-firmware fallback. Radio examples check Wi-Fi / BLE /
