@@ -93,7 +93,7 @@ jobs:
       - name: Script input echo ownership (machine protocol and raw REPL)
         run: python3 tests/test_readline_echo.py ./mcs
       - name: Shared C# lexical contexts and highlighting
-        run: node tests/studio/test_lexical.js && node tests/studio/test_highlight.js
+        run: node tests/studio/test_lexical.js && node tests/studio/test_highlight.js && node tests/studio/test_format.js ./mcs
       - name: Interpolation completion, signatures and hover (offline browser)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_completion_context.js
       - name: templates.js is generated from tools/studio/templates/

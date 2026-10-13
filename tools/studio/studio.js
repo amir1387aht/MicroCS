@@ -935,14 +935,29 @@ class Editor {
     ta.setSelectionRange(p, p); this.cursorMoved();
   }
   static format(src) {
-    const lines = src.split("\n"), bl = Lang.blank(src).split("\n");
+    const breaks = src.match(/\r\n|\n|\r/g) || [];
+    const lines = src.split(/\r\n|\n|\r/), bl = Lang.blank(src, true).split(/\r\n|\n|\r/);
+    const protectedLines = new Set(), starts = [0];
+    for (let i = 0; i < lines.length - 1; i++) starts.push(starts[i] + lines[i].length + breaks[i].length);
+    const rowAt = p => {
+      let lo = 0, hi = starts.length;
+      while (lo < hi) { const m = (lo + hi) >>> 1; if (starts[m] <= p) lo = m + 1; else hi = m; }
+      return Math.max(0, lo - 1);
+    };
+    const lex = Lang.lexical(src);
+    // Reindent code, never string payloads or multiline comments. Conservatively
+    // preserve whole physical lines touching a multiline/incomplete literal.
+    for (const r of [...lex.strings, ...lex.ranges.filter(r => r.kind === "comment")]) {
+      const first = rowAt(r.start), last = rowAt(Math.max(r.start, r.end - 1));
+      if (first !== last || r.closed === false) for (let row = first; row <= last; row++) protectedLines.add(row);
+    }
     const out = [], stack = [];          // open brackets: { ch, ind (inner indent), at (indent of the opening line), line, sw }
-    let single = -1, inComment = false;
+    let single = -1;
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i], t = raw.trim(), b = bl[i].trim();
-      if (inComment) { out.push(raw.replace(/\s+$/, "")); if (/\*\//.test(raw)) inComment = false; continue; }
-      if (!t) { out.push(""); continue; }
-      if (/^#/.test(t)) { out.push(t); continue; }
+      const preserve = protectedLines.has(i);
+      if (!t && !preserve) { out.push(""); continue; }
+      if (/^#/.test(t) && !preserve) { out.push(t); continue; }
       const top = stack[stack.length - 1];
       let ind = top ? top.ind : 0;
       if (/^[}\])]/.test(b) && top) ind = top.at;                                  // closing line
@@ -955,7 +970,8 @@ class Editor {
       const orig = /^[ \t]*/.exec(raw)[0].replace(/\t/g, "    ").length;
       let col = 4 * Math.max(0, ind);
       if (top && (top.ch !== "{" || top.inline) && !/^[}\])]/.test(b) && orig > col) col = orig;  // keep manual alignment inside ( ) [ ] and { a, b,'s
-      out.push(" ".repeat(col) + t);
+      if (preserve) col = orig;
+      out.push(preserve ? raw : " ".repeat(col) + t);
       const lineInd = col / 4 | 0;
       /* brackets on this line */
       for (let k = 0; k < b.length; k++) {
@@ -969,9 +985,8 @@ class Editor {
         } else if (c === "}" || c === ")" || c === "]") stack.pop();
       }
       single = /^(if|else|for|foreach|while|using|lock)\b/.test(b) && !/[;{}]$/.test(b) && !/\)\s*\S.*;$/.test(b) || /^else$/.test(b) ? lineInd + 1 : -1;
-      if (/^\/\*/.test(t) && !/\*\//.test(t)) inComment = true;
     }
-    return out.join("\n");
+    return out.map((line, i) => line + (breaks[i] || "")).join("");
   }
   inString(p) {
     return Lang.contextAt(this.ta.value, p) !== "code";

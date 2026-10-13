@@ -32,3 +32,24 @@ pending at this checkpoint. Full browser serial suite and geometry next.
 No runtime/API/image changes. Formatter multiline-literal audit remains next.
 Release remains blocked by checklist. Remote branch/base unchanged; resolve
 remote SHA after push. Local staged and cumulative patches in `/data/backups/`.
+
+## Checkpoint 3 — data-preserving formatter
+
+Changes: formatter masks entire literals (not expression holes), preserves exact
+multiline/incomplete literal and comment lines, and retains each LF/CRLF/CR
+separator. Existing Shift+Alt+F command remains; no unfinished UI added.
+Node regressions include Unicode, blank/trailing-space payloads, interpolation,
+mixed endings, idempotence and actual compiler/runtime output equality for
+regular-verbatim and both interpolated-verbatim prefixes. CI runs these tests.
+
+Tests: lexical/highlighting/formatter tests pass; `test_format.js ./mcs` compiles
+and runs each original/formatted pair with byte-identical stdout. The full
+Studio fake-serial suite (previous lexical checkpoint) reports ALL PASSED.
+Gallery geometry passed all 20 viewport/capability combinations plus keyboard,
+light-theme and empty-search checks. Chrome for Testing 153.0.8010.12.
+Full host `make -j2 test` still running at this checkpoint; see local log.
+Next: rerun full Studio with formatter change, commit raw logs; improve baseline
+benchmark harness (existing best-of measurements subtract independently timed
+startup and do not verify execution errors/output).
+Release remains blocked. Local staged/cumulative patches and exact fetched
+remote SHA are recorded in `/data/backups/NOTES.md` after push.

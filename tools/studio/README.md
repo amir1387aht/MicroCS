@@ -41,6 +41,12 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
 | F5 / Ctrl+Enter · Ctrl+Shift+Enter · Ctrl+S | save and run · run the selection · save |
 
+The formatter (Shift+Alt+F) preserves LF/CRLF/CR line endings, including mixed
+endings, and never rewrites multiline string payloads or multiline comments.
+Whole physical lines touching multiline or unfinished strings are deliberately
+left unchanged; code after the literal is still indented. This conservative
+behavior prevents formatting from changing program output.
+
 ## Interpolated expressions
 
 Completion, parameter help, hover and highlighting use the same bounded lexical
@@ -59,6 +65,7 @@ Quick regressions:
 ```sh
 node tests/studio/test_lexical.js
 node tests/studio/test_highlight.js
+node tests/studio/test_format.js ./mcs
 CHROME=/path/to/chromium node tests/studio/test_completion_context.js
 ```
 
