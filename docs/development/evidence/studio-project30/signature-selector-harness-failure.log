@@ -1,0 +1,67 @@
+PASS real host reports compiler
+PASS creation dialog states membership and entry order
+PASS explicit project created through UI
+PASS later unrelated tab not imported
+COMPLETION {
+  text: 'var meter = new Meter();\nmeter.',
+  pos: 31,
+  box: 'MEqualsboolMGetHashCodeintMGetTypeTypeMReadintMToStringstring',
+  active: 'yv2jsxqrqpd',
+  docs: [
+    {
+      id: 'd2m8hvyjs6a',
+      text: '// library\npublic class Meter { public int Read() { return 42; } }\n'
+    },
+    { id: 'yv2jsxqrqpd', text: 'var meter = new Meter();\nmeter.' }
+  ],
+  type: 'Meter'
+}
+PASS project member completion in actual editor
+SIGNATURE {
+  text: 'var meter = new Meter();\nmeter.Read(',
+  pos: 36,
+  sig: 'int Meter.Read()method of Meter',
+  ctx: { isNew: false, name: 'Read', recv: 'meter', open: 35, arg: 0 }
+}
+FAIL project member signature in actual editor
+PASS project member hover uses actual source model
+NAV {
+  active: 'd2m8hvyjs6a',
+  lib: 'd2m8hvyjs6a',
+  selection: 'Read',
+  pos: 43,
+  defs: [
+    {
+      documentId: 'd2m8hvyjs6a',
+      name: 'Read',
+      line: 2,
+      column: 33,
+      offset: 43
+    }
+  ]
+}
+PASS F12 selects exact cross-file member after CRLF
+PASS real serial shell executes project without unrelated tab
+PASS successful run removes only temporary bundle
+PASS unsaved originals and existing device files untouched
+PASS project execution does not pretend originals saved
+ERROR TERM ▶ run project sensor
+Unhandled exception. MissingMemberException: The name 'missingSymbol' does not exist in the current context
+   at Read in /.studio_project_cdd9cdea374cc7e323b337375ea2e1fd.cs:line 1
+   at <main> in /.studio_project_cdd9cdea374cc7e323b337375ea2e1fd.cs:line 3
+✗ failed after 8 ms
+ERROR STATE { active: 'd2m8hvyjs6a', lib: 'd2m8hvyjs6a', line: 1 }
+PASS real compiler reports invalid source
+PASS project diagnostic selects original non-entry source
+PASS failed compile cleans temporary bundle
+PASS stale diagnostic never navigates to wrong position
+PASS project busy covers actual run
+PASS duplicate Run project does not queue a second upload
+PASS Stop recovers actual shell and cleans bundle
+PASS normal project run succeeds after Stop
+PASS known compiler-off firmware does not upload/run source
+PASS temporary name collision never overwrites or deletes existing file
+PASS closed member blocks incomplete project execution
+PASS close project keeps tabs and clears exported assistance
+PASS project menu fits phone viewport
+1 FAILED

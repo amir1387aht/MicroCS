@@ -1,0 +1,44 @@
+PASS real host reports compiler
+PASS creation dialog states membership and entry order
+PASS explicit project created through UI
+PASS later unrelated tab not imported
+NAV {
+  active: '2citl3np4r6',
+  lib: '2citl3np4r6',
+  selection: 'Read',
+  pos: 43,
+  defs: [
+    {
+      documentId: '2citl3np4r6',
+      name: 'Read',
+      line: 2,
+      column: 33,
+      offset: 43
+    }
+  ]
+}
+PASS F12 selects exact cross-file member after CRLF
+PASS real serial shell executes project without unrelated tab
+PASS successful run removes only temporary bundle
+PASS unsaved originals and existing device files untouched
+PASS project execution does not pretend originals saved
+ERROR TERM ▶ run project sensor
+Unhandled exception. MissingMemberException: The name 'missingSymbol' does not exist in the current context
+   at Read in /.studio_project_8a988daef8430e09b1c775742181368f.cs:line 1
+   at <main> in /.studio_project_8a988daef8430e09b1c775742181368f.cs:line 3
+✗ failed after 10 ms
+ERROR STATE { active: '2citl3np4r6', lib: '2citl3np4r6', line: 1 }
+PASS real compiler reports invalid source
+PASS project diagnostic selects original non-entry source
+PASS failed compile cleans temporary bundle
+PASS stale diagnostic never navigates to wrong position
+PASS Stop recovers actual shell and cleans bundle
+PASS normal project run succeeds after Stop
+PASS known compiler-off firmware does not upload/run source
+page.evaluate: TypeError: App.capabilities.add is not a function
+    at eval (eval at evaluate (:311:30), <anonymous>:1:25)
+    at UtilityScript.evaluate (<anonymous>:313:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at /vercel/sandbox/data/MicroCS-v2-next/tests/studio/test_project_browser.js:105:14 {
+  log: []
+}

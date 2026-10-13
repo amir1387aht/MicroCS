@@ -230,12 +230,12 @@ footer .sp { flex: 1; }
 .menu .mh { padding: 5px 8px 2px; font-size: 11px; color: var(--fg3); }
 .modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); z-index: 60; display: none; place-items: center; }
 .modal-bg.show { display: grid; }
-.modal { width: min(440px, 92vw); background: var(--tool); border: 1px solid var(--accent); box-shadow: var(--shadow); padding: 18px 20px; }
-.modal h3 { margin: 0 0 6px; font-size: 15px; font-weight: 400; }
-.modal p { margin: 0 0 12px; color: var(--fg2); line-height: 1.5; }
-.modal input { width: 100%; height: 26px; border: 1px solid var(--line); background: var(--input); padding: 0 7px; outline: none; font-family: var(--mono); font-size: 12.5px; }
+.modal { display: flex; flex-direction: column; max-height: calc(100vh - 24px); width: min(440px, 92vw); background: var(--tool); border: 1px solid var(--accent); box-shadow: var(--shadow); padding: 18px 20px; }
+.modal h3 { flex-shrink: 0; margin: 0 0 6px; font-size: 15px; font-weight: 400; }
+.modal p { min-height: 0; overflow: auto; overflow-wrap: anywhere; margin: 0 0 12px; color: var(--fg2); line-height: 1.5; }
+.modal input { flex-shrink: 0; width: 100%; height: 26px; border: 1px solid var(--line); background: var(--input); padding: 0 7px; outline: none; font-family: var(--mono); font-size: 12.5px; }
 .modal input:focus { border-color: var(--accent); }
-.modal .acts { display: flex; justify-content: flex-end; gap: 6px; margin-top: 16px; }
+.modal .acts { flex-shrink: 0; display: flex; justify-content: flex-end; gap: 6px; margin-top: 16px; }
 .modal .acts .btn { min-width: 76px; justify-content: center; background: var(--raised); border-color: var(--line); }
 .modal .acts .btn.primary { background: var(--accent); border-color: var(--accent); }
 .modal .acts .btn.danger { background: #a1260d; border-color: #a1260d; color: #fff; }

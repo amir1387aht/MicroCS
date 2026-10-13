@@ -1,0 +1,5 @@
+PASS scoped declarations: 69 visibility/type assertions
+PASS shared lexer: contexts, offsets, nested interpolation, signatures, formats, cache and depth bound
+PASS Studio strings: interpolated/verbatim, nested holes, comments, escapes, incomplete input
+PASS formatter: multiline payloads/comments, incomplete literals, interpolation, Unicode, mixed LF/CRLF/CR, idempotence
+PASS formatter compiled/runtime outputs unchanged for all multiline string prefixes

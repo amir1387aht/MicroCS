@@ -35,11 +35,12 @@ No build step for the app: edit a file and reload the page. After changing a tem
 |---|---|
 | Ctrl+Space · Ctrl+Shift+Space | completion (with docs) · parameter info (↑/↓ switch overloads) |
 | Ctrl+F · Ctrl+H · F3 / Shift+F3 | find · replace · next / previous match |
-| Ctrl+G · Ctrl+] | go to line · jump to the matching bracket |
+| Ctrl+G · Ctrl+] · F12 | go to line · jump to the matching bracket · go to source definition |
 | Shift+Alt+F | format document |
 | Alt+↑/↓ · Shift+Alt+↑/↓ · Ctrl+D · Ctrl+Shift+K | move line · copy line · duplicate · delete line |
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
 | F5 / Ctrl+Enter · Ctrl+Shift+Enter · Ctrl+S | save and run · run the selection · save |
+| Shift+F5 | run the explicit source project (without saving originals) |
 
 The formatter (Shift+Alt+F) preserves LF/CRLF/CR line endings, including mixed
 endings, and never rewrites multiline string payloads or multiline comments.
@@ -139,8 +140,10 @@ constructor signatures are represented as constructors, not fake static factorie
 Parameter splitting ignores commas/brackets/whitespace inside literal defaults.
 
 This remains a tolerant lightweight source model, not a complete C# compiler or
-project semantic engine. Complex patterns, all declaration variants, project
-imports/namespaces, diagnostics and navigation still need dedicated work. Unknown
+project semantic engine. Complex patterns, all declaration variants and true
+module/namespace resolution still need dedicated work. The bounded source-project
+and definition-navigation workflow below is implemented, not a full compiler
+semantic index. Unknown
 types are not a promise of unsupported .NET APIs. `tests/studio/test_scope.js`
 contains direct visibility/type/default regressions; real editor popup/signature
 and full serial integration tests cover the same implementation. Exact Node
@@ -152,3 +155,56 @@ must match `[A-Za-z][A-Za-z0-9.]*`; every native name is now tested against that
 existing client grammar. Introducing an underscore-containing capability would
 invalidate the entire report for older Studio clients, not merely hide the new
 optional feature. No protocol version change is needed for the legal new name.
+
+## Explicit source projects and navigation (v2 WIP)
+
+Open the C# files you intend to include, select the entry tab, then choose
+**⋯ → Create project from open C# files…**. The confirmation lists the exact
+membership; cancel if it includes an unwanted file. Libraries run in tab order,
+with the selected entry **last**. Files opened afterward are not imported.
+Recreate the project to change membership. Closing a member blocks execution
+instead of silently running a subset. **Close project (keep files)** removes
+project assistance, not the tabs or device files.
+
+**Shift+F5** validates complete independent source files, joins their unchanged
+text with a newline boundary, and uploads one uniquely named temporary source
+bundle. It runs that bundle through the actual on-device MicroCS compiler.
+Original files are not uploaded/saved or marked clean. The temporary file is
+removed after success, failure or Stop; a disconnect/cleanup failure warns that
+it may remain. Name collisions never overwrite an existing file. Duplicate runs
+are blocked from upload through cleanup. A known `Compiler=0` firmware does not
+receive a source bundle. Device storage, heap and compiler limits still apply.
+Ordinary **F5**, selection execution and **Ctrl+S** keep their existing behavior.
+
+Project types, enums, root functions and class members feed completion,
+parameter help and hover. Foreign locals/parameters/local functions stay in their
+own document. **F12** navigates supported locals, parameters, types, functions,
+fields and methods to the original source name; multiple overload locations ask
+which one to open. Ambiguous foreign class declarations are not silently chosen.
+Error stack-frame/compile locations map to the original run snapshot. Clickable
+old diagnostics do not jump into changed or closed sources; an older temporary
+bundle is not confused with a later run. Textarea line endings are normalized
+for edit comparison only, not rewritten by bundle construction.
+
+Limits: 1–32 `.cs` text members, at most 256 Ki UTF-16 units total and 512 KiB
+UTF-8 after bundling. Every member must have closed literals/block comments and
+balanced structural delimiters; complete EOF line comments are supported.
+Membership and the last run map are **session-only**, not a persistent/exported
+project manifest. Save/download individual files separately. This is **source
+bundling**, not dynamic imports, packages, .NET assemblies or a new namespace
+resolver: the runtime's existing `using`/namespace behavior remains unchanged.
+No assets, include paths or external SDKs are packaged. Editor assistance remains
+conservative and the compiler remains the execution authority. Passing these
+host/browser tests does not make full v2 release-ready.
+
+```sh
+node tests/studio/test_project.js ./mcs
+CHROME=/path/to/chromium node tests/studio/test_project_browser.js ./mcs
+CHROME=/path/to/chromium node tests/studio/test_project_layout.js
+```
+
+The browser test uses a Web Serial boundary wired to the **real host shell**, not
+fabricated protocol successes. It checks original-file preservation, membership,
+completion/signatures/hover, definition selection, mapped errors, stale positions,
+Stop/recovery, duplicate runs, compiler-off gating, collisions and temporary
+cleanup. It is not physical-device evidence.

@@ -488,7 +488,7 @@ class Term {
   linkify(el) {
     const t = el.textContent;
     const m = /(\/[^\s():]+?\.cs)\((\d+),\d+\)/.exec(t) || /in (\/[^\s:]+?\.cs):line (\d+)/.exec(t);
-    if (m && !m[1].startsWith("/.studio")) { el.classList.add("link"); el.dataset.path = m[1]; el.dataset.line = m[2]; el.title = "Open " + m[1] + " at line " + m[2]; }
+    if (m && (!m[1].startsWith("/.studio") || m[1].startsWith("/.studio_project_"))) { el.classList.add("link"); el.dataset.path = m[1]; el.dataset.line = m[2]; el.title = "Open " + m[1] + " at line " + m[2]; }
     else if (m) { el.classList.add("link"); el.dataset.path = ""; el.dataset.line = m[2]; }
   }
   line(text, cls) { if (this.cells.length) this.newline(); this.write(text + "\n", cls); }
@@ -679,6 +679,7 @@ class Editor {
     this.ta.readOnly = !!tab.readOnly;
     this.refresh(true);
     requestAnimationFrame(() => {
+      if (this.tab !== tab) return; // rapid navigation must not restore a closed/old tab
       this.ta.setSelectionRange(tab.sel?.[0] || 0, tab.sel?.[1] || 0);
       this.ta.scrollTop = tab.scroll?.[0] || 0; this.ta.scrollLeft = tab.scroll?.[1] || 0;
       this.syncScroll(); this.cursorMoved();
@@ -1003,6 +1004,7 @@ class Editor {
 
   /* ---- completion (Lang: docs.js signatures + symbols of this file) */
   suggest(explicit) {
+    App.syncProjectLang();
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
     if (p !== ta.selectionEnd) return this.hideComplete();
     const line = v.slice(v.lastIndexOf("\n", p - 1) + 1, p);
@@ -1152,6 +1154,7 @@ class Editor {
 
   /* ---- signature help: parameter info while typing a call ("(" and ",", Ctrl+Shift+Space) */
   sigUpdate(trigger) {
+    App.syncProjectLang();
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
     if (p !== ta.selectionEnd || Lang.contextAt(v, p) !== "code") return this.sigHide();
     const ctx = Lang.callContext(v, p);
@@ -1324,6 +1327,7 @@ class Editor {
     this.tip.style.top = (y + this.tip.offsetHeight > this.ta.clientHeight && y > this.tip.offsetHeight + this.lh ? y - this.lh - this.tip.offsetHeight - 4 : y) + "px";
   }
   describe(v, w) {
+    App.syncProjectLang();
     const word = w.word;
     let d = w.a; while (d > 0 && v[d - 1] === " ") d--;
     if (v[d - 1] === ".") {
@@ -1491,7 +1495,7 @@ const store = {
 };
 const App = {
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
-  capabilities: null, capabilitiesKnown: false,
+  capabilities: null, capabilitiesKnown: false, project: null, lastProjectRun: null, projectBusy: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
 
   /* ---------- connection */
@@ -1604,7 +1608,7 @@ const App = {
   updateButtons() {
     const t = this.tab(), c = dev.connected;
     $("btnSave").disabled = !t || t.readOnly || (!t.dirty && t.path && !t.local) || (!c && !t.local);
-    $("btnRun").disabled = !c || !t || t.binary && extOf(t.path || "") !== "mcsb";
+    $("btnRun").disabled = !c || !t || this.projectBusy || t.binary && extOf(t.path || "") !== "mcsb";
     $("btnStop").disabled = !c || !dev.running;
     $("sbBusy").textContent = dev.running ? "▶ running" : dev.pending ? "● working…" : "Ready";
     document.querySelector("footer").classList.toggle("run", !!(c && dev.running));     // orange while a script runs, like debugging in VS
@@ -1967,8 +1971,103 @@ const App = {
     } catch (e) { toast("Save failed: " + e.message, "err", 6000); return false; }
   },
 
+  /* Explicit source projects: snapshots of selected open tabs, never implicit
+   * imports of all tabs. Files remain independently editable and unsaved. */
+  projectDocuments() {
+    if (!this.project) return null;
+    return this.project.members.map(id => {
+      const t = this.tabs.find(t => t.id === id);
+      if (!t || t.binary) throw new Error("A project member was closed or is no longer a source file. Recreate the project or reopen its members.");
+      return { id: t.id, name: t.path || t.name || "untitled.cs", text: t.id === this.active ? ed.ta.value : t.text };
+    });
+  },
+  setProjectMembers(members, entryId, name) {
+    if (this.projectBusy) throw new Error("Wait for the current project run to finish.");
+    const old = this.project;
+    this.project = { members: [...members], entryId, name: String(name || "project") };
+    try { Lang.projectBundle(this.projectDocuments(), entryId); }
+    catch (e) { this.project = old; throw e; }
+    this.syncProjectLang();
+  },
+  syncProjectLang() {
+    try {
+      const documents = this.projectDocuments();
+      Lang.setProjectDocuments(documents, this.active);
+    } catch { Lang.setProjectDocuments(null); } // incomplete membership gives no stale assistance
+  },
+  async createProject() {
+    if (this.projectBusy) { toast("Wait for the current project run to finish.", "err"); return; }
+    ed.stash();
+    const entry = this.tab();
+    const members = this.tabs.filter(t => !t.binary && /\.cs$/i.test(t.path || t.name || ""));
+    if (!entry || !members.includes(entry)) { toast("Select a C# entry file first.", "err"); return; }
+    const name = await dialog({ title: "Create source project", text: `Include these open C# files in tab order: ${members.map(t => t.path || t.name).join(", ")}. Entry ${entry.path || entry.name} runs last. Other files opened later are not imported. Original files are not uploaded or saved by Run project.`, value: "project", ok: "Create" });
+    if (name === null) return;
+    try { this.setProjectMembers(members.map(t => t.id), entry.id, name); toast(`Project ${name}: ${members.length} source files. Shift+F5 runs the bundle.`, "ok", 6000); }
+    catch (e) { toast(e.message, "err", 6000); }
+  },
+  async gotoDefinition() {
+    const tab = this.tab(); if (!tab || tab.binary) return;
+    this.syncProjectLang();
+    let candidates = Lang.definitionsAt(ed.ta.value, ed.ta.selectionStart);
+    // De-duplicate multiple accessors/overloads that share the same location.
+    candidates = candidates.filter((c, i, all) => all.findIndex(x => x.documentId === c.documentId && x.offset === c.offset) === i);
+    if (!candidates.length) { toast("No unambiguous source definition is available here."); return; }
+    let target = candidates[0];
+    if (candidates.length > 1) {
+      const choice = await dialog({ title: "Choose definition", text: candidates.map((c, i) => `${i + 1}: ${this.tabs.find(t => t.id === c.documentId)?.path || this.tabs.find(t => t.id === c.documentId)?.name || "this file"}:${c.line}`).join(" · "), value: "1", ok: "Go" });
+      if (choice === null) return;
+      const index = Number(choice); if (!Number.isInteger(index) || index < 1 || index > candidates.length) { toast("Choose one of the listed definition numbers.", "err"); return; }
+      target = candidates[index - 1];
+    }
+    if (target.documentId && !this.tabs.some(t => t.id === target.documentId)) { toast("The definition file was closed.", "err"); return; }
+    if (target.documentId) this.activate(target.documentId);
+    ed.gotoLine(target.line);
+    const start = ed.ta.selectionStart + target.column - 1;
+    ed.ta.setSelectionRange(start, start + target.name.length); ed.ta.focus(); ed.cursorMoved(); ed.stash();
+  },
+  showProjectLocation(path, line) {
+    const run = this.lastProjectRun;
+    if (!run || run.path !== path) return false;
+    const location = Lang.projectLocation(run.bundle, line);
+    const tab = location && this.tabs.find(t => t.id === location.documentId);
+    if (!tab) { toast("The project diagnostic belongs to a closed source file.", "err"); return true; }
+    const current = tab.id === this.active ? ed.ta.value : tab.text;
+    if (current.replace(/\r\n|\r/g, "\n") !== location.text.replace(/\r\n|\r/g, "\n")) { toast("This source changed after the project run; its old diagnostic position is stale.", "err"); return true; }
+    this.activate(tab.id); ed.setError(location.line); ed.gotoLine(location.line); ed.stash(); return true;
+  },
+  async runProject() {
+    if (!this.project) { toast("Create a source project first.", "err"); return; }
+    if (!dev.connected || dev.running || this.projectBusy) { toast("Connect an idle device before Run project.", "err"); return; }
+    if (this.capabilitiesKnown && this.capabilities?.get("Compiler") !== true) { toast("This firmware does not report an on-device compiler.", "err"); return; }
+    const projectName = this.project.name;
+    this.projectBusy = true; this.updateButtons();
+    let bundle, path, written = false;
+    try {
+      ed.stash(); bundle = Lang.projectBundle(this.projectDocuments(), this.project.entryId);
+      const token = Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, "0")).join("");
+      path = `/.studio_project_${token}.cs`;
+      this.checkSpace(path, bundle.bytes);
+      await dev.op(async () => {
+        const entries = await dev.ls("/");
+        if (entries.some(e => e.name === baseName(path))) throw new Error("Temporary project filename collision; try again.");
+        await dev.put(path, enc.encode(bundle.text)); written = true;
+      });
+      this.lastProjectRun = { path, bundle };
+      await this.runPath(path, `project ${projectName}`);
+    } catch (e) { toast("Project run failed: " + e.message, "err", 6000); }
+    finally {
+      if (written && dev.connected) {
+        try { await dev.op(() => dev.check("rm " + path)); }
+        catch { toast("Temporary project source could not be removed: " + path, "warn", 6000); }
+      } else if (written) toast("Disconnected; temporary project source may remain: " + path, "warn", 6000);
+      this.projectBusy = false; this.updateButtons();
+    }
+  },
+
   /* ---------- running */
   async runCurrent(selectionOnly) {
+    if (this.projectBusy) { toast("Wait for the project run to finish or Stop it first.", "err"); return; }
     const t = this.tab();
     if (!t || !dev.connected) return;
     ed.stash();
@@ -2015,9 +2114,13 @@ const App = {
       const msg = st.status.replace(/^ERR /, "");
       const shown = msg.length > 8 && tail.includes(msg.slice(0, 60));    // the error text was already printed
       term.line(/aborted/i.test(msg) ? "■ stopped" : shown ? `✗ failed after ${ms} ms` : "✗ " + msg, /aborted/i.test(msg) ? "warn" : "err");
-      const m = /\((\d+),\d+\)/.exec(msg) || /:line (\d+)/.exec(msg);
+      // Runtime failures carry source locations in streamed stack frames, not
+      // necessarily in the final shell status. Use only this exact run snapshot.
+      const projectFrame = this.lastProjectRun?.path === path ? [...tail.matchAll(/in (\/[^\s:]+?\.cs):line (\d+)/g)].find(m => m[1] === path) || [...tail.matchAll(/(\/[^\s():]+?\.cs)\((\d+),\d+\)/g)].find(m => m[1] === path) : null;
+      const m = (projectFrame && [projectFrame[0], projectFrame[2]]) || /\((\d+),\d+\)/.exec(msg) || /:line (\d+)/.exec(msg);
       const tab = this.tab();
-      if (m && tab && (tab.path === path || label === "selection")) ed.setError(label === "selection" ? 0 : +m[1]);
+      if (m && this.showProjectLocation(path, +m[1])) { /* mapped to the original source snapshot */ }
+      else if (m && tab && (tab.path === path || label === "selection")) ed.setError(label === "selection" ? 0 : +m[1]);
     }
     this.refresh(true);
   },
@@ -2267,8 +2370,12 @@ const App = {
       "-",
       { label: "Find / Replace…  Ctrl+H", icon: "edit", disabled: !t || !!t.binary, run: () => ed.openFind(true) },
       { label: "Go to line…  Ctrl+G", icon: "edit", disabled: !t || !!t.binary, run: () => this.gotoLineDialog() },
+      { label: "Go to definition  F12", icon: "code", disabled: !t || !!t.binary, run: () => this.gotoDefinition() },
       { label: "Format document  Shift+Alt+F", icon: "code", disabled: !t || !!t.binary || t.readOnly, run: () => ed.formatDocument() },
       "-",
+      { label: "Create project from open C# files…", icon: "folder", disabled: !t || !!t.binary || this.projectBusy, run: () => this.createProject() },
+      { label: this.project ? `Run project ${this.project.name}  Shift+F5` : "Run project  Shift+F5", icon: "play", disabled: !this.project || !dev.connected || dev.running || this.projectBusy || this.capabilitiesKnown && this.capabilities?.get("Compiler") !== true, run: () => this.runProject() },
+      { label: "Close project (keep files)", icon: "x", disabled: !this.project || this.projectBusy, run: () => { this.project = null; this.lastProjectRun = null; Lang.setProjectDocuments(null); toast("Project closed; open files are unchanged."); } },
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
       { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
       { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
@@ -2327,6 +2434,8 @@ const App = {
       this.reconnectLoop();
     });
     term.onLink = (path, line) => {
+      if (this.showProjectLocation(path, +line)) return;
+      if (path?.startsWith("/.studio_project_")) { toast("That older project run no longer has a source map."); return; }
       if (path) { const t = this.tabs.find((x) => x.path === path); (t ? Promise.resolve(this.activate(t.id)) : this.openPath(path)).then(() => { ed.setError(line); ed.gotoLine(line); }); }
       else if (this.tab()) { ed.gotoLine(line); }
     };
@@ -2378,6 +2487,8 @@ const App = {
     addEventListener("keydown", (e) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
+      else if (e.key === "F12" && !e.altKey && !mod) { e.preventDefault(); this.gotoDefinition(); }
+      else if (e.key === "F5" && e.shiftKey && !mod) { e.preventDefault(); this.runProject(); }
       else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod); }
       else if (mod && e.key === "`") { e.preventDefault(); $("cin").focus(); }
       else if (e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); this.newScratch(); }

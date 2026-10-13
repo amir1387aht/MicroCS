@@ -106,6 +106,12 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("/tmp/studio-test.log").read_text()[-2500:]; print("::error title=Studio failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
           fi
           exit "$result"
+      - name: Explicit source projects, definitions and actual bundled execution
+        run: node tests/studio/test_project.js ./mcs
+      - name: Project workflow over real host shell (fake Web Serial boundary)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_browser.js ./mcs
+      - name: Source-project dialog geometry (32 long names, desktop/phone/short, dark/light)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_layout.js
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: ESP BLE menuconfig gating and limits

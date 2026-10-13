@@ -979,3 +979,54 @@ Uncommitted Studio project/nav work is NOT included in29; validate/push separate
 as30. Full original v2 work, broad API/OOM/peak/verifier/security/graphics/Studio/
 core/roadmap/benchmarks/hardware/independentreview gates remain blocking. No
 hostile bytecode execution, merge/tag/release/provisioning or irreversible action.
+
+## Checkpoint30 — real Studio session projects, assistance and source navigation
+
+Predecessor29 REMOTE e6f5e299f98161014bd5dc671bac27018a9efcfb treeverified
+6efc269536224d2c5398f309f3f6d7624bd11463; main unchanged d3def1ff... . Runtime
+and actual host binary byte-identical to29; no relabeled new runtime gate.
+
+Implemented explicit listed open-C# membership/entry-last source bundles, bounded
+per-document cross-file types/enums/rootfunctions/member assistance, exact source
+name F12 navigation and inherited/overloaded definition locations with explicit
+choice. Foreign locals/params/localfunctions remain scoped. Session project uses
+original dirty texts without uploading/saving originals; later tabs excluded,
+closedmember blocks subsetexecution. ShiftF5 invokes REAL on-devicecompiler via
+serialized unique128bit temporarysource; collision/Compiler=0/duplicate-run guards,
+success/error/Stop cleanup and explicit disconnected-cleanup warning. Ordinary
+F5/selection/save unchanged. Actualsnapshot compiler/runtime frames map to
+original files; exceptionmessage fake :line cannot outrank exact projectframe.
+Stale/closed/older snapshots do not silently navigate into changed code.
+
+New source53model/bundle assertions include actual optimized/noopt source/copy/XIP
+execution, initialized/inherited fields/overloads, cache invalidation/removal,
+ambiguity/scopes/payload/CRLF/Unicode/maps and bounded malformed-source rejection.
+Actual Chromium projectbrowser28 PASS checks wire fakeWebSerial to REALhostshell:
+UIcreate/dirtycloseconfirmation, completion/signature/hover/F12, success/errors/
+Stoprecovery, originals/unrelated tabs, maps, trueCompiler=0, collisions/concurrency
+and cleanup. Initial navigation/streamederror defects fixed and regressiontested;
+harness wrongMapmethod/signatureselector/prepaintinput timing/toolpath errors
+preserved/corrected without weakening assertions. Failure cleanup now terminates
+host and Chromium; no lingering owned test loop.
+
+32longnames found sharedmodal text horizontaloverflow. Bounded flexmodal and
+scrollable/wrapped membership now pass24 useful-area/nonoverlap/viewport/cancel
+assertions, desktop1400x860/phone390x844/short667x375 x dark/light. Visually inspected
+three exactPNG screenshots, preserved remotely as self-contained rasterSVG,
+not fabricated drawings. Broader longfilename footer/status audit remains pending.
+FULLexisting Studio realserial/browser/editor/gallery/lexical/scope/formatter,
+217C#templates/218total/77snippets, capabilities/metadata/package and wiki47links
+ALL completed EXIT0 on frozen finalsources. New actualproject/model/layout CIsteps
+added. Source/config/environment/runtime/screenshot hashes, raw failures and
+completed logs in `docs/development/evidence/studio-project30/`.
+
+Projectlimits32complete.csfiles/256KiUTF16/512KiBUTF8; membership/runmap SESSIONONLY.
+No persistent manifest, dynamic imports/SDK/assets/newnamespace resolver/full
+semantic engine or latency improvement claim. Existing runtime namespace/using
+semantics unchanged; compiler remains authority. Checkpoint28CI92/92success,
+sample29CI total92/onequeued, NOT aggregateallgreen; exact30CI pending its ownrun.
+Local staged/cumulativebinary patches/NOTES prepared; push/fetch/treeverify then
+record REMOTE30SHA. PR remains DRAFT/OPEN/UNMERGED; main/optionalgraphicsOFF/release
+restrictions retained. Full original core/graphics/Studio/security/verifier/
+roadmap/benchmarks/hardware/independentreview scope STILL BLOCKING. No merge/tag/
+release/provisioning, hostile bytecode execution or sourcecloudexfiltration.

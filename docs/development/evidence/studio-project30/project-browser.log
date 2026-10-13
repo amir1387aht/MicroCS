@@ -1,0 +1,29 @@
+PASS real host reports compiler
+PASS creation dialog states membership and entry order
+PASS explicit project created through UI
+PASS later unrelated tab not imported
+PASS project member completion in actual editor
+PASS project member signature in actual editor
+PASS project member hover uses actual source model
+PASS F12 selects exact cross-file member after CRLF
+PASS real serial shell executes project without unrelated tab
+PASS successful run removes only temporary bundle
+PASS unsaved originals and existing device files untouched
+PASS project execution does not pretend originals saved
+PASS real runtime reports unresolved source name
+PASS project diagnostic selects original non-entry source
+PASS failed run cleans temporary bundle
+PASS exact project stack frame wins over line-like exception message
+PASS actual compiler error maps original project source
+PASS stale diagnostic never navigates to wrong position
+PASS project busy covers actual run
+PASS duplicate Run project does not queue a second upload
+PASS Stop recovers actual shell and cleans bundle
+PASS normal project run succeeds after Stop
+PASS known compiler-off firmware does not upload/run source
+PASS temporary name collision never overwrites or deletes existing file
+PASS closing project member asks before discarding unsaved source
+PASS closed member blocks incomplete project execution
+PASS close project keeps tabs and clears exported assistance
+PASS project menu fits phone viewport
+ALL PROJECT BROWSER TESTS PASSED

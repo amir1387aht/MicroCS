@@ -1,0 +1,48 @@
+PASS real host reports compiler
+PASS creation dialog states membership and entry order
+PASS explicit project created through UI
+PASS later unrelated tab not imported
+NAV {
+  active: '5fiyikh0c5l',
+  lib: '5fiyikh0c5l',
+  selection: '',
+  pos: 67,
+  defs: [
+    {
+      documentId: '5fiyikh0c5l',
+      name: 'Read',
+      line: 2,
+      column: 33,
+      offset: 43
+    }
+  ]
+}
+FAIL F12 selects exact cross-file member after CRLF
+PASS real serial shell executes project without unrelated tab
+PASS successful run removes only temporary bundle
+PASS unsaved originals and existing device files untouched
+PASS project execution does not pretend originals saved
+ERROR TERM ▶ run project sensor
+Unhandled exception. MissingMemberException: The name 'missingSymbol' does not exist in the current context
+   at Read in /.studio_project_cd41d5ef14d0f2026dd8390aac512396.cs:line 1
+   at <main> in /.studio_project_cd41d5ef14d0f2026dd8390aac512396.cs:line 3
+✗ failed after 7 ms
+ERROR STATE { active: '0zpojno3i05', lib: '5fiyikh0c5l', line: 0 }
+PASS real compiler reports invalid source
+FAIL project diagnostic selects original non-entry source
+PASS failed compile cleans temporary bundle
+PASS stale diagnostic never navigates to wrong position
+PASS Stop recovers actual shell and cleans bundle
+TIMEOUT STATE {
+  running: true,
+  pending: 1,
+  term: '▶ run project sensor\nPROJECT_LOOP'
+}
+TIMEOUT STATE {
+  running: true,
+  pending: 1,
+  term: '▶ run project sensor\nPROJECT_LOOP'
+}
+Error: Project timeout
+    at /vercel/sandbox/data/MicroCS-v2-next/tests/studio/test_project_browser.js:99:240
+    at async /vercel/sandbox/data/MicroCS-v2-next/tests/studio/test_project_browser.js:99:3

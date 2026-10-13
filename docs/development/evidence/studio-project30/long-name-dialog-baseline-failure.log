@@ -1,0 +1,11 @@
+AssertionError [ERR_ASSERTION]: long membership wraps with useful scrollable text
+    at /vercel/sandbox/data/MicroCS-v2-next/tests/studio/test_project_layout.js:28:7
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:472:9) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

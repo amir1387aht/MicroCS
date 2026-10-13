@@ -1,0 +1,52 @@
+{
+  "runtime_remote": "e6f5e299f98161014bd5dc671bac27018a9efcfb",
+  "runtime_tree": "6efc269536224d2c5398f309f3f6d7624bd11463",
+  "runtime_unchanged_since29": true,
+  "source_sha256": {
+    "tools/studio/lang.js": "694d01ab9db9aa1b071793f2943e153c1c3b8b875625c8d4a4f7ded25f5a0eb4",
+    "tools/studio/studio.js": "c80a1a53497f46ff86a49f068aa44e3ff523140296275a6c563a21c84be4a491",
+    "tools/studio/studio.css": "2247d324b8d1c5f6c1d33b270b475b60ca24adf8f95ee45df2d44224ba4b059b",
+    "tools/studio/README.md": "d9f08b769a144da0276ee983730ed3e6b31cd47ba80b7168a164b1e22d924cfa",
+    ".github/workflows/ci.yml": "f19124825542e0a69de3d5de10997714b8e612b4cd05dbbaac0f317d3fd94ead",
+    "tests/studio/test_project.js": "143af6b291ea662e904234ac427f6c120e86935bb037a06337ecb390532011a7",
+    "tests/studio/test_project_browser.js": "bc3a7c744c93d0ee617088ac827444842336f21449750fe85c23d7d29a8ddbb6",
+    "tests/studio/test_project_layout.js": "a74c6ee157c8b115fe2f81b0071974caf3bb1594968796ccfbc314d259ad0ab0",
+    "src/mcs_vm.c": "8ff0cb3d792019311c7563db32f7a17738cb69e973f0a3a185546396692fcf59"
+  },
+  "mcs_sha256": "cc67696f31ae14031a0d692ebd02ec673994c80a3452612f1a102ef4a311a4e1",
+  "node": "v24.14.1",
+  "chromium": "Google Chrome for Testing 153.0.8010.12",
+  "playwright": "1.63.0",
+  "screenshots": {
+    "1400x860-light": {
+      "width": 1400,
+      "height": 860,
+      "png_sha256": "7c90dd6c67a441c16f6f1594e6feb36d0fccf6340077e9ddbecd74c5d26c8a23",
+      "scope": "byte-exact raster screenshot in self-contained SVG; no hand-drawn replacement"
+    },
+    "390x844-dark": {
+      "width": 390,
+      "height": 844,
+      "png_sha256": "7fd4d84d177ca0a4fea7bd5a58f6476adc7cab13532d47e17239f14d5ee5f086",
+      "scope": "byte-exact raster screenshot in self-contained SVG; no hand-drawn replacement"
+    },
+    "667x375-light": {
+      "width": 667,
+      "height": 375,
+      "png_sha256": "eac0072d99c9207e9bd21245bfe3019bd1e713c887379313b560733abab21824",
+      "scope": "byte-exact raster screenshot in self-contained SVG; no hand-drawn replacement"
+    }
+  },
+  "project_model_assertions": 53,
+  "project_browser_pass_lines": 28,
+  "geometry_assertions": 24,
+  "prior29_ci_observation": {
+    "total_count": 92,
+    "loaded_count": 1,
+    "sample_name": "Arduino \u00b7 ESP32 (u8g2)",
+    "sample_status": "queued",
+    "run_url": "https://github.com/amir1387aht/MicroCS/actions/runs/38472800008",
+    "scope": "sample only; no all-green or aggregate conclusion"
+  },
+  "scope": "Real session-only source bundling and supported source navigation. Existing namespace behavior unchanged; not import/SDK/package resolver, full semantic engine, performance measurement, physical-device or full-v2 readiness evidence."
+}

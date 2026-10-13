@@ -166,7 +166,7 @@
         if (src[i] === "\\") { i += Math.min(2, src.length - i); continue; }
         if (src[i++] === "'") { closed = true; break; }
       }
-      mark(start, i, "char");
+      const range = mark(start, i, "char"); if (range) range.unterminated = !closed;
       if (i === src.length && !closed) eof = "char";
       return i;
     }
@@ -317,7 +317,7 @@
       callable.push(region);
       const params = parseParams(paramText);
       for (const p of params) if (p.name && /^[A-Za-z_]\w*$/.test(p.name)) {
-        const relative = paramText.search(new RegExp(String.raw`\b${esc(p.name)}\b`));
+        const relative = blank(paramText, true).search(new RegExp(String.raw`\b${esc(p.name)}\b(?=\s*(?:=|,|$))`));
         declarations.push({ name: p.name, t: p.type ? p.type.replace(/^(?:(?:ref|out|in|params|this)\s+)+/, "") : null, at: open + 1 + Math.max(0, relative),
           visible: open, end: region.end, kind: 'parameter' });
       }
@@ -365,7 +365,7 @@
       for (const text of params) {
         const parsed = /^[A-Za-z_]\w*$/.test(text) ? { name: text, type: null } : parseParams(text)[0];
         if (parsed && /^[A-Za-z_]\w*$/.test(parsed.name)) declarations.push({ name: parsed.name,
-          t: parsed.type, at: open + 1, visible: open, end: region.end, kind: 'parameter' });
+          t: parsed.type, at: open + 1 + Math.max(0, blank(src.slice(open + 1, close), true).search(new RegExp(String.raw`\b${esc(parsed.name)}\b(?=\s*(?:=|,|$))`))), visible: open, end: region.end, kind: 'parameter' });
       }
     }
     const bareLambda = /(?:[=(,:\[])\s*([A-Za-z_]\w*)\s*=>/g;
@@ -398,7 +398,7 @@
       visible: p => declarations.filter(d => d.visible <= p && p <= d.end) };
   }
 
-  function symbols(src) {
+  function documentSymbols(src) {
     if (src === cacheSrc) return cache;
     const b = blank(src), strings = lexical(src).strings;
     const user = Object.create(null), funcs = Object.create(null), enums = Object.create(null);
@@ -408,7 +408,7 @@
     while ((m = cre.exec(b))) {
       const name = m[2], open = b.indexOf("{", m.index + m[0].length - 1);
       const end = open >= 0 && b[m.index + m[0].length] !== ";" ? matchBrace(b, open) : m.index + m[0].length;
-      const c = user[name] = { name, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, open: open >= 0 && open < end ? open : -1, doc: `${m[1]} ${name} (this file)` };
+      const c = user[name] = { name, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, open: open >= 0 && open < end ? open : -1, doc: `${m[1]} ${name} (this file)`, at: m.index + m[1].length + /^\s*/.exec(m[0].slice(m[1].length))[0].length };
       if (m[3] != null) {                                  // primary constructor (record / class)
         const ps = parseParams(m[3]); c.ctors.push({ name, kind: "ctor", params: ps, ret: name, doc: "", cls: name });
         for (const p of ps) (c.i[p.name] = [{ name: p.name, kind: "p", ret: p.type, doc: "", cls: name, inst: true }]);
@@ -428,7 +428,13 @@
             for (const r of strings) if (r.start < open + 1 + i && r.end > absolute) {
               for (let at = Math.max(r.start, absolute); at < Math.min(r.end, open + 1 + i); at++) chars[at - absolute] = src[at];
             }
+            const before = new Set([...c.ctors, ...Object.values(c.s).flat(), ...Object.values(c.i).flat()]);
             memberDecl(c, chars.join("").trim(), name);
+            for (const member of [...c.ctors, ...Object.values(c.s).flat(), ...Object.values(c.i).flat()]) if (!before.has(member)) {
+              const re = new RegExp(String.raw`\b${esc(member.name)}\b(?=\s*${member.kind === "m" || member.kind === "ctor" ? "\\(" : "(?:,|$)"})`, "g");
+              let hit, last = null; while ((hit = re.exec(stmt))) last = hit;
+              if (last) member.at = absolute + last.index;
+            }
             stmt = "";
             if (ch === "=") { while (i < body.length && body[i] !== ";" && body[i] !== "{") i++; if (body[i] === "{") { const e = matchBrace(body, i); i = e; } }
             else if (ch === "{") { depth = 1; }
@@ -445,6 +451,9 @@
     /* enums */
     const ere = /\benum\s+([A-Za-z_]\w*)\s*(?::\s*\w+\s*)?\{([^}]*)\}/g;
     while ((m = ere.exec(b))) enums[m[1]] = m[2].split(",").map((x) => x.trim().replace(/\s*=.*$/, "")).filter((x) => /^[A-Za-z_]\w*$/.test(x));
+    const enumLocations = Object.create(null);
+    ere.lastIndex = 0;
+    while ((m = ere.exec(b))) enumLocations[m[1]] = m.index + /^enum\s+/.exec(m[0])[0].length;
     const scope = scopeModel(src, b, user);
     /* top-level / local functions: Type Name(params) { or => */
     const fre = new RegExp(String.raw`(?:^|[;{}\n])\s*((?:(?:static|public|private|internal|protected|async|unsafe|override|virtual|abstract|extern|new)\s+)*)(${TYPE_RE})\s+([A-Za-z_]\w*)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*(?=\{|=>)`, "g");
@@ -455,11 +464,125 @@
       const owner = scope.containing(fre.lastIndex - 1);
       if (Object.values(user).some(c => c.open >= 0 && c.open === owner.open)) continue;
       const paramsAt = m.index + m[0].lastIndexOf("(" + m[4] + ")") + 1;
-      (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(src.slice(paramsAt, paramsAt + m[4].length)), ret: type, doc: "local function (this file)", cls: "", scopeStart: owner.start, scopeEnd: owner.end });
+      (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(src.slice(paramsAt, paramsAt + m[4].length)), ret: type, doc: "local function (this file)", cls: "", at: m.index + b.slice(m.index, paramsAt - 1).search(new RegExp(String.raw`\b${esc(name)}\b\s*$`)), scopeStart: owner.start, scopeEnd: owner.end });
     }
-    cacheSrc = src; cache = { user, funcs, enums, b, scope };
+    cacheSrc = src; cache = { user, funcs, enums, enumLocations, b, scope };
     return cache;
   }
+  /* Explicit session projects: independently cached documents, no concatenated
+   * lexical model and no implicit import of unrelated open tabs. */
+  let project = null;
+  const projectDocuments = new Map();
+  function setProjectDocuments(documents, activeId) {
+    if (!documents) { project = null; projectDocuments.clear(); return; }
+    if (project && project.activeId === activeId && project.documents.length === documents?.length && project.documents.every((d, i) => d.id === documents[i]?.id && d.name === documents[i]?.name && d.text === documents[i]?.text)) return;
+    validateDocuments(documents);
+    const live = new Set(documents.map(d => d.id));
+    for (const id of projectDocuments.keys()) if (!live.has(id)) projectDocuments.delete(id);
+    for (const d of documents) {
+      const old = projectDocuments.get(d.id);
+      if (!old || old.text !== d.text) projectDocuments.set(d.id, { text: d.text, sy: documentSymbols(d.text) });
+    }
+    if (!live.has(activeId)) { project = null; return; }
+    project = { documents: documents.map(d => ({ id: d.id, name: d.name, text: d.text })), activeId, merged: null };
+  }
+  function validateDocuments(documents) {
+    if (!Array.isArray(documents) || !documents.length || documents.length > 32) throw new Error("A project needs 1–32 source files.");
+    const ids = new Set(); let chars = 0;
+    for (const d of documents) {
+      if (!d || typeof d.id !== "string" || ids.has(d.id) || typeof d.text !== "string" || typeof d.name !== "string" || !/\.cs$/i.test(d.name)) throw new Error("Project source IDs must be unique and every member must be a C# text file.");
+      ids.add(d.id); chars += d.text.length;
+      if (chars > 262144 || d.text.includes("\0")) throw new Error("Project text exceeds 256 Ki UTF-16 units or contains a NUL.");
+    }
+  }
+  function symbols(src) {
+    const current = project && projectDocuments.get(project.activeId);
+    if (!current || current.text !== src) return documentSymbols(src);
+    if (project.merged) return project.merged;
+    const own = current.sy, user = Object.create(null), enums = Object.create(null), funcs = Object.create(null);
+    const candidates = new Map(), enumCandidates = new Map(), externalEnumLocations = Object.create(null);
+    for (const d of project.documents) if (d.id !== project.activeId) {
+      const sy = projectDocuments.get(d.id).sy;
+      for (const [name, cls] of Object.entries(sy.user)) {
+        const all = candidates.get(name) || []; all.push({ ...cls, external: true, documentId: d.id, doc: `${cls.kind} ${name} (project: ${d.name})` }); candidates.set(name, all);
+      }
+      for (const [name, values] of Object.entries(sy.enums)) {
+        const all = enumCandidates.get(name) || []; all.push({ values, at: sy.enumLocations[name], documentId: d.id }); enumCandidates.set(name, all);
+      }
+      for (const [name, values] of Object.entries(sy.funcs)) {
+        const exported = values.filter(f => f.scopeStart === 0 && f.scopeEnd === d.text.length).map(f => ({ ...f, external: true, documentId: d.id, doc: `project function (${d.name})`, scopeStart: 0, scopeEnd: src.length }));
+        if (exported.length) (funcs[name] || (funcs[name] = [])).push(...exported);
+      }
+    }
+    for (const [name, values] of candidates) if (values.length === 1) user[name] = values[0];
+    for (const [name, values] of enumCandidates) if (values.length === 1) {
+      enums[name] = values[0].values; externalEnumLocations[name] = values[0];
+    }
+    Object.assign(user, own.user); Object.assign(enums, own.enums);
+    for (const [name, values] of Object.entries(own.funcs)) funcs[name] = [...values, ...(funcs[name] || [])];
+    return project.merged = { ...own, user, enums, funcs, externalEnumLocations };
+  }
+  function sourcePosition(src, offset) {
+    const before = src.slice(0, offset), lines = before.split(/\r\n|\r|\n/);
+    return { line: lines.length, column: lines[lines.length - 1].length + 1 };
+  }
+  function definitionsAt(src, pos) {
+    if (contextAt(src, pos) !== "code") return [];
+    let a = pos, end = pos;
+    while (a > 0 && /\w/.test(src[a - 1])) a--;
+    while (end < src.length && /\w/.test(src[end])) end++;
+    const name = src.slice(a, end); if (!/^[A-Za-z_]\w*$/.test(name)) return [];
+    const activeId = project?.activeId || null, sy = symbols(src);
+    const locations = (items, defaultId = activeId) => items.filter(x => Number.isInteger(x.at)).map(x => {
+      const id = x.documentId || (x.cls && classInfo(x.cls, src)?.documentId) || defaultId;
+      const text = id && projectDocuments.get(id)?.text || src;
+      return { documentId: id, name, ...sourcePosition(text, x.at), offset: x.at };
+    });
+    let dot = a; while (dot > 0 && /\s/.test(src[dot - 1])) dot--;
+    if (src[dot - 1] === ".") {
+      const recv = receiverBefore(src, dot - 1), type = typeOfExpr(recv, src, dot - 1);
+      if (!type) return [];
+      const stat = isClassName(recv, src) && !varType(recv, src, dot - 1);
+      const cls = classInfo(type, src), entries = membersOf(type, stat, src)[name] || [];
+      return locations(entries, cls?.documentId || activeId);
+    }
+    const local = sy.scope.visible(a).filter(d => d.name === name).pop();
+    if (local) return locations([local]);
+    for (const c of Object.values(sy.user)) if (!c.external && a > c.start && a < c.end && (c.i[name] || c.s[name])) return locations(c.i[name] || c.s[name]);
+    const functions = functionsAt(src, a)[name]; if (functions) return locations(functions);
+    if (sy.user[name]) return locations([sy.user[name]]);
+    if (Number.isInteger(sy.enumLocations[name])) return locations([{ at: sy.enumLocations[name] }]);
+    if (sy.externalEnumLocations?.[name]) return locations([sy.externalEnumLocations[name]]);
+    return [];
+  }
+  function projectBundle(documents, entryId) {
+    validateDocuments(documents);
+    const entry = documents.find(d => d.id === entryId); if (!entry) throw new Error("The project entry file is missing.");
+    const ordered = [...documents.filter(d => d.id !== entryId), entry];
+    let text = "", line = 1; const files = [];
+    for (const d of ordered) {
+      const model = lexical(d.text);
+      if (model.strings.some(r => !r.closed) || model.holes.some(r => !r.closed) || model.ranges.some(r => r.kind === "char" && r.unterminated || r.kind === "comment" && !r.lineComment && !d.text.slice(r.start, r.end).endsWith("*/"))) throw new Error(`${d.name}: incomplete literal or block comment.`);
+      const stack = [], pairs = { ")": "(", "]": "[", "}": "{" };
+      for (const c of blank(d.text)) {
+        if ("([{".includes(c)) stack.push(c);
+        else if (pairs[c] && stack.pop() !== pairs[c]) throw new Error(`${d.name}: unmatched delimiter.`);
+      }
+      if (stack.length) throw new Error(`${d.name}: unmatched delimiter.`);
+      const count = (d.text.match(/\n/g) || []).length;
+      files.push({ id: d.id, name: d.name, text: d.text, firstLine: line, lastLine: line + count });
+      text += d.text + "\n"; line += count + 1;
+    }
+    const bytes = new TextEncoder().encode(text).length;
+    if (bytes > 524288) throw new Error("The bundled project exceeds 512 KiB UTF-8.");
+    return { text, files, bytes };
+  }
+  function projectLocation(bundle, line) {
+    if (!Number.isInteger(line) || line < 1) return null;
+    const file = bundle?.files.find(f => line >= f.firstLine && line <= f.lastLine);
+    return file ? { documentId: file.id, name: file.name, line: line - file.firstLine + 1, text: file.text } : null;
+  }
+
   function memberDecl(c, d, clsName) {
     d = d.trim();
     // Attributes can precede a declaration; [] inside types/default strings
@@ -556,7 +679,7 @@
     for (const d of sy.scope.visible(upto)) if (d.name === name) best = d;
     if (!best) {
       /* fields of the enclosing class */
-      for (const c of Object.values(sy.user).sort((a, b) => b.start - a.start)) if (upto > c.start && upto < c.end && (c.i[name] || c.s[name])) return (c.i[name] || c.s[name])[0].ret;
+      for (const c of Object.values(sy.user).sort((a, b) => b.start - a.start)) if (!c.external && upto > c.start && upto < c.end && (c.i[name] || c.s[name])) return (c.i[name] || c.s[name])[0].ret;
       return null;
     }
     if (best.kind === "each") {
@@ -712,7 +835,7 @@
     const sy = symbols(src);
     const funcs = functionsAt(src, ctx.open);
     if (funcs[ctx.name]) return funcs[ctx.name];
-    for (const c of Object.values(sy.user)) if (ctx.open > c.start && ctx.open < c.end && (c.i[ctx.name] || c.s[ctx.name])) return (c.i[ctx.name] || c.s[ctx.name]).filter((x) => x.kind === "m");
+    for (const c of Object.values(sy.user)) if (!c.external && ctx.open > c.start && ctx.open < c.end && (c.i[ctx.name] || c.s[ctx.name])) return (c.i[ctx.name] || c.s[ctx.name]).filter((x) => x.kind === "m");
     return [];
   }
   /* identifiers declared in the file before p, with their types (for completion) */
@@ -734,6 +857,6 @@
 
   parseDocs(window.MCS_DOCS_SRC);
 
-  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, functionsAt, classInfo, isClassName, membersOf, ctorsOf,
+  window.Lang = { setProjectDocuments, definitionsAt, projectBundle, projectLocation, classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, functionsAt, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();

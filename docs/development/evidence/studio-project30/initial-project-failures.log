@@ -1,0 +1,14 @@
+PASS real host reports compiler
+PASS creation dialog states membership and entry order
+PASS explicit project created through UI
+PASS later unrelated tab not imported
+FAIL F12 selects exact cross-file member after CRLF
+PASS real serial shell executes project without unrelated tab
+PASS successful run removes only temporary bundle
+PASS unsaved originals and existing device files untouched
+PASS project execution does not pretend originals saved
+PASS real compiler reports invalid source
+FAIL project diagnostic selects original non-entry source
+PASS failed compile cleans temporary bundle
+FAIL stale diagnostic never navigates to wrong position
+PASS Stop recovers actual shell and cleans bundle
