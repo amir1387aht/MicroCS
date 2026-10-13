@@ -3,7 +3,7 @@
 
 Requires kconfiglib (pip install kconfiglib). Real chip configurations are built in CI.
 """
-import os
+import subprocess
 from pathlib import Path
 import tempfile
 import kconfiglib as kc
@@ -48,6 +48,12 @@ def main():
         setv("BT_CONTROLLER_ENABLED", "y")
         setv("SOC_BLE_SUPPORTED", "n")  # S2 / P4 cannot enable the backend
         assert value("MICROCS_BLE") == "n"
+        for flags in [[], ["-DCONFIG_IDF_TARGET_ESP32=1"], ["-DCONFIG_IDF_TARGET_ESP32C6=1"], ["-DCONFIG_IDF_TARGET_ESP32C61=1"]]:
+            exe = str(Path(tmp) / "power")
+            subprocess.run(["cc", "-std=c99", "-Wall", "-Wextra", "-Werror", *flags,
+                            "-I" + str(ROOT / "ports/esp32"),
+                            str(ROOT / "tests/c/test_esp_ble_power.c"), "-o", exe], check=True)
+            subprocess.run([exe], check=True)
         k.write_config(str(Path(tmp) / "sdkconfig"))
         assert "CONFIG_MICROCS_BLE=y" not in (Path(tmp) / "sdkconfig").read_text()
     print("PASS ESP BLE menuconfig: discoverability, prerequisites, limits, roles, opt-in")

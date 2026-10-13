@@ -18,6 +18,7 @@
 #include "freertos/task.h"
 #include "esp_random.h"
 #include "esp_bt.h"
+#include "mcs_esp32_ble_power.h"
 #include "nvs_flash.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
@@ -329,15 +330,6 @@ static void apply_sm(void) {
     ble_hs_cfg.sm_our_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
     ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
 }
-static int tx_level(int dbm) {               /* ESP_PWR_LVL_*: 3 dB steps around 0 dBm */
-    int l = ESP_PWR_LVL_N0 + (dbm >= 0 ? dbm + 1 : dbm - 1) / 3;
-#if CONFIG_IDF_TARGET_ESP32
-    int hi = ESP_PWR_LVL_P9;
-#else
-    int hi = 15;
-#endif
-    return l < 0 ? 0 : l > hi ? hi : l;
-}
 static int e_enable(void* ctx, int on) {
     (void)ctx;
     if (on && g_on) return 0;
@@ -368,8 +360,8 @@ static int e_enable(void* ctx, int on) {
     if (!g_synced) return MCS_HAL_ETIMEOUT;
     if (g_opt[MCS_BLE_OPT_MTU]) ble_att_set_preferred_mtu((uint16_t)g_opt[MCS_BLE_OPT_MTU]);
     if (g_opt[MCS_BLE_OPT_TX_POWER] != 0x7F) {
-        esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)tx_level(g_opt[MCS_BLE_OPT_TX_POWER]));
-        esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)tx_level(g_opt[MCS_BLE_OPT_TX_POWER]));
+        esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)mcs_esp32_ble_tx_level(g_opt[MCS_BLE_OPT_TX_POWER]));
+        esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)mcs_esp32_ble_tx_level(g_opt[MCS_BLE_OPT_TX_POWER]));
     }
     return 0;
 }
@@ -392,7 +384,7 @@ static int e_opt_get(void* ctx, int opt, int32_t* v) {
     if (opt <= 0 || opt >= MCS_BLE_OPT__COUNT) return MCS_HAL_ENOTSUP;
     switch (opt) {
     case MCS_BLE_OPT_TX_POWER:
-        if (g_on) { int l = esp_ble_tx_power_get(ESP_BLE_PWR_TYPE_ADV); if (l >= 0) { *v = (l - ESP_PWR_LVL_N0) * 3; return 0; } }
+        if (g_on) { int l = esp_ble_tx_power_get(ESP_BLE_PWR_TYPE_ADV); if (l >= 0) { *v = mcs_esp32_ble_tx_dbm(l); return 0; } }
         *v = g_opt[opt] == 0x7F ? 0 : g_opt[opt]; return 0;
     case MCS_BLE_OPT_MTU: *v = g_opt[opt] ? g_opt[opt] : MYNEWT_VAL(BLE_ATT_PREFERRED_MTU); return 0;
     case MCS_BLE_OPT_MAX_CONN: *v = MYNEWT_VAL(BLE_MAX_CONNECTIONS); return 0;
@@ -406,8 +398,8 @@ static int e_opt_set(void* ctx, int opt, int32_t v) {
     case MCS_BLE_OPT_TX_POWER:
         g_opt[opt] = v;
         if (g_on) {
-            esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)tx_level(v));
-            return esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)tx_level(v)) == ESP_OK ? 0 : MCS_HAL_EINVAL;
+            esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)mcs_esp32_ble_tx_level(v));
+            return esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, (esp_power_level_t)mcs_esp32_ble_tx_level(v)) == ESP_OK ? 0 : MCS_HAL_EINVAL;
         }
         return 0;
     case MCS_BLE_OPT_MTU:
