@@ -3,21 +3,28 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Motors and actuators
+requires: none
 
 [motor.cs] DC motor with an H-bridge
+requires: GPIO, PWM, Math, Float, Format
 Speed and direction for an L298N / TB6612 / DRV8833 driver.
 
 [stepper.cs] Stepper motor (A4988 / DRV8825)
+requires: GPIO, Board, Math, Float
 STEP/DIR stepper driver with acceleration.
 
 [uln2003.cs] 28BYJ-48 stepper (ULN2003)
+requires: GPIO, Math, Format
 Half-step sequence for the cheap 28BYJ-48 geared stepper.
 
 [relay.cs] Relay with safety timeout
+requires: GPIO, Stopwatch
 Switch a relay and make sure it turns off again, even on errors.
 
 [servo_smooth.cs] Servo with smooth motion
+requires: PWM, Servo
 Ease a servo between positions with Servo.MoveTo instead of jumping.
 
 [pan_tilt.cs] Pan/tilt with two servos
+requires: PWM, Servo
 Aim a pan/tilt bracket: two servos, a sweep and a look-around.

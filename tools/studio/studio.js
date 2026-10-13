@@ -1467,6 +1467,27 @@ const term = new Term($("term"));
 const ed = new Editor();
 const plot = new Plot($("plot"));
 /* template gallery helpers: tags from what a template uses, search-hit highlighting */
+/* Versioned capability report: querying it never turns radios on or probes buses. */
+function parseCapabilities(text) {
+  const lines = String(text).trim().split(/\r?\n/);
+  if (lines.shift() !== "capabilities=1") return null;
+  const caps = new Map();
+  for (const line of lines) {
+    const m = /^([A-Za-z][A-Za-z0-9.]*)=([01])$/.exec(line);
+    if (!m || caps.has(m[1])) return null;
+    caps.set(m[1], m[2] === "1");
+  }
+  return caps.size ? caps : null;
+}
+function templateCompatible(t, caps, connected) {
+  if (!connected) return true;  // offline browsing is explicitly not a compatibility claim
+  return (t.requires || []).every((name) => caps?.get(name) === true);
+}
+function legacyCapabilities(info) {
+  const bits = /features=0x([0-9a-f]+)/i.exec(info);
+  // The old info command proves compiler availability, but not onboard peripherals.
+  return new Map([["Compiler", !!bits && (parseInt(bits[1], 16) & 1) !== 0]]);
+}
 const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
 const TAG_RULES = [
   ["Wi-Fi", /\b(Wifi|Http|HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer|Ntp|Mdns|Ping|Dns)\b\s*[.(]|new (HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer)\b/],
@@ -1489,6 +1510,7 @@ const store = {
 };
 const App = {
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
+  capabilities: null, capabilitiesKnown: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
 
   /* ---------- connection */
@@ -1502,6 +1524,7 @@ const App = {
     await this.openPort(port);
   },
   async openPort(port, again) {
+    this.capabilities = null; this.capabilitiesKnown = false;
     const baud = +$("baud").value;
     try {
       this.setConn("busy", again ? "Reconnecting…" : "Connecting…");
@@ -1544,7 +1567,16 @@ const App = {
     try {
       await dev.op(() => dev.machine());
       const r = await dev.op(() => dev.cmd("info"));
-      this.info = (new TextDecoder().decode(r.out).trim().split("\n")[0] || "MicroCS").replace(/ features=.*/, "");
+      const rawInfo = new TextDecoder().decode(r.out).trim().split("\n")[0] || "MicroCS";
+      this.info = rawInfo.replace(/ features=.*/, "");
+      this.capabilities = legacyCapabilities(rawInfo);
+      try {
+        const report = await dev.op(() => dev.cmd("caps"));
+        const caps = report.status === "OK" ? parseCapabilities(new TextDecoder().decode(report.out)) : null;
+        if (caps) { this.capabilities = caps; this.capabilitiesKnown = true; }
+      } catch { /* old firmware keeps working; never infer hardware from a feature bit */ }
+      if (!this.capabilitiesKnown) term.line("— capability report unavailable; peripheral templates are hidden. Update firmware to enable board-aware templates —", "warn");
+      if ($("galleryBg").classList.contains("show")) this.galRender();
       this.setConn("on", this.info);
       term.line(`${this.info} — ready`, "ok");
       this.reopened = false;
@@ -1585,6 +1617,7 @@ const App = {
   enable(on) {
     for (const id of ["btnNewFile", "btnNewDir", "btnUpload", "btnRefresh", "btnReset", "btnCtrlC", "cin"]) $(id).disabled = !on;
     this.updateButtons();
+    if ($("galleryBg").classList.contains("show")) this.galRender();
     if (!on) { this.entries = []; this.renderFiles(); $("stText").textContent = "—"; $("stBar").style.width = "0"; $("memInfo").textContent = ""; }
   },
   updateButtons() {
@@ -2133,7 +2166,7 @@ const App = {
   /* search: every word must appear somewhere; name / file hits rank above description and code */
   galScore(t, words) {
     if (!words.length) return 1;
-    const name = t.name.toLowerCase(), file = t.file.toLowerCase(), desc = (t.desc + " " + t.cat + " " + galTags(t).join(" ")).toLowerCase();
+    const name = t.name.toLowerCase(), file = t.file.toLowerCase(), desc = (t.desc + " " + t.cat + " " + galTags(t).join(" ") + " " + (t.requires || []).join(" ")).toLowerCase();
     let score = 0;
     for (const w of words) {
       const s = name.startsWith(w) ? 9 : name.includes(w) ? 6 : file.includes(w) ? 5 : desc.includes(w) ? 3 : t.lower.includes(w) ? 1 : 0;
@@ -2145,10 +2178,14 @@ const App = {
   galRender() {
     const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
     for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
-    const recent = this.galRecent().map((src) => TEMPLATES.find((t) => t.src === src)).filter(Boolean);
-    const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(TEMPLATES.map((t) => t.cat))];
+    const available = TEMPLATES.filter((t) => templateCompatible(t, this.capabilities, dev.connected));
+    const recent = this.galRecent().map((src) => available.find((t) => t.src === src)).filter(Boolean);
+    const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(available.map((t) => t.cat))];
+    $("gSupport").textContent = !dev.connected ? "Offline: browsing all templates. Requirements are checked when a board connects." :
+      !this.capabilitiesKnown ? "Older firmware: peripheral support is unknown, so those templates are hidden. Update firmware for capability reporting." :
+      `${available.length} compatible templates · ${TEMPLATES.length - available.length} unavailable for this board / firmware. Bus support does not prove an external sensor is attached.`;
     if (!cats.includes(g.cat)) g.cat = "All";
-    const pool = (c) => (c === "All" ? TEMPLATES : c === "Recent" ? recent : TEMPLATES.filter((t) => t.cat === c));
+    const pool = (c) => (c === "All" ? available : c === "Recent" ? recent : available.filter((t) => t.cat === c));
     const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
     $("gCats").innerHTML = cats.map((c) => `<div data-c="${esc(c)}" class="${c === g.cat ? "on" : ""}${c === "Recent" ? " recent" : ""}" title="${esc(c)}"><span>${esc(c)}</span><small>${scored(c).length}</small></div>`).join("");
     const list = scored(g.cat);
@@ -2160,7 +2197,7 @@ const App = {
       const cs = /\.cs$/.test(t.file);
       return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
         `<em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
-    }).join("") : `<div class="none">No template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+    }).join("") : `<div class="none">No compatible template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
     const all = $("gAll");
     if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();
@@ -2172,7 +2209,7 @@ const App = {
       const lines = t.text.replace(/\n$/, "").split("\n").length;
       const src = t.src ? `<a href="${GH_TEMPLATES}${encodeURI(t.src)}" target="_blank" rel="noopener" title="Open the source file on GitHub">templates/${esc(t.src)}</a>` : "";
       $("gInfo").innerHTML = `<div class="pt"><b>${esc(t.name)}</b><button class="btn icon" id="gCopy" title="Copy the code">${icon("copy")}</button></div>` +
-        `<span>${esc(t.cat)} · ${esc(t.desc)}</span><div class="tags">${galTags(t).map((x) => `<i>${esc(x)}</i>`).join("")}<small>${lines} lines${src ? " · " + src : ""}</small></div>`;
+        `<span>${esc(t.cat)} · ${esc(t.desc)}</span><div class="requirements">Requires: ${esc((t.requires || []).join(", ") || "none")}</div><div class="tags">${galTags(t).map((x) => `<i>${esc(x)}</i>`).join("")}<small>${lines} lines${src ? " · " + src : ""}</small></div>`;
       $("gCopy").onclick = () => navigator.clipboard?.writeText(t.text).then(() => toast("Copied " + t.file, "ok"), () => toast("Copy failed", "err"));
     } else $("gInfo").innerHTML = "";
     $("gPrev").innerHTML = t ? (/\.cs$/.test(t.file) ? highlight(t.text) : highlightPlain(t.text)) : "";

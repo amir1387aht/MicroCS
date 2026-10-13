@@ -3,15 +3,20 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Timers and events
+requires: none
 
 [timer.cs] Hardware timer
+requires: ADC, Timer, List, Linq, Format
 Periodic and one-shot hardware timers with microsecond periods.
 
 [events.cs] User events (Hal.Post / OnEvent)
+requires: Board
 Post your own events and handle them like interrupts.
 
 [watchdog.cs] Watchdog
+requires: Watchdog
 Start the watchdog and feed it - stop feeding to see the reset.
 
 [rtc.cs] Real-time clock
+requires: RTC, Format
 Set and read RTC.Now (Unix seconds) and format it.

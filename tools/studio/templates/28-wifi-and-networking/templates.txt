@@ -3,46 +3,61 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Wi-Fi and networking
+requires: Wifi
 
 [wifi_connect.cs] Connect to Wi-Fi
+requires: Wifi
 Join a network, print the IP settings and signal; works in the simulator (MicroCS-Lab /
 microcs123).
 
 [wifi_events.cs] Wi-Fi events and reconnect
+requires: Wifi, Format
 React to connect / got-IP / disconnect events and let the driver reconnect on its own.
 
 [wifi_scan.cs] Scan for networks
+requires: Wifi, Wifi.Scan, ArrayExtra, Format
 List nearby access points sorted by signal, with channel, security and a 0-100 quality score.
 
 [wifi_ap.cs] Soft access point
+requires: Wifi, Wifi.AP
 Run the board as its own hotspot and watch phones join and get addresses.
 
 [wifi_options.cs] Static IP and radio options
+requires: Wifi
 Hostname, country, TX power, power save, protocols and a fixed IP address.
 
 [wifi_saved.cs] Saved network (NVS)
+requires: Wifi, Wifi.Save
 Store credentials in flash once; later scripts just call Wifi.Connect().
 
 [http_get.cs] HTTP GET
+requires: Wifi, Http
 Fetch a web page, print its status and body; use your own HTTP or HTTPS endpoint.
 
 [http_post.cs] HTTP POST JSON
+requires: Dictionary, Json, Float, Wifi, Http
 Send a sensor reading as JSON with custom headers; read the reply.
 
 [https_download.cs] HTTPS and file download
+requires: Filesystem, Wifi, Http, Tls
 TLS with the built-in certificate bundle; stream a file straight to flash.
 
 [tcp_echo.cs] TCP client and server
+requires: TcpClient, TcpListener, StringExtra
 A line-based echo server and a client talking to it over TCP.
 
 [udp.cs] UDP datagrams
+requires: UdpClient, StringExtra
 Send and receive UDP packets; broadcast a discovery message on the LAN.
 
 [ntp_clock.cs] NTP clock
+requires: Wifi, Ntp.Sntp
 Sync the real-time clock from the internet and print local time in your time zone.
 
 [mdns_ping.cs] mDNS name and ping
+requires: Wifi, Mdns, Ping
 Reach the board as greenhouse.local, advertise a web service and ping hosts.
 
 [mqtt_publish.cs] MQTT publish
+requires: List, Encoding, Wifi, TcpClient, ArrayExtra
 A tiny MQTT 3.1.1 client on TcpClient: connect to a broker and publish a reading.

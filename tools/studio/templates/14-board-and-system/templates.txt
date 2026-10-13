@@ -3,24 +3,32 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Board and system
+requires: none
 
 [info.cs] Board information
+requires: Board, GC, Linq, StringExtra
 Board name, CPU clock, unique id and available peripherals.
 
 [memory.cs] Memory and GC
+requires: List, GC
 Watch heap use and run the garbage collector.
 
 [portable.cs] Feature check (Hal.Has)
+requires: Board
 Write one script that adapts to the board's peripherals.
 
 [reset.cs] Reset the board
+requires: Reset, Board
 Software reset with Hal.Reset.
 
 [errors.cs] Error handling for hardware
+requires: I2C
 Driver errors are exceptions: IOException, TimeoutException, NotSupportedException.
 
 [board_caps.cs] What can this board do?
+requires: Board, Format
 Hal.Has for full settings and DMA, and the board-specific options.
 
 [board_options.cs] Board options and reusable settings
+requires: Board
 Set chip-specific options by name; copy, tweak and reuse settings objects.

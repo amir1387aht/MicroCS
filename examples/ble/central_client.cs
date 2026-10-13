@@ -1,5 +1,10 @@
 // BLE central: finds a heart-rate sensor, reads its battery level and prints
 // heart-rate notifications. Reconnects if the sensor goes away.
+if (!Hal.Has("Ble") || !Hal.Has("Ble.Scan") || !Hal.Has("Ble.Central"))
+{
+    Console.WriteLine("This firmware lacks: Ble, Ble.Scan, Ble.Central. Enable the needed modules or use a supported board.");
+    return;
+}
 while (true) {
     Console.WriteLine("scanning for a heart-rate sensor...");
     BleDevice sensor = null;

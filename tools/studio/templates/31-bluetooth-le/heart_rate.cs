@@ -1,5 +1,10 @@
 // Heart-rate + battery peripheral using the standard Bluetooth SIG services,
 // so generic apps (nRF Connect, LightBlue, fitness apps) understand it.
+if (!Hal.Has("Ble") || !Hal.Has("Ble.Server") || !Hal.Has("Ble.Advertise"))
+{
+    Console.WriteLine("This firmware lacks: Ble, Ble.Server, Ble.Advertise. Enable the needed modules or use a supported board.");
+    return;
+}
 Ble.Name = "MicroCS-HR";
 Ble.Appearance = 0x0341; // Heart Rate Sensor: Belt
 

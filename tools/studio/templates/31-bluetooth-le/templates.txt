@@ -3,27 +3,35 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Bluetooth LE
+requires: Ble
 
 [scanner.cs] BLE scanner
+requires: Ble, Ble.Scan, StringExtra, Format
 Lists nearby Bluetooth LE devices with name, signal strength, services and beacons.
 Needs firmware built with BLE (docs/BLE.md); simulated with --sim.
 
 [beacon.cs] iBeacon / Eddystone beacon
+requires: Ble, Ble.Advertise
 Advertises an iBeacon, then an Eddystone-URL, without accepting connections.
 
 [heart_rate.cs] Heart-rate peripheral
+requires: Ble, Ble.Server, Ble.Advertise
 Standard heart-rate and battery services with notifications: fitness apps and nRF Connect
 understand it.
 
 [led_service.cs] LED control service
+requires: GPIO, Ble, Ble.Server, Ble.Advertise
 Your own 128-bit GATT service: a phone writes 01 / 00 to switch the LED and gets a counter
 by notification.
 
 [uart_echo.cs] BLE UART console
+requires: Ble, BleUart
 Nordic UART Service: chat with the board from a "Serial Bluetooth Terminal" app.
 
 [central_client.cs] Central: read a sensor
+requires: Ble, Ble.Scan, Ble.Central
 Finds a heart-rate sensor, connects, reads its battery level and subscribes to its readings.
 
 [pairing.cs] Pairing with a passkey
+requires: Ble, Ble.Server, Ble.Advertise, Ble.Security, Ble.Bonds
 A characteristic that needs an authenticated link: the board shows a passkey, bonds are kept.

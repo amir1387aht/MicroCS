@@ -3,21 +3,28 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Getting started
+requires: none
 
 [program.cs] Empty C# file
+requires: none
 An empty script with a comment header.
 
 [hello.cs] Hello world
+requires: Board
 Print a greeting and the uptime.
 
 [loop.cs] Main loop (Arduino style)
+requires: GPIO
 setup() once, then loop() forever - Stop ends it.
 
 [format.cs] Console output and formatting
+requires: Float, StringExtra, Format
 Write, WriteLine, interpolation, alignment and number formats.
 
 [input.cs] Read input from the console
+requires: none
 Ask a question with Console.ReadLine (type the answer in the console).
 
 [timing.cs] Uptime and timing
+requires: Micros, Board, Stopwatch, Float, Format
 Environment.TickCount, Stopwatch and Thread.Sleep.

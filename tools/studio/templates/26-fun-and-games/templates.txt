@@ -3,27 +3,36 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Fun and games
+requires: none
 
 [morse.cs] Morse code blinker
+requires: GPIO, Dictionary, StringExtra
 Blink any text in Morse code on the LED (and print it).
 
 [reaction.cs] Reaction time game
+requires: GPIO, Random, List, Stopwatch, Linq, Format
 LED turns on after a random delay - press the button as fast as you can.
 
 [dice.cs] Dice roller with LEDs
+requires: GPIO, Random
 Roll a die on a button press and show it on 7 LEDs (or the console).
 
 [life.cs] Conway's Game of Life
+requires: Random, StringBuilder
 Cellular automaton on a 16x16 grid printed to the console.
 
 [guess.cs] Guess the number
+requires: Random, StringExtra
 Console game: find the secret number 1..100 in as few guesses as you can.
 
 [rps.cs] Rock, paper, scissors
+requires: Random, StringExtra
 Console game: best of five against the board.
 
 [tictactoe.cs] Tic-tac-toe
+requires: Random, StringExtra, Format
 Console game: play X against a simple computer O (cells 1-9).
 
 [hangman.cs] Hangman
+requires: Random, StringBuilder, List, StringExtra
 Console game: guess the hidden word one letter at a time.

@@ -1416,6 +1416,9 @@ static const mcs_reg_t rtc_fns[] = { MCS_GET("Now", rtc_now), MCS_FN("Set", rtc_
 
 /* ------------------------------------------------------------- Hal */
 static bool has(const mcs_hal_t* h, const char* n) {
+    if (!h || !n) return false;
+    if (!strcmp(n, "Board")) return true;
+    if (!strcmp(n, "Reset")) return h->reset != NULL;
     if (!strcmp(n, "GPIO")) return h->gpio_write != NULL;
     if (!strcmp(n, "GPIO.IRQ")) return h->gpio_irq != NULL;
     if (!strcmp(n, "UART")) return h->uart_write != NULL;
@@ -1464,7 +1467,7 @@ static bool has(const mcs_hal_t* h, const char* n) {
 NATIVE(hal_has) {
     const char* n = mcs_to_cstr(vm, argv[0]);
     if (mcs_has_exception(vm)) return mcs_null();
-    return mcs_bool(has(HAL(), n));
+    return mcs_bool(mcs_capability_has(vm, n));
 }
 NATIVE(hal_poll) {
     int r = mcs_hal_poll(vm);
@@ -1638,3 +1641,52 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
 #endif
 }
 #endif
+
+/* Capability reporting is also available in builds without the HAL library. */
+#include <string.h>
+static bool capability_hw(mcs_vm_t* vm, const char* name) {
+#if MCS_ENABLE_HAL
+    return mcs_global_exists(vm, "Hal") && has(mcs_hal_get(vm), name);
+#else
+    (void)vm; (void)name; return false;
+#endif
+}
+static bool capability_net(mcs_vm_t* vm, const char* name) {
+#if MCS_ENABLE_NET
+    return mcs_global_exists(vm, "Net") && mcs_net_has(mcs_net_get(), name);
+#else
+    (void)vm; (void)name; return false;
+#endif
+}
+static bool capability_ble(mcs_vm_t* vm, const char* name) {
+#if MCS_ENABLE_BLE
+    return mcs_global_exists(vm, "Ble") && mcs_ble_has(mcs_ble_get(), name);
+#else
+    (void)vm; (void)name; return false;
+#endif
+}
+bool mcs_capability_has(mcs_vm_t* vm, const char* feature) {
+    if (!vm || !feature) return false;
+#define CAP_GLOBAL(name) mcs_global_exists(vm, name)
+#define CAP_HW(name) capability_hw(vm, name)
+#define CAP_NET(name) capability_net(vm, name)
+#define CAP_BLE(name) capability_ble(vm, name)
+#define MCS_CAP(name, predicate) if (!strcmp(feature, name)) return (predicate);
+#include "mcs_capabilities.def"
+#undef MCS_CAP
+#undef CAP_GLOBAL
+#undef CAP_HW
+#undef CAP_NET
+#undef CAP_BLE
+    /* Custom drivers and existing aliases remain usable with Hal.Has. */
+    return capability_hw(vm, feature) || capability_net(vm, feature) || capability_ble(vm, feature);
+}
+const char* const* mcs_capability_names(size_t* count) {
+    static const char* const names[] = {
+#define MCS_CAP(name, predicate) name,
+#include "mcs_capabilities.def"
+#undef MCS_CAP
+    };
+    if (count) *count = sizeof names / sizeof names[0];
+    return names;
+}

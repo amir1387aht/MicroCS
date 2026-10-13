@@ -1,4 +1,9 @@
 // Minimal HTTP/1.0 server: one request per connection
+if (!Hal.Has("Wifi") || !Hal.Has("TcpListener"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, TcpListener. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 using var server = new TcpListener(80);
 server.Start();

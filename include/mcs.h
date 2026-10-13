@@ -236,6 +236,8 @@ void mcs_module_set(mcs_vm_t* vm, const char* module, const char* name, mcs_valu
 /* Global variables / functions */
 void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v);
 mcs_value_t mcs_get_global(mcs_vm_t* vm, const char* name);
+/* Allocation-free availability check, including lazy registrations; never creates a class. */
+bool mcs_global_exists(mcs_vm_t* vm, const char* name);
 void mcs_register_function(mcs_vm_t* vm, const char* name, mcs_native_fn fn, int arity);
 
 /* Raise an exception of the given built-in or script class name

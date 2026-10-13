@@ -8,9 +8,7 @@
 #if MCS_ENABLE_SCHED
 #include "mcs_sched.h"
 #endif
-#if MCS_ENABLE_HAL
 #include "mcs_hal.h"
-#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -440,6 +438,12 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
         outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
              (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+        ok(sh);
+    } else if (!strcmp(c, "caps")) {
+        size_t count;
+        const char* const* names = mcs_capability_names(&count);
+        out(sh, "capabilities=1\n");
+        for (size_t i = 0; i < count; i++) outf(sh, "%s=%d\n", names[i], mcs_capability_has(sh->vm, names[i]) ? 1 : 0);
         ok(sh);
     } else if (!strcmp(c, "info")) {
         outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));

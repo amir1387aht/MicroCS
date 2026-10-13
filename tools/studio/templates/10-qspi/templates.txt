@@ -3,9 +3,12 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: QSPI
+requires: none
 
 [qspi.cs] QSPI flash id
+requires: QSPI, BitConverter
 Read a QSPI NOR flash JEDEC id and data.
 
 [qspi_async.cs] QSPI flash read into a DmaBuffer
+requires: QSPI, DmaBuffer, BitConverter
 Read a NOR flash id and data with QSPI.ReadAsync / QSPI.Read.

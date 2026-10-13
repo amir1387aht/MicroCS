@@ -1,4 +1,9 @@
 // Set options before (or after) connecting
+if (!Hal.Has("Wifi"))
+{
+    Console.WriteLine("This firmware lacks: Wifi. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Hostname = "greenhouse";      // shown in the router's client list / DHCP
 Wifi.Country = "DE";               // allowed channels and power
 Wifi.TxPower = 15;                 // dBm (2..20)

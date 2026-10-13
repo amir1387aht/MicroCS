@@ -1,4 +1,9 @@
 // WebSocket client: ws://host[:port]/path, wss:// where the board has TLS (Net.Has("Tls"))
+if (!Hal.Has("Wifi"))
+{
+    Console.WriteLine("This firmware lacks: Wifi. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 try
 {

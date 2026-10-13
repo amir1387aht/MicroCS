@@ -1,4 +1,9 @@
 // Mdns needs the espressif/mdns component on ESP32 (Net.Has("Mdns"))
+if (!Hal.Has("Wifi") || !Hal.Has("Mdns") || !Hal.Has("Ping"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, Mdns, Ping. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 if (Net.Has("Mdns"))
 {

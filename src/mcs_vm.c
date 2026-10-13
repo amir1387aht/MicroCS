@@ -71,6 +71,13 @@ static bool resolve_guarded(mcs_vm_t* vm, const char* name, size_t len) {
     vm->panic = NULL;
     return ok;
 }
+bool mcs_global_exists(mcs_vm_t* vm, const char* name) {
+    if (!vm || !name) return false;
+    size_t len = strlen(name);
+    mcs_string_t* s = mcs_find_interned(vm, name, len);
+    if (s && s->obj.aux && vm->globals[s->obj.aux - 1u].type != MCS_T_UNDEF) return true;
+    return mcs_lazy_known(vm, name, len);
+}
 mcs_value_t mcs_get_global(mcs_vm_t* vm, const char* name) {
     size_t len = strlen(name);
     mcs_string_t* s = mcs_find_interned(vm, name, len);

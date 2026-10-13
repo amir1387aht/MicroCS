@@ -1,4 +1,9 @@
 // Wi-Fi events arrive on the script thread, like GPIO interrupts
+if (!Hal.Has("Wifi"))
+{
+    Console.WriteLine("This firmware lacks: Wifi. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.OnEvent((ev, value) =>
 {
     Console.WriteLine($"[{Environment.TickCount,6} ms] {Wifi.EventName(ev)}" +

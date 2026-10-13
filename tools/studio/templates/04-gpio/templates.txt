@@ -3,36 +3,48 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: GPIO
+requires: none
 
 [blink.cs] Blink an LED
+requires: GPIO
 Toggle an output pin with the Pin object.
 
 [gpio.cs] Static GPIO calls
+requires: GPIO
 GPIO.Mode / Write / Read / Toggle without objects.
 
 [pinnames.cs] Pin names
+requires: GPIO, Format
 Resolve board pin names to numbers with GPIO.Pin.
 
 [button_poll.cs] Read a button (polling)
+requires: GPIO
 Poll an input and detect presses with edge detection.
 
 [button.cs] Button interrupt
+requires: GPIO, GPIO.IRQ
 React to a button with OnChange - callbacks run safely between statements.
 
 [multi_irq.cs] Interrupts on several pins
+requires: GPIO, GPIO.IRQ, Board
 One handler for several pins with GPIO.OnChange(pin, edge, (pin, level) => ...).
 
 [ultrasonic.cs] Ultrasonic distance (HC-SR04)
+requires: GPIO, Board, Float, Format
 Trigger pulse + GPIO.PulseIn to measure distance.
 
 [chaser.cs] Knight rider (LED chaser)
+requires: GPIO, List
 Run a light back and forth over several LEDs.
 
 [button_config.cs] Button: pull-up + Schmitt trigger (GpioConfig)
+requires: GPIO, GPIO.IRQ, Board
 A clean button input with GpioConfig and an interrupt callback.
 
 [led_config.cs] LED: start on, strong drive (GpioConfig)
+requires: GPIO
 Set the level before the pin drives (no glitch), drive strength and speed.
 
 [open_drain.cs] Open-drain bus line with GpioConfig
+requires: GPIO
 Open drain with no internal pull, then change the settings later.

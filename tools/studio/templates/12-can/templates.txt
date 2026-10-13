@@ -3,6 +3,8 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: CAN
+requires: none
 
 [can.cs] CAN bus send and receive
+requires: CAN, Board
 Send frames and print received ones (TWAI on ESP32).

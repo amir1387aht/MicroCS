@@ -3,9 +3,12 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Benchmarks
+requires: none
 
 [bench_cpu.cs] CPU benchmark
+requires: Board, Math, StringBuilder, List, Dictionary, GC, Stopwatch, Float, Format
 Integer, floating point, string and collection speed of the board.
 
 [bench_gpio.cs] GPIO toggle speed
+requires: GPIO, Math, Stopwatch, Float, Format
 How fast can a script toggle a pin? Static calls vs. a Pin object.

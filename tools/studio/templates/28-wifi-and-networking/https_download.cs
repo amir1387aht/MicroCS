@@ -1,4 +1,9 @@
 // https:// works when the port has TLS (ESP32: esp-tls + certificate bundle)
+if (!Hal.Has("Filesystem") || !Hal.Has("Wifi") || !Hal.Has("Http") || !Hal.Has("Tls"))
+{
+    Console.WriteLine("This firmware lacks: Filesystem, Wifi, Http, Tls. Enable the needed modules or use a supported board.");
+    return;
+}
 Console.WriteLine("TLS available: " + Net.Has("Tls"));
 Wifi.Connect("MicroCS-Lab", "microcs123");
 try

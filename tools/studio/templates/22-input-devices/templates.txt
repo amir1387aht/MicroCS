@@ -3,15 +3,20 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Input devices
+requires: none
 
 [encoder.cs] Rotary encoder
+requires: GPIO, GPIO.IRQ
 Quadrature decoding with pin interrupts, plus the push button.
 
 [keypad.cs] 4x4 matrix keypad
+requires: GPIO, StringBuilder
 Scan a membrane keypad: rows as outputs, columns with pull-ups.
 
 [button_events.cs] Button: click, double-click, long press
+requires: GPIO
 Turn a raw button into click / double / long-press events.
 
 [touch.cs] Touch / capacitive pad (charge time)
+requires: GPIO, Micros, Board
 Measure how long a pin takes to charge - a DIY touch sensor.

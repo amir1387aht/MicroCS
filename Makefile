@@ -33,9 +33,9 @@ OBJ      = $(patsubst src/%.c,build/%.o,$(SRC)) $(patsubst modules/%.c,build/mod
 
 all: mcs
 
-build/%.o: src/%.c src/*.h include/*.h | build
+build/%.o: src/%.c src/*.h include/*.h include/*.def | build
 	$(CC) $(CFLAGS) -c $< -o $@
-build/mod/%.o: modules/%.c include/*.h | build
+build/mod/%.o: modules/%.c include/*.h include/*.def | build
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 build:

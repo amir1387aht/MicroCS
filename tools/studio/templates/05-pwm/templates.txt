@@ -3,18 +3,24 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: PWM
+requires: none
 
 [fade.cs] Fade an LED (PWM)
+requires: PWM, Float
 Breathe an LED with PWM.Set(channel, hz, duty).
 
 [servo.cs] Servo sweep
+requires: PWM, Servo
 Move a hobby servo from 0 to 180 degrees and back with the Servo class.
 
 [melody.cs] Buzzer melody
+requires: PWM
 Play notes on a passive buzzer with PWM.Tone.
 
 [dimmer.cs] Potentiometer dims an LED
+requires: PWM, ADC
 ADC reading controls PWM duty - analog in, analog out.
 
 [pwm_config.cs] PWM resolution, polarity, centre-aligned (PwmConfig)
+requires: PWM, Float, PWM.Configure, Format
 PwmConfig before PWM.Set; errors explain what the board cannot do.

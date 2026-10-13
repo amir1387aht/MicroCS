@@ -1,4 +1,9 @@
 // Wifi.Save keeps SSID + password in NVS (ESP32) so no script has to contain them
+if (!Hal.Has("Wifi") || !Hal.Has("Wifi.Save"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, Wifi.Save. Enable the needed modules or use a supported board.");
+    return;
+}
 if (Wifi.SavedSsid.Length == 0)
 {
     Console.WriteLine("nothing saved yet, saving MicroCS-Lab");

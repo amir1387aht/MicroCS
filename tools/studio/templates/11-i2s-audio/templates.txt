@@ -3,9 +3,12 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: I2S audio
+requires: none
 
 [i2s.cs] I2S tone
+requires: I2S, Math, Float
 Generate a sine tone and send it to an I2S DAC / amplifier.
 
 [i2s_mic.cs] I2S microphone level
+requires: I2S, Math, Float, Format
 Read samples from an I2S microphone and print the level.

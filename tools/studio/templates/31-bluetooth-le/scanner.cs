@@ -1,6 +1,11 @@
 // BLE scanner: lists nearby devices every 5 seconds, strongest first.
 // Run on the host simulator: build/mcs_ble --sim examples/ble/scanner.cs
 // On a board: enable BLE for your port (see docs/BLE.md) and flash as usual.
+if (!Hal.Has("Ble") || !Hal.Has("Ble.Scan"))
+{
+    Console.WriteLine("This firmware lacks: Ble, Ble.Scan. Enable the needed modules or use a supported board.");
+    return;
+}
 Console.WriteLine("BLE scanner on " + Ble.Backend + ", our address " + Ble.Address);
 while (true) {
     var devices = Ble.Scan(2000, true);

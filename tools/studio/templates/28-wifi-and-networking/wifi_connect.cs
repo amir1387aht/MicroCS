@@ -1,4 +1,9 @@
 // Connect the station interface and show what DHCP gave us
+if (!Hal.Has("Wifi"))
+{
+    Console.WriteLine("This firmware lacks: Wifi. Enable the needed modules or use a supported board.");
+    return;
+}
 if (!Net.Has("Wifi")) { Console.WriteLine("this board has no Wi-Fi"); return; }
 
 const string Ssid = "MicroCS-Lab", Password = "microcs123";

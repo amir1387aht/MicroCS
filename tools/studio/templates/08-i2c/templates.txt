@@ -3,27 +3,36 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: I2C
+requires: none
 
 [i2c_scan.cs] I2C bus scan
+requires: I2C, Format
 List every device that answers on an I2C bus.
 
 [i2c_reg.cs] Read a register
+requires: I2C, BitConverter, Format
 Read and write registers with the static I2C API.
 
 [tmp102.cs] Temperature sensor (TMP102)
+requires: I2C, Float, Format
 Read a TMP102 / LM75-style sensor with I2cDevice.
 
 [eeprom.cs] EEPROM (24Cxx) read and write
+requires: I2C, List, Encoding
 Write a string to an I2C EEPROM and read it back.
 
 [bme280.cs] BME280 / BMP280 chip id
+requires: I2C, Format
 Identify a Bosch environmental sensor and read raw temperature.
 
 [oled.cs] OLED display (SSD1306)
+requires: I2C
 Initialise a 128x64 SSD1306 and draw a pattern.
 
 [i2c_pins.cs] I2C on your own pins (I2cConfig)
+requires: I2C, StringExtra, I2C.Configure, Format
 Choose SDA/SCL, speed, pull-ups and timeout at run time, then scan.
 
 [i2c_async.cs] I2C sensor read without blocking
+requires: I2C, DmaBuffer, BitConverter
 I2C.WriteReadAsync into a DmaBuffer; errors arrive when the transfer ends.

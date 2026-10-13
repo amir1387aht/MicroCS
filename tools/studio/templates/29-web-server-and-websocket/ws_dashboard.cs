@@ -1,4 +1,9 @@
 // Push data to browsers without polling: HttpServer + WebSocket endpoint + Broadcast
+if (!Hal.Has("Wifi") || !Hal.Has("HttpServer") || !Hal.Has("WebSocket"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, HttpServer, WebSocket. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 using var web = new HttpServer(80);
 const string Page = @"<!doctype html><meta name=viewport content='width=device-width'>

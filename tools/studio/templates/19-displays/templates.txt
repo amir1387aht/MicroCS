@@ -3,22 +3,29 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Displays
+requires: none
 
 [max7219.cs] MAX7219 8x8 LED matrix
+requires: SPI
 Drive an 8x8 LED matrix (or 8-digit display) over SPI.
 
 [ledstrip.cs] WS2812 / NeoPixel LED strip
+requires: LedStrip
 Addressable RGB LEDs (WS2812B, SK6812, on-board RGB LEDs) on any pin with LedStrip: wipe,
 rainbow, chase.
 
 [ws2812_spi.cs] WS2812 LED strip via SPI (no LedStrip driver)
+requires: SPI
 WS2812B / SK6812 driven through SPI MOSI, for ports without LedStrip: wipe, rainbow, chase.
 
 [lcd1602.cs] Character LCD 16x2 (I2C backpack)
+requires: I2C
 HD44780 LCD through a PCF8574 I2C backpack (address 0x27).
 
 [tm1637.cs] 7-segment display (TM1637)
+requires: GPIO, Board, Math
 Show numbers on a 4-digit TM1637 module (two-wire, bit-banged).
 
 [oled_text.cs] Text console on an SSD1306 OLED
+requires: I2C, List, Dictionary, StringExtra
 A tiny 5x7 font renderer for a 128x64 SSD1306 - prints lines of text.

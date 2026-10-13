@@ -354,3 +354,6 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
 .plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
 .plothint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 20px 40px; color: var(--fg3); font-size: 12.5px; line-height: 1.7; pointer-events: none; }
 .plothint code { font: 12px var(--mono); color: var(--t-str); }
+
+.gallery .support { padding: 6px 12px; font-size: 11px; color: var(--fg2); border-bottom: 1px solid var(--line); }
+.gallery .requirements { margin-top: 5px; color: var(--accent); font-size: 11px; }

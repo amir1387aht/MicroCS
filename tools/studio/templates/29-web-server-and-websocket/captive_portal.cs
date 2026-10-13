@@ -1,4 +1,9 @@
 // Captive portal: phones show "Sign in to network" and open the form by themselves
+if (!Hal.Has("StringBuilder") || !Hal.Has("Wifi") || !Hal.Has("Wifi.Scan") || !Hal.Has("Wifi.AP") || !Hal.Has("Wifi.Save") || !Hal.Has("HttpServer") || !Hal.Has("DnsServer"))
+{
+    Console.WriteLine("This firmware lacks: StringBuilder, Wifi, Wifi.Scan, Wifi.AP, Wifi.Save, HttpServer, DnsServer. Enable the needed modules or use a supported board.");
+    return;
+}
 if (Wifi.SavedSsid != "" && Wifi.Connect()) { Console.WriteLine("online as " + Wifi.Ip); return; }
 
 Wifi.StartAp("MicroCS-Setup", "");              // open hotspot, the board is 192.168.4.1
