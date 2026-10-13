@@ -1,0 +1,70 @@
+{
+  "default": "Default selects LV_FONT_DEFAULT, which must remain firmware-owned",
+  "status": "static built-in fonts only; dynamic/custom/binary assets remain unsupported",
+  "versions": {
+    "8.4.0": {
+      "declarations": {
+        "LV_FONT_DEJAVU_16_PERSIAN_HEBREW": "lv_font_dejavu_16_persian_hebrew",
+        "LV_FONT_MONTSERRAT_10": "lv_font_montserrat_10",
+        "LV_FONT_MONTSERRAT_12": "lv_font_montserrat_12",
+        "LV_FONT_MONTSERRAT_12_SUBPX": "lv_font_montserrat_12_subpx",
+        "LV_FONT_MONTSERRAT_14": "lv_font_montserrat_14",
+        "LV_FONT_MONTSERRAT_16": "lv_font_montserrat_16",
+        "LV_FONT_MONTSERRAT_18": "lv_font_montserrat_18",
+        "LV_FONT_MONTSERRAT_20": "lv_font_montserrat_20",
+        "LV_FONT_MONTSERRAT_22": "lv_font_montserrat_22",
+        "LV_FONT_MONTSERRAT_24": "lv_font_montserrat_24",
+        "LV_FONT_MONTSERRAT_26": "lv_font_montserrat_26",
+        "LV_FONT_MONTSERRAT_28": "lv_font_montserrat_28",
+        "LV_FONT_MONTSERRAT_28_COMPRESSED": "lv_font_montserrat_28_compressed",
+        "LV_FONT_MONTSERRAT_30": "lv_font_montserrat_30",
+        "LV_FONT_MONTSERRAT_32": "lv_font_montserrat_32",
+        "LV_FONT_MONTSERRAT_34": "lv_font_montserrat_34",
+        "LV_FONT_MONTSERRAT_36": "lv_font_montserrat_36",
+        "LV_FONT_MONTSERRAT_38": "lv_font_montserrat_38",
+        "LV_FONT_MONTSERRAT_40": "lv_font_montserrat_40",
+        "LV_FONT_MONTSERRAT_42": "lv_font_montserrat_42",
+        "LV_FONT_MONTSERRAT_44": "lv_font_montserrat_44",
+        "LV_FONT_MONTSERRAT_46": "lv_font_montserrat_46",
+        "LV_FONT_MONTSERRAT_48": "lv_font_montserrat_48",
+        "LV_FONT_MONTSERRAT_8": "lv_font_montserrat_8",
+        "LV_FONT_SIMSUN_16_CJK": "lv_font_simsun_16_cjk",
+        "LV_FONT_UNSCII_16": "lv_font_unscii_16",
+        "LV_FONT_UNSCII_8": "lv_font_unscii_8"
+      },
+      "header_sha256": "1c29529613fc27d8b72d21016b1298ff828ea098069319beb60cb3c6ed90a982"
+    },
+    "9.4.0": {
+      "declarations": {
+        "LV_FONT_DEJAVU_16_PERSIAN_HEBREW": "lv_font_dejavu_16_persian_hebrew",
+        "LV_FONT_MONTSERRAT_10": "lv_font_montserrat_10",
+        "LV_FONT_MONTSERRAT_12": "lv_font_montserrat_12",
+        "LV_FONT_MONTSERRAT_14": "lv_font_montserrat_14",
+        "LV_FONT_MONTSERRAT_16": "lv_font_montserrat_16",
+        "LV_FONT_MONTSERRAT_18": "lv_font_montserrat_18",
+        "LV_FONT_MONTSERRAT_20": "lv_font_montserrat_20",
+        "LV_FONT_MONTSERRAT_22": "lv_font_montserrat_22",
+        "LV_FONT_MONTSERRAT_24": "lv_font_montserrat_24",
+        "LV_FONT_MONTSERRAT_26": "lv_font_montserrat_26",
+        "LV_FONT_MONTSERRAT_28": "lv_font_montserrat_28",
+        "LV_FONT_MONTSERRAT_28_COMPRESSED": "lv_font_montserrat_28_compressed",
+        "LV_FONT_MONTSERRAT_30": "lv_font_montserrat_30",
+        "LV_FONT_MONTSERRAT_32": "lv_font_montserrat_32",
+        "LV_FONT_MONTSERRAT_34": "lv_font_montserrat_34",
+        "LV_FONT_MONTSERRAT_36": "lv_font_montserrat_36",
+        "LV_FONT_MONTSERRAT_38": "lv_font_montserrat_38",
+        "LV_FONT_MONTSERRAT_40": "lv_font_montserrat_40",
+        "LV_FONT_MONTSERRAT_42": "lv_font_montserrat_42",
+        "LV_FONT_MONTSERRAT_44": "lv_font_montserrat_44",
+        "LV_FONT_MONTSERRAT_46": "lv_font_montserrat_46",
+        "LV_FONT_MONTSERRAT_48": "lv_font_montserrat_48",
+        "LV_FONT_MONTSERRAT_8": "lv_font_montserrat_8",
+        "LV_FONT_SOURCE_HAN_SANS_SC_14_CJK": "lv_font_source_han_sans_sc_14_cjk",
+        "LV_FONT_SOURCE_HAN_SANS_SC_16_CJK": "lv_font_source_han_sans_sc_16_cjk",
+        "LV_FONT_UNSCII_16": "lv_font_unscii_16",
+        "LV_FONT_UNSCII_8": "lv_font_unscii_8"
+      },
+      "header_sha256": "f8628984c4f5f94a6ce6af1184f1e3e41bff567377b366619cccb882809fc884"
+    }
+  }
+}

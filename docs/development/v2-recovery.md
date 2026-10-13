@@ -616,3 +616,53 @@ verification next. Continue actual statically owned LVGL built-in font lookup/
 selection/readback with actual public8.4/9.4 declarations; fullscope/hardware/
 independent security review still block merge, tag and release. No irreversible
 device actions, provisioning or secret material generated.
+
+## Checkpoint21 — real static fonts and actual compressed-decoder defect fixed
+
+New allocation-free/no-init LvGui.HasFont, LvObject.SetFont(name[,selector]) and
+native FontHeight; append-only LVGL.Font guards new template218total. Actual27
+public built-in declarations EACHversion generated from unchanged exact pins,
+version/config gated; Default actualLV_FONT_DEFAULT; static firmware lifetime,
+no script-owned bytes/raw pointers/dynamic/files/custom font binding. Native
+pointer/style readback and exact script metrics, actual rendering, all disabled/
+version-specific branches, selector/arity/type/NUL/length/stale/GC tests added.
+
+Final default8/default9 EACH835 native checks; all27fonts8/9 EACH887, ASan/UBSan/
+leaks enabled. All five script goldens EACHconfiguration match. Expanded all8
+caught genuine upstream8.4 compressed decoder UB (~bit_mask negative leftshift)
+with original stack trace preserved; release/v8.4 research contains same site.
+Explicit/OFF-default ROOT-only MICROCS_LVGL8_FONT_DECODER_FIX verifies exact source
+SHA310ec9757ce6e5196a9246b4aa7d8e6a0209c89dc8c07c34f6209efdc7443a72, writes
+build-local ONLYdecoder unit with unsigned-mask cast + linked version marker,
+replaces one target source, does not touch/vend external files/config. Fixed unit
+SHA1b508ed5748d95cb94d9a67cf8630ea9a4fcebaa46608b83bb668e550198ecb8.
+Adapter failcloses compiled compression without marker/version. Exactunit byte
+proof, unchangedpins, no-fix/wrong-major/foreign/hash/missing-marker failures and
+2359296 unsigned-mask arithmetic cases pass. Actual compressed8 rendering now
+passes, no sanitizer suppression/font removal/fake implementation. Other-build/
+prebuilt compresseddecoder integration/dynamic font assets still unvalidated.
+
+Initial standalone fonts.cs HAL assumption failed MissingMemberException in
+CMake NONE (Hal disabled); corrected ONLYfixture, defaults preserved, finalgoldens
+pass. Initial contract librarypath wrong, failedtrace retained; actual lib/liblvgl.a
+retry passes. Distinguish these fixture/invocation errors from actual decoder UB.
+Default8 early native pass preceded extra invalid-name cases; final all configs
+rebuilt/retested coherently. Source/generated/test hashes in
+`evidence/lvgl-fonts21/` plus all raw logs/failurelogs/cross/decoder provenance.
+
+Five real ESP32 standalone/LVGL8/LVGL9/touch/OFF cross-links with embeddedfont
+assertions pass; compile/link ONLY, no hardware run. Actual TFT131557 checks EACH
+normal/GC-stress sanitizer variant preserve depths/images/copies/scopes/OOM.
+Host85 source/image/XIP,69scopes,formatter/runtime,217C#templates/218total,
+OFF/config/package, old7buildcontracts/version, exactgenerator/docs and actual
+browser editor/gallery/fullserial Studio pass. NewCI pinned-generator/allfonts/
+contracts steps configured/YAMLchecked, notyetremotecompleted. Prior18/19/20
+CIconfirmed92/92success EACH. Last fullhost/profile gate20 on19source remains
+lastbroadfullsuite, notcalled21pass. All localjobs complete; no activecommands.
+
+Remote predecessor76bdfab5ab5d4169529ec0d4c53358c0b1f0a7cb tree-verified; main
+unchangedd3def1ff534c59a6726037ccf31f61535647e857. Staged21/cumulativebasepatches
+and NOTES maintained; push/fetch/tree verify next. Continue malicious-bytecode
+stack/control-flow/type safety and remaining whole-scope LVGL/TFT/Studio/core/
+security/roadmap; hardware/independent review unavailable still block release.
+No merge/tag/release/provisioning/irreversible device actions or secrets.

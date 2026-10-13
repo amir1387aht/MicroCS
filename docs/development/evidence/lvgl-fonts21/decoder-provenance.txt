@@ -1,0 +1,3 @@
+External decoder SHA256=310ec9757ce6e5196a9246b4aa7d8e6a0209c89dc8c07c34f6209efdc7443a72
+Build-local fixed SHA256=1b508ed5748d95cb94d9a67cf8630ea9a4fcebaa46608b83bb668e550198ecb8
+Exactly unsigned mask cast + linked compatibility marker; all other source unchanged.

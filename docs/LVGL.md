@@ -3,7 +3,7 @@
 **Not a complete wrapper or a validated production/hardware integration yet.**
 This checkpoint implements real upstream headless rendering and a common object,
 scalar-style, text/value and bounded input/event subset. Remaining API families,
-version-specific assets/drawing/fonts/files/animations/groups, multiple displays,
+version-specific assets/drawing/dynamic fonts/files/animations/groups, multiple displays,
 async/DMA sinks, TFT bridge and vendor packaging are still release blockers.
 Nothing here advertises those as implemented.
 
@@ -123,7 +123,8 @@ using (var gui = new LvGui(320, 240)) {
   setters only; property names use upstream suffixes such as `bg_color`,
   `pad_left`, `radius`. RGB is 0xRRGGBB; bool 0/1; opacity 0..255; coordinate
   styles -32767..32767. Pointer/asset/enum/registered-layout styles need typed
-  ownership wrappers and currently throw `NotSupportedException`.
+  ownership wrappers and throw `NotSupportedException` through SetStyle. Static
+  text fonts have the separate checked SetFont binding below.
 
 Handle slots are bounded by `MCS_LVGL_OBJECTS`, never expose native pointers,
 and include deletion generations. LVGL delete notifications invalidate every
@@ -133,6 +134,88 @@ GC/VM finalization closes live input/display resources before freeing VM buffers
 Shell file scopes close GUIs created during foreground runs after any result,
 including exceptions, OOM and Stop. Other embedders explicitly use
 `mcs_lvgl_scope_begin/end`; an older retained GUI is not silently disposed.
+
+### Static built-in fonts
+
+Capability `LVGL.Font` distinguishes this new API from older LVGL firmware.
+`LvGui.HasFont(name)` probes **compiled/configured support**, not physical hardware,
+and does not initialize LVGL. Names are `"Default"` (actual LV_FONT_DEFAULT) or
+exact upstream symbols such as `"lv_font_montserrat_14"`. Missing/disabled or
+version-specific names return false; there is no silent font substitution.
+Names must be strings <=80bytes without embedded NUL (not coerced numbers/null).
+
+`obj.SetFont(name[, selector])` calls actual lv_obj_set_style_text_font with a
+static library/firmware-owned font. Missing fonts raise NotSupportedException;
+wrong names/selectors/arity and deleted handles raise. Selectors are integer
+0..UINT32_MAX, default0; inherit/native state selection follows actual LVGL.
+`obj.FontHeight` returns the current main-part font's **actual native line height**,
+not the point size guessed from a name. Firmware's LV_FONT_DEFAULT must remain
+valid for the firmware lifetime; changing/freeing an externally owned dynamic
+font beneath this adapter is unsupported.
+
+All public built-in font declarations are represented from both pinned headers:
+21 Montserrat sizes8..48(step2), compressed Montserrat28, DejaVu16 Persian/Hebrew,
+UNSCII8/16, plus **v8-only Montserrat12 subpixel and SimSun16 CJK**, or
+**v9-only Source Han Sans SC14/16 CJK**. Each is available only if its real
+LV_FONT_* flag is enabled and the upstream configuration/dependencies support it.
+Default is additional to these27 declared symbols per version. **LVGL8 compressed decoding
+requires the explicit compatibility build below; a compiled font flag alone is
+not safe decoder provenance.** The generator
+checks unchanged exact pins and header/version/output parity; inventory in
+`docs/development/lvgl-fonts.json`. No source/font binaries are vendored/fetched
+by ordinary builds and no user lv_conf.h is rewritten. Merely enabling all test
+fonts is not a small production flash configuration.
+
+#### Explicit LVGL8 compressed decoder compatibility
+
+Expanded real-font ASan/UBSan tests found a native8.4.0 decoder defect:
+`lv_font_fmt_txt.c` shifts the negative promoted `~bit_mask` value. The inspected
+release/v8.4 maintenance source still contains that expression. We do **not**
+disable UBSan, skip compressed rendering, or rewrite/vend the external library.
+When LV_USE_FONT_COMPRESSED is1, the adapter fails compilation without a proven
+compatible decoder; merely defining a flag cannot satisfy the required link marker.
+
+For a source ROOT build only, explicitly select:
+
+```sh
+cmake -S . -B build/lvgl8 -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=8 \
+  -DMICROCS_LVGL_ROOT=/absolute/path/lvgl8 \
+  -DMICROCS_LVGL_CONFIG=/absolute/path/lv_conf.h \
+  -DMICROCS_LVGL8_FONT_DECODER_FIX=ON
+# Make forwards the same explicit selection:
+make lvgl-test LVGL_MAJOR=8 LVGL_DIR=/absolute/path/lvgl8 \
+  LVGL_CONFIG=/absolute/path/lv_conf.h LVGL_DECODER_FIX=ON
+```
+
+This option is **OFF by default**, rejected on9 or prebuilt/foreign-target modes.
+CMake verifies the exact reviewed8.4.0 decoder SHA256
+`310ec9757ce6e5196a9246b4aa7d8e6a0209c89dc8c07c34f6209efdc7443a72`, writes a
+**build-local copy of just that external unit**, changes only the mask to
+`(uint32_t)(uint8_t)(~bit_mask)` before shifting, and appends a linked compatibility
+marker. Original external files and user config remain unchanged. No copied
+LVGL unit or font binaries are committed to MicroCS. Library source list replaces
+only this unit, retaining actual upstream decoding/rendering and configuration.
+Build-local `microcs-lvgl-compat/provenance.txt` records original/fixed hashes.
+Unknown source hashes fail rather than applying a guessed patch.
+
+The adapter requires the linked marker/version before font selection; a flag
+without the unit fails linkage. Tests verify exact copy/cast/marker bytes,
+unchanged external checkouts, wrong-version/foreign-target/unknown-hash/no-fix/
+missing-marker failures and exhaustive unsigned-mask byte arithmetic, then
+render all actual27 fonts under ASan/UBSan/leaks. Non-CMake/prebuilt routes must
+supply an equivalently reviewed fixed decoder **and linked marker** explicitly;
+that integration is not yet validated. Default uncompressed8 and ordinary9 use
+the untouched library. This narrow fix is not a general LVGL decoder/security
+or malicious-font guarantee; dynamic file/binary fonts remain unbound.
+
+These bindings retain **no script font bytes**, expose no native pointer, and
+never delete a static font. Native style ownership handles the static pointer
+through repeated GC/object deletion/display teardown. Dynamic/binary/file font
+loading, fallback chains, custom font registration and glyph/drawing output
+buffers remain unbound; this is not full font/asset or Unicode layout coverage.
+Real default and all27-enabled-font configurations on both versions check native
+pointer selection/metrics, configured absence and actual rendering, separately
+from physical display and MCU memory/timing evidence.
 
 ### Common widget methods and retained text
 
@@ -164,7 +247,7 @@ retaining upstream APIs: dropdown `set_text` / string `set_symbol`, textarea
 No pointer to an unrooted temporary script string escapes. Replacements release
 old storage; deletion releases it only **after** native destruction, not during
 DELETE callbacks. Repeated GC/static-text/teardown needs sanitizer coverage on
-each changed snapshot. Typed images/fonts/canvas/chart-series, enums and complex
+each changed snapshot. Typed images/dynamic fonts/canvas/chart-series, enums and complex
 assets remain unbound until their complete ownership contracts are implemented.
 Native child widgets are classified using real upstream class descriptors,
 not a guessed script variable type.

@@ -1,0 +1,185 @@
+Processing tft-standalone (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 35 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+Building in release mode
+Compiling .pio/build/tft-standalone/lib134/MicroCS-v2-work/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-standalone/lib134/MicroCS-v2-work/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-standalone/src/main.cpp.o
+Linking .pio/build/tft-standalone/firmware.elf
+Retrieving maximum program size .pio/build/tft-standalone/firmware.elf
+Checking size .pio/build/tft-standalone/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.7% (used 21936 bytes from 327680 bytes)
+Flash: [====      ]  41.4% (used 542109 bytes from 1310720 bytes)
+Building .pio/build/tft-standalone/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 30.28 seconds =========================
+
+Processing tft-lvgl8 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 8.4.0
+Building in release mode
+Compiling .pio/build/tft-lvgl8/lib134/MicroCS-v2-work/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-lvgl8/lib134/MicroCS-v2-work/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-lvgl8/src/main.cpp.o
+Linking .pio/build/tft-lvgl8/firmware.elf
+Retrieving maximum program size .pio/build/tft-lvgl8/firmware.elf
+Checking size .pio/build/tft-lvgl8/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [===       ]  27.5% (used 90064 bytes from 327680 bytes)
+Flash: [======    ]  59.0% (used 773201 bytes from 1310720 bytes)
+Building .pio/build/tft-lvgl8/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 35.21 seconds =========================
+
+Processing tft-lvgl9 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 9.4.0
+Building in release mode
+Compiling .pio/build/tft-lvgl9/lib134/MicroCS-v2-work/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-lvgl9/lib134/MicroCS-v2-work/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-lvgl9/src/main.cpp.o
+Linking .pio/build/tft-lvgl9/firmware.elf
+Retrieving maximum program size .pio/build/tft-lvgl9/firmware.elf
+Checking size .pio/build/tft-lvgl9/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.9% (used 22528 bytes from 327680 bytes)
+Flash: [======    ]  64.1% (used 839793 bytes from 1310720 bytes)
+Building .pio/build/tft-lvgl9/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 30.24 seconds =========================
+
+Processing tft-touch-lvgl9 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 9.4.0
+Building in release mode
+Compiling .pio/build/tft-touch-lvgl9/lib134/MicroCS-v2-work/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib134/MicroCS-v2-work/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-touch-lvgl9/src/main.cpp.o
+Linking .pio/build/tft-touch-lvgl9/firmware.elf
+Retrieving maximum program size .pio/build/tft-touch-lvgl9/firmware.elf
+Checking size .pio/build/tft-touch-lvgl9/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.9% (used 22528 bytes from 327680 bytes)
+Flash: [======    ]  64.2% (used 841585 bytes from 1310720 bytes)
+Building .pio/build/tft-touch-lvgl9/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 27.91 seconds =========================
+
+Processing graphics-off (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- MicroCS @ 1.14.0
+Building in release mode
+Compiling .pio/build/graphics-off/lib134/MicroCS-v2-work/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/graphics-off/lib134/MicroCS-v2-work/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/graphics-off/src/main.cpp.o
+Linking .pio/build/graphics-off/firmware.elf
+Retrieving maximum program size .pio/build/graphics-off/firmware.elf
+Checking size .pio/build/graphics-off/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.7% (used 21828 bytes from 327680 bytes)
+Flash: [====      ]  37.5% (used 491661 bytes from 1310720 bytes)
+Building .pio/build/graphics-off/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 8.01 seconds =========================
+
+Environment      Status    Duration
+---------------  --------  ------------
+tft-standalone   SUCCESS   00:00:30.276
+tft-lvgl8        SUCCESS   00:00:35.208
+tft-lvgl9        SUCCESS   00:00:30.237
+tft-touch-lvgl9  SUCCESS   00:00:27.909
+graphics-off     SUCCESS   00:00:08.006
+========================= 5 succeeded in 00:02:11.637 =========================

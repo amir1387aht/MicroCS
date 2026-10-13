@@ -1,0 +1,22 @@
+{
+  "modules/lvgl/mcs_lvgl.c": "acb48beb66b230492dba45652e8310050890bb402af14329e04bc3cc09c91259",
+  "modules/lvgl/mcs_lvgl_fonts.inc": "4b0e40258343f3fbaa1d50aff01ef10237db22e398b80c726889ba7d665cf75d",
+  "cmake/MicroCSLVGL.cmake": "a809a347e605a292306e377e1e70ad96ede24769ae6e0e075617760245a84fba",
+  "tools/gen_lvgl_fonts.py": "010fd0090526fe900e5c015f6bb510041f4e053784cf69853888197b4f9e491c",
+  "include/mcs_capabilities.def": "b46f38a3c002ed2c6fa65d7888c9dae8889a410d44f5c196a272f2e30ecadc98",
+  "tests/lvgl/test_lvgl.c": "62b791d7828f23c3579eb0660d4f597cef5c852c77736a6199f9d6df5ac6bb18",
+  "tests/lvgl/font_readback.inc": "65b67515beea0c3b2f24b7109b61f59427e34d985d6aaee2ca9098aef7fad8e3",
+  "tests/lvgl/test_font_contract.py": "c50da280e23948f3d846bf2785468a70b976b8da0eee28faf1ab81b09341d463",
+  "tests/lvgl/fonts.cs": "b7fc7726c15313c6896c778d0b3b53248709750dbd0a961d3ebeb98dfa66eb9b",
+  "tests/lvgl/fonts.out": "f1f083af03090ca357ae1eb8d03d7f0e3ece008ed514a7c15761f05a7b7b60e4",
+  "tests/lvgl/lv_conf8.h": "94a1fb9454106b07fa57ea9c0e0f060c56241c582d86629dba1a0c28c92b4dfc",
+  "tests/lvgl/lv_conf9.h": "e68ed3ca8d2c800d2c6204d7d9a7d35c7035ce2064b9877aacd0297fd54c01be",
+  "tests/lvgl/lv_conf8_fonts.h": "35e729d27db27e1d0cc282534a7e09c317d378c5dd0a9a47f2ee3eddbca42b76",
+  "tests/lvgl/lv_conf9_fonts.h": "54988bdff888c4f9715d67e367f7222294e49b0ee7ed7fc9fd6d64fb67742eeb",
+  "tests/tft/src/main.cpp": "bffeaad7a10f018ea7019250bdac29cdce6724d0c45aeffb0b9e4e9b05d67839",
+  "tools/record_tft_build.py": "6bf0495fa7e6706fa06d4939e714911711039f4b2423ede6624b8bedb435ef5c",
+  "tools/studio/docs.js": "d8585bf8d86f552e467df874dad1c984185d1f04c3ec8b39cd3135dc757aa738",
+  "tools/studio/templates/32-optional-gui/lvgl_fonts.cs": "2f004d27bd03801590eca838f4f3019076a892ec6c4dd92e902258f59d7bd424",
+  ".github/workflows/ci.yml": "b2515678a836bd258b3fe07e2ca75245ecdc253c684150e5e8b4041f1c44e699",
+  "Makefile": "0f9f66ad1a49b0237bc071eb17fb5741a6121dce758e8ed7a507f36af36f7085"
+}

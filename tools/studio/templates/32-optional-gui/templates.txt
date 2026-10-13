@@ -32,3 +32,7 @@ Draw a bounded image from exact row-major integer array/List values into native 
 [tft_copy.cs] Checked TFT sprite-to-sprite RAM copy
 requires: Compiler, TFT, TFT.Sprite, TFT.Image, TFT.SpriteCopy
 Copy a bounded real RAM sprite without overlap or odd packed-row hazards. Exact supported depth pairs, destination palettes preserved; no physical IO or DMA.
+
+[lvgl_fonts.cs] LVGL static fonts and actual line height
+requires: Compiler, LVGL, LVGL.Font
+Select actual compiled static fonts by their upstream symbols, probe availability without initialization, and read current native line height. No dynamic font/file loader or hardware presence claim.

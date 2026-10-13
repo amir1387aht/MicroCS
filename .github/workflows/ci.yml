@@ -513,6 +513,17 @@ jobs:
         run: |
           git clone --depth 1 --branch v${{ matrix.version }} https://github.com/lvgl/lvgl.git /tmp/lvgl
           test "$(git -C /tmp/lvgl rev-parse HEAD)" = '${{ matrix.sha }}'
+      - name: Check actual pinned static-font inventory for both versions
+        run: |
+          if [ '${{ matrix.major }}' = 8 ]; then
+            git clone --depth 1 --branch v9.4.0 https://github.com/lvgl/lvgl.git /tmp/lvgl-font-other
+            test "$(git -C /tmp/lvgl-font-other rev-parse HEAD)" = c016f72d4c125098287be5e83c0f1abed4706ee5
+            python3 tools/gen_lvgl_fonts.py --v8 /tmp/lvgl --v9 /tmp/lvgl-font-other --check
+          else
+            git clone --depth 1 --branch v8.4.0 https://github.com/lvgl/lvgl.git /tmp/lvgl-font-other
+            test "$(git -C /tmp/lvgl-font-other rev-parse HEAD)" = 4495f428630cc1741bd8bfd977f080e8460e8e8d
+            python3 tools/gen_lvgl_fonts.py --v8 /tmp/lvgl-font-other --v9 /tmp/lvgl --check
+          fi
       - name: Real render, pointer, teardown and unchanged language suite
         run: |
           make lvgl-test LVGL_MAJOR=${{ matrix.major }} LVGL_DIR=/tmp/lvgl LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}.h"
@@ -528,10 +539,30 @@ jobs:
             -DCMAKE_CXX_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer"
           cmake --build build/lvgl-sanitized --target mcs test_lvgl -j2
           build/lvgl-sanitized/test_lvgl
-          for t in basic pointer widgets constructors; do
+          for t in basic pointer widgets constructors fonts; do
             build/lvgl-sanitized/mcs tests/lvgl/$t.cs > build/lvgl-sanitized/$t.out
             cmp build/lvgl-sanitized/$t.out tests/lvgl/$t.out
           done
+      - name: All declared built-in fonts with actual native readback and sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          fix=OFF
+          if [ '${{ matrix.major }}' = 8 ]; then fix=ON; fi
+          cmake -S . -B build/lvgl-fonts -DMICROCS_LVGL8_FONT_DECODER_FIX=$fix -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=${{ matrix.major }} \
+            -DMICROCS_LVGL_ROOT=/tmp/lvgl -DMICROCS_LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}_fonts.h" -DMICROCS_CONFIG=NONE \
+            -DCMAKE_C_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer"
+          cmake --build build/lvgl-fonts --target mcs test_lvgl -j2
+          build/lvgl-fonts/test_lvgl
+          build/lvgl-fonts/mcs tests/lvgl/fonts.cs > build/lvgl-fonts/fonts.out
+          cmp build/lvgl-fonts/fonts.out tests/lvgl/fonts.out
+          if [ '${{ matrix.major }}' = 8 ]; then
+            python3 tests/lvgl/test_font_contract.py --cmake cmake --v8 /tmp/lvgl --v9 /tmp/lvgl-font-other \
+              --fixed-unit build/lvgl-fonts/microcs-lvgl-compat/lv_font_fmt_txt.c \
+              --unfixed-library build/lvgl-sanitized/lib/liblvgl.a
+          fi
       - name: Disabled widget and color/stride/alignment variant
         run: |
           cmake -S . -B build/lvgl-disabled -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=${{ matrix.major }} \

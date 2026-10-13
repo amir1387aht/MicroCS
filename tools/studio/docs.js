@@ -1678,6 +1678,7 @@ IsValid(object uuid): bool | Parses as a UUID
 Name(object uuid): string | Bluetooth SIG name (null if unknown)
 
 @LvGui | Optional real LVGL8/9 WIP subset (requires LVGL capability, docs/LVGL.md); no physical display implied
+HasFont(string name): bool | LVGL.Font; actual configured static font name or Default; no GUI initialization; unavailable/version-specific names false
 new(int width, int height) | One owned display/pointer device; dimensions 1..4096; explicit Dispose or using
 Version: string | Actual pinned LVGL headers: 8.4.0 or 9.4.0
 const Clicked: int | Queued interaction event
@@ -1713,7 +1714,9 @@ const PartKnob: int | Knob style part
 .SetSize(int width, int height): void | Coordinates -32767..32767
 .SetPos(int x, int y): void | Coordinates -32767..32767
 .SetRange(int minimum, int maximum): void | Slider/bar/arc; minimum below maximum
-.SetStyle(string property, int value, int selector = 0): void | 56 real common scalar styles; RGB 0xRRGGBB; typed pointer/enum styles unbound
+.SetStyle(string property, int value, int selector = 0): void | 56 real common scalar styles; RGB 0xRRGGBB; use typed SetFont for static fonts; other pointer/enum styles unbound
+.SetFont(string name, int selector = 0): void | LVGL.Font; Default or enabled upstream lv_font_* symbol; unavailable names raise; no dynamic assets
+.FontHeight: int | LVGL.Font; actual current main-part font line height, including inherited/state styles
 .Call(string method, params object[] args): object | Real common widget function suffix with checked kind/arity/types/ranges; see versioned coverage
 .AddState(int state): void | Valid exposed state bit mask
 .ClearState(int state): void | Clear valid state bits

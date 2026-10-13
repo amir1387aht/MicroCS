@@ -1,0 +1,6 @@
+python3 tools/wiki_sync.py --check
+wiki: 47 pages, links OK
+python3 tools/studio/gen_templates.py --check
+gen_templates --check: OK (218 templates)
+PASS actual LVGL static font declarations/output parity
+PASS LVGL header-derived scalar styles / explicit unbound coverage

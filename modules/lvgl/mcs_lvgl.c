@@ -46,6 +46,16 @@ typedef lv_display_t display_t;
 #define screen_active lv_disp_get_scr_act
 typedef lv_disp_t display_t;
 #endif
+#ifndef MCS_LVGL8_FONT_DECODER_FIX
+#define MCS_LVGL8_FONT_DECODER_FIX 0
+#endif
+#if LVGL_VERSION_MAJOR == 8 && LV_USE_FONT_COMPRESSED
+#if !MCS_LVGL8_FONT_DECODER_FIX
+#error                                                                                             \
+    "LVGL8.4 compressed fonts have a known negative-shift UB; use the explicit reviewed MICROCS_LVGL8_FONT_DECODER_FIX source build or a validated equivalent with linked marker, never suppress sanitizers"
+#endif
+extern uint32_t mcs_lvgl8_decoder_compat_version(void);
+#endif
 #define NATIVE(name)                                                                               \
     static mcs_value_t name(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv)
 typedef struct gui gui_t;
@@ -1049,6 +1059,73 @@ NATIVE(object_style) {
     return mcs_null();
 }
 
+/* Built-ins are static const library objects, not script-owned assets. The
+ * LV_FONT_DEFAULT pointer must likewise remain valid for the firmware lifetime.
+ * No font deletion, filesystem loader, raw pointer or borrowed script bytes. */
+static const lv_font_t *static_font(const char *name) {
+#if LVGL_VERSION_MAJOR == 8 && LV_USE_FONT_COMPRESSED
+    if (mcs_lvgl8_decoder_compat_version() != UINT32_C(0x08040001))
+        return NULL; /* No unchecked or mismatched decoder provenance. */
+#endif
+    if (!strcmp(name, "Default"))
+        return LV_FONT_DEFAULT;
+#include "mcs_lvgl_fonts.inc"
+    return NULL;
+}
+static const char *font_name(mcs_vm_t *vm, mcs_value_t value) {
+    if (!mcs_is_string(value) || mcs_strlen(value) > 80 ||
+        strlen(mcs_cstr(value)) != mcs_strlen(value)) {
+        mcs_raise(vm, "ArgumentException", "Font name must be a string <=80bytes without NUL");
+        return NULL;
+    }
+    return mcs_cstr(value);
+}
+NATIVE(gui_has_font) {
+    (void)self;
+    (void)argc;
+    const char *name = font_name(vm, argv[0]);
+    return name ? mcs_bool(static_font(name) != NULL) : mcs_null();
+}
+NATIVE(object_font) {
+    OBJ();
+    if (argc < 1 || argc > 2) {
+        mcs_raise(vm, "ArgumentException", "SetFont(name[, selector])");
+        return mcs_null();
+    }
+    const char *name = font_name(vm, argv[0]);
+    if (!name)
+        return mcs_null();
+    if (argc == 2 && !mcs_is_int(argv[1])) {
+        mcs_raise(vm, "ArgumentException", "Font selector must be an integer");
+        return mcs_null();
+    }
+    mcs_int_t selector = argc == 2 ? argv[1].as.i : 0;
+    if (selector < 0 || (uint64_t)selector > UINT32_MAX) {
+        mcs_raise(vm, "ArgumentOutOfRangeException", "font style selector");
+        return mcs_null();
+    }
+    const lv_font_t *font = static_font(name);
+    if (!font) {
+        mcs_raise(vm, "NotSupportedException",
+                  "LVGL font '%s' is unavailable in this configuration/version", name);
+        return mcs_null();
+    }
+    lv_obj_set_style_text_font(s->obj, font, (lv_style_selector_t)selector);
+    return mcs_null();
+}
+NATIVE(object_font_height) {
+    (void)argc;
+    (void)argv;
+    OBJ();
+    const lv_font_t *font = lv_obj_get_style_text_font(s->obj, LV_PART_MAIN);
+    if (!font) {
+        mcs_raise(vm, "InvalidOperationException",
+                  "No native LVGL font for current main-part style");
+        return mcs_null();
+    }
+    return mcs_int(lv_font_get_line_height(font));
+}
+
 /* These upstream setters retain the pointer. Copy into VM-accounted storage,
  * then keep it until replacement or AFTER native object deletion completes. */
 static char *copy_retained(mcs_vm_t *vm, mcs_value_t value) {
@@ -1158,7 +1235,8 @@ static const mcs_reg_t lv_gui_members[] = {MCS_GET("Screen", gui_screen),
                                            MCS_GET("Backend", gui_backend),
                                            MCS_FN("Dispose", gui_dispose, 0),
                                            MCS_REG_END};
-static const mcs_reg_t lv_gui_statics[] = {MCS_GET("Version", gui_version), MCS_REG_END};
+static const mcs_reg_t lv_gui_statics[] = {MCS_GET("Version", gui_version),
+                                           MCS_FN("HasFont", gui_has_font, 1), MCS_REG_END};
 static const mcs_reg_t lv_object_members[] = {MCS_FN("Create", object_create, 1),
                                               MCS_FN("Delete", object_delete, 0),
                                               MCS_FN("Clean", object_clean, 0),
@@ -1171,6 +1249,8 @@ static const mcs_reg_t lv_object_members[] = {MCS_FN("Create", object_create, 1)
                                               MCS_FN("SetSize", object_size, 2),
                                               MCS_FN("SetPos", object_pos, 2),
                                               MCS_FN("SetStyle", object_style, -1),
+                                              MCS_FN("SetFont", object_font, -1),
+                                              MCS_GET("FontHeight", object_font_height),
                                               MCS_GET("Width", object_width),
                                               MCS_GET("Height", object_height),
                                               MCS_GET("Parent", object_parent),

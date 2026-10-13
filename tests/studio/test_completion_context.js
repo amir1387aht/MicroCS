@@ -27,6 +27,9 @@ fs.mkdirSync(OUT, { recursive: true });
         for (const [src, member] of [
             ['var display = new Tft(); display.', 'AttachLVGL'],
             ['var gui = new LvGui(160,80); gui.', 'Pump'],
+            ['LvGui.', 'HasFont'],
+            ['LvObject label; label.', 'SetFont'],
+            ['LvObject label; label.', 'FontHeight'],
             ['Tft.', 'Version'],
             ['var display = new Tft(); display.', 'DrawImage'],
             ['var sprite = new TftSprite(display,12,10); sprite.', 'DrawImage'],

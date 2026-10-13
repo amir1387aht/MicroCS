@@ -19,6 +19,11 @@ int main(void) {
     mcs_set_global(vm, "DefinedNull", mcs_null());
     CHECK(mcs_global_exists(vm, "DefinedNull"));
     CHECK(!mcs_capability_has(vm, "Imaginary"));
+#if !MCS_ENABLE_LVGL
+    CHECK(!mcs_capability_has(vm, "LVGL"));
+    CHECK(!mcs_capability_has(vm, "LVGL.Font"));
+    CHECK(!mcs_global_exists(vm, "LvGui"));
+#endif
 #if !MCS_ENABLE_TFT_ESPI
     CHECK(!mcs_capability_has(vm, "TFT"));
     CHECK(!mcs_global_exists(vm, "Tft"));

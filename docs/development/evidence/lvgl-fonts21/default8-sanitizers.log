@@ -1,0 +1,23 @@
+CMake Warning (dev) at /data/deps/lvgl-8.4.0/env_support/cmake/custom.cmake:66 (install):
+  Policy CMP0177 is not set: install() DESTINATION paths are normalized.  Run
+  "cmake --help-policy CMP0177" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+Call Stack (most recent call first):
+  /data/deps/lvgl-8.4.0/CMakeLists.txt:16 (include)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- MicroCS LVGL 8.4.0: /data/deps/lvgl-8.4.0, config /data/MicroCS-v2-work/tests/lvgl/lv_conf8.h, library lvgl; no physical display inferred
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/MicroCS-v2-work/build/lvgl-fonts21-default8
+[ 80%] Built target lvgl
+[ 80%] Building C object CMakeFiles/microcs.dir/modules/lvgl/mcs_lvgl.c.o
+[ 80%] Linking C static library libmicrocs.a
+[ 98%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 80%] Built target lvgl
+[ 98%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 8.4.0 real headless: 835 checks, 0 failures

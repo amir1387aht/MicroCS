@@ -58,3 +58,11 @@ assert(templateCompatible(copy,new Map([...imageCaps,['TFT.SpriteCopy',true]]),t
 assert(!templateCompatible(copy,new Map([...imageCaps,['TFT.SpriteCopy',false]]),true));
 assert(templateCompatible(copy,earlier,false));
 console.log('PASS copy template requires new TFT.SpriteCopy API rather than class/image presence');
+
+const fonts=TEMPLATES.find(t=>t.src.endsWith('/lvgl_fonts.cs'));
+const priorGui=parseCapabilities('capabilities=1\nCompiler=1\nLVGL=1\n');
+assert(fonts && !templateCompatible(fonts,priorGui,true));
+assert(templateCompatible(fonts,new Map([...priorGui,['LVGL.Font',true]]),true));
+assert(!templateCompatible(fonts,new Map([...priorGui,['LVGL.Font',false]]),true));
+assert(templateCompatible(fonts,priorGui,false));
+console.log('PASS font template requires actual new LVGL.Font API, preserving old firmware/offline behavior');

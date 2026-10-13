@@ -91,7 +91,10 @@ int main(void) {
     mcs_vm_t *vm = make_vm();
     CHECK(vm != NULL);
     CHECK(mcs_capability_has(vm, "LVGL"));
-    CHECK(!lv_is_initialized()); /* capability lookup must not initialize LVGL */
+    CHECK(mcs_capability_has(vm, "LVGL.Font"));
+    run(vm, "if(!LvGui.HasFont(\"Default\") || LvGui.HasFont(\"missing_font\")) throw new "
+            "Exception(\"font probe\");");
+    CHECK(!lv_is_initialized()); /* capability/font lookup must not initialize LVGL */
     mcs_lvgl_backend_t backend = {sink, NULL, NULL};
     CHECK(!mcs_lvgl_set_backend(vm, &backend));
     expect_red = 1;
@@ -150,6 +153,37 @@ int main(void) {
     lv_deinit();
     vm = make_vm();
 #include "style_readback.inc"
+#include "font_readback.inc"
+    run(vm, "var fontErrors=new LvGui(40,30); var fontLabel=fontErrors.Screen.Create(\"label\");"
+            "try { fontLabel.SetFont(0); throw new Exception(\"bad name\"); } "
+            "catch(ArgumentException e) {}"
+            "try { fontLabel.SetFont(null); throw new Exception(\"null name\"); } "
+            "catch(ArgumentException e) {}"
+            "try { fontLabel.SetFont(\"Default\",true); throw new Exception(\"bad selector "
+            "type\"); } catch(ArgumentException e) {}"
+            "try { fontLabel.SetFont(\"Default\",-1); throw new Exception(\"bad selector range\"); "
+            "} catch(ArgumentOutOfRangeException e) {}"
+            "try { fontLabel.SetFont(); throw new Exception(\"bad arity\"); } "
+            "catch(ArgumentException e) {}"
+            "try { fontLabel.SetFont(\"Default\",0,0); throw new Exception(\"extra args\"); } "
+            "catch(ArgumentException e) {}"
+            "if(LvGui.HasFont(\"\")) throw new Exception(\"empty font\");"
+            "try { LvGui.HasFont(\"Default\\0hidden\"); throw new Exception(\"NUL font name\"); } "
+            "catch(ArgumentException e) {}"
+            "try { "
+            "LvGui.HasFont("
+            "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\")"
+            "; throw new Exception(\"long font name\"); } catch(ArgumentException e) {}"
+            "try { LvGui.HasFont(null); throw new Exception(\"bad probe name\"); } "
+            "catch(ArgumentException e) {}"
+            "fontLabel.SetFont(\"Default\",LvGui.Checked); fontLabel.AddState(LvGui.Checked);"
+            "if(fontLabel.FontHeight<=0) throw new Exception(\"state font\");"
+            "fontLabel.SetFont(\"Default\"); GC.Collect(); fontLabel.Text=\"still static\"; "
+            "fontErrors.Pump(40);"
+            "fontErrors.Dispose(); try { fontLabel.SetFont(\"Default\"); throw new "
+            "Exception(\"stale font\"); } catch(ObjectDisposedException e) {}"
+            "try { var h=fontLabel.FontHeight; throw new Exception(\"stale metric\"); } "
+            "catch(ObjectDisposedException e) {}");
     mcs_free(vm);
     CHECK(!lv_is_initialized());
     CHECK(tracked_bytes == 0);

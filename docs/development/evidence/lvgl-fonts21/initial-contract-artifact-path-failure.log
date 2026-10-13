@@ -1,0 +1,5 @@
+Expected failure mcs_lvgl8_decoder_compat_version: 1
+
+/usr/bin/ld: cannot find build/lvgl-fonts21-default8/microcs-lvgl/liblvgl.a: No such file or directory
+collect2: error: ld returned 1 exit status
+

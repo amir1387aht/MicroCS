@@ -1,0 +1,21 @@
+PASS 1910x900 offline
+PASS 1910x900 connected
+PASS 1910x900 legacy
+PASS 1910x900 empty
+PASS 1400x860 offline
+PASS 1400x860 connected
+PASS 1400x860 legacy
+PASS 1400x860 empty
+PASS 800x600 offline
+PASS 800x600 connected
+PASS 800x600 legacy
+PASS 800x600 empty
+PASS 390x844 offline
+PASS 390x844 connected
+PASS 390x844 legacy
+PASS 390x844 empty
+PASS 667x375 offline
+PASS 667x375 connected
+PASS 667x375 legacy
+PASS 667x375 empty
+PASS empty search, keyboard selection, light theme and Escape

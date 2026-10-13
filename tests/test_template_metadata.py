@@ -33,7 +33,7 @@ with tempfile.TemporaryDirectory() as tmp:
                     '--tft-espi', '--lvgl', '8'], check=True, stdout=subprocess.DEVNULL)
     bundle=Path(tmp)/'MicroCS'
     for filename in ('mcs_arduino_tft.cpp','mcs_lvgl.c','mcs_lvgl_calls.inc',
-                     'mcs_lvgl_widgets.inc','mcs_lvgl_styles.inc','mcs_display_rgb565.c'):
+                     'mcs_lvgl_widgets.inc','mcs_lvgl_styles.inc','mcs_lvgl_fonts.inc','mcs_display_rgb565.c'):
         assert (bundle/'src'/filename).is_file(), filename
     config=(bundle/'src/mcs_user_config.h').read_text()
     assert '#define MCS_ENABLE_TFT_ESPI 1' in config and '#define MCS_LVGL_MAJOR 8' in config

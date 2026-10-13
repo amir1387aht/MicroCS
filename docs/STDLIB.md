@@ -131,8 +131,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
 | **LvGui** | instance | `Screen` `DroppedEvents` `FlushCount` `Backend` | `Pump(·)` `PollEvent()` `Input(·, ·, ·)` `Dispose()` | `MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md)) |
-| **LvGui** | static | `Version` | — | real pinned upstream version |
-| **LvObject** | instance | `Kind` `Text` `Value` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` `Call(…)` | generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise |
+| **LvGui** | static | `Version` | `HasFont(·)` | real pinned upstream version |
+| **LvObject** | instance | `Kind` `Text` `Value` `FontHeight` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `SetFont(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` `Call(…)` | generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise |
 
 ## Optional TFT_eSPI (Arduino)
 
@@ -210,4 +210,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1392 members in 115 tables._
+_1395 members in 115 tables._

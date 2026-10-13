@@ -69,7 +69,8 @@ def main():
              'tests/tft/configs/lvgl8/lv_conf.h', 'tests/tft/configs/lvgl9/lv_conf.h',
              'modules/tft/mcs_display_rgb565.c', 'include/mcs_display_rgb565.h',
              'modules/lvgl/mcs_lvgl.c', 'modules/lvgl/mcs_lvgl_calls.inc',
-             'modules/lvgl/mcs_lvgl_styles.inc', 'modules/lvgl/mcs_lvgl_widgets.inc']
+             'modules/lvgl/mcs_lvgl_styles.inc', 'modules/lvgl/mcs_lvgl_widgets.inc',
+             'modules/lvgl/mcs_lvgl_fonts.inc']
     report['integration_source_sha256'] = {f: sha(ROOT / f) for f in files}
     a.out.write_text(json.dumps(report, indent=2) + '\n')
     print('Recorded five successful actual cross-build artifacts; no hardware claim')

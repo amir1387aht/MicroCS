@@ -1,0 +1,17 @@
+-- /data/MicroCS-v2-work/tests/lvgl/lv_conf9.h
+-- Using configuration: /data/MicroCS-v2-work/tests/lvgl/lv_conf9.h
+-- MicroCS LVGL 9.4.0: /data/deps/lvgl-9.4.0, config /data/MicroCS-v2-work/tests/lvgl/lv_conf9.h, library lvgl; no physical display inferred
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/MicroCS-v2-work/build/lvgl-fonts21-default9
+[ 91%] Built target lvgl
+[ 91%] Building C object CMakeFiles/microcs.dir/modules/lvgl/mcs_lvgl.c.o
+[ 91%] Linking C static library libmicrocs.a
+[100%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 91%] Built target lvgl
+[ 99%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 9.4.0 real headless: 835 checks, 0 failures

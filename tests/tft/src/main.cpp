@@ -66,6 +66,9 @@ void setup() {
 #if MCS_ENABLE_LVGL
         "d.AttachLVGL(); var g = new LvGui(d.Width,d.Height); "
         "var label = g.Screen.Create(\"label\"); label.Text = \"LVGL + TFT\"; "
+        "if(!LvGui.HasFont(\"Default\")) throw new Exception(\"native default font missing\"); "
+        "label.SetFont(\"Default\"); if(label.FontHeight<=0) throw new Exception(\"native font "
+        "metric\"); "
         "if(TryEndTftScope()!=-1) throw new Exception(\"live GUI backend scope guard\"); "
         "g.Pump(40); g.Dispose(); d.DetachLVGL(); "
 #endif

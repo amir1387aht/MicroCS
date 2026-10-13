@@ -1,9 +1,48 @@
 # Optional LVGL. No dependency is downloaded or configuration rewritten.
 # ROOT builds real upstream sources; TARGET links a firmware-supplied target;
 # LIBRARY + INCLUDE_DIR link a prebuilt library. Explicit inputs win.
+# Explicit, OFF-by-default workaround for the reviewed LVGL8.4.0 decoder UB.
+# Copy ONLY that external unit into the build tree; never modify/vend upstream
+# files or user lv_conf.h. Exact source hash prevents a guessed patch on another ABI.
+function(microcs_lvgl8_font_decoder_fix root)
+    set(_original "${root}/src/font/lv_font_fmt_txt.c")
+    file(SHA256 "${_original}" _sha)
+    if(NOT _sha STREQUAL "310ec9757ce6e5196a9246b4aa7d8e6a0209c89dc8c07c34f6209efdc7443a72")
+        message(FATAL_ERROR "MicroCS LVGL8 decoder fix requires the reviewed exact8.4.0 source hash; do not apply it to unknown source")
+    endif()
+    file(READ "${_original}" _source)
+    string(REPLACE "out[byte_pos] &= ((~bit_mask) << bit_pos);"
+        "out[byte_pos] &= ((uint32_t)(uint8_t)(~bit_mask) << bit_pos);" _fixed "${_source}")
+    if(_fixed STREQUAL _source)
+        message(FATAL_ERROR "MicroCS LVGL8 decoder fix: expected negative-shift site not found")
+    endif()
+    string(APPEND _fixed "\n/* Explicit MicroCS build-local unsigned-mask compatibility fix; no ABI change. */\nuint32_t mcs_lvgl8_decoder_compat_version(void) { return UINT32_C(0x08040001); }\n")
+    set(_copy "${CMAKE_BINARY_DIR}/microcs-lvgl-compat/lv_font_fmt_txt.c")
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/microcs-lvgl-compat")
+    file(WRITE "${_copy}" "${_fixed}")
+    get_target_property(_sources lvgl SOURCES)
+    list(FIND _sources "${_original}" _index)
+    if(_index LESS 0)
+        message(FATAL_ERROR "MicroCS LVGL8 decoder fix: actual library source target does not contain the reviewed decoder unit")
+    endif()
+    list(REMOVE_ITEM _sources "${_original}")
+    list(APPEND _sources "${_copy}")
+    set_property(TARGET lvgl PROPERTY SOURCES "${_sources}")
+    target_include_directories(lvgl PRIVATE "${root}/src/font")
+    target_compile_definitions(lvgl PUBLIC MCS_LVGL8_FONT_DECODER_FIX=1)
+    file(SHA256 "${_copy}" _fixed_sha)
+    file(WRITE "${CMAKE_BINARY_DIR}/microcs-lvgl-compat/provenance.txt"
+        "External decoder SHA256=${_sha}\nBuild-local fixed SHA256=${_fixed_sha}\nExactly unsigned mask cast + linked compatibility marker; all other source unchanged.\n")
+    message(STATUS "MicroCS: EXPLICIT LVGL8 decoder unsigned-mask fix, build-local copy only; original=${_sha}, fixed=${_fixed_sha}")
+endfunction()
+
 function(microcs_add_lvgl target)
     if(NOT MICROCS_LVGL_MAJOR MATCHES "^(8|9)$")
         message(FATAL_ERROR "MicroCS LVGL: select -DMICROCS_LVGL_MAJOR=8 or 9 explicitly")
+    endif()
+    option(MICROCS_LVGL8_FONT_DECODER_FIX "Explicit build-local reviewed LVGL8.4 compressed decoder unsigned-mask fix" OFF)
+    if(MICROCS_LVGL8_FONT_DECODER_FIX AND (NOT MICROCS_LVGL_MAJOR STREQUAL "8" OR MICROCS_LVGL_TARGET OR MICROCS_LVGL_LIBRARY))
+        message(FATAL_ERROR "MicroCS LVGL8 decoder fix requires an explicit LVGL8 source ROOT build; prebuilt/foreign targets cannot be silently patched")
     endif()
     set(_root "${MICROCS_LVGL_ROOT}")
     if(NOT _root AND DEFINED ENV{MICROCS_LVGL_ROOT})
@@ -71,6 +110,9 @@ function(microcs_add_lvgl target)
         add_subdirectory("${_root}" "${CMAKE_BINARY_DIR}/microcs-lvgl" EXCLUDE_FROM_ALL)
         # v8's upstream CMake uses the directory but omits the custom filename definition.
         target_compile_definitions(lvgl PUBLIC "${_conf_def}")
+        if(MICROCS_LVGL8_FONT_DECODER_FIX)
+            microcs_lvgl8_font_decoder_fix("${_root}")
+        endif()
         set(_lib lvgl)
     else()
         message(FATAL_ERROR "MicroCS LVGL: headers found but no linked library. Provide MICROCS_LVGL_ROOT with upstream sources, MICROCS_LVGL_TARGET, or MICROCS_LVGL_LIBRARY.")
