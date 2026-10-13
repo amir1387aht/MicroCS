@@ -402,6 +402,10 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags);
 void mcs_hal_close_lib(mcs_vm_t* vm);
 /* The board table opened on this VM (NULL if none). */
 const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm);
+/* Available APIs / board peripherals in this VM (no radio startup or bus probing).
+ * Also used by Hal.Has and the shell's versioned `caps` report. */
+bool mcs_capability_has(mcs_vm_t* vm, const char* feature);
+const char* const* mcs_capability_names(size_t* count);
 /* Configure SPI `bus` for a driver: calls spi_open only when the settings differ from
  * the last ones used on that bus by this VM (C# SPI / SpiDevice share the cache).
  * Returns 0, the spi_open result, or MCS_HAL_ENOTSUP without a HAL. */

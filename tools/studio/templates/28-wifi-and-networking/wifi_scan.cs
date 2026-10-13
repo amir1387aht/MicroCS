@@ -1,4 +1,9 @@
 // Scan and print a small table (pass true to include hidden networks)
+if (!Hal.Has("Wifi") || !Hal.Has("Wifi.Scan") || !Hal.Has("ArrayExtra"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, Wifi.Scan, ArrayExtra. Enable the needed modules or use a supported board.");
+    return;
+}
 var nets = Wifi.Scan(true);
 Array.Sort(nets, (a, b) => b.Rssi - a.Rssi);
 Console.WriteLine($"{nets.Length} networks");

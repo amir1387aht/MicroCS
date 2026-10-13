@@ -136,7 +136,7 @@ static int z_set_name(void* ctx, const char* name) {
 static int z_opt_get(void* ctx, int opt, int32_t* v) {
     (void)ctx;
     switch (opt) {
-    case MCS_BLE_OPT_MTU: *v = g_opt[opt] ? g_opt[opt] : BT_L2CAP_RX_MTU; return 0;
+    case MCS_BLE_OPT_MTU: *v = BT_L2CAP_RX_MTU; return 0;
     case MCS_BLE_OPT_MAX_CONN: *v = Z_MAX_CONN; return 0;
     case MCS_BLE_OPT_ADDR_TYPE: { mcs_ble_addr_t a; if (z_address(ctx, &a) < 0) return MCS_HAL_EBUSY; *v = a.type; return 0; }
     case MCS_BLE_OPT_TX_POWER: return MCS_HAL_ENOTSUP;
@@ -148,13 +148,13 @@ static int z_opt_get(void* ctx, int opt, int32_t* v) {
 static int z_opt_set(void* ctx, int opt, int32_t v) {
     (void)ctx;
     switch (opt) {
-    case MCS_BLE_OPT_MTU: if (v < 23 || v > 517) return MCS_HAL_EINVAL; g_opt[opt] = v; return 0;   /* CONFIG_BT_L2CAP_TX_MTU decides */
+    case MCS_BLE_OPT_MTU: return MCS_HAL_ENOTSUP; /* configured by Zephyr, not this setter */
     case MCS_BLE_OPT_APPEARANCE:
         g_opt[opt] = v;
 #if defined(CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC)
         return g_on ? st(bt_set_appearance((uint16_t)v)) : 0;
 #else
-        return 0;
+        return MCS_HAL_ENOTSUP;
 #endif
     case MCS_BLE_OPT_IO_CAP: if (v < 0 || v > 4) return MCS_HAL_EINVAL; g_opt[opt] = v; if (g_on) apply_auth(); return 0;
     case MCS_BLE_OPT_BONDING:
@@ -163,7 +163,8 @@ static int z_opt_set(void* ctx, int opt, int32_t v) {
         bt_set_bondable(v != 0);
 #endif
         return 0;
-    case MCS_BLE_OPT_MITM: case MCS_BLE_OPT_SC: g_opt[opt] = v != 0; return 0;
+    case MCS_BLE_OPT_SC: return MCS_HAL_ENOTSUP; /* Zephyr build-time security policy */
+    case MCS_BLE_OPT_MITM: g_opt[opt] = v != 0; return 0;
     case MCS_BLE_OPT_PASSKEY:
         if (v > 999999) return MCS_HAL_EINVAL;
         g_opt[opt] = v;
@@ -172,7 +173,7 @@ static int z_opt_set(void* ctx, int opt, int32_t v) {
 #else
         return v >= 0 ? MCS_HAL_ENOTSUP : 0;    /* needs CONFIG_BT_FIXED_PASSKEY */
 #endif
-    case MCS_BLE_OPT_PHY: if (v <= 0 || v > 7) return MCS_HAL_EINVAL; g_opt[opt] = v; return 0;
+    case MCS_BLE_OPT_PHY: return MCS_HAL_ENOTSUP; /* No preferred-PHY operation implemented. */
     default: return MCS_HAL_ENOTSUP;
     }
 }
@@ -656,6 +657,26 @@ static void apply_auth(void) {}
 
 static mcs_ble_t g_ble = {
     .name = "zephyr",
+    .readable_options = MCS_BLE_OPTION(MCS_BLE_OPT_MTU) | MCS_BLE_OPTION(MCS_BLE_OPT_MAX_CONN) | MCS_BLE_OPTION(MCS_BLE_OPT_ADDR_TYPE) | MCS_BLE_OPTION(MCS_BLE_OPT_PHY)
+#if defined(CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC)
+        | MCS_BLE_OPTION(MCS_BLE_OPT_APPEARANCE)
+#endif
+#if defined(CONFIG_BT_SMP)
+        | MCS_BLE_OPTIONS_SECURITY
+#endif
+        ,
+    .writable_options = 0
+#if defined(CONFIG_BT_DEVICE_APPEARANCE_DYNAMIC)
+        | MCS_BLE_OPTION(MCS_BLE_OPT_APPEARANCE)
+#endif
+#if defined(CONFIG_BT_SMP)
+        | (MCS_BLE_OPTIONS_SECURITY & ~(MCS_BLE_OPTION(MCS_BLE_OPT_PASSKEY) | MCS_BLE_OPTION(MCS_BLE_OPT_SC)))
+#if defined(CONFIG_BT_FIXED_PASSKEY)
+        | MCS_BLE_OPTION(MCS_BLE_OPT_PASSKEY)
+#endif
+#endif
+        ,
+    .features = MCS_BLE_FEATURE_SCAN_PARAMETERS,
     .enable = z_enable, .address = z_address, .set_name = z_set_name, .opt_get = z_opt_get, .opt_set = z_opt_set,
     .lock = z_lock, .unlock = z_unlock,
 #if defined(CONFIG_BT_BROADCASTER)

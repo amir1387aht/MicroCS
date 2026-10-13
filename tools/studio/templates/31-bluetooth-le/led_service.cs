@@ -1,5 +1,11 @@
 // Your own GATT service: a phone app (nRF Connect, LightBlue) switches the LED and reads
 // a counter. Writing 01 / 00 to characteristic ...0002 turns the LED on / off.
+if (!Hal.Has("GPIO") || !Hal.Has("Ble") || !Hal.Has("Ble.Server") || !Hal.Has("Ble.Advertise"))
+{
+    Console.WriteLine("This firmware lacks: GPIO, Ble, Ble.Server, Ble.Advertise. Enable the needed modules or use a supported board.");
+    return;
+}
+Ble.Reset();
 var led = new Pin("LED", GPIO.Output);
 var svc = new BleService("19B10000-E8F2-537E-4F6C-D104768A1214");
 var sw = svc.AddCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BleProperty.Read | BleProperty.Write, new byte[] { 0 });

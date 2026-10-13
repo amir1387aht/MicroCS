@@ -159,7 +159,7 @@ def main():
     shutil.rmtree(lib, ignore_errors=True)
     src = os.path.join(lib, "src")
     os.makedirs(os.path.join(src, "profiles"))
-    files = (glob.glob(os.path.join(ROOT, "include", "*.h")) + glob.glob(os.path.join(ROOT, "src", "*.[ch]"))
+    files = (glob.glob(os.path.join(ROOT, "include", "*.h")) + glob.glob(os.path.join(ROOT, "include", "*.def")) + glob.glob(os.path.join(ROOT, "src", "*.[ch]"))
              + glob.glob(os.path.join(ROOT, "modules", "*", "*.c"))
              + glob.glob(os.path.join(ROOT, "ports", "arduino", "*.[ch]*")))
     for f in files:

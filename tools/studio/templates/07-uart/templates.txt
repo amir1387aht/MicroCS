@@ -3,21 +3,28 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: UART
+requires: none
 
 [uart.cs] Serial port: send and receive
+requires: UART
 Open a UART, write a line and wait for an answer.
 
 [uart_echo.cs] Serial echo with OnReceive
+requires: UART
 Echo everything received on a UART, event-driven.
 
 [gps.cs] GPS (NMEA) reader
+requires: UART, Float, StringExtra, Format
 Parse $GPGGA sentences from a GPS module.
 
 [uart_packet.cs] Binary packets with checksum
+requires: UART, List, BitConverter
 Build and parse framed packets with BitConverter.
 
 [uart_config.cs] UART with pins, parity and buffers (UartConfig)
+requires: UART, UART.Configure
 UartConfig: pins, framing, receive buffer; RS-485 shown as an option.
 
 [uart_async.cs] UART receive with timeout and cancel
+requires: UART, DmaBuffer
 UART.ReadAsync completes when the buffer is full; Wait(ms) and Cancel.

@@ -3,30 +3,40 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Scheduler
+requires: none
 
 [jobs.cs] Background jobs (Every / After)
+requires: GPIO, Scheduler, GC
 Jobs keep running after the script ends - like a firmware main loop.
 
 [cancel.cs] Cancel jobs
+requires: GPIO, Scheduler
 Stop one job by id, or all of them, from another job.
 
 [retry.cs] Failure policy (maxFailures)
+requires: Scheduler
 A job that throws is stopped after N failures in a row.
 
 [logger_job.cs] Sensor logger job
+requires: ADC, Filesystem, Scheduler
 Sample the ADC every second and append CSV rows to a file; rotate when large.
 
 [traffic.cs] State machine with jobs
+requires: GPIO, Scheduler
 A traffic light driven by After() - no blocking, no Thread.Sleep.
 
 [debounce.cs] Debounced button + job
+requires: GPIO, GPIO.IRQ, Scheduler
 Interrupt marks the press, a scheduled job handles it after the bounce.
 
 [wdt_job.cs] Watchdog fed by a job
+requires: Watchdog, Scheduler
 Keep the watchdog happy from a background job while the app runs.
 
 [timeout.cs] Timeout with After
+requires: GPIO, GPIO.IRQ, Scheduler
 Wait for an event, give up after a deadline.
 
 [jobstats.cs] Periodic report of all jobs
+requires: Scheduler
 Count runs of several jobs and print a summary.

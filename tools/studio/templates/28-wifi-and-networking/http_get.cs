@@ -1,5 +1,10 @@
 // A plain HTTP smoke test; no dependency on a JSON / time API.
 // Use your own endpoint or https://example.com/ if your network blocks port 80.
+if (!Hal.Has("Wifi") || !Hal.Has("Http"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, Http. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 Http.Timeout = 15000;
 try

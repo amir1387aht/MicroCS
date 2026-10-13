@@ -143,7 +143,7 @@ if(ESP_PLATFORM)
         # Keep the front-end connection table aligned with NimBLE (C2 permits only two).
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_BLE_MAX_CONN=${CONFIG_BT_NIMBLE_MAX_CONNECTIONS})
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_BLE_NAME=\"${CONFIG_MICROCS_BLE_NAME}\")
-        foreach(_opt QUEUE MAX_SERVICES MAX_ATTRS VALUE_POOL MAX_VALUE SCAN_MAX MAX_DISC MAX_SUBS TIMEOUT CONNECT_TIMEOUT UART_RX)
+        foreach(_opt QUEUE MAX_SERVICES MAX_ATTRS VALUE_POOL MAX_VALUE SCAN_MAX SCAN_INTERVAL SCAN_WINDOW MAX_DISC MAX_SUBS TIMEOUT CONNECT_TIMEOUT UART_RX)
             target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_BLE_${_opt}=${CONFIG_MICROCS_BLE_${_opt}})
         endforeach()
     endif()

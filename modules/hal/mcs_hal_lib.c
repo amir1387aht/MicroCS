@@ -1415,56 +1415,10 @@ NATIVE(rtc_set) {
 static const mcs_reg_t rtc_fns[] = { MCS_GET("Now", rtc_now), MCS_FN("Set", rtc_set, 1), MCS_REG_END };
 
 /* ------------------------------------------------------------- Hal */
-static bool has(const mcs_hal_t* h, const char* n) {
-    if (!strcmp(n, "GPIO")) return h->gpio_write != NULL;
-    if (!strcmp(n, "GPIO.IRQ")) return h->gpio_irq != NULL;
-    if (!strcmp(n, "UART")) return h->uart_write != NULL;
-    if (!strcmp(n, "I2C")) return h->i2c_write != NULL;
-    if (!strcmp(n, "SPI")) return h->spi_transfer != NULL;
-    if (!strcmp(n, "ADC")) return h->adc_read != NULL;
-    if (!strcmp(n, "DAC")) return h->dac_write != NULL;
-    if (!strcmp(n, "PWM")) return h->pwm_set != NULL || h->pwm_set16 != NULL;
-    if (!strcmp(n, "Timer")) return h->timer_start != NULL;
-    if (!strcmp(n, "I2S")) return h->i2s_open != NULL;
-    if (!strcmp(n, "QSPI")) return h->qspi_command != NULL;
-    if (!strcmp(n, "CAN")) return h->can_send != NULL;
-    if (!strcmp(n, "Watchdog")) return h->wdt_start != NULL;
-    if (!strcmp(n, "RTC")) return h->rtc_get != NULL;
-    if (!strcmp(n, "Micros")) return h->micros != NULL;
-#if MCS_ENABLE_NET
-    if (mcs_net_has(mcs_net_get(), n)) return true;
-#endif
-#if MCS_ENABLE_BLE
-    if (mcs_ble_has(mcs_ble_get(), n)) return true;
-#endif
-#if MCS_ENABLE_HAL_DMA
-    /* DMA: transfers that really run in the background (the async API works everywhere) */
-    if (!strcmp(n, "DMA")) return h->dma_channels > 0 || h->dma_copy || h->spi_transfer_async || h->i2c_transfer_async
-                                  || h->uart_write_async || h->uart_read_async || h->qspi_command_async;
-    if (!strcmp(n, "DMA.Memory")) return h->dma_copy != NULL;
-    if (!strcmp(n, "DMA.SPI")) return h->spi_transfer_async != NULL;
-    if (!strcmp(n, "DMA.I2C")) return h->i2c_transfer_async != NULL;
-    if (!strcmp(n, "DMA.UART")) return h->uart_write_async != NULL || h->uart_read_async != NULL;
-    if (!strcmp(n, "DMA.QSPI")) return h->qspi_command_async != NULL;
-#endif
-    /* full configuration objects honoured by the board (else only the basic fields) */
-    if (!strcmp(n, "GPIO.Configure")) return h->gpio_configure != NULL;
-    if (!strcmp(n, "UART.Configure")) return h->uart_configure != NULL;
-    if (!strcmp(n, "I2C.Configure")) return h->i2c_configure != NULL;
-    if (!strcmp(n, "SPI.Configure")) return h->spi_configure != NULL;
-    if (!strcmp(n, "QSPI.Configure")) return h->qspi_configure != NULL;
-    if (!strcmp(n, "PWM.Configure")) return h->pwm_configure != NULL;
-    if (!strcmp(n, "ADC.Configure")) return h->adc_configure != NULL;
-#if MCS_ENABLE_DRIVERS
-    if (!strcmp(n, "Drivers")) return true;      /* the C# Drivers class */
-    if (mcs_driver_provides(n)) return true;     /* "ws2812", "LedStrip", your drivers */
-#endif
-    return false;
-}
 NATIVE(hal_has) {
     const char* n = mcs_to_cstr(vm, argv[0]);
     if (mcs_has_exception(vm)) return mcs_null();
-    return mcs_bool(has(HAL(), n));
+    return mcs_bool(mcs_capability_has(vm, n));
 }
 NATIVE(hal_poll) {
     int r = mcs_hal_poll(vm);
@@ -1595,30 +1549,30 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
 
     mcs_register_module(vm, "Hal", hal_fns);
     mcs_register_consts(vm, "Hal", hal_consts);
-    if (has(h, "GPIO")) {
+    if (h && (h->gpio_write != NULL)) {
         mcs_register_module(vm, "GPIO", gpio_fns);
         mcs_register_module(vm, "GPIO", gpio_props);
         mcs_register_consts(vm, "GPIO", gpio_consts);
         mcs_register_class(vm, &pin_def);
     }
-    if (has(h, "UART")) {
+    if (h && (h->uart_write != NULL)) {
         mcs_register_module(vm, "UART", uart_fns);
         mcs_register_consts(vm, "UART", uart_consts);
     }
-    if (has(h, "I2C")) { mcs_register_module(vm, "I2C", i2c_fns); mcs_register_class(vm, &i2cdev_def); }
-    if (has(h, "SPI")) { mcs_register_module(vm, "SPI", spi_fns); mcs_register_class(vm, &spidev_def); }
-    if (has(h, "ADC")) mcs_register_module(vm, "ADC", adc_fns);
-    if (has(h, "DAC")) mcs_register_module(vm, "DAC", dac_fns);
-    if (has(h, "PWM")) mcs_register_module(vm, "PWM", pwm_fns);
-    if (has(h, "Timer")) mcs_register_module(vm, "Timer", timer_fns);
-    if (has(h, "I2S")) {
+    if (h && (h->i2c_write != NULL)) { mcs_register_module(vm, "I2C", i2c_fns); mcs_register_class(vm, &i2cdev_def); }
+    if (h && (h->spi_transfer != NULL)) { mcs_register_module(vm, "SPI", spi_fns); mcs_register_class(vm, &spidev_def); }
+    if (h && (h->adc_read != NULL)) mcs_register_module(vm, "ADC", adc_fns);
+    if (h && (h->dac_write != NULL)) mcs_register_module(vm, "DAC", dac_fns);
+    if (h && (h->pwm_set != NULL || h->pwm_set16 != NULL)) mcs_register_module(vm, "PWM", pwm_fns);
+    if (h && (h->timer_start != NULL)) mcs_register_module(vm, "Timer", timer_fns);
+    if (h && (h->i2s_open != NULL)) {
         mcs_register_module(vm, "I2S", i2s_fns);
         mcs_register_consts(vm, "I2S", i2s_consts);
     }
-    if (has(h, "QSPI")) mcs_register_module(vm, "QSPI", qspi_fns);
-    if (has(h, "CAN")) { mcs_register_module(vm, "CAN", can_fns); mcs_register_class(vm, &canframe_def); }
-    if (has(h, "Watchdog")) mcs_register_module(vm, "Watchdog", wdt_fns);
-    if (has(h, "RTC")) mcs_register_module(vm, "RTC", rtc_fns);
+    if (h && (h->qspi_command != NULL)) mcs_register_module(vm, "QSPI", qspi_fns);
+    if (h && (h->can_send != NULL)) { mcs_register_module(vm, "CAN", can_fns); mcs_register_class(vm, &canframe_def); }
+    if (h && (h->wdt_start != NULL)) mcs_register_module(vm, "Watchdog", wdt_fns);
+    if (h && (h->rtc_get != NULL)) mcs_register_module(vm, "RTC", rtc_fns);
     mcs__cfg_open(vm, h);                         /* GpioConfig, SpiConfig ... + Hal.Options */
     mcs__dma_open(vm, h);                         /* DmaBuffer, DmaTransfer, Dma + the *Async methods */
 #if MCS_ENABLE_DRIVERS
@@ -1638,3 +1592,69 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
 #endif
 }
 #endif
+
+/* Capability reporting is also available in builds without the HAL library. */
+#include <string.h>
+static bool capability_net(mcs_vm_t* vm, const char* name) {
+#if MCS_ENABLE_NET
+    if (!mcs_global_exists(vm, "Net")) return false;
+    const mcs_net_t* net = mcs_net_get();
+    if (!strcmp(name, "Wifi.Save")) return net && (net->creds || (MCS_ENABLE_FS && mcs_get_ext(vm, MCS_EXT_VFS) && net->wifi_set_mode));
+    return mcs_net_has(net, name);
+#else
+    (void)vm; (void)name; return false;
+#endif
+}
+static bool capability_ble(mcs_vm_t* vm, const char* name) {
+#if MCS_ENABLE_BLE
+    return mcs_global_exists(vm, "Ble") && mcs_ble_has(mcs_ble_get(), name);
+#else
+    (void)vm; (void)name; return false;
+#endif
+}
+/* One shared string table / lookup instead of a strcmp chain per capability.
+ * Grouped switch cases let tiny MCUs share the HAL/NET/BLE predicate code. */
+enum {
+#define MCS_CAP(name, predicate, id) id,
+#include "mcs_capabilities.def"
+#undef MCS_CAP
+    MCS_CAP_COUNT
+};
+static const char* const capability_names[MCS_CAP_COUNT] = {
+#define MCS_CAP(name, predicate, id) name,
+#include "mcs_capabilities.def"
+#undef MCS_CAP
+};
+bool mcs_capability_has(mcs_vm_t* vm, const char* feature) {
+    if (!vm || !feature) return false;
+#if MCS_ENABLE_HAL
+    const mcs_hal_t* h = mcs_hal_get(vm);
+#else
+    const mcs_hal_t* h = NULL;
+#endif
+    unsigned i;
+    for (i = 0; i < MCS_CAP_COUNT; i++) if (!strcmp(feature, capability_names[i])) break;
+#define CAP_GLOBAL(name) mcs_global_exists(vm, feature)
+#define CAP_HW(predicate) (h != NULL && (predicate))
+#define CAP_NET(name) capability_net(vm, feature)
+#define CAP_BLE(name) capability_ble(vm, feature)
+    switch (i) {
+#define MCS_CAP(name, predicate, id) case id: return (predicate);
+#include "mcs_capabilities.def"
+#undef MCS_CAP
+    default: break;
+    }
+#undef CAP_GLOBAL
+#undef CAP_HW
+#undef CAP_NET
+#undef CAP_BLE
+    /* Preserve driver / backend aliases outside the canonical Studio vocabulary. */
+#if MCS_ENABLE_DRIVERS
+    if (h && mcs_global_exists(vm, "Drivers") && mcs_driver_provides(feature)) return true;
+#endif
+    return capability_net(vm, feature) || capability_ble(vm, feature);
+}
+const char* const* mcs_capability_names(size_t* count) {
+    if (count) *count = MCS_CAP_COUNT;
+    return capability_names;
+}

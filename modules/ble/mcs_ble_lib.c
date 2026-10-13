@@ -373,6 +373,7 @@ typedef struct {
     int self_pin, reg_pin;
     uint8_t on, advertising, want_adv, scanning, db_dirty, auto_adv, draining;
     uint32_t timeout;                /* Ble.Timeout (ms) */
+    uint16_t scan_interval, scan_window;
     char name[30];
     mcs_ble_adv_t adv;               /* the last advertising set (restarted after a disconnect) */
     int collecting;                  /* blocking Ble.Scan: merge reports into `found` */
@@ -1936,15 +1937,17 @@ static bool need_on(mcs_vm_t* vm, ble_state_t* s, const char* op) {
     return true;
 }
 NATIVE(ble_enable) { ST(); ON("Ble.Enable"); return mcs_null(); }
-static void ble_off(mcs_vm_t* vm, ble_state_t* s) {
-    if (!s->on) return;
+static int ble_off(mcs_vm_t* vm, ble_state_t* s) {
+    if (!s->on) return 0;
+    int rc = s->ble->enable(s->ble->ctx, 0);
+    if (rc < 0) return rc;          /* keep live front-end objects if shutdown failed */
     for (int i = 0; i < MCS_BLE_MAX_CONN; i++) if (g_conn[i].used) conn_remove(vm, s, i);
-    s->ble->enable(s->ble->ctx, 0);
     s->on = s->advertising = s->want_adv = s->scanning = 0;
     s->db_dirty = 1;               /* the stack forgot the services */
     q_clear();
+    return 0;
 }
-NATIVE(ble_disable) { ST(); ble_off(vm, s); return mcs_null(); }
+NATIVE(ble_disable) { ST(); CALL("Ble.Disable", ble_off(vm, s)); return mcs_null(); }
 NATIVE(ble_enabled) { ST(); return mcs_bool(s->on); }
 NATIVE(ble_has) { ST(); STR_ARG(0, f); return mcs_bool(mcs_ble_has(BLE(), f)); }
 NATIVE(ble_backend) { ST(); return mcs_string(vm, BLE() && BLE()->name ? BLE()->name : "none"); }
@@ -1962,11 +1965,28 @@ NATIVE(ble_address) {
     CALL("Ble.Address", BLE()->address(BLE()->ctx, &a));
     return addr_val(vm, &a);
 }
+static mcs_value_t opt_set(mcs_vm_t*, ble_state_t*, int, mcs_value_t, const char*);
+NATIVE(ble_setaddrtype) { ST(); return opt_set(vm, s, MCS_BLE_OPT_ADDR_TYPE, argv[0], "Ble.AddressType"); }
 NATIVE(ble_addrtype) {
     ST(); ON("Ble.AddressType"); NEED(address, "Ble.AddressType");
     mcs_ble_addr_t a; memset(&a, 0, sizeof a);
     CALL("Ble.AddressType", BLE()->address(BLE()->ctx, &a));
     return mcs_string(vm, addr_type_name(a.type));
+}
+static const char* const option_names[MCS_BLE_OPT__COUNT] = {
+    NULL, "TxPower", "Mtu", "Appearance", "IoCapability", "Bonding", "Mitm",
+    "SecureConnections", "Passkey", "AddressType", "MaxConnections", "Phy"
+};
+static int option_id(const char* name) {
+    for (int i = 1; i < MCS_BLE_OPT__COUNT; i++) if (!strcmp(name, option_names[i])) return i;
+    return 0;
+}
+NATIVE(ble_canread) { ST(); STR_ARG(0, n); int i = option_id(n); return mcs_bool(i && BLE() && BLE()->opt_get && (BLE()->readable_options & MCS_BLE_OPTION(i))); }
+NATIVE(ble_canset) { ST(); STR_ARG(0, n); int i = option_id(n); return mcs_bool(i && BLE() && BLE()->opt_set && (BLE()->writable_options & MCS_BLE_OPTION(i))); }
+NATIVE(ble_optionnames) {
+    ST(); (void)s; mcs_value_t l = mcs_new_list(vm); mcs_push_root(vm, l);
+    for (int i = 1; i < MCS_BLE_OPT__COUNT; i++) { mcs_value_t n = mcs_string(vm, option_names[i]); mcs_list_add(vm, l, n); }
+    mcs_pop_root(vm, 1); return l;
 }
 static mcs_value_t opt_get(mcs_vm_t* vm, ble_state_t* s, int opt, const char* op) {
     if (!s->ble || !s->ble->opt_get) return fail(vm, op, MCS_HAL_ENOTSUP);
@@ -2009,8 +2029,9 @@ NATIVE(ble_getpasskey) { ST(); return mcs_int(s->passkey); }
 NATIVE(ble_setpasskey) {
     ST(); INT_ARG(0, k);
     if (k < -1 || k > 999999) { mcs_raise(vm, "ArgumentOutOfRangeException", "Ble.Passkey: 0..999999 (-1 = random)"); return mcs_null(); }
+    mcs_value_t v = opt_set(vm, s, MCS_BLE_OPT_PASSKEY, argv[0], "Ble.Passkey");
+    if (mcs_has_exception(vm)) return v;
     s->passkey = (int32_t)k;
-    if (BLE() && BLE()->opt_set && s->on) BLE()->opt_set(BLE()->ctx, MCS_BLE_OPT_PASSKEY, (int32_t)k);
     return mcs_null();
 }
 NATIVE(ble_gettimeout) { ST(); return mcs_int((mcs_int_t)s->timeout); }
@@ -2073,11 +2094,26 @@ NATIVE(ble_stopadv) {
 NATIVE(ble_advertising) { ST(); drain(vm, s); return mcs_bool(s->advertising); }
 
 /* ---- scanning */
+NATIVE(ble_getscaninterval) { ST(); return mcs_int(s->scan_interval); }
+NATIVE(ble_getscanwindow) { ST(); return mcs_int(s->scan_window); }
+static mcs_value_t scan_setting(mcs_vm_t* vm, ble_state_t* s, mcs_value_t value, int window) {
+    if (!mcs_ble_has(s->ble, "Ble.ScanParameters")) return fail(vm, "Ble.ScanParameters", MCS_HAL_ENOTSUP);
+    mcs_int_t v = mcs_to_int(vm, value); CHECK();
+    if (v < 5 || v > 10240 || (window ? v > s->scan_interval : v < s->scan_window)) {
+        mcs_raise(vm, "ArgumentOutOfRangeException", "BLE scan: 5 <= window <= interval <= 10240 ms"); return mcs_null();
+    }
+    if (s->scanning) { mcs_raise(vm, "InvalidOperationException", "Stop scanning before changing scan parameters"); return mcs_null(); }
+    if (window) s->scan_window = (uint16_t)v; else s->scan_interval = (uint16_t)v;
+    return mcs_null();
+}
+NATIVE(ble_setscaninterval) { ST(); return scan_setting(vm, s, argv[0], 0); }
+NATIVE(ble_setscanwindow) { ST(); return scan_setting(vm, s, argv[0], 1); }
 static int scan_begin(mcs_vm_t* vm, ble_state_t* s, int active, int dup, uint32_t duration) {
     if (s->scanning && s->ble->scan_stop) s->ble->scan_stop(s->ble->ctx);
     s->scanning = 0;
     mcs_ble_scan_t p; memset(&p, 0, sizeof p);
     p.active = (uint8_t)active; p.filter_duplicates = (uint8_t)!dup; p.duration_ms = duration;
+    if (s->ble->features & MCS_BLE_FEATURE_SCAN_PARAMETERS) { p.interval_ms = s->scan_interval; p.window_ms = s->scan_window; }
     int rc = s->ble->scan_start(s->ble->ctx, &p);
     if (rc >= 0) s->scanning = 1;
     (void)vm;
@@ -2169,6 +2205,19 @@ static void clear_services(mcs_vm_t* vm, ble_state_t* s) {
     reg_set(vm, s, R_UART, mcs_null());
     g_pool_used = 0;
     s->db_dirty = 1;
+}
+NATIVE(ble_reset) {
+    ST();
+    if (s->draining || g_op.kind != OP_NONE || s->collecting) {
+        mcs_raise(vm, "InvalidOperationException", "Ble.Reset must be called outside a BLE callback or operation"); return mcs_null();
+    }
+    CALL("Ble.Reset", ble_off(vm, s));
+    clear_services(vm, s);
+    for (int i = 0; i < R__COUNT; i++) reg_set(vm, s, i, mcs_null());
+    memset(g_csub, 0, sizeof g_csub); q_clear();
+    s->advertising = s->want_adv = s->scanning = 0;
+    s->found = mcs_null();
+    return mcs_null();
 }
 NATIVE(ble_clearservices) {
     ST();
@@ -2272,8 +2321,12 @@ NATIVE(ble_clearbonds) { ST(); NEED(bonds, "Ble.ClearBonds"); ON("Ble.ClearBonds
 
 static const mcs_reg_t ble_fns[] = {
     MCS_FN("Enable", ble_enable, 0), MCS_FN("Disable", ble_disable, 0), MCS_GET("Enabled", ble_enabled),
+    MCS_FN("Reset", ble_reset, 0), MCS_FN("CanReadOption", ble_canread, 1), MCS_FN("CanSetOption", ble_canset, 1),
+    MCS_GET("OptionNames", ble_optionnames),
+    MCS_GET("ScanInterval", ble_getscaninterval), MCS_SET("ScanInterval", ble_setscaninterval),
+    MCS_GET("ScanWindow", ble_getscanwindow), MCS_SET("ScanWindow", ble_setscanwindow),
     MCS_FN("Has", ble_has, 1), MCS_GET("Backend", ble_backend), MCS_GET("Name", ble_getname), MCS_SET("Name", ble_setname),
-    MCS_GET("Address", ble_address), MCS_GET("AddressType", ble_addrtype),
+    MCS_GET("Address", ble_address), MCS_GET("AddressType", ble_addrtype), MCS_SET("AddressType", ble_setaddrtype),
     MCS_GET("TxPower", ble_gettx), MCS_SET("TxPower", ble_settx), MCS_GET("Mtu", ble_getmtu), MCS_SET("Mtu", ble_setmtu),
     MCS_GET("Appearance", ble_getapp), MCS_SET("Appearance", ble_setapp), MCS_GET("IoCapability", ble_getio), MCS_SET("IoCapability", ble_setio),
     MCS_GET("Bonding", ble_getbond), MCS_SET("Bonding", ble_setbond), MCS_GET("Mitm", ble_getmitm), MCS_SET("Mitm", ble_setmitm),
@@ -2344,10 +2397,17 @@ bool mcs_ble_has(const mcs_ble_t* b, const char* f) {
     if (!strcmp(f, "Ble") || !strcmp(f, "Bluetooth")) return true;
     if (!strcmp(f, "Ble.Advertise")) return b->adv_start != NULL;
     if (!strcmp(f, "Ble.Scan")) return b->scan_start != NULL;
-    if (!strcmp(f, "Ble.Server") || !strcmp(f, "BleUart")) return b->gatts_set != NULL && b->adv_start != NULL;
+    if (!strcmp(f, "Ble.Server")) return b->gatts_set != NULL && b->adv_start != NULL;
+    if (!strcmp(f, "BleUart")) return b->gatts_set != NULL && b->gatts_notify != NULL && b->adv_start != NULL;
     if (!strcmp(f, "Ble.Central") || !strcmp(f, "Ble.Client")) return b->connect != NULL && b->discover != NULL;
     if (!strcmp(f, "Ble.Security")) return b->pair != NULL;
     if (!strcmp(f, "Ble.Bonds")) return b->bonds != NULL;
+    if (!strcmp(f, "Ble.ScanParameters")) return b->scan_start != NULL && (b->features & MCS_BLE_FEATURE_SCAN_PARAMETERS) != 0;
+    if (!strcmp(f, "Ble.Parameters")) return b->conn_update != NULL;
+    if (!strcmp(f, "Ble.Rssi")) return b->conn_rssi != NULL;
+    if (!strcmp(f, "Ble.Read")) return b->read != NULL;
+    if (!strcmp(f, "Ble.Write")) return b->write != NULL;
+    if (!strcmp(f, "Ble.Subscribe")) return b->subscribe != NULL;
     return false;
 }
 
@@ -2372,6 +2432,7 @@ void mcs_ble_open_lib(mcs_vm_t* vm, const mcs_ble_t* ble) {
             return;
         }
         s->timeout = MCS_BLE_TIMEOUT;
+        s->scan_interval = MCS_BLE_SCAN_INTERVAL; s->scan_window = MCS_BLE_SCAN_WINDOW;
         s->auto_adv = 1;
         s->passkey = -1;
         s->found = mcs_null();

@@ -1,4 +1,9 @@
 // Encrypted ESP-NOW: both boards set the same primary key and the peer's local key
+if (!Hal.Has("GPIO") || !Hal.Has("EspNow"))
+{
+    Console.WriteLine("This firmware lacks: GPIO, EspNow. Enable the needed modules or use a supported board.");
+    return;
+}
 EspNow.Start();
 EspNow.SetPmk("pmk-1234567890ab");               // 16 characters, same on every board
 const string Peer = "24:0A:C4:00:00:99";

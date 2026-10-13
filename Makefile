@@ -33,9 +33,9 @@ OBJ      = $(patsubst src/%.c,build/%.o,$(SRC)) $(patsubst modules/%.c,build/mod
 
 all: mcs
 
-build/%.o: src/%.c src/*.h include/*.h | build
+build/%.o: src/%.c src/*.h include/*.h include/*.def | build
 	$(CC) $(CFLAGS) -c $< -o $@
-build/mod/%.o: modules/%.c include/*.h | build
+build/mod/%.o: modules/%.c include/*.h include/*.def | build
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 build:
@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -340,3 +340,11 @@ cm: mcs
 	$(MAKE) -C ports/cortex-m
 cm-check:
 	sh tools/cm_check.sh
+
+# Native capability probes also build without HAL and without radio modules.
+capabilities-test: | build
+	@for f in "" "-DMCS_ENABLE_BLE=1" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_NET=0 -DMCS_ENABLE_BLE=0"; do \
+	  $(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) tests/c/test_capabilities.c -lm -o build/test_capabilities && ./build/test_capabilities || exit 1; done
+	@node tests/studio/test_capabilities.js
+	@python3 tests/test_template_metadata.py
+.PHONY: capabilities-test

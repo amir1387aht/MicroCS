@@ -179,7 +179,7 @@ static int a_opt_get(void*, int opt, int32_t* v) {
 static int a_opt_set(void*, int opt, int32_t v) {
     switch (opt) {
     case MCS_BLE_OPT_APPEARANCE: g_opt[opt] = v & 0xFFFF; if (g_on) BLE.setAppearance((uint16_t)g_opt[opt]); return 0;
-    case MCS_BLE_OPT_MTU: return v >= 23 && v <= 517 ? 0 : MCS_HAL_EINVAL;   /* ArduinoBLE negotiates on its own */
+    case MCS_BLE_OPT_MTU: return MCS_HAL_ENOTSUP;   /* ArduinoBLE negotiates on its own */
     default: return MCS_HAL_ENOTSUP;
     }
 }
@@ -327,6 +327,8 @@ static mcs_ble_t g_ble;
 const mcs_ble_t* mcs_arduino_ble(void) {
     if (g_ble.name) return &g_ble;
     g_ble.name = "arduinoble";
+    g_ble.readable_options = MCS_BLE_OPTION(MCS_BLE_OPT_MTU) | MCS_BLE_OPTION(MCS_BLE_OPT_MAX_CONN) | MCS_BLE_OPTION(MCS_BLE_OPT_APPEARANCE) | MCS_BLE_OPTION(MCS_BLE_OPT_ADDR_TYPE);
+    g_ble.writable_options = MCS_BLE_OPTION(MCS_BLE_OPT_APPEARANCE);
     g_ble.enable = a_enable; g_ble.address = a_address; g_ble.set_name = a_set_name;
     g_ble.opt_get = a_opt_get; g_ble.opt_set = a_opt_set; g_ble.poll = a_poll;
     g_ble.adv_start = a_adv_start; g_ble.adv_stop = a_adv_stop;

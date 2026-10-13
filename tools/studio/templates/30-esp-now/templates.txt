@@ -3,14 +3,18 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: ESP-NOW
+requires: EspNow
 
 [espnow.cs] ESP-NOW messages
+requires: Encoding, Wifi, EspNow
 Board-to-board packets without a router: add a peer, send, receive with a callback.
 
 [espnow_broadcast.cs] Sensor beacons to every board
+requires: Dictionary, Json, Float, Wifi, EspNow
 A sender broadcasts a JSON reading every 300 ms; receivers print who sent it and the signal
 strength.
 
 [espnow_secure.cs] Encrypted peer and remote LED
+requires: GPIO, Encoding, EspNow, StringExtra
 Pairs with one board using a 16-character key and toggles its LED on command; replies are
 acknowledged.

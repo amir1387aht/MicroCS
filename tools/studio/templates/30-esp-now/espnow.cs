@@ -1,4 +1,9 @@
 // ESP-NOW: up to EspNow.MaxData bytes per packet, ~1 ms latency, no access point needed
+if (!Hal.Has("Wifi") || !Hal.Has("EspNow"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, EspNow. Enable the needed modules or use a supported board.");
+    return;
+}
 EspNow.Start();
 Console.WriteLine("my mac: " + Wifi.Mac + "   max payload " + EspNow.MaxData);
 

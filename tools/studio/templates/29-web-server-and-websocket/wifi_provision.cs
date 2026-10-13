@@ -1,4 +1,9 @@
 // Both save the network (Wifi.SavedSsid) and connect; next boot Wifi.Connect() is enough
+if (!Hal.Has("Wifi"))
+{
+    Console.WriteLine("This firmware lacks: Wifi. Enable the needed modules or use a supported board.");
+    return;
+}
 if (Wifi.SavedSsid != "" && Wifi.Connect()) { Console.WriteLine("online: " + Wifi.Ssid); return; }
 
 if (Net.Has("Wifi.Wps"))

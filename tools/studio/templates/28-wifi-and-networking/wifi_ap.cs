@@ -1,4 +1,9 @@
 // Start an access point (password: 8+ characters, empty = open network)
+if (!Hal.Has("Wifi") || !Hal.Has("Wifi.AP"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, Wifi.AP. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.OnEvent((ev, v) =>
 {
     if (ev == Wifi.EventApJoined || ev == Wifi.EventApLeft || ev == Wifi.EventApAssigned)

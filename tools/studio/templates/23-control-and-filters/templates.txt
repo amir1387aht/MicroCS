@@ -3,15 +3,20 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Control and filters
+requires: none
 
 [pid.cs] PID controller
+requires: Math, Float, Format
 A reusable PID class driving a simulated heater to a set point.
 
 [filters.cs] Moving average and median filters
+requires: Math, Random, List, Float, Format
 Smooth noisy readings: moving average, median of 5, exponential.
 
 [thermostat.cs] Thermostat with hysteresis
+requires: GPIO, Float, Format
 On/off control with a dead band so the relay doesn't chatter.
 
 [kalman.cs] Kalman filter (1-D)
+requires: Random, Float, Format
 A one-dimensional Kalman filter for a slowly changing value.

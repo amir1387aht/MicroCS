@@ -3,42 +3,56 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: C# language
+requires: none
 
 [classes.cs] Classes and interfaces
+requires: Math, List, Float, Format
 Interfaces, inheritance, virtual/override and properties.
 
 [driver.cs] A driver class
+requires: I2C, Float, Format
 Wrap a sensor in a class with IDisposable and properties.
 
 [collections.cs] Collections
+requires: List, Dictionary, HashSet, Queue, Stack, StringExtra
 List, Dictionary, HashSet, Queue and Stack.
 
 [linq.cs] LINQ
+requires: Float, Linq, StringExtra, Format
 Where, Select, OrderBy, GroupBy, aggregates.
 
 [strings.cs] Strings and StringBuilder
+requires: StringBuilder, StringExtra
 Common string operations and building text efficiently.
 
 [patterns.cs] Pattern matching and switch
+requires: Float, Format
 Switch expressions, relational patterns and type patterns.
 
 [tuples.cs] Tuples and deconstruction
+requires: List, Float, Linq, Format
 Return several values; swap with tuples.
 
 [events_cs.cs] Delegates, lambdas and events
+requires: Float
 Action, Func, closures and C# events.
 
 [generics.cs] Generics
+requires: List, StringExtra
 A generic ring buffer class for samples.
 
 [enums.cs] Enums and structs
+requires: Math
 Enums for states, flags arithmetic and a small struct.
 
 [exceptions.cs] Exceptions
+requires: none
 try / catch / finally, filters and custom exceptions.
 
 [math.cs] Math and random numbers
+requires: Math, Random, Float, Format
 Math functions, rounding, clamping and Random.
 
 [parse.cs] Parsing and conversion
+requires: Encoding, BitConverter, Convert, Float
 int.Parse, TryParse, Convert and bytes <-> text.

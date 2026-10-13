@@ -1,0 +1,26 @@
+// Pure gallery filtering: no DOM or connected board needed.
+const fs = require('fs'), assert = require('assert'), path = require('path');
+const js = fs.readFileSync(path.join(__dirname, '../../tools/studio/studio.js'), 'utf8');
+const a = js.indexOf('function parseCapabilities('), b = js.indexOf('const GH_TEMPLATES', a);
+assert(a > 0 && b > a);
+const { parseCapabilities, templateCompatible, legacyCapabilities } = new Function(js.slice(a,b) + '; return { parseCapabilities, templateCompatible, legacyCapabilities };')();
+const caps = parseCapabilities('capabilities=1\r\nCompiler=1\r\nWifi=1\r\nBle=0\r\nGPIO=1\r\nWifi.AP=0\r\n');
+assert(caps instanceof Map); assert(caps.get('Wifi')); assert.strictEqual(caps.get('Ble'), false);
+for(const bad of ['', 'capabilities=2\nWifi=1', 'capabilities=1\nWifi=true', 'capabilities=1\nWifi=1\nWifi=0', 'capabilities=1']) assert.strictEqual(parseCapabilities(bad),null);
+assert(templateCompatible({requires:['Compiler','Wifi']},caps,true));
+assert(!templateCompatible({requires:['Wifi','Ble']},caps,true));
+assert(!templateCompatible({requires:['Wifi','Wifi.AP']},caps,true));
+assert(!templateCompatible({requires:['I2C']},caps,true));
+assert(templateCompatible({requires:['Ble']},caps,false));
+const old = legacyCapabilities('MicroCS 1.14.0 features=0xffff value=16 bytes');
+assert(templateCompatible({requires:['Compiler']},old,true));
+assert(!templateCompatible({requires:['GPIO']},old,true));
+assert(!templateCompatible({requires:['Ble']},old,true));
+const TEMPLATES = new Function(fs.readFileSync(path.join(__dirname,'../../tools/studio/templates.js'),'utf8') + ';return TEMPLATES;')();
+assert(TEMPLATES.every(t => Array.isArray(t.requires)));
+assert(TEMPLATES.filter(t=>t.src.startsWith('31-')).every(t=>t.requires.includes('Ble')));
+assert(TEMPLATES.filter(t=>t.src.startsWith('30-')).every(t=>t.requires.includes('EspNow')));
+assert(TEMPLATES.find(t=>t.src.endsWith('/wifi_ap.cs')).requires.includes('Wifi.AP'));
+assert(!TEMPLATES.find(t=>t.src.endsWith('/tcp_echo.cs')).requires.includes('Wifi'));
+assert(TEMPLATES.find(t=>t.src.endsWith('/https_download.cs')).requires.includes('Tls'));
+console.log('PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata');

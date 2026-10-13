@@ -3,24 +3,32 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Protocols and data
+requires: none
 
 [crc.cs] CRC-8 / CRC-16 / CRC-32
+requires: Encoding, Format
 Checksums used by sensors (CRC-8), Modbus (CRC-16) and files (CRC-32).
 
 [modbus.cs] Modbus RTU master (read registers)
+requires: UART, List, StringExtra
 Build a Modbus RTU request, send it on a UART (RS-485) and parse the reply.
 
 [nmea.cs] NMEA checksum and fields
+requires: Math, Convert, Float, StringExtra, Format
 Validate an NMEA sentence and pick out the fields.
 
 [base64.cs] Base64 and hex encoding
+requires: StringBuilder, List, Encoding, BitConverter, Linq, Format
 Encode / decode Base64 and hex strings by hand.
 
 [commands.cs] Command interpreter on the console
+requires: GPIO, PWM, Dictionary, Float, StringExtra
 Parse typed commands (led on, pwm 50, help) - a device CLI.
 
 [json_out.cs] JSON-style output (manual)
+requires: ADC, Board, Dictionary, Float, Linq, StringExtra, Format
 Build JSON text for a host program or MQTT bridge.
 
 [ringbuffer.cs] Ring buffer (circular queue)
+requires: ADC, Float, Linq, Format
 A fixed-size buffer for samples - no allocation per sample.

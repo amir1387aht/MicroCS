@@ -4,6 +4,21 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Bluetooth LE, Studio templates as files
 
+* **Cortex-M flash budget** — shared capability lookup / direct peripheral predicates;
+  LTO on the 256 KB Cortex-M0 reference targets and benchmark preserves configured
+  features while accommodating GCC/newlib size differences.
+* **Capability-aware templates** — allocation-free shell `caps` and expanded `Hal.Has`,
+  explicit `requires:` metadata for every template, connected-board filtering with offline
+  browsing and conservative older-firmware fallback. Radio examples check Wi-Fi / BLE /
+  ESP-NOW and required roles before referencing optional classes. Software/configuration
+  flags and peripheral subfeatures are checked separately; bus support is not device detection.
+* **BLE API v2 and examples** — backend option read/write discovery without starting the
+  radio, configurable scan interval/window (including ESP menuconfig), operation-level role
+  flags and `Ble.Reset` for clean reruns without erasing bonds. Added seven BLE templates
+  and matching standalone examples. Fixed lost/ignored passkey writes and misleading no-op
+  MTU/PHY/security setters. NimBLE role reports honor the configured roles. BLE remains opt-in.
+
+
 * **Web templates / foreground network lifecycle** — moved the raw HTTP example into
   Web server and WebSocket; servers now run until Stop rather than two seconds and use
   port 80. Raw TCP listeners share the host privileged-port fallback used by HttpServer.

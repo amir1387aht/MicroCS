@@ -784,7 +784,7 @@ Micros: long | Microseconds since start
 UniqueId: string | Chip id as hex
 CpuHz: int | CPU clock in Hz
 DroppedEvents: int | Events lost because the queue was full
-Has(string name): bool | "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC", "SPI.Configure" (full settings objects), "DMA", "DMA.SPI" (background transfers), or a driver: "LedStrip", "ws2812"
+Has(string name): bool | Side-effect-free firmware capability query: "Wifi", "Ble", "EspNow", "Ble.Central", "Ble.ScanParameters", "Compiler", "Filesystem", and "GPIO", "GPIO.IRQ", "UART", "I2C", "SPI", "ADC", "DAC", "PWM", "Timer", "I2S", "QSPI", "CAN", "Watchdog", "RTC", "SPI.Configure" (full settings objects), "DMA", "DMA.SPI" (background transfers), or a driver: "LedStrip", "ws2812"
 Poll(): void | Runs pending callbacks now
 Run(): void | Dispatches events forever (until Ctrl-C)
 Run(int ms): void | Dispatches events for ms milliseconds
@@ -1436,16 +1436,22 @@ const EventDown: int | Menu key: down
 
 @Ble | Bluetooth LE radio: advertising, scanning, GATT server, connections, security (opt-in firmware, docs/BLE.md; simulated with --sim)
 const ApiVersion: int | BLE API version
-Has(string feature): bool | "Ble", "Ble.Advertise", "Ble.Scan", "Ble.Server", "BleUart", "Ble.Central", "Ble.Client", "Ble.Security", "Ble.Bonds"
+Has(string feature): bool | "Ble", "Ble.Advertise", "Ble.Scan", "Ble.ScanParameters", "Ble.Server", "BleUart", "Ble.Central", "Ble.Client", "Ble.Security", "Ble.Bonds", "Ble.Parameters", "Ble.Rssi", "Ble.Read", "Ble.Write", "Ble.Subscribe"
 Backend: string | "nimble", "btstack", "zephyr", "arduinoble" or "sim"
 Enable(): void | Starts the stack (automatic on first use)
-Disable(): void | Stops the stack (connections drop)
+Disable(): void | Stops the stack (connections drop; service definitions and callbacks retained)
+Reset(): void | Stops radio, invalidates old GATT objects and clears services/callbacks; preserves bonds/settings; outside callbacks only
+OptionNames: string[] | Exact supported-option vocabulary, without enabling radio
+CanReadOption(string name): bool | Backend implements this option getter; no radio startup
+CanSetOption(string name): bool | Backend implements this option setter; no radio startup
+ScanInterval: int | Scan interval ms (5..10240), default 100; requires Ble.ScanParameters
+ScanWindow: int | Scan window ms (5..interval), default 50; change only while not scanning
 Enabled: bool | The stack is running
 Name: string | GAP device name, advertised (at most 29 characters)
 Address: string | This board's address, "C0:11:22:33:44:55"
-AddressType: int | 0 public, 1 random
+AddressType: string | Reads address-kind name; accepts 0 public / 1 static random when CanSetOption is true
 TxPower: int | Transmit power (dBm)
-Mtu: int | Preferred ATT MTU
+Mtu: int | Preferred / configured ATT MTU; check CanSetOption before changing
 Appearance: int | GAP appearance (0x0341 = heart-rate belt …)
 Phy: int | Preferred PHY: Ble.Phy1M, Phy2M, PhyCoded
 IoCapability: int | Pairing IO: Ble.IoNone (Just Works), IoDisplayOnly, IoDisplayYesNo, IoKeyboardOnly, IoKeyboardDisplay

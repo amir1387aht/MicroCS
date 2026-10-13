@@ -616,14 +616,19 @@ static int e_bonds(void* ctx, int op, mcs_ble_addr_t* addrs, int max) {
 
 static mcs_ble_t g_ble = {
     .name = "nimble",
+    .readable_options = MCS_BLE_OPTIONS_ALL & ~(MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC) ? 0u : MCS_BLE_OPTIONS_SECURITY),
+    .writable_options = MCS_BLE_OPTIONS_ALL & ~(MCS_BLE_OPTION(MCS_BLE_OPT_MAX_CONN)
+        | (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC) ? 0u : MCS_BLE_OPTIONS_SECURITY)
+        | (BLE_50_FEATURE_SUPPORT ? 0u : MCS_BLE_OPTION(MCS_BLE_OPT_PHY))),
+    .features = MCS_BLE_FEATURE_SCAN_PARAMETERS,
     .enable = e_enable, .address = e_address, .set_name = e_set_name, .opt_get = e_opt_get, .opt_set = e_opt_set,
     .lock = e_lock, .unlock = e_unlock,
-    .adv_start = e_adv_start, .adv_stop = e_adv_stop, .scan_start = e_scan_start, .scan_stop = e_scan_stop,
-    .gatts_set = e_gatts_set, .gatts_notify = e_gatts_notify,
+    .adv_start = MYNEWT_VAL(BLE_ROLE_BROADCASTER) ? e_adv_start : NULL, .adv_stop = MYNEWT_VAL(BLE_ROLE_BROADCASTER) ? e_adv_stop : NULL, .scan_start = MYNEWT_VAL(BLE_ROLE_OBSERVER) ? e_scan_start : NULL, .scan_stop = MYNEWT_VAL(BLE_ROLE_OBSERVER) ? e_scan_stop : NULL,
+    .gatts_set = MYNEWT_VAL(BLE_ROLE_PERIPHERAL) ? e_gatts_set : NULL, .gatts_notify = MYNEWT_VAL(BLE_ROLE_PERIPHERAL) ? e_gatts_notify : NULL,
     .disconnect = e_disconnect, .conn_info = e_conn_info, .conn_rssi = e_conn_rssi, .conn_update = e_conn_update,
-    .connect = e_connect, .connect_cancel = e_connect_cancel, .discover = e_discover, .read = e_read, .write = e_write,
-    .subscribe = e_subscribe, .exchange_mtu = e_exchange_mtu,
-    .pair = e_pair, .passkey_reply = e_passkey_reply, .bonds = e_bonds,
+    .connect = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_connect : NULL, .connect_cancel = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_connect_cancel : NULL, .discover = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_discover : NULL, .read = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_read : NULL, .write = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_write : NULL,
+    .subscribe = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_subscribe : NULL, .exchange_mtu = MYNEWT_VAL(BLE_ROLE_CENTRAL) ? e_exchange_mtu : NULL,
+    .pair = (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC)) ? e_pair : NULL, .passkey_reply = (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC)) ? e_passkey_reply : NULL, .bonds = (MYNEWT_VAL(BLE_SM_LEGACY) || MYNEWT_VAL(BLE_SM_SC)) ? e_bonds : NULL,
 };
 const mcs_ble_t* mcs_esp32_ble(void) {
     static uint8_t init;

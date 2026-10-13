@@ -1,4 +1,9 @@
 // HttpServer: routes, path parameters and JSON in a few lines (Net.Has("HttpServer"))
+if (!Hal.Has("GPIO") || !Hal.Has("Wifi") || !Hal.Has("HttpServer"))
+{
+    Console.WriteLine("This firmware lacks: GPIO, Wifi, HttpServer. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 var led = new Pin(2, GPIO.Output);              // your LED's GPIO (Pico W: "LED")
 using var web = new HttpServer(80);

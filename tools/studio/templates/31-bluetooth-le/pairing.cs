@@ -1,5 +1,11 @@
 // Secure link: a characteristic that can only be read after pairing with a passkey.
 // The board shows the 6-digit key on the console; type it on the phone.
+if (!Hal.Has("Ble") || !Hal.Has("Ble.Server") || !Hal.Has("Ble.Advertise") || !Hal.Has("Ble.Security") || !Hal.Has("Ble.Bonds"))
+{
+    Console.WriteLine("This firmware lacks: Ble, Ble.Server, Ble.Advertise, Ble.Security, Ble.Bonds. Enable the needed modules or use a supported board.");
+    return;
+}
+Ble.Reset();
 Ble.IoCapability = Ble.IoDisplayOnly;
 Ble.Bonding = true;
 Ble.Mitm = true;

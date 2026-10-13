@@ -1,4 +1,9 @@
 // MQTT CONNECT + PUBLISH (QoS 0) written by hand - about 30 lines of C#
+if (!Hal.Has("Wifi") || !Hal.Has("TcpClient") || !Hal.Has("ArrayExtra"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, TcpClient, ArrayExtra. Enable the needed modules or use a supported board.");
+    return;
+}
 byte[] Str(string s) { var b = Encoding.UTF8.GetBytes(s); var r = new byte[b.Length + 2]; r[0] = (byte)(b.Length >> 8); r[1] = (byte)b.Length; Array.Copy(b, 0, r, 2, b.Length); return r; }
 byte[] Packet(int type, List<byte> body)
 {

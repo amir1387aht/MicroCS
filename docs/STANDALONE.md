@@ -97,6 +97,15 @@ MicroCS 1.14.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mo
   back after a reset. MicroCS Studio cancels the jobs left by earlier scripts before each Run
   (⋯ → *Stop script jobs before each Run*) and has ⋯ → *Stop all jobs*.
 
+### Firmware capabilities
+
+`caps` reports `capabilities=1` followed by exact `Name=0` / `Name=1` lines and the usual
+command terminator. Names come from `include/mcs_capabilities.def`. The report checks this
+VM's registered modules, compile-time options and board function table, without allocating
+classes, probing peripherals or enabling radios. `Hal.Has(name)` accepts the same vocabulary.
+Studio uses it once after connecting to filter templates; reconnect after changing firmware.
+Unknown capabilities are false. It does not verify wiring or external devices.
+
 ## 4. Machine protocol (tools and IDEs)
 
 One command per line; every reply ends with a status line starting with EOT (0x04):

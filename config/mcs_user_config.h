@@ -467,6 +467,15 @@
 #ifndef MCS_BLE_MAX_SUBS
 #define MCS_BLE_MAX_SUBS          8    /* remote characteristics subscribed to at once */
 #endif
+#ifndef MCS_BLE_SCAN_INTERVAL
+#define MCS_BLE_SCAN_INTERVAL     100     /* default scan interval (ms, 5..10240) */
+#endif
+#ifndef MCS_BLE_SCAN_WINDOW
+#define MCS_BLE_SCAN_WINDOW       50      /* default scan window (ms, <= interval) */
+#endif
+#if MCS_BLE_SCAN_WINDOW < 5 || MCS_BLE_SCAN_WINDOW > MCS_BLE_SCAN_INTERVAL || MCS_BLE_SCAN_INTERVAL > 10240
+#error "BLE scan requires 5 <= window <= interval <= 10240 ms"
+#endif
 #ifndef MCS_BLE_TIMEOUT
 #define MCS_BLE_TIMEOUT           5000    /* default Ble.Timeout for GATT client operations (ms) */
 #endif

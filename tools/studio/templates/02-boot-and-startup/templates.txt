@@ -3,34 +3,44 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Boot and startup
+requires: none
 
 [boot.cs] boot.cs - first script at power-up
+requires: GPIO, Board, Filesystem, GC, StringExtra
 Runs first at every boot: hardware setup and a banner. Save as /boot.cs.
 
 [main.cs] main.cs - the application
+requires: GPIO, Scheduler, GC
 Runs at every boot after boot.cs and jobs.cfg; starts background jobs. Save as /main.cs.
 
 [main_safe_mode.cs] main.cs with safe mode
+requires: GPIO, Scheduler
 save as: main.cs
 Hold a button at boot to skip the application (recovery when a script misbehaves).
 
 [main_settings.cs] main.cs with settings file
+requires: GPIO, Filesystem, Scheduler, Dictionary, StringExtra
 save as: main.cs
 Read key=value settings from /settings.txt (created with defaults on first boot).
 
 [main_watchdog.cs] main.cs with a watchdog
+requires: Watchdog
 save as: main.cs
 A main loop guarded by the watchdog: a hang resets the board.
 
 [boot_log.cs] boot log to a file
+requires: Board, Filesystem, Math, GC
 save as: boot.cs
 Append one line per boot to /boot.log and keep the file small.
 
 [jobs.cfg] jobs.cfg - scheduled scripts
+requires: Filesystem, Scheduler, Compiler, GPIO
 The jobs table read at boot: run scripts at startup, after a delay or periodically.
 
 [blink.cs] Job script: blink (for jobs.cfg)
+requires: GPIO
 A tiny script run every 500 ms by jobs.cfg - each run toggles the LED once.
 
 [report.cs] Job script: report (for jobs.cfg)
+requires: Filesystem, GC
 Run every minute by jobs.cfg: log uptime, memory and storage to a file.

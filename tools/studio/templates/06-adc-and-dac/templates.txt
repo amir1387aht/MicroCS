@@ -3,18 +3,24 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: ADC and DAC
+requires: none
 
 [adc.cs] Read an analog input
+requires: ADC, Float, Format
 Raw value, millivolts and volts from an ADC channel.
 
 [adc_filter.cs] Averaged, filtered ADC
+requires: ADC, Float, Format
 Oversampling plus an exponential moving average.
 
 [battery.cs] Battery voltage (divider)
+requires: ADC, Math, Float, Format
 Scale a voltage divider reading and estimate a Li-ion charge level.
 
 [dac.cs] DAC output and sine wave
+requires: DAC, Math
 Set a voltage, then output a slow sine wave on a DAC channel.
 
 [adc_config.cs] ADC input range and oversampling (AdcConfig)
+requires: ADC, ADC.Configure
 AdcConfig: attenuation (ESP32 input range) and averaged readings.

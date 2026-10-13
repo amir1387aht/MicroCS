@@ -24,6 +24,16 @@ import json, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "templates")
 OUT = os.path.join(HERE, "templates.js")
+CAPABILITIES = set(re.findall(r'^MCS_CAP\("([^"\n]+)"', open(os.path.join(HERE, "../../include/mcs_capabilities.def"), encoding="utf-8").read(), re.M))
+
+def requirements(value, where):
+    names = [] if value.strip().lower() == "none" else [x.strip() for x in value.split(",")]
+    if any(not x or x not in CAPABILITIES for x in names):
+        raise TemplateError(f"{where}: requires: uses an unknown capability (names are case-sensitive)")
+    if len(names) != len(set(names)):
+        raise TemplateError(f"{where}: duplicate capability in requires:")
+    return names
+
 HEADER_RE = re.compile(r"^\[([^\]/\\]+)\]\s+(\S.*)$")
 
 
@@ -33,7 +43,7 @@ class TemplateError(Exception):
 
 def parse_txt(folder, path):
     """templates.txt -> (category, [(file, name, save_as, desc)])"""
-    cat, items, cur = None, [], None
+    cat, items, cur, defaults = None, [], None, None
     with open(path, encoding="utf-8") as f:
         lines = f.read().splitlines()
     for no, raw in enumerate(lines, 1):
@@ -43,13 +53,22 @@ def parse_txt(folder, path):
             continue
         m = HEADER_RE.match(line)
         if m:
-            cur = {"file": m.group(1).strip(), "name": m.group(2).strip(), "save": None, "desc": [], "where": where}
+            cur = {"file": m.group(1).strip(), "name": m.group(2).strip(), "save": None, "desc": [], "where": where, "requires": None}
             items.append(cur)
         elif cur is None:
             k, _, v = line.partition(":")
-            if k.strip().lower() != "category" or not v.strip():
-                raise TemplateError(f"{where}: expected 'category: <name>' before the first [file] block")
-            cat = v.strip()
+            if k.strip().lower() == "requires":
+                if defaults is not None: raise TemplateError(f"{where}: duplicate folder requires:")
+                defaults = requirements(v, where)
+            elif k.strip().lower() == "category" and v.strip():
+                if cat is not None: raise TemplateError(f"{where}: duplicate category:")
+                cat = v.strip()
+            else:
+                raise TemplateError(f"{where}: expected category: or requires: before the first [file] block")
+        elif re.match(r"^requires\s*:", line, re.I):
+            if cur["desc"]: raise TemplateError(f"{where}: requires: must precede the description")
+            if cur["requires"] is not None: raise TemplateError(f"{where}: duplicate requires:")
+            cur["requires"] = requirements(line.split(":", 1)[1], where)
         elif re.match(r"^save as\s*:", line, re.I) and not cur["desc"]:
             cur["save"] = line.split(":", 1)[1].strip()
             if not cur["save"] or "/" in cur["save"]:
@@ -58,6 +77,12 @@ def parse_txt(folder, path):
             cur["desc"].append(line.strip())
     if not cat:
         raise TemplateError(f"{os.path.relpath(path, HERE)}: no 'category: <name>' line")
+    if defaults is None:
+        raise TemplateError(f"{path}: add folder requires: <capabilities> (or none)")
+    for it in items:
+        if it["requires"] is None: it["requires"] = list(defaults)
+        if it["file"].endswith(".cs") and "Compiler" not in it["requires"]:
+            it["requires"].insert(0, "Compiler")
     return cat, items
 
 
@@ -90,7 +115,7 @@ def load():
             with open(fp, encoding="utf-8", newline="") as f:
                 text = f.read().replace("\r\n", "\n")
             templates.append({"cat": cat, "name": it["name"], "file": it["save"] or it["file"],
-                              "desc": " ".join(it["desc"]), "src": f"{folder}/{it['file']}", "text": text})
+                              "desc": " ".join(it["desc"]), "requires": it["requires"], "src": f"{folder}/{it['file']}", "text": text})
         extra = sorted(f for f in os.listdir(fdir) if f != "templates.txt" and not f.startswith(".") and f not in listed)
         if extra:
             raise TemplateError(f"templates/{folder}: not described in templates.txt: {', '.join(extra)}")

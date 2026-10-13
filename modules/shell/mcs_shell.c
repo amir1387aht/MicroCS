@@ -8,9 +8,7 @@
 #if MCS_ENABLE_SCHED
 #include "mcs_sched.h"
 #endif
-#if MCS_ENABLE_HAL
 #include "mcs_hal.h"
-#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -379,7 +377,7 @@ static int cmd_df(mcs_shell_t* sh, const char* path) {
 static void cmd_help(mcs_shell_t* sh) {
     out(sh, "ls [dir] | cat <f> | put <f> <len> [win] | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
             "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
-            "mem | info | repl | quit   (Ctrl-C stops a running script)\n");
+            "mem | info | caps | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
 }
 
@@ -406,7 +404,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     int argc = 0;
     for (char* p = strtok(line, " "); p && argc < 4; p = strtok(NULL, " ")) argv[argc++] = p;
     const char* c = argv[0];
-    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
+    bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "caps") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
     if (need_fs && !sh->vfs) { err(sh, "no filesystem"); return; }
     int e;
     if (!strcmp(c, "help")) cmd_help(sh);
@@ -440,6 +438,12 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
         outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
              (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+        ok(sh);
+    } else if (!strcmp(c, "caps")) {
+        size_t count;
+        const char* const* names = mcs_capability_names(&count);
+        out(sh, "capabilities=1\n");
+        for (size_t i = 0; i < count; i++) outf(sh, "%s=%d\n", names[i], mcs_capability_has(sh->vm, names[i]) ? 1 : 0);
         ok(sh);
     } else if (!strcmp(c, "info")) {
         outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));

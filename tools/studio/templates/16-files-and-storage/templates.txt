@@ -3,21 +3,28 @@
 #   save as: name.cs      - optional: the name Studio suggests (default: the file name)
 #   description lines     - shown in the list and the preview
 category: Files and storage
+requires: none
 
 [files.cs] Files and free space
+requires: Filesystem, Format
 Write, read and list files; show the flash usage with DriveInfo.
 
 [folders.cs] Folders
+requires: Filesystem
 Create, list and delete directories; walk a tree recursively.
 
 [fileops.cs] Copy, move, delete
+requires: Filesystem
 File.Copy / Move / Delete / Exists and Path helpers.
 
 [csv.cs] Lines and CSV
+requires: Filesystem, Random, List, Linq, StringExtra, Format
 Write and parse a small CSV file.
 
 [binary.cs] Binary files
+requires: Filesystem, List, BitConverter
 Store numbers in a binary file with BitConverter.
 
 [kv.cs] Simple key-value store
+requires: Filesystem, Dictionary, Linq
 Persist settings across reboots in a file.

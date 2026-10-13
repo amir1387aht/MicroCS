@@ -1,4 +1,9 @@
 // A small REST API: curl http://<ip>/api/notes, curl -d '{"text":"hi"}' http://<ip>/api/notes
+if (!Hal.Has("Wifi") || !Hal.Has("HttpServer"))
+{
+    Console.WriteLine("This firmware lacks: Wifi, HttpServer. Enable the needed modules or use a supported board.");
+    return;
+}
 Wifi.Connect("MicroCS-Lab", "microcs123");
 var notes = new List<string> { "water the plants" };
 using var web = new HttpServer(80);
