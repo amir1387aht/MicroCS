@@ -1,0 +1,2250 @@
+********************************************************************************
+If you like PlatformIO, please:
+- star it on GitHub > https://github.com/platformio/platformio-core
+- follow us on LinkedIn to stay up-to-date on the latest project news > https://www.linkedin.com/company/platformio/
+- try PlatformIO IDE for embedded development > https://platformio.org/platformio-ide
+********************************************************************************
+
+Processing tft-standalone (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Platform Manager: Installing espressif32 @ 6.10.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Platform Manager: espressif32@6.10.0 has been installed!
+Tool Manager: Installing espressif/toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: toolchain-xtensa-esp32@8.4.0+2021r2-patch5 has been installed!
+Tool Manager: Installing platformio/framework-arduinoespressif32 @ ~3.20017.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: framework-arduinoespressif32@3.20017.241212+sha.dcc1105b has been installed!
+Tool Manager: Installing platformio/tool-esptoolpy @ ~1.40501.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: tool-esptoolpy@1.40501.0 has been installed!
+Tool Manager: Installing platformio/tool-scons @ ~4.40801.0
+Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+Tool Manager: tool-scons@4.40801.0 has been installed!
+Library Manager: Installing symlink:///data/deps/TFT_eSPI-upstream
+Library Manager: TFT_eSPI@2.5.43 has been installed!
+Library Manager: Installing symlink:///data/MicroCS-v2-recovered
+Library Manager: MicroCS@1.14.0 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 35 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+Building in release mode
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_lib.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_sim.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drivers.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_servo.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_u8g2.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_ws2812.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flash.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flashfs.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_fs_lib.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_lfs.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_posix.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_ram.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_tinyfs.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_yaffs.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_cfg.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_dma.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_sim.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_lib.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sim.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sock.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_srv.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/os/mcs_os.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/runtime/mcs_runtime.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/sched/mcs_sched.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/shell/mcs_shell.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/tft/mcs_display_rgb565.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/modules/threads/mcs_threads.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_ble.cpp.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_fs.cpp.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp.o
+In file included from /data/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp:6:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_u8g2.cpp.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_port_arduino.cpp.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_bytecode.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_compiler.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_fmt.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lexer.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lib.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lib_bytes.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lib_coll.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lib_json.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_lib_str.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_object.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_opt.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_parser.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_value.c.o
+Compiling .pio/build/tft-standalone/libe3e/MicroCS-v2-recovered/src/mcs_vm.c.o
+Compiling .pio/build/tft-standalone/src/main.cpp.o
+Building .pio/build/tft-standalone/bootloader.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Generating partitions .pio/build/tft-standalone/partitions.bin
+Compiling .pio/build/tft-standalone/lib49e/SPI/SPI.cpp.o
+Archiving .pio/build/tft-standalone/lib49e/libSPI.a
+Indexing .pio/build/tft-standalone/lib49e/libSPI.a
+Compiling .pio/build/tft-standalone/lib602/FS/FS.cpp.o
+Compiling .pio/build/tft-standalone/lib602/FS/vfs_api.cpp.o
+Compiling .pio/build/tft-standalone/libafb/SPIFFS/SPIFFS.cpp.o
+Archiving .pio/build/tft-standalone/lib602/libFS.a
+Indexing .pio/build/tft-standalone/lib602/libFS.a
+Compiling .pio/build/tft-standalone/lib024/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/tft-standalone/libafb/libSPIFFS.a
+Indexing .pio/build/tft-standalone/libafb/libSPIFFS.a
+Compiling .pio/build/tft-standalone/lib726/TFT_eSPI-upstream/TFT_eSPI.cpp.o
+Archiving .pio/build/tft-standalone/lib024/libLittleFS.a
+Indexing .pio/build/tft-standalone/lib024/libLittleFS.a
+In file included from /data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp:16:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Compiling .pio/build/tft-standalone/lib7a1/I2S/I2S.cpp.o
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp: In member function 'int I2SClass::_installDriver()':
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:202:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc1_config_channel_atten((esp_i2s::adc1_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:204:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc2_config_channel_atten((esp_i2s::adc2_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+Archiving .pio/build/tft-standalone/lib7a1/libI2S.a
+Indexing .pio/build/tft-standalone/lib7a1/libI2S.a
+Compiling .pio/build/tft-standalone/lib9b2/SD/SD.cpp.o
+Compiling .pio/build/tft-standalone/lib9b2/SD/sd_diskio.cpp.o
+Compiling .pio/build/tft-standalone/lib9b2/SD/sd_diskio_crc.c.o
+Archiving .pio/build/tft-standalone/lib9b2/libSD.a
+Indexing .pio/build/tft-standalone/lib9b2/libSD.a
+Compiling .pio/build/tft-standalone/lib69e/Wire/Wire.cpp.o
+Archiving .pio/build/tft-standalone/lib726/libTFT_eSPI-upstream.a
+Indexing .pio/build/tft-standalone/lib726/libTFT_eSPI-upstream.a
+Compiling .pio/build/tft-standalone/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/tft-standalone/lib69e/libWire.a
+Indexing .pio/build/tft-standalone/lib69e/libWire.a
+Compiling .pio/build/tft-standalone/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/main.cpp.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/tft-standalone/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/tft-standalone/libFrameworkArduino.a
+Indexing .pio/build/tft-standalone/libFrameworkArduino.a
+Linking .pio/build/tft-standalone/firmware.elf
+Retrieving maximum program size .pio/build/tft-standalone/firmware.elf
+Checking size .pio/build/tft-standalone/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.7% (used 21936 bytes from 327680 bytes)
+Flash: [====      ]  41.4% (used 542109 bytes from 1310720 bytes)
+Building .pio/build/tft-standalone/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 73.10 seconds =========================
+
+Processing tft-lvgl8 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing symlink:///data/deps/TFT_eSPI-upstream
+Library Manager: TFT_eSPI@2.5.43 has been installed!
+Library Manager: Installing symlink:///data/MicroCS-v2-recovered
+Library Manager: MicroCS@1.14.0 has been installed!
+Library Manager: Installing symlink:///data/deps/lvgl-8.4.0
+Library Manager: lvgl@8.4.0 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 8.4.0
+Building in release mode
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_lib.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_sim.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drivers.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_servo.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_u8g2.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_ws2812.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flash.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flashfs.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_fs_lib.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_lfs.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_posix.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_ram.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_tinyfs.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_yaffs.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_cfg.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_dma.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_sim.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_lib.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sim.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sock.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_srv.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/os/mcs_os.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/runtime/mcs_runtime.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/sched/mcs_sched.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/shell/mcs_shell.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/tft/mcs_display_rgb565.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/modules/threads/mcs_threads.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_ble.cpp.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_fs.cpp.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp.o
+In file included from /data/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp:6:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_u8g2.cpp.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_port_arduino.cpp.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_bytecode.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_compiler.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_fmt.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lexer.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lib.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lib_bytes.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lib_coll.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lib_json.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_lib_str.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_object.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_opt.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_parser.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_value.c.o
+Compiling .pio/build/tft-lvgl8/libe3e/MicroCS-v2-recovered/src/mcs_vm.c.o
+Compiling .pio/build/tft-lvgl8/src/main.cpp.o
+Building .pio/build/tft-lvgl8/bootloader.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Generating partitions .pio/build/tft-lvgl8/partitions.bin
+Compiling .pio/build/tft-lvgl8/lib49e/SPI/SPI.cpp.o
+Archiving .pio/build/tft-lvgl8/lib49e/libSPI.a
+Indexing .pio/build/tft-lvgl8/lib49e/libSPI.a
+Compiling .pio/build/tft-lvgl8/lib602/FS/FS.cpp.o
+Compiling .pio/build/tft-lvgl8/lib602/FS/vfs_api.cpp.o
+Compiling .pio/build/tft-lvgl8/libafb/SPIFFS/SPIFFS.cpp.o
+Archiving .pio/build/tft-lvgl8/lib602/libFS.a
+Indexing .pio/build/tft-lvgl8/lib602/libFS.a
+Compiling .pio/build/tft-lvgl8/lib024/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/tft-lvgl8/libafb/libSPIFFS.a
+Indexing .pio/build/tft-lvgl8/libafb/libSPIFFS.a
+Compiling .pio/build/tft-lvgl8/lib726/TFT_eSPI-upstream/TFT_eSPI.cpp.o
+Archiving .pio/build/tft-lvgl8/lib024/libLittleFS.a
+In file included from /data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp:16:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Indexing .pio/build/tft-lvgl8/lib024/libLittleFS.a
+Compiling .pio/build/tft-lvgl8/lib7a1/I2S/I2S.cpp.o
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp: In member function 'int I2SClass::_installDriver()':
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:202:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc1_config_channel_atten((esp_i2s::adc1_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:204:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc2_config_channel_atten((esp_i2s::adc2_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+Archiving .pio/build/tft-lvgl8/lib7a1/libI2S.a
+Indexing .pio/build/tft-lvgl8/lib7a1/libI2S.a
+Compiling .pio/build/tft-lvgl8/lib9b2/SD/SD.cpp.o
+Compiling .pio/build/tft-lvgl8/lib9b2/SD/sd_diskio.cpp.o
+Compiling .pio/build/tft-lvgl8/lib9b2/SD/sd_diskio_crc.c.o
+Archiving .pio/build/tft-lvgl8/lib9b2/libSD.a
+Indexing .pio/build/tft-lvgl8/lib9b2/libSD.a
+Compiling .pio/build/tft-lvgl8/lib69e/Wire/Wire.cpp.o
+Archiving .pio/build/tft-lvgl8/lib726/libTFT_eSPI-upstream.a
+Indexing .pio/build/tft-lvgl8/lib726/libTFT_eSPI-upstream.a
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_disp.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_event.c.o
+Archiving .pio/build/tft-lvgl8/lib69e/libWire.a
+Indexing .pio/build/tft-lvgl8/lib69e/libWire.a
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_group.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_indev.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_indev_scroll.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_class.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_draw.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_pos.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_scroll.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_style.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_style_gen.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_obj_tree.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_refr.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/core/lv_theme.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/arm2d/lv_gpu_arm2d.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_arc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_img.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_label.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_layer.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_line.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_mask.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_rect.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_transform.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_draw_triangle.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_img_buf.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_img_cache.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/lv_img_decoder.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/pxp/lv_draw_pxp.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/pxp/lv_draw_pxp_blend.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/pxp/lv_gpu_nxp_pxp.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/pxp/lv_gpu_nxp_pxp_osa.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_draw_vglite.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_draw_vglite_arc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_draw_vglite_blend.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_draw_vglite_line.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_draw_vglite_rect.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_vglite_buf.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/nxp/vglite/lv_vglite_utils.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/renesas/lv_gpu_d2_draw_label.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/renesas/lv_gpu_d2_ra6m3.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_arc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_bg.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_composite.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_img.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_label.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_layer.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_line.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_mask.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_polygon.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_rect.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_stack_blur.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_texture_cache.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sdl/lv_draw_sdl_utils.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/stm32_dma2d/lv_gpu_stm32_dma2d.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_arc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_blend.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_dither.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_gradient.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_img.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_layer.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_letter.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_line.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_polygon.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_rect.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/sw/lv_draw_sw_transform.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/draw/swm341_dma2d/lv_gpu_swm341_dma2d.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/layouts/flex/lv_flex.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/layouts/grid/lv_grid.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/bmp/lv_bmp.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/ffmpeg/lv_ffmpeg.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/freetype/lv_freetype.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/fsdrv/lv_fs_fatfs.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/fsdrv/lv_fs_littlefs.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/fsdrv/lv_fs_posix.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/fsdrv/lv_fs_stdio.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/fsdrv/lv_fs_win32.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/gif/gifdec.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/gif/lv_gif.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/png/lodepng.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/png/lv_png.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/qrcode/lv_qrcode.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/qrcode/qrcodegen.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/rlottie/lv_rlottie.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/sjpg/lv_sjpg.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/sjpg/tjpgd.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/libs/tiny_ttf/lv_tiny_ttf.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/lv_extra.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/fragment/lv_fragment.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/fragment/lv_fragment_manager.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/gridnav/lv_gridnav.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/ime/lv_ime_pinyin.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/imgfont/lv_imgfont.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/monkey/lv_monkey.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/msg/lv_msg.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/others/snapshot/lv_snapshot.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/themes/basic/lv_theme_basic.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/themes/default/lv_theme_default.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/themes/mono/lv_theme_mono.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/animimg/lv_animimg.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/calendar/lv_calendar.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/calendar/lv_calendar_header_arrow.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/calendar/lv_calendar_header_dropdown.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/chart/lv_chart.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/colorwheel/lv_colorwheel.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/imgbtn/lv_imgbtn.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/keyboard/lv_keyboard.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/led/lv_led.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/list/lv_list.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/menu/lv_menu.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/meter/lv_meter.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/msgbox/lv_msgbox.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/span/lv_span.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/spinbox/lv_spinbox.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/spinner/lv_spinner.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/tabview/lv_tabview.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/tileview/lv_tileview.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/extra/widgets/win/lv_win.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_dejavu_16_persian_hebrew.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_fmt_txt.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_loader.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_10.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_12.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_12_subpx.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_14.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_16.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_18.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_20.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_22.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_24.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_26.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_28.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_28_compressed.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_30.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_32.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_34.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_36.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_38.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_40.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_42.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_44.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_46.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_48.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_montserrat_8.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_simsun_16_cjk.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_unscii_16.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/font/lv_font_unscii_8.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/hal/lv_hal_disp.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/hal/lv_hal_indev.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/hal/lv_hal_tick.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_anim.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_anim_timeline.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_area.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_async.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_bidi.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_color.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_fs.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_gc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_ll.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_log.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_lru.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_math.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_mem.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_printf.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_style.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_style_gen.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_templ.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_timer.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_tlsf.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_txt.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_txt_ap.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/misc/lv_utils.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_arc.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_bar.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_btn.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_btnmatrix.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_canvas.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_checkbox.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_dropdown.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_img.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_label.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_line.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_objx_templ.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_roller.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_slider.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_switch.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_table.c.o
+Compiling .pio/build/tft-lvgl8/libe8f/lvgl-8.4.0/widgets/lv_textarea.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/tft-lvgl8/libe8f/liblvgl-8.4.0.a
+Indexing .pio/build/tft-lvgl8/libe8f/liblvgl-8.4.0.a
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/main.cpp.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/tft-lvgl8/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/tft-lvgl8/libFrameworkArduino.a
+Indexing .pio/build/tft-lvgl8/libFrameworkArduino.a
+Linking .pio/build/tft-lvgl8/firmware.elf
+Retrieving maximum program size .pio/build/tft-lvgl8/firmware.elf
+Checking size .pio/build/tft-lvgl8/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [===       ]  27.5% (used 90064 bytes from 327680 bytes)
+Flash: [======    ]  59.0% (used 773201 bytes from 1310720 bytes)
+Building .pio/build/tft-lvgl8/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 45.38 seconds =========================
+
+Processing tft-lvgl9 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing symlink:///data/deps/TFT_eSPI-upstream
+Library Manager: TFT_eSPI@2.5.43 has been installed!
+Library Manager: Installing symlink:///data/MicroCS-v2-recovered
+Library Manager: MicroCS@1.14.0 has been installed!
+Library Manager: Installing symlink:///data/deps/lvgl-9.4.0
+Library Manager: lvgl@9.4.0 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 9.4.0
+Building in release mode
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_lib.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_sim.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drivers.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_servo.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_u8g2.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_ws2812.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flash.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flashfs.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_fs_lib.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_lfs.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_posix.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_ram.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_tinyfs.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_yaffs.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_cfg.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_dma.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_sim.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_lib.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sim.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sock.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_srv.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/os/mcs_os.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/runtime/mcs_runtime.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/sched/mcs_sched.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/shell/mcs_shell.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/tft/mcs_display_rgb565.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/modules/threads/mcs_threads.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_ble.cpp.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_fs.cpp.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp.o
+In file included from /data/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp:6:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_u8g2.cpp.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_port_arduino.cpp.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_bytecode.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_compiler.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_fmt.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lexer.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_bytes.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_coll.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_json.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_str.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_object.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_opt.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_parser.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_value.c.o
+Compiling .pio/build/tft-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_vm.c.o
+Compiling .pio/build/tft-lvgl9/src/main.cpp.o
+Building .pio/build/tft-lvgl9/bootloader.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Generating partitions .pio/build/tft-lvgl9/partitions.bin
+Compiling .pio/build/tft-lvgl9/lib49e/SPI/SPI.cpp.o
+Archiving .pio/build/tft-lvgl9/lib49e/libSPI.a
+Indexing .pio/build/tft-lvgl9/lib49e/libSPI.a
+Compiling .pio/build/tft-lvgl9/lib602/FS/FS.cpp.o
+Compiling .pio/build/tft-lvgl9/lib602/FS/vfs_api.cpp.o
+Compiling .pio/build/tft-lvgl9/libafb/SPIFFS/SPIFFS.cpp.o
+Archiving .pio/build/tft-lvgl9/lib602/libFS.a
+Indexing .pio/build/tft-lvgl9/lib602/libFS.a
+Compiling .pio/build/tft-lvgl9/lib024/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/tft-lvgl9/libafb/libSPIFFS.a
+Indexing .pio/build/tft-lvgl9/libafb/libSPIFFS.a
+Compiling .pio/build/tft-lvgl9/lib726/TFT_eSPI-upstream/TFT_eSPI.cpp.o
+In file included from /data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp:16:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.h:973:8: warning: #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available! [-Wcpp]
+       #warning >>>>------>> TOUCH_CS pin not defined, TFT_eSPI touch functions will not be available!
+        ^~~~~~~
+Archiving .pio/build/tft-lvgl9/lib024/libLittleFS.a
+Indexing .pio/build/tft-lvgl9/lib024/libLittleFS.a
+Compiling .pio/build/tft-lvgl9/lib7a1/I2S/I2S.cpp.o
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp: In member function 'int I2SClass::_installDriver()':
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:202:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc1_config_channel_atten((esp_i2s::adc1_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:204:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc2_config_channel_atten((esp_i2s::adc2_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+Archiving .pio/build/tft-lvgl9/lib7a1/libI2S.a
+Indexing .pio/build/tft-lvgl9/lib7a1/libI2S.a
+Compiling .pio/build/tft-lvgl9/lib9b2/SD/SD.cpp.o
+Compiling .pio/build/tft-lvgl9/lib9b2/SD/sd_diskio.cpp.o
+Compiling .pio/build/tft-lvgl9/lib9b2/SD/sd_diskio_crc.c.o
+Archiving .pio/build/tft-lvgl9/lib9b2/libSD.a
+Indexing .pio/build/tft-lvgl9/lib9b2/libSD.a
+Compiling .pio/build/tft-lvgl9/lib69e/Wire/Wire.cpp.o
+Archiving .pio/build/tft-lvgl9/lib726/libTFT_eSPI-upstream.a
+Indexing .pio/build/tft-lvgl9/lib726/libTFT_eSPI-upstream.a
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_group.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj.c.o
+Archiving .pio/build/tft-lvgl9/lib69e/libWire.a
+Indexing .pio/build/tft-lvgl9/lib69e/libWire.a
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_class.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_draw.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_event.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_id_builtin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_pos.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_property.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_scroll.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_style.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_style_gen.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_tree.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/core/lv_refr.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/display/lv_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/convert/helium/lv_draw_buf_convert_helium.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/convert/lv_draw_buf_convert.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/convert/neon/lv_draw_buf_convert_neon.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_buf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_letter.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_ram_g.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_eve.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_3d.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_buf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_label.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_mask.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_rect.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_vector.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/lv_image_decoder.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_border.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_label.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_layer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_stm32_hal.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_vector.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_nema_gfx_path.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_buf_g2d.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_g2d_buf_map.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_g2d_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_buf_pxp.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_layer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_cfg.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_osa.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/opengles/lv_draw_opengles.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_border.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_label.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_mask_rectangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sdl/lv_draw_sdl.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/helium/lv_blend_helium.S.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_al88.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_i1.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_l8.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_border.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_box_shadow.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_grad.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_letter.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_mask.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_mask_rect.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_transform.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_vector.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_buf_vg_lite.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_border.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_box_shadow.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_fill.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_img.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_label.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_layer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_mask_rect.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_triangle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_vector.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_decoder.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_grad.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_math.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_path.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_pending.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_stroke.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm_common.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm_egl.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/fb/lv_linux_fbdev.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/ft81x/lv_ft81x.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/ili9341/lv_ili9341.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/lcd/lv_lcd_generic_mipi.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/lovyan_gfx/lv_lovyan_gfx.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/nv3007/lv_nv3007.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/nxp_elcdif/lv_nxp_elcdif.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/renesas_glcdc/lv_renesas_glcdc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7735/lv_st7735.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7789/lv_st7789.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7796/lv_st7796.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st_ltdc/lv_st_ltdc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/display/tft_espi/lv_tft_espi.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/draw/eve/lv_draw_eve_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/evdev/lv_evdev.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/libinput/lv_libinput.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/libinput/lv_xkb.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_entry.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_fbdev.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_image_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_lcd.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_libuv.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_mouse.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_profiler.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_touchscreen.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/assets/lv_opengles_shader.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/glad/src/egl.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/glad/src/gles2.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_debug.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_driver.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_egl.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_glfw.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_texture.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/opengl_shader/lv_opengl_shader_manager.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/opengl_shader/lv_opengl_shader_program.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/qnx/lv_qnx.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_keyboard.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_mouse.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_mousewheel.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_window.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_context.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_keyboard.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_pointer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_touch.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_private.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wayland.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wayland_smm.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_dmabuf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_keyboard.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_pointer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_pointer_axis.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_seat.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_shm.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_touch.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_window.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_window_decorations.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_xdg_shell.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_context.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_input.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/x11/lv_x11_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/drivers/x11/lv_x11_input.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_binfont_loader.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_dejavu_16_persian_hebrew.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_fmt_txt.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_10.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_12.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_14.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_14_aligned.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_16.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_18.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_20.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_22.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_24.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_26.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_28.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_28_compressed.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_30.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_32.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_34.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_36.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_38.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_40.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_42.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_44.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_46.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_48.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_8.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_source_han_sans_sc_14_cjk.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_source_han_sans_sc_16_cjk.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_unscii_16.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_unscii_8.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev_gesture.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev_scroll.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/layouts/flex/lv_flex.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/layouts/grid/lv_grid.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/layouts/lv_layout.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/FT800-FT813/EVE_commands.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/FT800-FT813/EVE_supplemental.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/barcode/code128.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/barcode/lv_barcode.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/bin_decoder/lv_bin_decoder.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/bmp/lv_bmp.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmlparse.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmlrole.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok_impl.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok_ns.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/ffmpeg/lv_ffmpeg.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_glyph.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_outline.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_ftsystem.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/frogfs/src/decomp_raw.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/frogfs/src/frogfs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_arduino_esp_littlefs.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_arduino_sd.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_cbfs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_fatfs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_frogfs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_littlefs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_memfs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_posix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_stdio.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_uefi.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_win32.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gif/AnimatedGIF/src/gif.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gif/lv_gif.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_bind.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_animations.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_cache.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_injest.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_mesh.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_node.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_primitive.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_shader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_skin.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_texture.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_uniform_locations.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/assets/chromatic.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/assets/lv_gltf_view_shader.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/ibl/lv_gltf_ibl_sampler.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view_render.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view_shader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/math/lv_gltf_math.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/gstreamer/lv_gstreamer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/libjpeg_turbo/lv_libjpeg_turbo.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/libpng/lv_libpng.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/lodepng/lodepng.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/lodepng/lv_lodepng.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/lz4/lz4.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/qrcode/lv_qrcode.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/qrcode/qrcodegen.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/rle/lv_rle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/rlottie/lv_rlottie.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_decoder.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_render.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_token.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgAccessor.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgAnimation.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCanvas.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCapi.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCompressor.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgFill.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgGlCanvas.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgInitializer.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLoader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieAnimation.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieBuilder.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieExpressions.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieInterpolator.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieLoader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieModel.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieModifier.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieParser.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieParserHandler.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgMath.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgPaint.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgPicture.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgRawLoader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgRender.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSaver.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgScene.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgShape.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgStr.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgCssStyle.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgLoader.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgPath.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgSceneBuilder.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgUtil.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwCanvas.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwFill.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwImage.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwMath.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwMemPool.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwPostEffect.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRaster.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRenderer.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRle.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwShape.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwStroke.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgTaskScheduler.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgText.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgWgCanvas.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgXmlParser.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/tiny_ttf/lv_tiny_ttf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/tjpgd/lv_tjpgd.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/tjpgd/tjpgd.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_matrix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_path.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_stroke.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLiteKernel/vg_lite_kernel.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/lv_vg_lite_hal/lv_vg_lite_hal.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/lv_vg_lite_hal/vg_lite_os.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/lv_init.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_lru_ll.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_lru_rb.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_sc_da.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/instance/lv_image_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/instance/lv_image_header_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/lv_cache.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/cache/lv_cache_entry.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_anim.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_anim_timeline.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_area.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_array.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_async.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_bidi.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_circle_buf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_color.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_color_op.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_event.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_fs.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_grad.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_iter.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_ll.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_log.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_lru.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_math.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_matrix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_palette.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_profiler_builtin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_profiler_builtin_posix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_rb.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_style.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_style_gen.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_templ.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_text.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_text_ap.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_timer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_tree.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/misc/lv_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_cmsis_rtos2.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_freertos.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_linux.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_mqx.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_os.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_os_none.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_pthread.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_rtthread.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_sdl2.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/osal/lv_windows.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/file_explorer/lv_file_explorer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/font_manager/lv_font_manager.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/font_manager/lv_font_manager_recycle.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/fragment/lv_fragment.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/fragment/lv_fragment_manager.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/gridnav/lv_gridnav.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/ime/lv_ime_pinyin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/imgfont/lv_imgfont.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/monkey/lv_monkey.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/observer/lv_observer.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/snapshot/lv_snapshot.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/sysmon/lv_sysmon.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_display.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_helpers.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_indev.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_indev_gesture.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_screenshot_compare.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/translation/lv_translation.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/vg_lite_tvg/vg_lite_matrix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/vg_lite_tvg/vg_lite_tvg.cpp.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_base_types.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_component.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_load.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_style.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_test.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_translation.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_update.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_utils.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_widget.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_arc_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_bar_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_button_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_buttonmatrix_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_calendar_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_canvas_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_chart_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_checkbox_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_dropdown_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_image_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_keyboard_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_label_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_obj_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_qrcode_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_roller_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_scale_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_slider_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_spangroup_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_spinbox_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_switch_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_table_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_tabview_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_textarea_parser.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_mem_core_builtin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_sprintf_builtin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_string_builtin.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_tlsf.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_mem_core_clib.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_sprintf_clib.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_string_clib.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/lv_mem.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/micropython/lv_mem_core_micropython.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_mem_core_rtthread.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_sprintf_rtthread.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_string_rtthread.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/stdlib/uefi/lv_mem_core_uefi.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/themes/default/lv_theme_default.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/themes/lv_theme.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/themes/mono/lv_theme_mono.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/themes/simple/lv_theme_simple.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/tick/lv_tick.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/3dtexture/lv_3dtexture.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/animimage/lv_animimage.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/arc/lv_arc.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/arclabel/lv_arclabel.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/bar/lv_bar.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/button/lv_button.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/buttonmatrix/lv_buttonmatrix.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_chinese.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_header_arrow.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_header_dropdown.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/canvas/lv_canvas.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/chart/lv_chart.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/checkbox/lv_checkbox.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/dropdown/lv_dropdown.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/image/lv_image.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/imagebutton/lv_imagebutton.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/keyboard/lv_keyboard.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/label/lv_label.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/led/lv_led.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/line/lv_line.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/list/lv_list.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/lottie/lv_lottie.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/menu/lv_menu.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/msgbox/lv_msgbox.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/objx_templ/lv_objx_templ.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_animimage_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_dropdown_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_image_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_keyboard_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_label_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_obj_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_roller_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_slider_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_style_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_textarea_properties.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/roller/lv_roller.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/scale/lv_scale.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/slider/lv_slider.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/span/lv_span.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/spinbox/lv_spinbox.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/spinner/lv_spinner.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/switch/lv_switch.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/table/lv_table.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/tabview/lv_tabview.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/textarea/lv_textarea.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/tileview/lv_tileview.c.o
+Compiling .pio/build/tft-lvgl9/lib41c/lvgl-9.4.0/widgets/win/lv_win.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/tft-lvgl9/lib41c/liblvgl-9.4.0.a
+Indexing .pio/build/tft-lvgl9/lib41c/liblvgl-9.4.0.a
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/main.cpp.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/tft-lvgl9/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/tft-lvgl9/libFrameworkArduino.a
+Indexing .pio/build/tft-lvgl9/libFrameworkArduino.a
+Linking .pio/build/tft-lvgl9/firmware.elf
+Retrieving maximum program size .pio/build/tft-lvgl9/firmware.elf
+Checking size .pio/build/tft-lvgl9/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.9% (used 22528 bytes from 327680 bytes)
+Flash: [======    ]  64.1% (used 839793 bytes from 1310720 bytes)
+Building .pio/build/tft-lvgl9/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 72.00 seconds =========================
+
+Processing tft-touch-lvgl9 (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing symlink:///data/deps/TFT_eSPI-upstream
+Library Manager: TFT_eSPI@2.5.43 has been installed!
+Library Manager: Installing symlink:///data/MicroCS-v2-recovered
+Library Manager: MicroCS@1.14.0 has been installed!
+Library Manager: Installing symlink:///data/deps/lvgl-9.4.0
+Library Manager: lvgl@9.4.0 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 36 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- TFT_eSPI @ 2.5.43
+|-- MicroCS @ 1.14.0
+|-- lvgl @ 9.4.0
+Building in release mode
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_sim.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drivers.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_servo.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_u8g2.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_ws2812.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flash.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flashfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_fs_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_lfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_posix.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_ram.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_tinyfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_yaffs.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_cfg.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_dma.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_sim.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sim.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sock.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_srv.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/os/mcs_os.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/runtime/mcs_runtime.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/sched/mcs_sched.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/shell/mcs_shell.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/tft/mcs_display_rgb565.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/modules/threads/mcs_threads.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_ble.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_fs.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_u8g2.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_port_arduino.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_bytecode.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_compiler.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_fmt.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lexer.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_bytes.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_coll.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_json.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_lib_str.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_object.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_opt.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_value.c.o
+Compiling .pio/build/tft-touch-lvgl9/libe3e/MicroCS-v2-recovered/src/mcs_vm.c.o
+Compiling .pio/build/tft-touch-lvgl9/src/main.cpp.o
+Building .pio/build/tft-touch-lvgl9/bootloader.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Generating partitions .pio/build/tft-touch-lvgl9/partitions.bin
+Compiling .pio/build/tft-touch-lvgl9/lib49e/SPI/SPI.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/lib49e/libSPI.a
+Indexing .pio/build/tft-touch-lvgl9/lib49e/libSPI.a
+Compiling .pio/build/tft-touch-lvgl9/lib602/FS/FS.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib602/FS/vfs_api.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/libafb/SPIFFS/SPIFFS.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/lib602/libFS.a
+Indexing .pio/build/tft-touch-lvgl9/lib602/libFS.a
+Compiling .pio/build/tft-touch-lvgl9/lib024/LittleFS/LittleFS.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/libafb/libSPIFFS.a
+Indexing .pio/build/tft-touch-lvgl9/libafb/libSPIFFS.a
+Compiling .pio/build/tft-touch-lvgl9/lib726/TFT_eSPI-upstream/TFT_eSPI.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/lib024/libLittleFS.a
+Indexing .pio/build/tft-touch-lvgl9/lib024/libLittleFS.a
+Compiling .pio/build/tft-touch-lvgl9/lib7a1/I2S/I2S.cpp.o
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp: In member function 'int I2SClass::_installDriver()':
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:202:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc1_config_channel_atten((esp_i2s::adc1_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:204:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc2_config_channel_atten((esp_i2s::adc2_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+Archiving .pio/build/tft-touch-lvgl9/lib7a1/libI2S.a
+Indexing .pio/build/tft-touch-lvgl9/lib7a1/libI2S.a
+Compiling .pio/build/tft-touch-lvgl9/lib9b2/SD/SD.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib9b2/SD/sd_diskio.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib9b2/SD/sd_diskio_crc.c.o
+Archiving .pio/build/tft-touch-lvgl9/lib9b2/libSD.a
+Indexing .pio/build/tft-touch-lvgl9/lib9b2/libSD.a
+Compiling .pio/build/tft-touch-lvgl9/lib69e/Wire/Wire.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/lib69e/libWire.a
+Indexing .pio/build/tft-touch-lvgl9/lib69e/libWire.a
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_group.c.o
+Archiving .pio/build/tft-touch-lvgl9/lib726/libTFT_eSPI-upstream.a
+Indexing .pio/build/tft-touch-lvgl9/lib726/libTFT_eSPI-upstream.a
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_class.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_draw.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_event.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_id_builtin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_pos.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_property.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_scroll.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_style.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_style_gen.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_obj_tree.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/core/lv_refr.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/display/lv_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/convert/helium/lv_draw_buf_convert_helium.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/convert/lv_draw_buf_convert.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/convert/neon/lv_draw_buf_convert_neon.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/dma2d/lv_draw_dma2d_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_buf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/espressif/ppa/lv_draw_ppa_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_letter.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_ram_g.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_draw_eve_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/eve/lv_eve.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_3d.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_buf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_label.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_mask.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_rect.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_draw_vector.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/lv_image_decoder.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_border.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_label.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_layer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_stm32_hal.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_draw_nema_gfx_vector.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nema_gfx/lv_nema_gfx_path.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_buf_g2d.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_draw_g2d_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_g2d_buf_map.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/g2d/lv_g2d_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_buf_pxp.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_draw_pxp_layer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_cfg.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_osa.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/nxp/pxp/lv_pxp_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/opengles/lv_draw_opengles.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_border.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_label.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_mask_rectangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/renesas/dave2d/lv_draw_dave2d_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sdl/lv_draw_sdl.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/helium/lv_blend_helium.S.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_al88.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_argb8888.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_argb8888_premultiplied.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_i1.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_l8.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb565.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb565_swapped.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/lv_draw_sw_blend_to_rgb888.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb565.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/blend/neon/lv_draw_sw_blend_neon_to_rgb888.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_border.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_box_shadow.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_grad.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_letter.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_mask.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_mask_rect.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_transform.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/sw/lv_draw_sw_vector.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_buf_vg_lite.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_border.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_box_shadow.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_fill.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_img.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_label.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_layer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_mask_rect.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_triangle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_draw_vg_lite_vector.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_decoder.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_grad.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_math.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_path.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_pending.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_stroke.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/draw/vg_lite/lv_vg_lite_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm_common.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/drm/lv_linux_drm_egl.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/fb/lv_linux_fbdev.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/ft81x/lv_ft81x.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/ili9341/lv_ili9341.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/lcd/lv_lcd_generic_mipi.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/lovyan_gfx/lv_lovyan_gfx.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/nv3007/lv_nv3007.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/nxp_elcdif/lv_nxp_elcdif.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/renesas_glcdc/lv_renesas_glcdc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7735/lv_st7735.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7789/lv_st7789.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st7796/lv_st7796.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/st_ltdc/lv_st_ltdc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/display/tft_espi/lv_tft_espi.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/draw/eve/lv_draw_eve_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/evdev/lv_evdev.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/libinput/lv_libinput.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/libinput/lv_xkb.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_entry.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_fbdev.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_image_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_lcd.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_libuv.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_mouse.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_profiler.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/nuttx/lv_nuttx_touchscreen.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/assets/lv_opengles_shader.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/glad/src/egl.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/glad/src/gles2.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_debug.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_driver.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_egl.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_glfw.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/lv_opengles_texture.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/opengl_shader/lv_opengl_shader_manager.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/opengles/opengl_shader/lv_opengl_shader_program.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/qnx/lv_qnx.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_keyboard.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_mouse.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_mousewheel.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/sdl/lv_sdl_window.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_context.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_keyboard.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_pointer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_indev_touch.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/uefi/lv_uefi_private.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wayland.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wayland_smm.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_dmabuf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_keyboard.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_pointer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_pointer_axis.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_seat.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_shm.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_touch.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_window.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_window_decorations.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/wayland/lv_wl_xdg_shell.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_context.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/windows/lv_windows_input.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/x11/lv_x11_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/drivers/x11/lv_x11_input.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_binfont_loader.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_dejavu_16_persian_hebrew.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_fmt_txt.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_10.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_12.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_14.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_14_aligned.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_16.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_18.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_20.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_22.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_24.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_26.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_28.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_28_compressed.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_30.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_32.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_34.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_36.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_38.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_40.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_42.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_44.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_46.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_48.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_montserrat_8.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_source_han_sans_sc_14_cjk.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_source_han_sans_sc_16_cjk.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_unscii_16.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/font/lv_font_unscii_8.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev_gesture.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/indev/lv_indev_scroll.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/layouts/flex/lv_flex.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/layouts/grid/lv_grid.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/layouts/lv_layout.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/FT800-FT813/EVE_commands.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/FT800-FT813/EVE_supplemental.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/barcode/code128.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/barcode/lv_barcode.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/bin_decoder/lv_bin_decoder.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/bmp/lv_bmp.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmlparse.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmlrole.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok_impl.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/expat/xmltok_ns.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/ffmpeg/lv_ffmpeg.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_glyph.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_freetype_outline.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/freetype/lv_ftsystem.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/frogfs/src/decomp_raw.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/frogfs/src/frogfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_arduino_esp_littlefs.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_arduino_sd.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_cbfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_fatfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_frogfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_littlefs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_memfs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_posix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_stdio.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_uefi.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/fsdrv/lv_fs_win32.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gif/AnimatedGIF/src/gif.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gif/lv_gif.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_bind.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_animations.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_cache.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_injest.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_mesh.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_node.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_primitive.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_shader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_skin.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_data_texture.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_data/lv_gltf_uniform_locations.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/assets/chromatic.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/assets/lv_gltf_view_shader.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/ibl/lv_gltf_ibl_sampler.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view_render.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/gltf_view/lv_gltf_view_shader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gltf/math/lv_gltf_math.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/gstreamer/lv_gstreamer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/libjpeg_turbo/lv_libjpeg_turbo.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/libpng/lv_libpng.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/lodepng/lodepng.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/lodepng/lv_lodepng.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/lz4/lz4.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/qrcode/lv_qrcode.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/qrcode/qrcodegen.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/rle/lv_rle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/rlottie/lv_rlottie.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_decoder.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_render.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/svg/lv_svg_token.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgAccessor.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgAnimation.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCanvas.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCapi.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgCompressor.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgFill.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgGlCanvas.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgInitializer.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLoader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieAnimation.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieBuilder.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieExpressions.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieInterpolator.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieLoader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieModel.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieModifier.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieParser.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgLottieParserHandler.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgMath.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgPaint.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgPicture.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgRawLoader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgRender.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSaver.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgScene.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgShape.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgStr.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgCssStyle.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgLoader.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgPath.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgSceneBuilder.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSvgUtil.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwCanvas.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwFill.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwImage.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwMath.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwMemPool.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwPostEffect.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRaster.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRenderer.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwRle.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwShape.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgSwStroke.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgTaskScheduler.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgText.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgWgCanvas.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/thorvg/tvgXmlParser.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/tiny_ttf/lv_tiny_ttf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/tjpgd/lv_tjpgd.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/tjpgd/tjpgd.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_matrix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_path.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLite/vg_lite_stroke.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/VGLiteKernel/vg_lite_kernel.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/lv_vg_lite_hal/lv_vg_lite_hal.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/libs/vg_lite_driver/lv_vg_lite_hal/vg_lite_os.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/lv_init.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_lru_ll.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_lru_rb.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/class/lv_cache_sc_da.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/instance/lv_image_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/instance/lv_image_header_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/lv_cache.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/cache/lv_cache_entry.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_anim.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_anim_timeline.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_area.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_array.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_async.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_bidi.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_circle_buf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_color.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_color_op.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_event.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_fs.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_grad.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_iter.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_ll.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_log.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_lru.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_math.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_matrix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_palette.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_profiler_builtin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_profiler_builtin_posix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_rb.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_style.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_style_gen.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_templ.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_text.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_text_ap.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_timer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_tree.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/misc/lv_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_cmsis_rtos2.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_freertos.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_linux.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_mqx.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_os.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_os_none.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_pthread.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_rtthread.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_sdl2.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/osal/lv_windows.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/file_explorer/lv_file_explorer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/font_manager/lv_font_manager.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/font_manager/lv_font_manager_recycle.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/fragment/lv_fragment.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/fragment/lv_fragment_manager.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/gridnav/lv_gridnav.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/ime/lv_ime_pinyin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/imgfont/lv_imgfont.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/monkey/lv_monkey.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/observer/lv_observer.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/snapshot/lv_snapshot.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/sysmon/lv_sysmon.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_display.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_helpers.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_indev.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_indev_gesture.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/test/lv_test_screenshot_compare.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/translation/lv_translation.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/vg_lite_tvg/vg_lite_matrix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/vg_lite_tvg/vg_lite_tvg.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_base_types.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_component.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_load.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_style.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_test.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_translation.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_update.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_utils.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/lv_xml_widget.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_arc_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_bar_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_button_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_buttonmatrix_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_calendar_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_canvas_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_chart_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_checkbox_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_dropdown_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_image_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_keyboard_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_label_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_obj_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_qrcode_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_roller_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_scale_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_slider_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_spangroup_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_spinbox_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_switch_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_table_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_tabview_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/others/xml/parsers/lv_xml_textarea_parser.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_mem_core_builtin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_sprintf_builtin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_string_builtin.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/builtin/lv_tlsf.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_mem_core_clib.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_sprintf_clib.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/clib/lv_string_clib.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/lv_mem.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/micropython/lv_mem_core_micropython.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_mem_core_rtthread.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_sprintf_rtthread.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/rtthread/lv_string_rtthread.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/stdlib/uefi/lv_mem_core_uefi.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/themes/default/lv_theme_default.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/themes/lv_theme.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/themes/mono/lv_theme_mono.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/themes/simple/lv_theme_simple.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/tick/lv_tick.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/3dtexture/lv_3dtexture.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/animimage/lv_animimage.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/arc/lv_arc.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/arclabel/lv_arclabel.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/bar/lv_bar.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/button/lv_button.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/buttonmatrix/lv_buttonmatrix.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_chinese.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_header_arrow.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/calendar/lv_calendar_header_dropdown.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/canvas/lv_canvas.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/chart/lv_chart.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/checkbox/lv_checkbox.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/dropdown/lv_dropdown.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/image/lv_image.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/imagebutton/lv_imagebutton.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/keyboard/lv_keyboard.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/label/lv_label.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/led/lv_led.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/line/lv_line.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/list/lv_list.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/lottie/lv_lottie.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/menu/lv_menu.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/msgbox/lv_msgbox.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/objx_templ/lv_objx_templ.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_animimage_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_dropdown_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_image_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_keyboard_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_label_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_obj_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_roller_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_slider_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_style_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/property/lv_textarea_properties.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/roller/lv_roller.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/scale/lv_scale.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/slider/lv_slider.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/span/lv_span.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/spinbox/lv_spinbox.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/spinner/lv_spinner.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/switch/lv_switch.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/table/lv_table.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/tabview/lv_tabview.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/textarea/lv_textarea.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/tileview/lv_tileview.c.o
+Compiling .pio/build/tft-touch-lvgl9/lib41c/lvgl-9.4.0/widgets/win/lv_win.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/tft-touch-lvgl9/lib41c/liblvgl-9.4.0.a
+Indexing .pio/build/tft-touch-lvgl9/lib41c/liblvgl-9.4.0.a
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/main.cpp.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/tft-touch-lvgl9/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/tft-touch-lvgl9/libFrameworkArduino.a
+Indexing .pio/build/tft-touch-lvgl9/libFrameworkArduino.a
+Linking .pio/build/tft-touch-lvgl9/firmware.elf
+Retrieving maximum program size .pio/build/tft-touch-lvgl9/firmware.elf
+Checking size .pio/build/tft-touch-lvgl9/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.9% (used 22528 bytes from 327680 bytes)
+Flash: [======    ]  64.2% (used 841585 bytes from 1310720 bytes)
+Building .pio/build/tft-touch-lvgl9/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 71.74 seconds =========================
+
+Processing graphics-off (platform: espressif32@6.10.0; board: esp32dev; framework: arduino)
+--------------------------------------------------------------------------------
+Library Manager: Installing symlink:///data/MicroCS-v2-recovered
+Library Manager: MicroCS@1.14.0 has been installed!
+Verbose mode can be enabled via `-v, --verbose` option
+CONFIGURATION: https://docs.platformio.org/page/boards/espressif32/esp32dev.html
+PLATFORM: Espressif 32 (6.10.0) > Espressif ESP32 Dev Module
+HARDWARE: ESP32 240MHz, 320KB RAM, 4MB Flash
+DEBUG: Current (cmsis-dap) External (cmsis-dap, esp-bridge, esp-prog, iot-bus-jtag, jlink, minimodule, olimex-arm-usb-ocd, olimex-arm-usb-ocd-h, olimex-arm-usb-tiny-h, olimex-jtag-tiny, tumpa)
+PACKAGES: 
+ - framework-arduinoespressif32 @ 3.20017.241212+sha.dcc1105b 
+ - tool-esptoolpy @ 1.40501.0 (4.5.1) 
+ - toolchain-xtensa-esp32 @ 8.4.0+2021r2-patch5
+LDF: Library Dependency Finder -> https://bit.ly/configure-pio-ldf
+LDF Modes: Finder ~ chain, Compatibility ~ soft
+Found 34 compatible libraries
+Scanning dependencies...
+Dependency Graph
+|-- MicroCS @ 1.14.0
+Building in release mode
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_lib.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/ble/mcs_ble_sim.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drivers.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_servo.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_u8g2.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/drivers/mcs_drv_ws2812.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flash.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_flashfs.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_fs_lib.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_lfs.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_posix.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_ram.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_tinyfs.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/fs/mcs_vfs_yaffs.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_cfg.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_dma.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_lib.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/hal/mcs_hal_sim.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/lvgl/mcs_lvgl.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_lib.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sim.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_sock.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/net/mcs_net_srv.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/os/mcs_os.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/runtime/mcs_runtime.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/sched/mcs_sched.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/shell/mcs_shell.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/tft/mcs_display_rgb565.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/modules/threads/mcs_threads.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_ble.cpp.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_fs.cpp.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_tft.cpp.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_arduino_u8g2.cpp.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/ports/arduino/mcs_port_arduino.cpp.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_bytecode.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_compiler.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_fmt.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lexer.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lib.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lib_bytes.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lib_coll.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lib_json.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_lib_str.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_object.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_opt.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_parser.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_value.c.o
+Compiling .pio/build/graphics-off/libe3e/MicroCS-v2-recovered/src/mcs_vm.c.o
+Compiling .pio/build/graphics-off/src/main.cpp.o
+Building .pio/build/graphics-off/bootloader.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 1 ELF section
+Successfully created esp32 image.
+Generating partitions .pio/build/graphics-off/partitions.bin
+Compiling .pio/build/graphics-off/lib7a1/I2S/I2S.cpp.o
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp: In member function 'int I2SClass::_installDriver()':
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:202:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc1_config_channel_atten((esp_i2s::adc1_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:204:89: warning: 'ADC_ATTEN_DB_11' is deprecated [-Wdeprecated-declarations]
+       esp_i2s::adc2_config_channel_atten((esp_i2s::adc2_channel_t)adc_channel, esp_i2s::ADC_ATTEN_DB_11);
+                                                                                         ^~~~~~~~~~~~~~~
+In file included from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/adc.h:14,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/driver/include/driver/i2s.h:21,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.h:26,
+                 from /data/toolchains/pio-core/packages/framework-arduinoespressif32/libraries/I2S/src/I2S.cpp:21:
+/data/toolchains/pio-core/packages/framework-arduinoespressif32/tools/sdk/esp32/include/hal/include/hal/adc_types.h:54:5: note: declared here
+     ADC_ATTEN_DB_11 __attribute__((deprecated)) = ADC_ATTEN_DB_12,  ///<This is deprecated, it behaves the same as `ADC_ATTEN_DB_12`
+     ^~~~~~~~~~~~~~~
+Archiving .pio/build/graphics-off/lib7a1/libI2S.a
+Indexing .pio/build/graphics-off/lib7a1/libI2S.a
+Compiling .pio/build/graphics-off/lib602/FS/FS.cpp.o
+Compiling .pio/build/graphics-off/lib602/FS/vfs_api.cpp.o
+Compiling .pio/build/graphics-off/lib49e/SPI/SPI.cpp.o
+Archiving .pio/build/graphics-off/lib602/libFS.a
+Indexing .pio/build/graphics-off/lib602/libFS.a
+Compiling .pio/build/graphics-off/lib9b2/SD/SD.cpp.o
+Archiving .pio/build/graphics-off/lib49e/libSPI.a
+Indexing .pio/build/graphics-off/lib49e/libSPI.a
+Compiling .pio/build/graphics-off/lib9b2/SD/sd_diskio.cpp.o
+Compiling .pio/build/graphics-off/lib9b2/SD/sd_diskio_crc.c.o
+Compiling .pio/build/graphics-off/lib69e/Wire/Wire.cpp.o
+Archiving .pio/build/graphics-off/lib9b2/libSD.a
+Indexing .pio/build/graphics-off/lib9b2/libSD.a
+Compiling .pio/build/graphics-off/FrameworkArduino/Esp.cpp.o
+Archiving .pio/build/graphics-off/lib69e/libWire.a
+Indexing .pio/build/graphics-off/lib69e/libWire.a
+Compiling .pio/build/graphics-off/FrameworkArduino/FirmwareMSC.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/FunctionalInterrupt.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/HWCDC.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/HardwareSerial.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/IPAddress.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/IPv6Address.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/MD5Builder.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/Print.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/Stream.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/StreamString.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/Tone.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/USB.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/USBCDC.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/USBMSC.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/WMath.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/WString.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/base64.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/cbuf.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-adc.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-bt.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-cpu.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-dac.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-gpio.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-i2c-slave.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-i2c.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-ledc.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-matrix.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-misc.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-psram.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-rgb-led.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-rmt.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-sigmadelta.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-spi.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-time.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-timer.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-tinyusb.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-touch.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/esp32-hal-uart.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/firmware_msc_fat.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/libb64/cdecode.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/libb64/cencode.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/main.cpp.o
+Compiling .pio/build/graphics-off/FrameworkArduino/stdlib_noniso.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/wiring_pulse.c.o
+Compiling .pio/build/graphics-off/FrameworkArduino/wiring_shift.c.o
+Archiving .pio/build/graphics-off/libFrameworkArduino.a
+Indexing .pio/build/graphics-off/libFrameworkArduino.a
+Linking .pio/build/graphics-off/firmware.elf
+Retrieving maximum program size .pio/build/graphics-off/firmware.elf
+Checking size .pio/build/graphics-off/firmware.elf
+Advanced Memory Usage is available via "PlatformIO Home > Project Inspect"
+RAM:   [=         ]   6.7% (used 21828 bytes from 327680 bytes)
+Flash: [====      ]  37.5% (used 491661 bytes from 1310720 bytes)
+Building .pio/build/graphics-off/firmware.bin
+esptool.py v4.5.1
+Creating esp32 image...
+Merged 2 ELF sections
+Successfully created esp32 image.
+========================= [SUCCESS] Took 23.51 seconds =========================
+
+Environment      Status    Duration
+---------------  --------  ------------
+tft-standalone   SUCCESS   00:01:13.103
+tft-lvgl8        SUCCESS   00:00:45.384
+tft-lvgl9        SUCCESS   00:01:12.002
+tft-touch-lvgl9  SUCCESS   00:01:11.743
+graphics-off     SUCCESS   00:00:23.510
+========================= 5 succeeded in 00:04:45.741 =========================

@@ -1,0 +1,4 @@
+[ 88%] Built target microcs
+[ 94%] Building C object CMakeFiles/test_image_stack_probe.dir/data/MicroCS-v2-recovered/tests/c/experimental/test_image_stack_probe.c.o
+[100%] Linking C executable test_image_stack_probe
+[100%] Built target test_image_stack_probe

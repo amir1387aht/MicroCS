@@ -1,0 +1,19 @@
+stack-flow rejection fn=? pc=0
+stack-flow rejection fn=? pc=0
+stack-flow rejection fn=? pc=1
+stack-flow rejection fn=? pc=4
+stack-flow rejection fn=? pc=0
+stack-flow rejection fn=? pc=0
+stack-flow rejection fn=? pc=3
+PASS balanced return: flow=accepted; LOAD ONLY
+PASS reachable fallthrough: flow=rejected; LOAD ONLY
+PASS pop below callee: flow=rejected; LOAD ONLY
+PASS growth on loop backedge: flow=rejected; LOAD ONLY
+PASS mismatched branch depths: flow=rejected; LOAD ONLY
+PASS local beyond initialized height: flow=rejected; LOAD ONLY
+PASS initialized local: flow=accepted; LOAD ONLY
+PASS END_TRY without handler: flow=rejected; LOAD ONLY
+PASS TRY normal and catch: flow=accepted; LOAD ONLY
+PASS pop below saved handler height: flow=rejected; LOAD ONLY
+PASS KNOWN TYPE GAP, never execute: flow=accepted; LOAD ONLY
+11/11 experimental flow assertions; NO image executed; type/lifetime/embedded-memory verification absent

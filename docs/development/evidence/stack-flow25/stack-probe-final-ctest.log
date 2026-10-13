@@ -1,0 +1,10 @@
+Internal ctest changing into directory: /data/MicroCS-v2-recovered/build/stack-probe-san
+Test project /data/MicroCS-v2-recovered/build/stack-probe-san
+    Start 1: image_metadata
+1/2 Test #1: image_metadata ...................   Passed    0.04 sec
+    Start 2: experimental_stack_flow
+2/2 Test #2: experimental_stack_flow ..........   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.05 sec

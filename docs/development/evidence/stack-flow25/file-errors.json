@@ -1,0 +1,17 @@
+[
+  {
+    "case": "empty",
+    "exit": 2,
+    "output": ""
+  },
+  {
+    "case": "bad-magic",
+    "exit": 2,
+    "output": "actual loader rejection: /data/MicroCS-v2-recovered/build/stack-flow-research/error-bad-magic.mcsb\n"
+  },
+  {
+    "case": "truncated",
+    "exit": 2,
+    "output": "actual loader rejection: /data/MicroCS-v2-recovered/build/stack-flow-research/error-truncated.mcsb\n"
+  }
+]

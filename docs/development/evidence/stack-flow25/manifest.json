@@ -1,0 +1,82 @@
+{
+  "predecessor": "0e2184e2ee13a849e62be152e05406ffa1a373de",
+  "production": "UNCHANGED vs24; no probe in runtime/library",
+  "completed_debug24_gates": {
+    "metadata_configs": {
+      "default": 2961,
+      "gc-stress": 2961,
+      "compiler-off": 2961,
+      "xip-off": 2961,
+      "compact": 2961,
+      "int64": 2961,
+      "float32": 2961,
+      "no-float": 2961,
+      "min": 2369
+    },
+    "five_esp32_cross_links": true,
+    "sanitized_host85": true,
+    "fuzz_seed": 2401,
+    "source_fuzz400_findings": 0,
+    "load_disasm_only_image_fuzz400_findings": 0,
+    "LVGL8_and_9_all_fonts_each": 887,
+    "LVGL_goldens_each": 5,
+    "full_Studio_gallery_editor": true,
+    "exact24_CI": {
+      "success": 92
+    }
+  },
+  "research": {
+    "self_test_expectations": 11,
+    "bounded_file_error_cases": 3,
+    "sources": 244,
+    "modes": [
+      "opt",
+      "noopt"
+    ],
+    "images": 488,
+    "function_visits": 1346,
+    "image_execution": false,
+    "ASan_UBSan_leaks": true,
+    "known_type_gap_explicitly_accepted_and_NEVER_executed": true,
+    "production_verifier": false,
+    "missing": [
+      "operand types/dynamic guards",
+      "captured-slot lifetime/initialized types/exception interactions",
+      "compact bounded VM-quota storage/OOM/budgets/32-bit proof",
+      "actual eval peaks/call reservations",
+      "full profiles/malicious mutation/review/security integration"
+    ]
+  },
+  "source_sha256": {
+    "tests/c/experimental/test_image_stack_probe.c": "8ec67240a32dcaff9da5f6191e4db667eb11b7e9404f40d7c54c70ee61de86d9",
+    "tools/test_image_stack_probe.py": "91537bfa98c92e1c30602590f859e00d80513eda6568088528c929313006e476",
+    "tests/c/image_metadata/CMakeLists.txt": "cde213b00229d11704a554d4be18796afea6ec53a2950df83974b39c1ad61b8a",
+    ".github/workflows/ci.yml": "8ad315190f717ae286c847537de4167f2b485cde7339837ef7c395462176b60a"
+  },
+  "artifact_sha256": {
+    "v2-debug24-nine-sanitizers.log": "07b48e573c927586dc10fa26244c313fad70cda62e2c4d12f8919b6c74f30363",
+    "v2-debug24-cross.log": "a01edc7738d41d0af22e5beea14a1f188c2cea10fe59ca081b2c430701080e8a",
+    "v2-debug24-cross.json": "01f744b303c9f86f88381138a1b83ddc48ee66567db447f6e69b7ce35556fad2",
+    "v2-debug24-san-host85.log": "75f9072d29a4850340adaa80e5917086b371b0ebaaac9a69536164c91509db1f",
+    "v2-debug24-fuzz-source.log": "77d9455714080e8a9fefb76eb02cf0bad2078a9df83d905ef161665e3c5cd401",
+    "v2-debug24-fuzz-image.log": "77d9455714080e8a9fefb76eb02cf0bad2078a9df83d905ef161665e3c5cd401",
+    "v2-debug24-lvgl-fonts.log": "ec49dd2aed4f8770371d7e61b333f9d4fb79605f77853577e79162301cb06a9b",
+    "v2-debug24-studio.log": "4477caa48fcb5eda2258c1c40b6df83c3d6765470839a3dbea5f0aac40e7a737",
+    "v2-debug24-gallery.log": "3ae94c5e3383aacee824e4bc153857053216f20a80f87ab32af4a2a6d0000b80",
+    "v2-debug24-editor.log": "c061e26a4042544b2be351a06c576a3ec981975875216c1f80ef3c85779d7b9d",
+    "v2-checkpoint24-ci.json": "1f64130fe9912c36a8b8ea2f06788924b0117c1f1dbbf8f7e3faef091e1f6df1",
+    "stack-probe-first.log": "10060d58db24b89f9163cfa70af9daaa20f2a1cb2cb2551739657f262923461f",
+    "stack-probe-self-test.log": "fb956d3c1190164d3e32d7c5b3f2ce7d60ba206ca61fb4e93fbcb4d9329949fd",
+    "stack-probe-host27.log": "10060d58db24b89f9163cfa70af9daaa20f2a1cb2cb2551739657f262923461f",
+    "stack-probe-template-builds.log": "afeb914e5c6f72623f93389d5c9571f8e3fc9ec2e6f81029112bf7a258115919",
+    "stack-probe-templates-first.log": "0a21a2ccdb2bb5a7cd3f993e0104e1dc54b924febb75cc792bbc18652f7ef653",
+    "stack-probe-final-build.log": "f2df66bf36512c2dd878a1b6c572f8b7bed7de494905da9ebb19826f85424f2f",
+    "stack-probe-final-ctest.log": "62a102cac450ae660579ab13bb28a6b057eef10d4eed77e191a3766b5a9d917e",
+    "stack-probe-final-corpus.log": "78da23e405753192fb41ec8545e278b584a66c25ff99bdff28216a7fbb6abd3a",
+    "compiled-corpus.json": "5a0dad7acfd97663ee70227adcd1072f31b95cff74b5edde27ea2498702dd2f8",
+    "file-errors.json": "7c54aaa7e49944374c90c2b9eb44719c784227f81baebad0b67de8ecc405f71e",
+    "self-test.log": "fe881baa254969a583c38cced221487b4e840d0d776b8b0e93287625cd2cb572",
+    "corpus.log": "f8a524a02f5c14166923eb41afd7848408c3eeec43c8e4579cb31902120eae7e"
+  },
+  "release": "still blocked by fullscope/production verifier/security/board/review requirements"
+}

@@ -764,3 +764,35 @@ no source changes until all compiling runs exit. Freshlogs backed remotely in
 `evidence/debug-records24/`, baselinefixture retained, staged/cumulativepatches
 and NOTES maintained. Continue completedgates, then fullstack/type/controlflow
 verification and remainingfullscope. No merge/tag/release/deviceprovisioning.
+
+## Checkpoint25 — complete debug24 gates + host-only stack-flow research
+
+Predecessor24 REMOTE0e2184e2ee13a849e62be152e05406ffa1a373de tree-verified;
+exactheadCI92/92success. New production source UNCHANGED versus24. All nine
+metadata/debug sanitizer configs completed:2961 EACH default/GC/compilerOFF/
+XIPOFF/compact/INT64/float32/noFLOAT; min2369 (no disassembly). Real32bit five
+ESP32 crosslinks pass after caches restored, actual artifacts/pins recorded.
+Freshsanitizedhost85 +400source/400LOAD-DISASM-only image fuzz(seed2401)0findings.
+ActualLVGL8/9 all27fonts EACH887checks +fivegoldens EACH pass ASAN/UBSAN/leaks
+(with explicit unchanged8decodercompat fix). FullStudio/gallery/editorpass,
+no timeout/assertion bypass. All localgate jobs exited; no activecommands.
+
+Standalone HOST-ONLY experimental dense-PC stack-flow probe added UNDERTESTS,
+NEVER linked/invoked by production. It models base/fused effects, local/capture
+height bounds, joins/loops/fallthrough, call/return and TRY normal/catch/saved
+height/handler contexts. Real compiler27tests+217templates xopt/-O0 =488images,
+1346 function visits accepted under ASAN/UBSAN/leaks; 11selftest expectations
+and3bounded fileerror paths pass with actualloader, NO images executed. Native
+strict-Werror, CMake/CTest(2/2), sourcehashes/rawlogs/corpus hashes preserved.
+Selftest EXPLICITLY accepts invalid class-type INHERIT with balanced heights to
+expose knownTYPEGAP; NEVERexecute it. No fake fullverification/securitypass.
+
+Densehost calloc storage NOTVMquota/MCU eligible, no dynamictype/lifetime proof;
+compactbounded storage/OOM/time/GC/32bit, captured-slot lifetime, initialized
+values/types, real evaluationpeaks/safecallreservations, profile/hostilecorpora,
+typeguards and independentreview still required. Production trusted-compiler
+warning remains. CI adds explicitly-named research step, newheadCIpending.
+Evidence `evidence/stack-flow25/`, design/repro `image-stack-flow-research.md`.
+Staged/cumulativepatches +NOTES kept; push/fetch/treeverify next. Continue actual
+stack capacity/peak safety (including source/copy/XIP), compactverification and
+remaining fullscope. No merge/tag/release/provisioning/irreversible actions.

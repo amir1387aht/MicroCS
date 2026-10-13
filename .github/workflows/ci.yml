@@ -38,6 +38,17 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: python3 tools/test_image_metadata.py --sanitize
+      - name: Host-only stack-flow research (not a security verifier)
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cmake -S tests/c/image_metadata -B build/stack-flow-research-cmake \
+            -DCMAKE_C_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-pie -Wall -Wextra -Werror" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address,undefined -no-pie"
+          cmake --build build/stack-flow-research-cmake --target test_image_metadata test_image_stack_probe -j2
+          ctest --test-dir build/stack-flow-research-cmake --output-on-failure
+          python3 tools/test_image_stack_probe.py --probe build/stack-flow-research-cmake/test_image_stack_probe
       - name: Fuzz (source + image, short run)
         run: |
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER
