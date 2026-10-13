@@ -25,3 +25,18 @@ with tempfile.TemporaryDirectory() as tmp:
     subprocess.run(['python3', str(ROOT/'tools/make_arduino.py'), '--out', tmp], check=True, stdout=subprocess.DEVNULL)
     assert (Path(tmp)/'MicroCS/src/mcs_capabilities.def').read_bytes() == (ROOT/'include/mcs_capabilities.def').read_bytes()
 print('PASS Arduino package includes capability manifest')
+
+# Both optional graphics switches must package real adapter code/generated includes,
+# without bundling third-party source or mutating its configuration.
+with tempfile.TemporaryDirectory() as tmp:
+    subprocess.run(['python3', str(ROOT/'tools/make_arduino.py'), '--out', tmp,
+                    '--tft-espi', '--lvgl', '8'], check=True, stdout=subprocess.DEVNULL)
+    bundle=Path(tmp)/'MicroCS'
+    for filename in ('mcs_arduino_tft.cpp','mcs_lvgl.c','mcs_lvgl_calls.inc',
+                     'mcs_lvgl_widgets.inc','mcs_lvgl_styles.inc','mcs_display_rgb565.c'):
+        assert (bundle/'src'/filename).is_file(), filename
+    config=(bundle/'src/mcs_user_config.h').read_text()
+    assert '#define MCS_ENABLE_TFT_ESPI 1' in config and '#define MCS_LVGL_MAJOR 8' in config
+    assert 'TFT_eSPI' in (bundle/'library.properties').read_text() and 'lvgl' in (bundle/'library.properties').read_text()
+    assert not (bundle/'src/TFT_eSPI.h').exists() and not (bundle/'src/lvgl.h').exists()
+print('PASS Arduino optional graphics packaging: generated includes and explicit dependencies')

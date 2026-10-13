@@ -1,0 +1,1 @@
+This firmware lacks TFT_eSPI. Enable the optional Arduino driver and reviewed TFT setup.

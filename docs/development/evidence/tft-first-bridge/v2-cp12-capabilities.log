@@ -1,0 +1,7 @@
+67/67 capability checks passed
+79/79 capability checks passed
+60/60 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies

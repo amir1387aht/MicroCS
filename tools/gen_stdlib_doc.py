@@ -8,10 +8,12 @@ usage: python3 tools/gen_stdlib_doc.py > docs/STDLIB.md
 import glob, os, re, sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-FILES = sorted(glob.glob(os.path.join(ROOT, "src", "*.c")) + glob.glob(os.path.join(ROOT, "modules", "*", "*.c")))
+FILES = sorted(glob.glob(os.path.join(ROOT, "src", "*.c")) + glob.glob(os.path.join(ROOT, "modules", "*", "*.c")) + glob.glob(os.path.join(ROOT, "ports", "arduino", "*.cpp")))
 
 # table name -> (section, C# type, "instance" | "static", note)
 MAP = {
+    "tft_members": ("Optional TFT_eSPI (Arduino)", "Tft", "instance", "real Arduino WIP subset; explicit setup; [TFT_ESPI.md](TFT_ESPI.md)"),
+    "tft_statics": ("Optional TFT_eSPI (Arduino)", "Tft", "static", "actual upstream header version, not manifest/tag"),
     "lv_gui_members": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "instance", "`MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md))"),
     "lv_gui_statics": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "static", "real pinned upstream version"),
     "lv_object_members": ("Optional LVGL GUI (modules/lvgl)", "LvObject", "instance", "generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise"),
@@ -131,7 +133,7 @@ MAP = {
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}
-ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Optional LVGL GUI (modules/lvgl)", "Network (modules/net)", "Bluetooth (modules/ble)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
+ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Optional LVGL GUI (modules/lvgl)", "Optional TFT_eSPI (Arduino)", "Network (modules/net)", "Bluetooth (modules/ble)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
 def strip_comments(s):
@@ -199,7 +201,7 @@ w("in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). 
 w("be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of")
 w("`include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).")
 w("")
-w("**Contents:** " + " · ".join("[%s](#%s)" % (s, re.sub(r"[^a-z0-9 -]", "", s.lower()).replace(" ", "-")) for s in ORDER))
+w("**Contents:** " + " · ".join("[%s](#%s)" % (s, re.sub(r"[^a-z0-9 _-]", "", s.lower()).replace(" ", "-")) for s in ORDER))
 w("")
 total = 0
 for sec in ORDER:

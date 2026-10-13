@@ -541,3 +541,45 @@ jobs:
           cmp build/lvgl-disabled/result.txt tests/lvgl/disabled.out
       - name: Missing/config/version failures and default OFF contract
         run: python3 tests/lvgl/test_build_contract.py --cmake cmake --root /tmp/lvgl --major ${{ matrix.major }}
+
+  tft-espi:
+    name: Optional real TFT_eSPI ESP32 standalone/LVGL8/LVGL9/touch (release OFF)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MICROCS_SOURCE_ROOT: ${{ github.workspace }}
+      MICROCS_TFT_ROOT: /tmp/TFT_eSPI
+      MICROCS_LVGL8_ROOT: /tmp/lvgl8
+      MICROCS_LVGL9_ROOT: /tmp/lvgl9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Explicit pinned build tools and upstream sources
+        run: |
+          pip install platformio==6.1.18
+          git init /tmp/TFT_eSPI
+          git -C /tmp/TFT_eSPI remote add origin https://github.com/Bodmer/TFT_eSPI.git
+          git -C /tmp/TFT_eSPI fetch --depth 1 origin 16e37595040eac69cd628e4bffb56fc30cad6299
+          git -C /tmp/TFT_eSPI checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/TFT_eSPI rev-parse HEAD)" = 16e37595040eac69cd628e4bffb56fc30cad6299
+          git clone --depth 1 --branch v8.4.0 https://github.com/lvgl/lvgl.git /tmp/lvgl8
+          test "$(git -C /tmp/lvgl8 rev-parse HEAD)" = 4495f428630cc1741bd8bfd977f080e8460e8e8d
+          git clone --depth 1 --branch v9.4.0 https://github.com/lvgl/lvgl.git /tmp/lvgl9
+          test "$(git -C /tmp/lvgl9 rev-parse HEAD)" = c016f72d4c125098287be5e83c0f1abed4706ee5
+      - name: Actual library/core cross-compile and link (not hardware execution)
+        run: pio run -d tests/tft -e tft-standalone -e tft-lvgl8 -e tft-lvgl9 -e tft-touch-lvgl9 -e graphics-off -j 2
+      - name: Transport boundary and mutation contract under sanitizers
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cc -std=c99 -Wall -Wextra -Werror -DMCS_USER_CONFIG=0 -DMCS_ENABLE_TFT_ESPI=1 -Iinclude \
+            -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
+            tests/tft/test_rgb565.c modules/tft/mcs_display_rgb565.c -o /tmp/test_rgb565
+          /tmp/test_rgb565
+      - uses: actions/upload-artifact@v4
+        with:
+          name: optional-tft-cross-builds-not-hardware-proof
+          path: tests/tft/.pio/build/*/firmware.*

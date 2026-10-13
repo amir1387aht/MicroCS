@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
 `include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Optional LVGL GUI (modules/lvgl)](#optional-lvgl-gui-moduleslvgl) · [Network (modules/net)](#network-modulesnet) · [Bluetooth (modules/ble)](#bluetooth-modulesble) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Optional LVGL GUI (modules/lvgl)](#optional-lvgl-gui-moduleslvgl) · [Optional TFT_eSPI (Arduino)](#optional-tft_espi-arduino) · [Network (modules/net)](#network-modulesnet) · [Bluetooth (modules/ble)](#bluetooth-modulesble) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -134,6 +134,13 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **LvGui** | static | `Version` | — | real pinned upstream version |
 | **LvObject** | instance | `Kind` `Text` `Value` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` `Call(…)` | generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise |
 
+## Optional TFT_eSPI (Arduino)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **Tft** | instance | `Width` `Height` `Rotation` | `Begin()` `Dispose()` `Fill(·)` `DrawPixel(·, ·, ·)` `DrawLine(·, ·, ·, ·, ·)` `DrawRect(·, ·, ·, ·, ·)` `FillRect(·, ·, ·, ·, ·)` `DrawCircle(·, ·, ·, ·)` `FillCircle(·, ·, ·, ·)` `TextColor(·, ·)` `TextSize(·)` `DrawText(·, ·, ·, ·)` `SetTouch(·, ·, ·, ·, ·)` `AttachLVGL()` `DetachLVGL()` | real Arduino WIP subset; explicit setup; [TFT_ESPI.md](TFT_ESPI.md) |
+| **Tft** | static | `Version` | — | actual upstream header version, not manifest/tag |
+
 ## Network (modules/net)
 
 | Type | Kind | Properties | Methods | Notes |
@@ -202,4 +209,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1347 members in 112 tables._
+_1366 members in 114 tables._

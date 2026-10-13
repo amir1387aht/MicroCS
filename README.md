@@ -694,7 +694,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
 - [ ] ROM-resident class metadata; complete optional LVGL v8/v9 and TFT_eSPI bindings
-  ([LVGL WIP](docs/LVGL.md): real 8.4/9.4 headless rendering/object/style/input subset now implemented; full coverage and hardware/vendor matrix unfinished)
+  ([LVGL WIP](docs/LVGL.md): real 8.4/9.4 headless rendering/object/style/input subset now implemented; full coverage and hardware/vendor matrix unfinished; [TFT WIP](docs/TFT_ESPI.md) provides real Arduino drawing/text and a synchronous bridge subset)
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 

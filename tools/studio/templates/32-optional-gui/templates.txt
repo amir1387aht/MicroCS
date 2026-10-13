@@ -1,0 +1,18 @@
+category: Optional GUI and TFT
+requires: Compiler
+
+[lvgl_label.cs] LVGL label (headless or installed backend)
+requires: Compiler, LVGL
+Create an actual LVGL label and pump a bounded render loop. Needs optional LVGL8.4/9.4 firmware. A headless sink does not imply a physical display.
+
+[lvgl_button.cs] LVGL pointer and button events
+requires: Compiler, LVGL
+Use script-fed pointer input for a real LVGL hit test and bounded event polling. The native input driver may replace script input in hardware firmware.
+
+[tft_draw.cs] TFT_eSPI drawing and text
+requires: Compiler, TFT_eSPI
+Draw RGB565 primitives and compiled font text. Needs a reviewed firmware TFT setup and actual hardware; no universal pinout is assumed.
+
+[tft_lvgl.cs] TFT_eSPI + LVGL bridge
+requires: Compiler, TFT_eSPI, LVGL
+Attach the synchronous TFT backend before constructing a GUI. Dispose the GUI before detaching and disposing its display; no DMA or hardware presence guarantee.

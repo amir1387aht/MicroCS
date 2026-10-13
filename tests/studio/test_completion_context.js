@@ -24,6 +24,13 @@ fs.mkdirSync(OUT, { recursive: true });
         for (const src of ['$"{Console.', '$@"line\n{Console.', '@$"line\n{Console.', '$"{Call("}", Console.']) {
             assert((await suggest(src)).includes('WriteLine'), 'member completion: ' + src);
         }
+        for (const [src, member] of [
+            ['var display = new Tft(); display.', 'AttachLVGL'],
+            ['var gui = new LvGui(160,80); gui.', 'Pump'],
+            ['Tft.', 'Version']
+        ]) {
+            assert((await suggest(src)).includes(member), 'optional graphics help: ' + src);
+        }
         for (const src of ['$"literal Con', '$"{{Con', '@"line\nCon', '$"{x:Con', '$"{x /* Con', '// Con', '$"{Call("Con']) {
             assert.deepStrictEqual(await suggest(src), [], 'no completion in text/comment/format: ' + src);
         }

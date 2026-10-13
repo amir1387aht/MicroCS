@@ -381,11 +381,19 @@
 #ifndef MCS_ENABLE_LVGL
 #define MCS_ENABLE_LVGL 0          /* explicit external headers/library/config required; docs/LVGL.md */
 #endif
+#ifndef MCS_LVGL_MAJOR
+#define MCS_LVGL_MAJOR 0          /* explicit 8 or 9 when enabled; must match linked LVGL */
+#endif
 #ifndef MCS_LVGL_OBJECTS
 #define MCS_LVGL_OBJECTS 128       /* bounded live GUI object handles */
 #endif
 #ifndef MCS_LVGL_EVENTS
 #define MCS_LVGL_EVENTS 32         /* bounded event queue; overflow counted explicitly */
+#endif
+
+/* Optional actual Arduino TFT_eSPI binding. Explicit dependency/setup; no fetch. */
+#ifndef MCS_ENABLE_TFT_ESPI
+#define MCS_ENABLE_TFT_ESPI 0     /* Tft class; Arduino only; docs/TFT_ESPI.md */
 #endif
 
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays

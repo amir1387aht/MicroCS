@@ -243,11 +243,18 @@
 #ifndef MCS_ENABLE_LVGL
 #define MCS_ENABLE_LVGL 0          /* explicit external headers/library/config required; docs/LVGL.md */
 #endif
+#ifndef MCS_LVGL_MAJOR
+#define MCS_LVGL_MAJOR 0          /* explicit 8 or 9 when enabled; must match linked LVGL */
+#endif
 #ifndef MCS_LVGL_OBJECTS
 #define MCS_LVGL_OBJECTS 128       /* bounded live GUI object handles */
 #endif
 #ifndef MCS_LVGL_EVENTS
 #define MCS_LVGL_EVENTS 32         /* bounded event queue; overflow counted explicitly */
+#endif
+
+#ifndef MCS_ENABLE_TFT_ESPI
+#define MCS_ENABLE_TFT_ESPI 0     /* optional Arduino TFT_eSPI; explicit setup/dependency */
 #endif
 
 #ifndef MCS_ENABLE_U8G2

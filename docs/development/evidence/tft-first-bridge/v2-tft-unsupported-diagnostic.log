@@ -1,0 +1,4 @@
+In file included from <stdin>:1:
+include/mcs_tft.h:7:2: error: #error "MCS_ENABLE_TFT_ESPI requires the Arduino port and an explicit TFT_eSPI dependency/setup; no host or vendor fallback is implemented"
+    7 | #error                                                                                             \
+      |  ^~~~~

@@ -200,8 +200,13 @@ teardown/GC, stale handle reuse, external LVGL protection, bounded queues,
 wrong-widget errors and real pointer hit testing. Both disabled-widget variants,
 v9 color-depth 32 / padded stride / 64-byte alignment, dependency failures,
 forced VM draw-buffer OOM, exception and execution-budget Stop scope teardown
-pass. All 56 scalar style setters have real native readback tests. A frozen
-first-render snapshot passed ASan/UBSan with leak detection on both real versions;
-newer widget/retained-text/shared-owner changes require their own frozen run. Upstream assertion/OOM behavior,
+pass. All 56 scalar style setters have real native readback tests. Frozen checkpoint `ec8b3a5abcd14160f1a82080669645e9ca7678cd` passed ASan/UBSan
+with leak detection on both real versions: 796 native checks plus all four
+basic/pointer/widgets/constructors script suites. Upstream assertion/OOM behavior,
 prebuilt ABI provenance and driver latency need further validation; this is not
 a production OOM/security/thread-safety guarantee.
+
+## Arduino TFT bridge
+
+A separately enabled real synchronous TFT_eSPI backend is described in
+[TFT_ESPI.md](TFT_ESPI.md). Cross-build and physical hardware evidence are separate.

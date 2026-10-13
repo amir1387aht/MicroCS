@@ -1731,4 +1731,26 @@ new(string message, Exception inner) | Wrapping another exception
 
 @TimeSpan | (not available - use Stopwatch / Environment.TickCount)
 @DateTime | (not available - use RTC.Now, Unix seconds)
+
+@Tft | Optional real Arduino TFT_eSPI WIP subset; explicit firmware setup/dependency; RGB565 colors; not proof of hardware
+Tft(): Tft | One native driver; no hardware initialization before Begin
+Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
+.Begin(): void | Idempotent real hardware initialization; no per-transfer acknowledgement is exposed upstream
+.Dispose(): void | Idempotent native cleanup; rejects while an attached LvGui is live
+.Width: int | Actual rotated driver width after Begin
+.Height: int | Actual rotated driver height after Begin
+.Rotation: int | 0..3; set before attaching LVGL
+.Fill(int rgb565): void | Fill screen; color 0..65535
+.DrawPixel(int x, int y, int rgb565): void | Coordinates -32767..32767
+.DrawLine(int x1, int y1, int x2, int y2, int rgb565): void | Synchronous native line
+.DrawRect(int x, int y, int width, int height, int rgb565): void | Dimensions 1..4096
+.FillRect(int x, int y, int width, int height, int rgb565): void | Dimensions 1..4096
+.DrawCircle(int x, int y, int radius, int rgb565): void | Radius 0..4096
+.FillCircle(int x, int y, int radius, int rgb565): void | Radius 0..4096
+.TextColor(int foreground, int background): void | RGB565 colors
+.TextSize(int size): void | 1..7
+.DrawText(string text, int x, int y, int font): int | Text <=4096 bytes/no NUL; font1..8 must be compiled; returns native width
+.SetTouch(int xOffset, int xRange, int yOffset, int yRange, int flags): void | Requires TOUCH_CS and actual board calibration; nonzero ranges; flags0..7
+.AttachLVGL(): void | Only with LVGL; Begin first, attach before new LvGui; roots display owner
+.DetachLVGL(): void | Only with LVGL; dispose GUI before detach
 `;

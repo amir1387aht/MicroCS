@@ -1,0 +1,3 @@
+
+# Preserve raw tool output exactly; source whitespace checks still apply.
+docs/development/evidence/**/*.log -whitespace

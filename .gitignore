@@ -9,3 +9,6 @@ __pycache__/
 .DS_Store
 dist/
 node_modules/
+
+# PlatformIO opt-in test/library cache and compiled artifacts
+.pio/

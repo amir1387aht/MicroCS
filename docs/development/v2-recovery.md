@@ -287,3 +287,56 @@ All logs reflect actual tested configurations, not MCU/hardware coverage.
 TFT upstream inspected at commit 16e37595040eac69cd628e4bffb56fc30cad6299:
 library manifest 2.5.43 but header reports 2.5.44; do NOT invent a v2.5.43 tag.
 No TFT implementation or hardware claim yet. All other v2/release blockers remain.
+
+## Checkpoint 12 — actual Arduino TFT_eSPI and LVGL8/9 bridge
+
+Implemented OFF-by-default Arduino Tft class with actual upstream TFT_eSPI,
+not mock headers: VM-accounted native object, singleton ownership, Begin/Dispose,
+rotation/dimensions, bounded integer RGB565 primitives and compiled-font text.
+TOUCH_CS-gated calibration uses actual upstream setTouch/getTouch; missing support
+raises. No hardware initialization from capability probes. No silent dependency
+fetch/setup rewrite/unsupported-platform fallback. Standalone host enablement
+reports the required Arduino port. Driver threads explicitly rejected while WIP.
+
+Actual LVGL backend pins its native TFT owner until detach, rejects live-GUI
+dispose/detach and attached rotation/calibration changes. Partial RGB565 transport
+copies at most64 native-endian pixels to mutable RAM, respects padded/unaligned
+rows, rejects bad windows/overflow, restores swap state and finishes synchronous
+SPI transactions. Real RAM pushImage overload used, not width-sized PROGMEM VLA.
+TFT_eSPI has no per-transfer IO acknowledgement: consumption is not a hardware
+presence/electrical success claim. No DMA/async falsely advertised.
+
+Actual ESP32 Arduino2.0.17, espressif32 platform6.10.0, Xtensa GCC8.4 cross-built
+and linked standalone, LVGL8.4, LVGL9.4 and TOUCH_CS+LVGL9.4. Final five-environment
+matrix additionally includes graphics OFF with only MicroCS as a dependency.
+Fixture wiring is NOT a hardware recommendation and nothing was flashed.
+Pinned upstream TFT commit16e375... manifest2.5.43/header2.5.44 discrepancy documented.
+Raw final logs and artifact SHA/section-size/source/pin provenance are recorded
+under evidence/tft-first-bridge after the complete final matrix. Static section
+RAM excludes all runtime VM/upstream heap/stack, so it is not peak MCU RAM.
+
+Transport ASan/UBSan contract passed (unaligned input, padding, chunk boundaries,
+source immutability, invalid windows/overflow and sink error propagation).
+Arduino packaging now includes generated LVGL .inc files, explicit --lvgl major
+and --tft-espi dependencies; no third-party source/config bundled. These packaging
+contracts pass, not a claim the Arduino IDE route has been physically validated.
+C++ graphics-OFF translation has no symbols/dependencies; unsupported host enable
+fails clearly. Default host85 tests, allocation-free capabilities, generators,
+213-template metadata, formatter/runtime, real browser completion/graphics API
+help and all gallery geometry states passed. Fixed generated TOC underscores
+revealed by real docs-check, not a waived check. Full host make check is recorded
+separately when complete. Native/constructor/widget/style/owned-text/OOM tests
+for frozen checkpoint11 ec8b3a5... passed ASan/UBSan on both real LVGL versions;
+all91 remote CI jobs on that checkpoint succeeded. New TFT CI gates are opt-in
+modules, not default/release enablement; the exact new CI head must pass too.
+
+Added four capability-gated LVGL label/button and TFT standalone/bridge templates,
+with real headless LVGL hit-test regression on both versions. Hardware-absent
+firmware exits with an explicit hint, not fabricated rendering. All templates
+remain ordinary formatted C# files and generated bundle parity is checked.
+
+No full-wrapper/full-v2 completion claimed. TFT sprites/assets/fonts/readback/DMA,
+other platforms/hardware, broader LVGL and Studio semantics, core/roadmap/security
+still incomplete. Independently reproduced Studio sibling-method/closed-block
+local/type leakage; next increment will build cached scope-aware declarations.
+No merge, tag, release, provisioning or irreversible device actions performed.

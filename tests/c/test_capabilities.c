@@ -19,6 +19,10 @@ int main(void) {
     mcs_set_global(vm, "DefinedNull", mcs_null());
     CHECK(mcs_global_exists(vm, "DefinedNull"));
     CHECK(!mcs_capability_has(vm, "Imaginary"));
+#if !MCS_ENABLE_TFT_ESPI
+    CHECK(!mcs_capability_has(vm, "TFT_eSPI"));
+    CHECK(!mcs_global_exists(vm, "Tft"));
+#endif
     CHECK(!mcs_capability_has(NULL, "GPIO"));
     CHECK(!mcs_capability_has(vm, NULL));
 #if MCS_ENABLE_NET

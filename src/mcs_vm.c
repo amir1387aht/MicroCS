@@ -3,6 +3,9 @@
 #if MCS_ENABLE_LVGL
 #include "mcs_lvgl.h"
 #endif
+#if MCS_ENABLE_TFT_ESPI
+#include "mcs_tft.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -2340,6 +2343,9 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     mcs_open_libs(vm, cfg.stdlib);
 #if MCS_ENABLE_LVGL
     mcs_lvgl_open_lib(vm);
+#endif
+#if MCS_ENABLE_TFT_ESPI
+    mcs_tft_open_lib(vm);
 #endif
     vm->gc_pause--;
     vm->panic = NULL;
