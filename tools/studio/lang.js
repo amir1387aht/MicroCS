@@ -97,10 +97,134 @@
   }
 
   /* ---------------------------------------------------------------- user code */
-  /* strip comments and string contents (same length, so offsets stay valid) */
-  function blank(src) {
-    return src.replace(/\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)|\$?@"(?:[^"]|"")*"?|\$?"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/g,
-      (m) => (m[0] === "/" ? m.replace(/[^\n]/g, " ") : m[0] + m.slice(1, -1).replace(/[^\n]/g, " ") + (m.length > 1 ? m[m.length - 1] : "")));
+  /* One bounded, offset-preserving lexical model for all editor consumers.
+   * Ranges cover non-code; interpolation expressions remain code. Cache only
+   * the current document, so serial handling never waits for repeated scans. */
+  let lexSource = null, lexCache = null;
+  function lexical(src) {
+    if (src === lexSource) return lexCache;
+    const ranges = [], strings = [], holes = [];
+    let eof = "code";
+    const mark = (start, end, kind) => { if (end > start) ranges.push({ start, end, kind }); };
+    const prefixAt = i => /^(\$@"|@\$"|@"|\$"|")/.exec(src.slice(i, i + 3));
+    function comment(i) {
+      const line = src[i + 1] === "/";
+      const j = src.indexOf(line ? "\n" : "*/", i + 2);
+      const end = j < 0 ? src.length : j + (line ? 0 : 2);
+      mark(i, end, "comment");
+      if (j < 0) eof = "comment";
+      return end;
+    }
+    function quoted(i, level) {
+      const m = prefixAt(i);
+      if (!m) return i;
+      const start = i, verbatim = m[0].includes("@"), interp = m[0].includes("$");
+      let chunk = i, closed = false;
+      i += m[0].length;
+      while (i < src.length) {
+        const c = src[i];
+        if (!verbatim && (c === "\n" || c === "\r")) break;
+        if (!verbatim && c === "\\") { i += Math.min(2, src.length - i); continue; }
+        if (c === '"') {
+          if (verbatim && src[i + 1] === '"') { i += 2; continue; }
+          i++; closed = true; break;
+        }
+        if (interp && c === "{") {
+          if (src[i + 1] === "{") { i += 2; continue; }
+          mark(chunk, i, "string");
+          if (level >= 32) { mark(i, src.length, "string"); eof = "string"; i = src.length; chunk = i; break; }
+          const h = hole(i, level + 1);
+          i = h.end; chunk = i;
+          if (!h.closed) { strings.push({ start, end: i, closed }); return i; }
+          continue;
+        }
+        if (interp && c === "}" && src[i + 1] === "}") { i += 2; continue; }
+        i++;
+      }
+      mark(chunk, i, "string");
+      if (i === src.length) eof = closed ? "code" : "string";
+      strings.push({ start, end: i, closed });
+      return i;
+    }
+    function character(i) {
+      const start = i++;
+      let closed = false;
+      while (i < src.length && src[i] !== "\n" && src[i] !== "\r") {
+        if (src[i] === "\\") { i += Math.min(2, src.length - i); continue; }
+        if (src[i++] === "'") { closed = true; break; }
+      }
+      mark(start, i, "char");
+      if (i === src.length && !closed) eof = "char";
+      return i;
+    }
+    function hole(start, level) {
+      mark(start, start + 1, "delimiter");
+      let i = start + 1, braces = 0, parens = 0, brackets = 0, ternary = 0, formatStart = null;
+      eof = "code";
+      while (i < src.length) {
+        const c = src[i];
+        if (formatStart !== null) {
+          if (c === "}") break;
+          i++; continue;
+        }
+        if (src.startsWith("//", i) || src.startsWith("/*", i)) { i = comment(i); continue; }
+        const end = quoted(i, level);
+        if (end > i) { i = end; continue; }
+        if (c === "'") { i = character(i); continue; }
+        if (c === "{") braces++;
+        else if (c === "}") { if (!braces) break; braces--; }
+        else if (c === "(") parens++;
+        else if (c === ")") parens = Math.max(0, parens - 1);
+        else if (c === "[") brackets++;
+        else if (c === "]") brackets = Math.max(0, brackets - 1);
+        else if (!braces && !parens && !brackets) {
+          if (c === "?" && !/[?.\[]/.test(src[i + 1] || " ") && src[i - 1] !== "?") ternary++;
+          else if (c === ":" && src[i + 1] !== ":" && src[i - 1] !== ":") {
+            if (ternary) ternary--; else formatStart = i;
+          }
+        }
+        i++;
+      }
+      const closed = i < src.length;
+      if (formatStart !== null) mark(formatStart, i, "format");
+      if (closed) { mark(i, i + 1, "delimiter"); i++; eof = "string"; }
+      else if (formatStart !== null) eof = "format";
+      const result = { start, end: i, closed, formatStart };
+      holes.push(result);
+      return result;
+    }
+    for (let i = 0; i < src.length;) {
+      if (src.startsWith("//", i) || src.startsWith("/*", i)) { i = comment(i); continue; }
+      const end = quoted(i, 0);
+      if (end > i) { i = end; continue; }
+      if (src[i] === "'") { i = character(i); continue; }
+      i++; eof = "code";
+    }
+    ranges.sort((a, b) => a.start - b.start);
+    strings.sort((a, b) => a.start - b.start);
+    holes.sort((a, b) => a.start - b.start);
+    lexSource = src;
+    lexCache = { ranges, strings, holes, eof };
+    return lexCache;
+  }
+  function contextAt(src, p) {
+    p = Math.max(0, Math.min(src.length, p));
+    const lex = lexical(src);
+    if (p === src.length) return lex.eof;
+    // Binary search keeps moving the caret independent of the document size.
+    let lo = 0, hi = lex.ranges.length;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (lex.ranges[mid].end <= p) lo = mid + 1; else hi = mid; }
+    const r = lex.ranges[lo];
+    return r && r.start <= p ? (r.kind === "delimiter" ? "code" : r.kind) : "code";
+  }
+  /* Same UTF-16 length and line endings; expressions inside strings stay visible
+   * to symbols, call context and hover. Formatter opts out of expression holes. */
+  function blank(src, wholeStrings = false) {
+    const lex = lexical(src), chars = src.split("");
+    const mask = (a, b) => { for (let i = a; i < b; i++) if (chars[i] !== "\n" && chars[i] !== "\r") chars[i] = " "; };
+    for (const r of lex.ranges) if (r.kind !== "delimiter") mask(r.start, r.end);
+    if (wholeStrings) for (const r of lex.strings) mask(r.start, r.end);
+    return chars.join("");
   }
   function matchBrace(b, open) {
     let d = 0;
@@ -436,6 +560,6 @@
     return `${mem.ret || ""} ${own}.${mem.name} { get; }`.trim();
   }
 
-  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, blank, symbols, classInfo, isClassName, membersOf, ctorsOf,
+  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();

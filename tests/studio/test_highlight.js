@@ -3,7 +3,9 @@ const fs = require('fs'), assert = require('assert'), path = require('path');
 const source = fs.readFileSync(path.join(__dirname, '../../tools/studio/studio.js'), 'utf8');
 const code = source.slice(source.indexOf('const KEYWORDS ='), source.indexOf('/* ================================================================ editor */'));
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-const { highlight, stringEnd } = new Function('window', 'esc', code + '; return { highlight, stringEnd };')({}, esc);
+const win = {};
+new Function('window', fs.readFileSync(path.join(__dirname, '../../tools/studio/lang.js'), 'utf8'))(win);
+const { highlight, stringEnd } = new Function('window', 'esc', 'Lang', code + '; return { highlight, stringEnd };')(win, esc, win.Lang);
 const cases = [
   '$@"<h1>LED {(led.Read() ? "on" : "off")}</h1>\n<form method=post>Off</form>"',
   '@$"<h1>{(led.Read() ? "on" : "off")}</h1>\n<footer>tail</footer>"',

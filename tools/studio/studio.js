@@ -513,49 +513,16 @@ const isType = (t) => !!API[t] || KNOWN_TYPES.has(t);
 const span = (cls, t) => `<span class="t-${cls}">${esc(t)}</span>`;
 /* Balanced strings / interpolation cannot be tokenized with a quote-only regex:
  * a hole in $@"...{x ? "on" : "off"}..." contains its own quotes. */
-function stringEnd(src, start, nesting = 0) {
-  const prefix = /^(\$@"|@\$"|@"|\$"|")/.exec(src.slice(start));
-  if (!prefix) return start;
-  const verbatim = prefix[0].includes("@"), interp = prefix[0].includes("$");
-  let i = start + prefix[0].length;
-  while (i < src.length) {
-    const c = src[i];
-    if (!verbatim && (c === "\n" || c === "\r")) return i;
-    if (!verbatim && c === "\\") { i += Math.min(2, src.length - i); continue; }
-    if (c === '"') {
-      if (verbatim && src[i + 1] === '"') { i += 2; continue; }
-      return i + 1;
-    }
-    if (interp && c === "{") {
-      if (src[i + 1] === "{") { i += 2; continue; }
-      if (nesting >= 32) return src.length;
-      i = holeEnd(src, i, nesting + 1).end; continue;
-    }
-    i++;
-  }
-  return i;
+function stringEnd(src, start) {
+  return Lang.lexical(src).strings.find(s => s.start === start)?.end ?? start;
 }
-function holeEnd(src, start, nesting = 0) {
-  let depth = 1, i = start + 1;
-  while (i < src.length) {
-    if (src.startsWith("//", i)) { const e = src.indexOf("\n", i + 2); i = e < 0 ? src.length : e + 1; continue; }
-    if (src.startsWith("/*", i)) { const e = src.indexOf("*/", i + 2); i = e < 0 ? src.length : e + 2; continue; }
-    const e = stringEnd(src, i, nesting);
-    if (e > i) { i = e; continue; }
-    if (src[i] === "'") {
-      i++;
-      while (i < src.length && src[i] !== "'") { if (src[i] === "\\") i++; i++; }
-      if (i < src.length) i++;
-      continue;
-    }
-    if (src[i] === "{") depth++;
-    else if (src[i] === "}" && --depth === 0) return { end: i + 1, closed: true };
-    i++;
-  }
-  return { end: i, closed: false };
+function holeEnd(src, start) {
+  return Lang.lexical(src).holes.find(h => h.start === start) || { end: src.length, closed: false, formatStart: null };
 }
 /* string literal: escapes and interpolation holes */
-function hlString(t) {
+function hlString(t, nesting = 0) {
+  if (nesting >= 32) return span("str", t);
+  const holes = new Map(Lang.lexical(t).holes.map(h => [h.start, h]));
   const verbatim = /^(\$@|@\$|@)/.test(t), interp = t[0] === "$" || t[1] === "$";
   let out = "", buf = "", i = 0;
   const flush = () => { if (buf) { out += span("str", buf); buf = ""; } };
@@ -567,14 +534,13 @@ function hlString(t) {
     }
     if (interp && c === "{") {
       if (t[i + 1] === "{") { flush(); out += span("esc", "{{"); i += 2; continue; }
-      const hole = holeEnd(t, i);
+      const hole = holes.get(i) || { end: t.length, closed: false, formatStart: null };
       const j = hole.end;
       flush();
       const inner = t.slice(i + 1, hole.closed ? j - 1 : j);
-      const fm = /(,\s*-?\d+)?(:(?:[A-Za-z]{1,2}\d*|[#0.,%]+))?$/.exec(inner);     // {value,alignment:format}
-      const cut = fm && fm[0] && fm.index > 0 ? fm.index : inner.length;
-      out += span("br", "{") + highlight(inner.slice(0, cut)) + (fm && fm[1] && cut < inner.length ? highlight(fm[1]) : "") +
-        (fm && fm[2] && cut < inner.length ? span("str", fm[2]) : "") + (hole.closed ? span("br", "}") : "");
+      const cut = hole.formatStart === null ? inner.length : hole.formatStart - i - 1;
+      out += span("br", "{") + highlight(inner.slice(0, cut), nesting + 1) +
+        (cut < inner.length ? span("str", inner.slice(cut)) : "") + (hole.closed ? span("br", "}") : "");
       i = j; continue;
     }
     if (interp && c === "}" && t[i + 1] === "}") { flush(); out += span("esc", "}}"); i += 2; continue; }
@@ -583,7 +549,8 @@ function hlString(t) {
   flush();
   return out;
 }
-function highlight(src) {
+function highlight(src, nesting = 0) {
+  const literals = new Map(Lang.lexical(src).strings.map(s => [s.start, s.end]));
   const re = new RegExp(TOKEN_SRC.source, "gm");
   let html = "", last = 0, m, prevSig = "";
   while ((m = re.exec(src))) {
@@ -592,8 +559,8 @@ function highlight(src) {
     let cls = null;
     if (m[1] || m[2]) cls = "com";
     else if (m[3]) {
-      re.lastIndex = stringEnd(src, m.index);
-      html += hlString(src.slice(m.index, re.lastIndex));
+      re.lastIndex = literals.get(m.index) ?? src.length;
+      html += hlString(src.slice(m.index, re.lastIndex), nesting);
       last = re.lastIndex; prevSig = '"'; continue;
     }
     else if (m[4]) { html += t.length > 3 && t[1] === "\\" ? span("str", "'") + span("esc", t.slice(1, -1)) + span("str", "'") : span("str", t); last = re.lastIndex; prevSig = "'"; continue; }
@@ -1007,8 +974,7 @@ class Editor {
     return out.join("\n");
   }
   inString(p) {
-    const line = this.ta.value.slice(this.ta.value.lastIndexOf("\n", p - 1) + 1, p);
-    return (line.replace(/\\./g, "").split('"').length - 1) % 2 === 1;
+    return Lang.contextAt(this.ta.value, p) !== "code";
   }
   toggleComment() {
     const ta = this.ta, v = ta.value, [a, b] = this.lineRange();
@@ -1025,7 +991,7 @@ class Editor {
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
     if (p !== ta.selectionEnd) return this.hideComplete();
     const line = v.slice(v.lastIndexOf("\n", p - 1) + 1, p);
-    if (this.inString(p) || /\/\//.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) return this.hideComplete();
+    if (Lang.contextAt(v, p) !== "code") return this.hideComplete();
     let prefix, items = [], member = false;
     const seen = new Set();
     const add = (it) => { const k = it.label + "|" + it.kind; if (!seen.has(k)) { seen.add(k); items.push(it); } };
@@ -1172,7 +1138,7 @@ class Editor {
   /* ---- signature help: parameter info while typing a call ("(" and ",", Ctrl+Shift+Space) */
   sigUpdate(trigger) {
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
-    if (p !== ta.selectionEnd || this.inString(p) && !trigger) { if (!this.inString(p)) this.sigHide(); return; }
+    if (p !== ta.selectionEnd || Lang.contextAt(v, p) !== "code") return this.sigHide();
     const ctx = Lang.callContext(v, p);
     if (!ctx) return this.sigHide();
     if (!trigger && !this.sig) return;
@@ -1333,7 +1299,7 @@ class Editor {
     if (document.activeElement !== this.ta && document.activeElement !== document.body) return;
     const w = this.hoverAt(e); if (!w || /^\d/.test(w.word)) return;
     const v = this.ta.value;
-    const b = this.blanked(); if (b[w.a] === " " && v[w.a] !== " ") return;      // inside a string / comment
+    if (Lang.contextAt(v, w.a) !== "code") return;
     const html = this.describe(v, w);
     if (!html) return;
     this.tip.innerHTML = html; this.tip.dataset.k = w.a + ":" + w.word;

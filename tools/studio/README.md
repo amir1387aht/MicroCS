@@ -24,7 +24,7 @@ the editor works there, but it can't connect to a board.
 | `snippets.js` | completion snippets (`label`, `detail`, `text` with `$0` for the caret) |
 | `api.js` | class and member names known to the runtime (completion fallback) |
 | `docs.js` | signatures and one-line docs of every library member (completion details, parameter info, hover) |
-| `lang.js` | C# language service: symbols of the open file, type inference, call context |
+| `lang.js` | shared cached lexical contexts, symbols of the open file, type inference, call context |
 
 No build step for the app: edit a file and reload the page. After changing a template run
 `python3 tools/studio/gen_templates.py` (or `make studio-templates`).
@@ -40,6 +40,27 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | Alt+↑/↓ · Shift+Alt+↑/↓ · Ctrl+D · Ctrl+Shift+K | move line · copy line · duplicate · delete line |
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
 | F5 / Ctrl+Enter · Ctrl+Shift+Enter · Ctrl+S | save and run · run the selection · save |
+
+## Interpolated expressions
+
+Completion, parameter help, hover and highlighting use the same bounded lexical
+model. Suggestions work inside `$"{Con` and `$"{Console.`, including multiline
+`$@"` / `@$"` strings, nested strings and comments. Literal text, escaped braces,
+comments and format text after `:` do not trigger code assistance. Alignment
+expressions remain code; ternary `?:`, null-coalescing and null-conditional
+operators do not prematurely start a format section. Edits invalidate the
+single-document cache; cursor context lookup uses binary search. Malformed or
+more than 32 nested interpolations are handled conservatively rather than
+recursing without a bound. This is editor assistance, not compiler validation
+or a full C# semantic model.
+
+Quick regressions:
+
+```sh
+node tests/studio/test_lexical.js
+node tests/studio/test_highlight.js
+CHROME=/path/to/chromium node tests/studio/test_completion_context.js
+```
 
 ## Document an API
 

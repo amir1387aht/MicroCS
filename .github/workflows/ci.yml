@@ -92,8 +92,10 @@ jobs:
         run: node tests/studio/test_capabilities.js && python3 tests/test_template_metadata.py
       - name: Script input echo ownership (machine protocol and raw REPL)
         run: python3 tests/test_readline_echo.py ./mcs
-      - name: C# interpolated / verbatim string highlighting
-        run: node tests/studio/test_highlight.js
+      - name: Shared C# lexical contexts and highlighting
+        run: node tests/studio/test_lexical.js && node tests/studio/test_highlight.js
+      - name: Interpolation completion, signatures and hover (offline browser)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_completion_context.js
       - name: templates.js is generated from tools/studio/templates/
         run: python3 tools/studio/gen_templates.py --check
       - name: every Studio template compiles and runs on the simulated board
