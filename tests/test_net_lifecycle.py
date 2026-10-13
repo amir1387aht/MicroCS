@@ -40,6 +40,17 @@ def main():
             for _ in range(12):
                 assert dev.command('run /end.cs') == ('OK', b'ended\n')
                 assert dev.command('run /error.cs')[0].startswith('ERR Unhandled exception')
+            # The registry is weak: GC finalizers unlink vanished resources safely.
+            put('gc.cs', f'void Lost() {{ var raw = new TcpListener({p}); raw.Start(); }} ' +
+                'Lost(); GC.Collect(); ' + setup + 'GC.Collect();')
+            for _ in range(3): assert dev.command('run /gc.cs')[0] == 'OK'
+            # UDP and DNS binds participate in the same completion cleanup.
+            udp = port()
+            put('udp.cs', f'var udp = new UdpClient({udp});')
+            put('dns.cs', f'var dns = new DnsServer("10.0.0.1"); dns.Start(null, {udp});')
+            for _ in range(3):
+                assert dev.command('run /udp.cs')[0] == 'OK'
+                assert dev.command('run /dns.cs')[0] == 'OK'
             # An existing interactive listener belongs to its earlier scope, not this file.
             prior = port()
             assert dev.command(f'exec var prior = new HttpServer({prior}); prior.Start();')[0] == 'OK'
@@ -73,7 +84,8 @@ def main():
                 client.sendall(b'GET /ws HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n'
                     b'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n')
                 response = b''
-                while b'\r\n\r\n' not in response: response += client.recv(1)
+                while b'\r\n\r\n' not in response:
+                    data = client.recv(1); assert data, response; response += data
                 assert b'101 Switching Protocols' in response, response
                 stop(); client.settimeout(2); assert client.recv(1000) == b''
             assert dev.command('run /end.cs')[0] == 'OK'
