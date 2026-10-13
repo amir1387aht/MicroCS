@@ -1,0 +1,92 @@
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_bytecode.c -o build/mcs_bytecode.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude build/mcs_bytecode.o build/mcs_compiler.o build/mcs_fmt.o build/mcs_lexer.o build/mcs_lib.o build/mcs_lib_bytes.o build/mcs_lib_coll.o build/mcs_lib_json.o build/mcs_lib_str.o build/mcs_object.o build/mcs_opt.o build/mcs_parser.o build/mcs_value.o build/mcs_vm.o build/mod/ble/mcs_ble_lib.o build/mod/ble/mcs_ble_sim.o build/mod/drivers/mcs_drivers.o build/mod/drivers/mcs_drv_servo.o build/mod/drivers/mcs_drv_u8g2.o build/mod/drivers/mcs_drv_ws2812.o build/mod/fs/mcs_flash.o build/mod/fs/mcs_flashfs.o build/mod/fs/mcs_fs_lib.o build/mod/fs/mcs_vfs.o build/mod/fs/mcs_vfs_lfs.o build/mod/fs/mcs_vfs_posix.o build/mod/fs/mcs_vfs_ram.o build/mod/fs/mcs_vfs_tinyfs.o build/mod/fs/mcs_vfs_yaffs.o build/mod/hal/mcs_hal_cfg.o build/mod/hal/mcs_hal_dma.o build/mod/hal/mcs_hal_lib.o build/mod/hal/mcs_hal_sim.o build/mod/lvgl/mcs_lvgl.o build/mod/net/mcs_net_lib.o build/mod/net/mcs_net_sim.o build/mod/net/mcs_net_sock.o build/mod/net/mcs_net_srv.o build/mod/os/mcs_os.o build/mod/runtime/mcs_runtime.o build/mod/sched/mcs_sched.o build/mod/shell/mcs_shell.o build/mod/tft/mcs_display_rgb565.o build/mod/threads/mcs_threads.o ports/unix/main.c -o mcs -lm
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude build/mcs_bytecode.o build/mcs_compiler.o build/mcs_fmt.o build/mcs_lexer.o build/mcs_lib.o build/mcs_lib_bytes.o build/mcs_lib_coll.o build/mcs_lib_json.o build/mcs_lib_str.o build/mcs_object.o build/mcs_opt.o build/mcs_parser.o build/mcs_value.o build/mcs_vm.o build/mod/ble/mcs_ble_lib.o build/mod/ble/mcs_ble_sim.o build/mod/drivers/mcs_drivers.o build/mod/drivers/mcs_drv_servo.o build/mod/drivers/mcs_drv_u8g2.o build/mod/drivers/mcs_drv_ws2812.o build/mod/fs/mcs_flash.o build/mod/fs/mcs_flashfs.o build/mod/fs/mcs_fs_lib.o build/mod/fs/mcs_vfs.o build/mod/fs/mcs_vfs_lfs.o build/mod/fs/mcs_vfs_posix.o build/mod/fs/mcs_vfs_ram.o build/mod/fs/mcs_vfs_tinyfs.o build/mod/fs/mcs_vfs_yaffs.o build/mod/hal/mcs_hal_cfg.o build/mod/hal/mcs_hal_dma.o build/mod/hal/mcs_hal_lib.o build/mod/hal/mcs_hal_sim.o build/mod/lvgl/mcs_lvgl.o build/mod/net/mcs_net_lib.o build/mod/net/mcs_net_sim.o build/mod/net/mcs_net_sock.o build/mod/net/mcs_net_srv.o build/mod/os/mcs_os.o build/mod/runtime/mcs_runtime.o build/mod/sched/mcs_sched.o build/mod/shell/mcs_shell.o build/mod/tft/mcs_display_rgb565.o build/mod/threads/mcs_threads.o tests/c/test_image_metadata.c -o build/test_image_metadata -lm
+./build/test_image_metadata
+2961/2961 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+PASS t01_basics.cs
+PASS t01_basics.cs (image)
+PASS t01_basics.cs (xip)
+PASS t02_oop.cs
+PASS t02_oop.cs (image)
+PASS t02_oop.cs (xip)
+PASS t03_collections.cs
+PASS t03_collections.cs (image)
+PASS t03_collections.cs (xip)
+PASS t04_exceptions.cs
+PASS t04_exceptions.cs (image)
+PASS t04_exceptions.cs (xip)
+PASS t05_functional.cs
+PASS t05_functional.cs (image)
+PASS t05_functional.cs (xip)
+PASS t06_gc_stress.cs
+PASS t06_gc_stress.cs (image)
+PASS t06_gc_stress.cs (xip)
+PASS t07_filesystem.cs
+PASS t07_filesystem.cs (image)
+PASS t07_filesystem.cs (xip)
+PASS t08_hal.cs
+PASS t08_hal.cs (image)
+PASS t08_hal.cs (xip)
+PASS t09_scheduler.cs
+PASS t09_scheduler.cs (image)
+PASS t09_scheduler.cs (xip)
+PASS t10_lang_phase2.cs
+PASS t10_lang_phase2.cs (image)
+PASS t10_lang_phase2.cs (xip)
+PASS t11_tuples_ranges.cs
+PASS t11_tuples_ranges.cs (image)
+PASS t11_tuples_ranges.cs (xip)
+PASS t12_memory_churn.cs
+PASS t12_memory_churn.cs (image)
+PASS t12_memory_churn.cs (xip)
+PASS t13_stdlib_more.cs
+PASS t13_stdlib_more.cs (image)
+PASS t13_stdlib_more.cs (xip)
+PASS t14_low_resource.cs
+PASS t14_low_resource.cs (image)
+PASS t14_low_resource.cs (xip)
+PASS t15_hal_v2.cs
+PASS t15_hal_v2.cs (image)
+PASS t15_hal_v2.cs (xip)
+PASS t16_bytes.cs
+PASS t16_bytes.cs (image)
+PASS t16_bytes.cs (xip)
+PASS t17_optimizer.cs
+PASS t17_optimizer.cs (image)
+PASS t17_optimizer.cs (xip)
+PASS t18_utils.cs
+PASS t18_utils.cs (image)
+PASS t18_utils.cs (xip)
+PASS t19_ledstrip.cs
+PASS t19_ledstrip.cs (image)
+PASS t19_ledstrip.cs (xip)
+PASS t20_sched_sleep.cs
+PASS t20_sched_sleep.cs (image)
+PASS t20_sched_sleep.cs (xip)
+PASS t21_servo.cs
+PASS t21_servo.cs (image)
+PASS t21_servo.cs (xip)
+PASS t22_hal_config.cs
+PASS t22_hal_config.cs (image)
+PASS t22_hal_config.cs (xip)
+PASS t23_dma.cs
+PASS t23_dma.cs (image)
+PASS t23_dma.cs (xip)
+PASS t24_net.cs
+PASS t24_net.cs (image)
+PASS t24_net.cs (xip)
+PASS t25_json.cs
+PASS t25_json.cs (image)
+PASS t25_json.cs (xip)
+PASS t26_robustness.cs
+PASS t26_robustness.cs (image)
+PASS t26_robustness.cs (xip)
+PASS t27_dotnet_semantics.cs
+PASS t27_dotnet_semantics.cs (image)
+PASS t27_dotnet_semantics.cs (xip)
+PASS err_limits.cs
+PASS err_member.cs
+PASS err_runtime.cs
+PASS err_syntax.cs
+----
+85 passed, 0 failed

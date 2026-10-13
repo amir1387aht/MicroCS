@@ -735,3 +735,32 @@ blocked; exactheadCIgreen is not whole-task completion or security verification.
 Continue debug-record arithmetic and full stack/type/controlflow safety plus
 remaining LVGL/TFT/Studio/core/security/roadmap. Keep fresh logs remotely after
 each step. No merge/tag/release/provisioning/irreversible device operations.
+
+## Checkpoint24 — checked debug-record counts/PCs/line arithmetic (WIP)
+
+Recovery23 REMOTE0fb1257ec7c40fdd0c88996d2bccee25f7aae2ca tree-verified;
+onlyactivecheckout /data/MicroCS-v2-recovered; preserved stalecheckouts untouched.
+Frozen load-only debug baseline177 checks passes while accepting40 malformed
+loads; NEVER executed. This is acceptance/wrap/truncation evidence, NOT a claim
+that UBSan reported signed overflow/memory corruption. Added bounds before
+record-count multiplication/allocation, wide PC narrowing/addition and signed
+line addition. Fixed v1/v2 PCs must be nondecreasing and<=clen; v3/v4 deltas
+checked againstremainingPCrange/currentline unsigned32range. Valid equal/end
+PCs (optimizer trailinglinecompat), zero/full32bitline andnegative line deltas
+remain accepted. Same validation even withlinesstorageOFF. Format/API/opcodes
+unchanged; stack/type/fallthrough/initializedlocals/exceptionflow still missing.
+
+Expanded defaultmetadata/debug2961 checks plus host85 source/image/XIP pass;
+defaultmetadata ASan/UBSan/leaks2961 pass; standaloneCMake/CTest pass;
+actualTFT131557 native checks/sanitizers pass with real unchanged upstream and
+physicalIOguard. All local tool/config/headerpins unchanged/recreated. Sameflags
+GCC11.5 -Os hostbytecodeobject text13193->13312bytes, data/bss0; not MCUflash or
+speed evidence. Python/CIYAML parse/sourcewhitespace checked.
+
+RUNNING productionfrozen: nine-config metadata sanitizer matrix
+cmd_32d95995fd4c4fafb9f28149db37; restored realfiveESP32crossbuild matrix
+cmd_d62c0b67ef19419fb6feda4bdfbe. Otherjobs EXIT0. No fullnine/cross claim yet;
+no source changes until all compiling runs exit. Freshlogs backed remotely in
+`evidence/debug-records24/`, baselinefixture retained, staged/cumulativepatches
+and NOTES maintained. Continue completedgates, then fullstack/type/controlflow
+verification and remainingfullscope. No merge/tag/release/deviceprovisioning.

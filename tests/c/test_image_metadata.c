@@ -218,10 +218,95 @@ static void typed_child(image_t *b, int version, unsigned tag, unsigned flags, u
     body(b, returned, 1);
     body(b, returned, 1);
 }
+/* Debug records are metadata, not code. End-of-code PCs are legal because
+ * the optimizer may retain a trailing remapped line entry. */
+static void debug_record(image_t *b, uint64_t pc, int64_t line) {
+    if (b->version >= 3) {
+        varint(b, pc);
+        varint(b, ((uint64_t)line << 1) ^ (uint64_t) - (line < 0));
+    } else {
+        count(b, (uint32_t)pc);
+        count(b, (uint32_t)line);
+    }
+}
+static void debug_image(image_t *b, int version, int kind) {
+    header(b, version, 0);
+    function_header(b, 0, 0, 0, 0, 1, 0, 0);
+    count(b, 0);
+    uint8_t code[] = {OP_NULL, OP_RETURN_NULL};
+    body(b, code, 2);
+    b->used -= version >= 3 ? 1 : 4; /* replace zero line count */
+    count(b, kind == 4 ? UINT32_MAX : 2);
+    if (kind == 4)
+        return; /* insufficient records: never allocate the huge count */
+    switch (kind) {
+    case 0:
+        debug_record(b, 0, 10);
+        debug_record(b, 2, version >= 3 ? -1 : 9);
+        break;
+    case 1:
+        debug_record(b, 0, 1);
+        debug_record(b, 3, 0);
+        break; /* beyond code */
+    case 2:
+        debug_record(b, 1, 1);
+        debug_record(b, version >= 3 ? UINT64_MAX : 0, 0);
+        break;
+    case 3:
+        debug_record(b, version >= 3 ? UINT64_C(1) << 32 : UINT32_MAX, 1);
+        debug_record(b, 0, 0);
+        break;
+    case 5:
+        debug_record(b, 0, 0);
+        debug_record(b, 0, -1);
+        break;
+    case 6:
+        debug_record(b, 0, 1);
+        debug_record(b, 0, INT64_MAX);
+        break;
+    case 7:
+        debug_record(b, 0, UINT32_MAX);
+        debug_record(b, 0, 1);
+        break;
+    case 8:
+        debug_record(b, 0, 0);
+        debug_record(b, 0, INT64_MIN);
+        break;
+    case 9:
+        debug_record(b, 0, UINT32_MAX);
+        debug_record(b, 0, version >= 3 ? -(int64_t)UINT32_MAX : 0);
+        break;
+    default:
+        abort();
+    }
+}
+static void debug_trials(int version, bool baseline) {
+    image_t b;
+    debug_image(&b, version, 0);
+    trial(&b, true, baseline);
+    debug_image(&b, version, 9);
+    trial(&b, true, baseline);
+    for (int k = 1; k <= 4; k++) {
+        debug_image(&b, version, k);
+        trial(&b, false, baseline);
+    }
+    if (version >= 3)
+        for (int k = 5; k <= 8; k++) {
+            debug_image(&b, version, k);
+            trial(&b, false, baseline);
+        }
+}
 int main(int argc, char **argv) {
     bool baseline = argc > 1 && !strcmp(argv[1], "--baseline-load-only");
+    bool debug_baseline = argc > 1 && !strcmp(argv[1], "--debug-baseline-load-only");
     image_t b;
     for (int v = 1; v <= 4; v++) {
+        if (debug_baseline) {
+            debug_trials(v, true);
+            continue;
+        }
+        if (!baseline)
+            debug_trials(v, false);
         simple(&b, v, 0, 0, 0, 0, 1, 0, 0, 0, 0);
         trial(&b, true, baseline);
         simple(&b, v, 0, 0, 0, FN_XIP, 1, 0, 0, 0, 0);

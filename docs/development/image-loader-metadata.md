@@ -25,7 +25,18 @@ The loader now rejects metadata that the previous loader tolerated:
   zero-arity `params` functions, nonboolean parameter-type-present flags,
   zero-arity parameter type arrays, or tags outside the current `PT_*` enum;
 - an entry function with arguments, minimum arguments, captures, or `params`;
-- empty code bodies, and closure-capture kinds other than exactly 0 or 1.
+- empty code bodies, and closure-capture kinds other than exactly 0 or 1;
+- insufficient debug records or a record count whose allocation would overflow
+  `size_t`; decreasing/out-of-code PCs, wide compact PC deltas before narrowing,
+  and compact line deltas whose result would leave the unsigned 32-bit range.
+
+Debug PCs may equal the end of the code: the existing optimizer can retain a
+trailing remapped line entry. Equal PCs, zero lines, decreasing line numbers
+within the unsigned range, and the full unsigned line range remain accepted.
+These bounds apply even when line storage/disassembly is compiled out. Record
+counts are checked by division before multiplication/allocation; line additions
+are checked against the current line before arithmetic, including `INT64_MIN`
+and `INT64_MAX` deltas.
 
 There is no migration or format bump for compiler-produced images. Custom image
 writers must emit canonical varints and valid metadata. Rejection uses the
@@ -70,3 +81,16 @@ A same-flags GCC11.5 x86-64 `-Os` bytecode object measurement is recorded with
 this checkpoint. It is not MCU flash, full firmware size, runtime speed, stack
 usage, or hardware evidence. Loader timing and wider performance trade-offs
 must be measured separately; there is no new speed claim from this step.
+
+## Debug-record extension
+
+The separate frozen `--debug-baseline-load-only` mode loads/disassembles valid
+fixtures and only **loads** invalid fixtures. Before this extension it passed
+177 fixture assertions while accepting 40 malformed debug-record loads; none
+were executed. Those records wrapped/truncated PC/line values or pointed beyond
+code. This is an acceptance/arithmetic baseline, **not a claim that a sanitizer
+reported memory corruption or signed overflow**. Insufficient huge record counts
+were already rejected on the 64-bit host; explicit checked size/count arithmetic
+now also protects 32-bit allocation bounds. Tests include fixed-width v1/v2
+nonmonotonic PCs and compact v3/v4 wide deltas and signed-line extrema, plus
+positive end-PC/negative-delta/full-range compatibility cases.

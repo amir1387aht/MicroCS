@@ -692,15 +692,36 @@ static mcs_function_t* read_fn(loader_t* l) {
     }
     if (!validate_code(vm, fn, l->v4)) { l->bad = true; return NULL; }
     uint32_t nl = rn(l);
-    if (nl && need(l, l->v3 ? (size_t)nl * 2 : (size_t)nl * 8)) {
+    /* Bound the record count before multiplying or allocating, including on
+     * 32-bit size_t. Compact records require at least two varint bytes each. */
+    if (l->bad || nl > (size_t)(l->end - l->p) / (l->v3 ? 2u : 8u) ||
+        (uint64_t)nl * sizeof(mcs_line_t) > SIZE_MAX) {
+        l->bad = true; return NULL;
+    }
+    if (nl) {
 #if MCS_ENABLE_LINES
         fn->lines = MCS_ALLOC(vm, mcs_line_t, nl);
         fn->line_cap = fn->line_count = nl;
 #endif
         uint32_t pc = 0, line = 0;
         for (uint32_t i = 0; i < nl && !l->bad; i++) {
-            if (l->v3) { pc += (uint32_t)rv(l); line = (uint32_t)((int64_t)line + rz(l)); }
-            else { pc = r32(l); line = r32(l); }
+            if (l->v3) {
+                uint64_t delta_pc = rv(l);
+                int64_t delta_line = rz(l);
+                /* Check before narrowing/addition. In particular, never add
+                 * INT64_MAX to a positive line then truncate the result. */
+                if (l->bad || delta_pc > (uint64_t)(clen - pc) ||
+                    delta_line < -(int64_t)line || delta_line > (int64_t)UINT32_MAX - line) {
+                    l->bad = true; return NULL;
+                }
+                pc += (uint32_t)delta_pc;
+                line = (uint32_t)((int64_t)line + delta_line);
+            } else {
+                uint32_t next_pc = r32(l);
+                line = r32(l);
+                if (l->bad || next_pc < pc || next_pc > clen) { l->bad = true; return NULL; }
+                pc = next_pc;
+            }
 #if MCS_ENABLE_LINES
             fn->lines[i].pc = pc; fn->lines[i].line = line;
 #endif

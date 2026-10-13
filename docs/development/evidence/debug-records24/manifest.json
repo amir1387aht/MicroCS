@@ -1,0 +1,42 @@
+{
+  "predecessor": "0fb1257ec7c40fdd0c88996d2bccee25f7aae2ca",
+  "status": "WIP metadata hardening, not full verifier or release",
+  "baseline": {
+    "assertions": 177,
+    "malformed_loads_accepted": 40,
+    "malformed_executed": false,
+    "sanitizer_UB_claim": false
+  },
+  "completed": {
+    "default_metadata_debug": 2961,
+    "source_image_xip": 85,
+    "standalone_cmake_ctest": 1,
+    "actual_tft_native": 131557,
+    "default_metadata_debug_ASan_UBSan": 2961
+  },
+  "running": {
+    "nine_config_sanitizers": "cmd_32d95995fd4c4fafb9f28149db37",
+    "five_real_esp32_cross_builds": "cmd_d62c0b67ef19419fb6feda4bdfbe"
+  },
+  "compatibility": "v1-v4 image format/opcodes/API unchanged, debug PC==code_len allowed, valid negative line deltas/zero/full u32 lines allowed; malformed count/PC/line rejected including with line storage OFF",
+  "footprint": {
+    "kind": "GCC11.5 x86-64 same -Os relocatable bytecode object only",
+    "text_before": 13193,
+    "text_after": 13312,
+    "data_bss_before_after": 0,
+    "MCU_or_speed_claim": false
+  },
+  "source_sha256": {
+    "src/mcs_bytecode.c": "151699e519f51ed7963dbbad81f4a4419e22f1bd0073d2db1454fd769a03070f",
+    "tests/c/test_image_metadata.c": "e19b2506dc12a34991de26b4947db2341c28d7fb6b009500ba8afa677ea55691"
+  },
+  "artifact_sha256": {
+    "v2-debug24-baseline-load-only.log": "579a13288273e8fd93de0e8f169e55d1093463413b08d84521866d24295cd7b0",
+    "v2-debug24-baseline-build.log": "9b9dae41f03100971f7ace4dd9c4b58f27202579624378aa1119c9c7ac2b8e5e",
+    "test_image_debug24-baseline-source.c": "e19b2506dc12a34991de26b4947db2341c28d7fb6b009500ba8afa677ea55691",
+    "v2-debug24-fixed-quick.log": "240a95fe6972ed90c4100d6384bac44f2edbe5490ce276cafea0dbcd747a87df",
+    "v2-debug24-cmake.log": "f9c8dffc7d51f2247ec3f7158df8bb9ad0b8a2c08fd9e6338999e88ba0561fc3",
+    "v2-debug24-tft.log": "0014596202846d18caa7bb0245a8fd2c15b43694656a4bcbaaa402f3c1d9a946",
+    "v2-debug24-object-size.txt": "b7fd55d7a07c22dd13f9caade05013b3cf4c0a7cdfc591fa27f913249f0d0450"
+  }
+}

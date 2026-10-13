@@ -14,7 +14,7 @@ attacker with physical/debug access.
 | Module whitelisting | only modules the host opens exist in C#; HAL classes exist only for non-NULL ops; `cfg.stdlib` removes library groups | by construction |
 | VFS confinement | normalised paths cannot leave mounted roots; RDONLY and NOEXEC mounts | tested |
 | Atomic uploads | interrupted `put` never leaves a half-written script | tested (RAM, LittleFS) |
-| Image validation | magic/version/bounds; canonical overflow-checked varints, entry/function/parameter metadata, nonempty bodies; constant, global, local-slot and upvalue operands; closure captures; branch targets on instruction boundaries. **Not** verified: stack balance and operand types | 1.2; fuzzed with `tools/fuzz.py --image` (load + disassemble) |
+| Image validation | magic/version/bounds; canonical overflow-checked varints, entry/function/parameter metadata, nonempty bodies and checked debug records; constant, global, local-slot and upvalue operands; closure captures; branch targets on instruction boundaries. **Not** verified: stack balance and operand types | 1.2; fuzzed with `tools/fuzz.py --image` (load + disassemble) |
 | Signed images / authenticated shell | — | **planned**: the shell has no authentication; do not expose it on an untrusted link |
 
 Because stack balance is not verified, a hand-crafted image can still corrupt the VM when

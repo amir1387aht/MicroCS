@@ -33,7 +33,7 @@ jobs:
         env:
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: make asan-test
-      - name: Image metadata boundaries (nine configurations, ASan + UBSan)
+      - name: Image metadata/debug-record boundaries (nine configurations, ASan + UBSan)
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
