@@ -2507,17 +2507,63 @@ const App = {
     document.documentElement.classList.toggle("light", light);
     $("btnTheme").innerHTML = icon(light ? "moon" : "sun");
   },
-  splitters() {
-    const drag = (el, onMove) => el.addEventListener("mousedown", (e) => {
-      e.preventDefault(); el.classList.add("drag");
-      const mv = (ev) => onMove(ev), up = () => { el.classList.remove("drag"); removeEventListener("mousemove", mv); removeEventListener("mouseup", up); ed.syncScroll(); };
-      addEventListener("mousemove", mv); addEventListener("mouseup", up);
-    });
-    const side = store.get("side", 280), cons = store.get("cons", 250);
+  layoutBounds() {
+    const main = $("main"), height = main.clientHeight;
+    return { sideMin: 200, sideMax: Math.min(560, Math.max(200, main.clientWidth - 330)),
+      consMin: Math.min(90, height * 0.35), consMax: Math.max(Math.min(90, height * 0.35), height - 164) };
+  },
+  layout() {
+    const key = innerWidth <= 600 ? "hideExplorerCompact" : "hideExplorerDesktop";
+    const hidden = store.get(key, innerWidth <= 600) === true;
+    $("main").classList.toggle("explorer-hidden", hidden);
+    $("deviceExplorer").hidden = $("splitSide").hidden = hidden;
+    $("btnExplorer").setAttribute("aria-expanded", String(!hidden));
+    const bounds = this.layoutBounds();
+    const clamp = (value, fallback, low, high) => Math.max(low, Math.min(high, typeof value === "number" && Number.isFinite(value) ? value : fallback));
+    const side = clamp(store.get("side", 280), 280, bounds.sideMin, bounds.sideMax);
+    const cons = clamp(store.get("cons", 250), 250, bounds.consMin, bounds.consMax);
     $("main").style.setProperty("--side", side + "px");
     $("center").style.setProperty("--cons", cons + "px");
-    drag($("splitSide"), (e) => { const w = Math.max(200, Math.min(560, e.clientX)); $("main").style.setProperty("--side", w + "px"); store.set("side", w); });
-    drag($("splitCons"), (e) => { const r = $("center").getBoundingClientRect(); const h = Math.max(90, Math.min(r.height - 120, r.bottom - e.clientY)); $("center").style.setProperty("--cons", h + "px"); store.set("cons", h); });
+    for (const [id, value, low, high] of [["splitSide", side, bounds.sideMin, bounds.sideMax], ["splitCons", cons, bounds.consMin, bounds.consMax]]) {
+      for (const [name, v] of [["now", value], ["min", low], ["max", high]]) $(id).setAttribute("aria-value" + name, String(Math.round(v)));
+    }
+    ed.syncScroll();
+  },
+  toggleExplorer() {
+    const key = innerWidth <= 600 ? "hideExplorerCompact" : "hideExplorerDesktop";
+    const hide = !$("deviceExplorer").hidden;
+    const moveFocus = hide && $("deviceExplorer").contains(document.activeElement);
+    store.set(key, hide); this.layout();
+    if (moveFocus) (this.tab() ? ed.ta : $("btnExplorer")).focus();
+  },
+  splitters() {
+    const drag = (el, onMove) => {
+      let pointer = null;
+      el.addEventListener("pointerdown", e => {
+        if (e.button !== 0) return;
+        e.preventDefault(); pointer = e.pointerId; el.classList.add("drag"); el.setPointerCapture(pointer);
+      });
+      el.addEventListener("pointermove", e => { if (e.pointerId === pointer) onMove(e); });
+      const end = e => {
+        if (e.pointerId !== pointer) return;
+        pointer = null; el.classList.remove("drag"); ed.syncScroll();
+      };
+      el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end); el.addEventListener("lostpointercapture", end);
+    };
+    const resize = (key, value) => {
+      const bounds = this.layoutBounds(), low = key === "side" ? bounds.sideMin : bounds.consMin, high = key === "side" ? bounds.sideMax : bounds.consMax;
+      store.set(key, Math.max(low, Math.min(high, value))); this.layout();
+    };
+    drag($("splitSide"), e => resize("side", e.clientX - $("main").getBoundingClientRect().left));
+    drag($("splitCons"), e => resize("cons", $("center").getBoundingClientRect().bottom - e.clientY));
+    for (const [id, key, less, more] of [["splitSide", "side", "ArrowLeft", "ArrowRight"], ["splitCons", "cons", "ArrowDown", "ArrowUp"]]) {
+      $(id).addEventListener("keydown", e => {
+        if (![less, more, "Home", "End"].includes(e.key)) return;
+        e.preventDefault(); const bounds = this.layoutBounds(), value = Number($(id).getAttribute("aria-valuenow"));
+        resize(key, e.key === "Home" ? bounds[key + "Min"] : e.key === "End" ? bounds[key + "Max"] : value + (e.key === more ? 20 : -20));
+      });
+    }
+    addEventListener("resize", () => this.layout()); this.layout();
   },
 
   init() {
@@ -2551,6 +2597,7 @@ const App = {
     ed.wireFind();
     ed.onCursor = (l, c) => ($("sbPos").textContent = `Ln ${l}, Col ${c}`);
 
+    $("btnExplorer").onclick = () => this.toggleExplorer();
     $("btnConnect").onclick = () => this.connect();
     $("wConnect").onclick = () => this.connect();
     $("wNew").onclick = () => this.newScratch();
@@ -2599,7 +2646,8 @@ const App = {
     addEventListener("keydown", (e) => {
       if ($("modalBg").classList.contains("show")) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
+      if (mod && !e.shiftKey && e.key.toLowerCase() === "b") { e.preventDefault(); this.toggleExplorer(); }
+      else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
       else if (e.key === "F12" && !e.altKey && !mod) { e.preventDefault(); this.gotoDefinition(); }
       else if (e.key === "F5" && e.shiftKey && !mod) { e.preventDefault(); this.runProject(); }
       else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod); }

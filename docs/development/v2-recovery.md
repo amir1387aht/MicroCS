@@ -1066,3 +1066,36 @@ provenance in evidence/studio-portable31. Local staged/cumulativebinarypatches+
 NOTES prepared; push/fetch/treeverify before remoteSHA record. New31CI independent.
 PR remains OPEN/DRAFT/UNMERGED. Full original scope/release gates STILL BLOCKING;
 no merge/tag/release/provisioning or hostile-image execution. Continue work.
+
+## Checkpoint32 — useful adaptive editor area and accessible panel resizing
+
+Predecessor31 REMOTE e4a74055159b8910a9cade8565282a3d3f5861cd TREEverified
+45dded6e38a98a074b955f3ff683cd4f91fffc24, local054b09e485c7661ac116a507203e2dde1ba0b096.
+Its64file705611Bpush fetched/treeequal, mainunchanged. LiteralCR CLI evidence
+preserved asbyteexactbase64 so intentional payloadCR does not fail Git whitespace;
+actual downloadedJSON snapshots untouched. Existing source31 rawtest evidence and
+allgatingEXIT0 remotelysafe; previous30 exact92CI success, new31CI not assumedgreen.
+
+Phone default Explorercollapsed with visible first-headerbutton/CtrlB and separate
+compact/desktop persistedpreferences; sourcefocushandoff/no file/run mutation.
+Bounded actualsizes preserve desireddesktop preferences, finite malformedfallback.
+Explicit centercolumn/localconsoleheadscroll fixes genuine horizontal sourceoverflow;
+shortwindow split preserves usefuleditor. Real mouse/touch capturedsplitters with
+pointercancel cleanup and keyboardseparator/20px/Home/End/ARIA currentbounds.
+
+Final59actualbrowser area/viewport/source/persistence/key/mouse/touch/cancel/focus
+assertions pass across1400x860/390x844/667x375/320x568 x dark/light. Initialbaseline
+sourceoverflow and immediateviewportstate harnessfailure retained; correctedtest
+awaitsresizepaint, productionunchanged. Full existing frozen Studio/serial/editor/
+plotter/drafts/project28/portable46/completion/modal24/status90/gallery/source80/
+portable56/project53/scope69/lexer/highlight/formatter/caps/metadata/217C#218total
+77snippets/echo/wiki47 allcompletedEXIT0. PNGbyteexact rasterSVG screenshots visually
+inspected. Test includes actualChromiumtouchCancel, NOT physicalphone/deviceIO.
+NewCIeditorgate/docs; sourcehashes/commands/logs/provenance in studio-adaptive32.
+
+No C/runtime/actualmcs/API/opcode/image changes;29runtimegates NOT relabeled.
+No phoneWebSerial/fullaccessibility/zoom/longfile/performance claim. Broadfindbar/
+assistivetech/history/sameviewEOL-only undo/import/fullsemantics and entireoriginal
+scope/security/verifier/graphics/roadmap/hardware/review releasegates STILL pending.
+Localbinarypatches/NOTES prepared; push/fetch/treeverify thenrecordREMOTE32SHA.
+Main unchanged, PR DRAFT/OPEN/UNMERGED. No merge/tag/release/provisioning/hostileimages.

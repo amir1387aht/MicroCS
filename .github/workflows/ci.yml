@@ -114,6 +114,8 @@ jobs:
         run: node tests/studio/test_project_file.js ./mcs && node tests/studio/test_source.js
       - name: Portable download/reopen, canonical editing and real host execution
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_file_browser.js ./mcs
+      - name: Adaptive editor area and accessible pointer/touch/keyboard panels
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_editor_layout.js
       - name: Long-name status geometry (desktop/phone/short, dark/light)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_status_layout.js
       - name: Source-project dialog geometry (32 long names, desktop/phone/short, dark/light)

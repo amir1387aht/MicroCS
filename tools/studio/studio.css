@@ -81,15 +81,19 @@ header::-webkit-scrollbar { display: none; }
 .sep { width: 1px; height: 18px; background: var(--line); margin: 0 3px; }
 
 /* ---------- layout */
-main { display: grid; grid-template-columns: var(--side, 280px) 4px 1fr; min-height: 0; background: var(--shell); }
-.split-v { cursor: col-resize; background: var(--shell); }
-.split-h { cursor: row-resize; height: 4px; background: var(--shell); }
+main { display: grid; grid-template-columns: var(--side, 280px) 4px minmax(0, 1fr); min-height: 0; background: var(--shell); }
+.split-v { cursor: col-resize; background: var(--shell); touch-action: none; }
+main.explorer-hidden { grid-template-columns: minmax(0, 1fr); }
+.side[hidden], #splitSide[hidden] { display: none; }
+#btnExplorer { flex-shrink: 0; position: sticky; left: 0; z-index: 2; background: var(--shell); }
+.split-v:focus-visible, .split-h:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.split-h { cursor: row-resize; touch-action: none; height: 4px; background: var(--shell); }
 .split-v:hover, .split-h:hover, .split-v.drag, .split-h.drag { background: var(--accent); }
 .side { display: flex; flex-direction: column; min-height: 0; background: var(--tool); border: 1px solid var(--line2); }
-.center { display: grid; grid-template-rows: 1fr 4px var(--cons, 250px); min-width: 0; min-height: 0; }
+.center { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr 4px var(--cons, 250px); min-width: 0; min-height: 0; }
 /* VS tool-window caption */
 .panel-head { display: flex; align-items: center; gap: 2px; padding: 0 4px 0 8px; height: 28px; background: var(--hdr); border-bottom: 1px solid var(--line2); flex: none; }
-.panel-title { font-size: 12px; color: var(--fg); flex: 1; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+.panel-title { min-width: 0; font-size: 12px; color: var(--fg); flex: 1; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
 .panel-title svg { width: 14px; height: 14px; color: var(--fg3); }
 .side:focus-within .panel-head, .console-pane:focus-within .panel-head { background: var(--accent); }
 .side:focus-within .panel-title, .console-pane:focus-within .panel-title, .side:focus-within .panel-title svg, .console-pane:focus-within .panel-title svg { color: #fff; }
@@ -199,7 +203,7 @@ kbd { font: 11px var(--ui); padding: 0 5px; border: 1px solid var(--line); backg
 .complete em { margin-left: auto; color: var(--fg3); font-size: 11px; font-style: normal; padding-left: 10px; }
 
 /* ---------- console (Output / Immediate window) */
-.console-pane { display: flex; flex-direction: column; min-height: 0; background: var(--tool); border: 1px solid var(--line2); }
+.console-pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--tool); border: 1px solid var(--line2); }
 .seg { display: inline-flex; border: 1px solid var(--line); margin-right: 4px; }
 .seg button { border: 0; background: var(--input); height: 20px; padding: 0 9px; cursor: pointer; font-size: 11.5px; color: var(--fg2); }
 .seg button.on { background: var(--accent); color: #fff; }
@@ -216,7 +220,7 @@ kbd { font: 11px var(--ui); padding: 0 5px; border: 1px solid var(--line); backg
 .term .bold { font-weight: 700; }
 .prompt { display: flex; align-items: flex-start; gap: 6px; padding: 3px 8px 4px; border-top: 1px solid var(--line2); background: var(--bg); }
 .prompt .ps { font: 12.5px/20px var(--mono); color: var(--t-kw); user-select: none; padding-top: 1px; }
-.prompt textarea { flex: 1; resize: none; border: 0; outline: none; background: transparent; color: var(--code); font: 12.5px/20px var(--mono); padding: 1px 0 0; height: 22px; max-height: 160px; }
+.prompt textarea { flex: 1; min-width: 0; resize: none; border: 0; outline: none; background: transparent; color: var(--code); font: 12.5px/20px var(--mono); padding: 1px 0 0; height: 22px; max-height: 160px; }
 .prompt textarea::placeholder { color: var(--fg4); }
 
 /* ---------- status bar */
@@ -386,3 +390,11 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
   .gallery .gf input { flex: 1; width: 160px; }
   .gallery .gf .spacer { display: none; }
 }
+
+/* Console modes/actions scroll locally instead of imposing an implicit grid
+   minimum on the editor. Compact Explorer is opt-in, independent of desktop. */
+.console-pane .panel-head { overflow-x: auto; scrollbar-width: none; }
+.console-pane .panel-head::-webkit-scrollbar { display: none; }
+.console-pane .panel-head > :not(.panel-title) { flex-shrink: 0; }
+.console-pane .panel-title { min-width: 100px; }
+@media (max-width: 600px) { .brand b { display: none; } .brand { margin-right: 0; } }

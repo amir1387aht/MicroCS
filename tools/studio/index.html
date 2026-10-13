@@ -15,6 +15,7 @@
     docs.js       signatures and docs: completion details, parameter info, hover
     lang.js       C# language service: symbols, type inference, call context
     project.js    bounded portable plaintext source-project snapshots
+    source.js     canonical raw source / normalized editor view offsets
     templates.js  templates and examples (generated from templates/ by gen_templates.py)
     snippets.js   completion snippets
     studio.js     the app: serial link, editor, file manager, console
@@ -54,6 +55,7 @@
 
 <div class="app">
   <header>
+    <button class="btn ghost icon" id="btnExplorer" title="Show / hide Device Explorer (Ctrl+B)" aria-label="Show / hide Device Explorer" aria-controls="deviceExplorer" aria-expanded="true"><svg class="i"><use href="#i-template"/></svg></button>
     <div class="brand"><div class="logo">C#</div><b>MicroCS Studio</b></div>
     <button class="btn primary" id="btnConnect"><svg class="i"><use href="#i-plug"/></svg><span>Connect</span></button>
     <select class="sel" id="baud" title="Baud rate (UART bridges; ignored by native USB)">
@@ -68,7 +70,7 @@
   </header>
 
   <main id="main">
-    <aside class="side">
+    <aside class="side" id="deviceExplorer">
       <div class="panel-head">
         <div class="panel-title"><svg class="i"><use href="#i-chip"/></svg>Device Explorer</div>
         <button class="btn ghost sm icon" id="btnNewFile" title="New file" disabled><svg class="i"><use href="#i-file-plus"/></svg></button>
@@ -94,7 +96,7 @@
         <div class="meminfo" id="memInfo"></div>
       </div>
     </aside>
-    <div class="split-v" id="splitSide"></div>
+    <div class="split-v" id="splitSide" role="separator" tabindex="0" aria-label="Resize Device Explorer" aria-orientation="vertical"></div>
 
     <section class="center" id="center">
       <div class="editor-pane">
@@ -160,7 +162,7 @@
           </div>
         </div>
       </div>
-      <div class="split-h" id="splitCons"></div>
+      <div class="split-h" id="splitCons" role="separator" tabindex="0" aria-label="Resize console" aria-orientation="horizontal"></div>
       <div class="console-pane">
         <div class="panel-head">
           <div class="panel-title"><svg class="i"><use href="#i-term"/></svg>Console - device output and REPL</div>

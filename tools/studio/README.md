@@ -41,6 +41,7 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
 | F5 / Ctrl+Enter · Ctrl+Shift+Enter · Ctrl+S | save and run · run the selection · save |
 | Shift+F5 | run the explicit source project (without saving originals) |
+| Ctrl+B | show / hide Device Explorer (separate compact/desktop preference) |
 
 The formatter (Shift+Alt+F) preserves LF/CRLF/CR line endings, including mixed
 endings, and never rewrites multiline string payloads or multiline comments.
@@ -283,3 +284,40 @@ The portable browser gate exercises actual download/reopen, schema/encoding/size
 rejection, confirmations/cancellation, fresh-context source navigation, raw
 multiline payload editing and real host-shell execution. Status tests change DOM
 labels only for geometry; they do not claim device connection/IO acknowledgement.
+
+
+## Adaptive editor and resizable panels (v2 WIP)
+
+On viewports at most 600 px wide, Device Explorer starts collapsed to leave useful
+source space. The first header button or **Ctrl+B** opens/closes it. Desktop and
+compact collapse preferences are independent and persisted locally; changing
+viewport/orientation does not overwrite the other preference or saved pane sizes.
+Hiding a focused Explorer returns focus to the source (or the toggle if no tab).
+Showing/hiding panels does not save, run, close or rewrite source files.
+
+Actual sidebar and console sizes clamp to the current available space without
+replacing the preferred desktop sizes. The default short-window split leaves a
+useful editor rather than a one-line strip. Invalid persisted sizes use finite
+defaults. Editor and console implicit grid columns no longer expand the document;
+console modes/actions, tabs/toolbars and header controls scroll locally when
+necessary. The encoding status badge remains hidden on narrow screens.
+
+Both splitters support pointer capture for mouse/touch and keyboard focus with
+separator semantics and bounded ARIA values. Sidebar Left/Right and console
+Down/Up adjust by 20 px; Home/End choose the current minimum/maximum. Touch/drag
+cancellation releases dragging state. The resize grips remain narrow desktop
+splitters: touch behavior has a real Chromium input regression, **not physical
+mobile-device, 44-px touch-target or complete accessibility certification**.
+Web Serial board connection still depends on a supported desktop browser; this
+layout does not add unsupported phone Bluetooth/USB/serial capability.
+
+```sh
+CHROME=/path/to/chromium node tests/studio/test_editor_layout.js
+```
+
+The gate checks visible useful source area, viewport boundaries, source bytes and
+real controls across 1400×860, 390×844, 667×375 and 320×568, dark/light. Additional
+checks use actual keyboard, mouse and Chromium touch input, breakpoint transitions,
+independent persisted collapse settings, preferred-size retention, invalid-size
+fallback, focus handoff and page reload. Broader zoom/assistive-tech/long-file/
+findbar/phone-editor/performance/history audits remain full-v2 gates.

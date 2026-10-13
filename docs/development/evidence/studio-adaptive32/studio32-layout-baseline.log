@@ -1,0 +1,11 @@
+PASS editor layout 1400x860 dark
+PASS editor layout 1400x860 light
+AssertionError [ERR_ASSERTION]: layout does not widen the page
+    at /data/MicroCS-v2-next/tests/studio/test_editor_layout.js:11:2 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
