@@ -1,0 +1,56 @@
+status: exited
+exit_code: 0
+exec_session_id: cmd_e9cd98cb4a394c258eb33da89510
+stdout_offset: 1572
+stderr_offset: 0
+timed_out: false
+truncated: false
+
+stdout:
+[ 80%] Built target lvgl
+[ 80%] Building C object CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[ 80%] Linking C static library libmicrocs.a
+[ 98%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 80%] Built target lvgl
+[ 98%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 8.4.0 real headless: 835 checks, 0 failures
+[ 91%] Built target lvgl
+[ 92%] Building C object CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[ 92%] Linking C static library libmicrocs.a
+[100%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 91%] Built target lvgl
+[ 99%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 9.4.0 real headless: 835 checks, 0 failures
+[ 80%] Built target lvgl
+[ 80%] Building C object CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[ 80%] Linking C static library libmicrocs.a
+[ 98%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 80%] Built target lvgl
+[ 98%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 8.4.0 real headless: 887 checks, 0 failures
+[ 91%] Built target lvgl
+[ 92%] Building C object CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[ 92%] Linking C static library libmicrocs.a
+[100%] Built target microcs
+[100%] Linking C executable mcs
+[100%] Built target mcs
+[ 91%] Built target lvgl
+[ 99%] Built target microcs
+[100%] Linking C executable test_lvgl
+[100%] Built target test_lvgl
+LVGL 9.4.0 real headless: 887 checks, 0 failures
+
+
+stderr:

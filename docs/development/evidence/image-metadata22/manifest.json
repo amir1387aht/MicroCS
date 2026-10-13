@@ -1,0 +1,60 @@
+{
+  "status": "WIP checkpoint; not full malicious-image verification, not release",
+  "predecessor": "9d07f501d66da041245afbddd25b4c593ee2097b",
+  "base": "d3def1ff534c59a6726037ccf31f61535647e857",
+  "toolchain": "cc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "source_sha256": {
+    "src/mcs_bytecode.c": "1c2fcbaa0f2c84734a2bf2cca85decfbfbb26dd485c5f094224eb2bc4ca41c53",
+    "tests/c/test_image_metadata.c": "1bb02222b5eedb340891753109fa05627624b82f9323ef21113003bc66127855",
+    "tools/test_image_metadata.py": "7b9e22c9163ce2840ce9a2bd816ca94852ff58813b76ee2fbd5ccd0840fb4f75"
+  },
+  "completed": {
+    "baseline": {
+      "checks": 409,
+      "malformed_loads_accepted": 104,
+      "malformed_executed": false,
+      "size_hint_mismatches": 8
+    },
+    "initial_fixed": 721,
+    "expanded_metadata_default_and_gc_and_compiler_off_each": 2641,
+    "corrected_float32": 2641,
+    "standalone_cmake_ctest": 1,
+    "host_source_image_xip": 85,
+    "lvgl_defaults_each": 835,
+    "lvgl_all_fonts_each": 887,
+    "lvgl_five_goldens_each_config": true,
+    "actual_tft_normal_and_gc_each": 131557,
+    "actual_esp32_cross_link_environments": 5
+  },
+  "initial_invocation_note": "In-flight matrix used nonexistent MCS_FLOAT32=1 for the nominal float32 entry; that entry is a duplicate default, not float32 evidence. Runner corrected to MCS_FLOAT_DOUBLE=0 and separately completed corrected sanitizer float32 run. Remaining in-flight entries still pending.",
+  "studio": "Initial full Studio run exited2: jobs.cfg item click timed out during instability/detachment; exact raw log preserved. Not waived; diagnosis/retest pending.",
+  "running": {
+    "full_host_profile": "cmd_26bb97c2f5fc4f9a970d73da7941",
+    "metadata_matrix": "cmd_83ead7b8d16d43e49f2e0f1cd514",
+    "sanitized_host85_then_fuzz": "cmd_a490822bf9b74c8091ca680657af"
+  },
+  "footprint": {
+    "kind": "GCC11.5 x86-64 relocatable mcs_bytecode.c object, identical -Os -ffunction-sections -fdata-sections, MCS_USER_CONFIG=0; NOT MCU firmware",
+    "before_text_bytes": 13025,
+    "after_text_bytes": 13193,
+    "before_and_after_data_bss": 0,
+    "speed": "not measured in this step, no claim"
+  },
+  "artifact_sha256": {
+    "v2-image22-baseline-accounted.log": "7dac605b00aca7ac7ff4c29c1b89cc7c3caa12c3414f45902880103e976c96c5",
+    "v2-image22-baseline-load-only-final.log": "4cabd3d758f9de5905d3829a7c1d2467220ed2af7094345cfc245e5ba265eb9b",
+    "v2-image22-tracker.log": "20296915f5e4e0d13ad514337205e5f45e0baae989b29918879bb39bec3ea436",
+    "v2-image22-fixed.log": "d5b90b38eae61f8fe2cb55d3f26851470cca9a1369c18a305b986b65e75e2677",
+    "v2-image22-cmake.log": "1111997870dd431be2addd3013d5d025bfd326fb03adade5ad82bb2edf92837e",
+    "v2-image22-lvgl.log": "22f0b98fd18ce98e063c9ce801159d07928e41c6deb838161b5e6a79ac2bbf71",
+    "v2-image22-tft-native.log": "0014596202846d18caa7bb0245a8fd2c15b43694656a4bcbaaa402f3c1d9a946",
+    "v2-image22-tft-stress.log": "0014596202846d18caa7bb0245a8fd2c15b43694656a4bcbaaa402f3c1d9a946",
+    "v2-image22-cross.log": "0ae445c92d53d5c959e8e4809a08e44e2a1f7851c0a55c28961593f9465f046d",
+    "v2-image22-cross.json": "7e0c6acdd8bc746802ec83e2e0e9f1df15879d5378076ff5c10b1da8b07bf2a2",
+    "v2-image22-float32-corrected.log": "06751fb9406a913de93685aa02e0640819a475a335cb25c6b0d33517fffdd420",
+    "v2-image22-object-size.txt": "7ccd5b862f93b794cb64b6def4b1037acdcd0db725cf5efc8b21d2b2c72e1db7",
+    "v2-image22-studio.log": "8d696e3b461e699cecc1b328d32fc255a9ecc9abe9a8a053f182bd7e79a5d6f3",
+    "test_image_metadata22-baseline-accounted-source.c": "d106c39c7d1811356acd175faef53f0b384420f5eca3d8aca6d12d4aa9387077",
+    "checkpoint21-ci.json": "9b0092bfe08082f3172e2c292a09e3a9b75c3f506b3541d60412fa1a5487aeb5"
+  }
+}

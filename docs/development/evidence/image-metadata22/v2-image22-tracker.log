@@ -1,0 +1,257 @@
+v1 xip0 valid0 remaining=1
+FAIL 64: live_bytes==0
+v1 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid1 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid1 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid1 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid1 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v1 xip0 valid1 remaining=2
+FAIL 64: live_bytes==0
+v1 xip1 valid1 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid1 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid1 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid1 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid1 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=2
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=3
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid1 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid1 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid1 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid1 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v2 xip0 valid1 remaining=4
+FAIL 64: live_bytes==0
+v2 xip1 valid1 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid1 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid1 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid1 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid1 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=4
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=5
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid1 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v3 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid1 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid1 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid1 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid1 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=6
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=7
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid1 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip0 valid0 remaining=8
+FAIL 64: live_bytes==0
+v4 xip1 valid0 remaining=8
+FAIL 64: live_bytes==0
+280/408 image metadata checks passed; baseline accepted malformed loads=104 (never executed)

@@ -1,0 +1,3 @@
+   text	   data	    bss	    dec	    hex	filename
+  13025	      0	      0	  13025	   32e1	/data/backups/mcs_bytecode-before-image22.o
+  13193	      0	      0	  13193	   3389	/data/backups/mcs_bytecode-after-image22.o

@@ -1,0 +1,33 @@
+PASS connected, info read: MicroCS 1.14.0
+PASS connect leaves DTR/RTS alone (no reset on connect)
+PASS file list ["lib","data.bin","hello.cs"]
+PASS storage: 18.5 GB free of 31.9 GB
+PASS mem: VM heap: 24 KB in use · peak 24 KB
+PASS REPL keeps state, echo filtered
+PASS multi-line REPL input
+PASS opened hello.cs in editor
+PASS auto-close paren
+PASS overtype closing paren
+PASS tab marked dirty
+PASS save + run streams output
+PASS saved to device fs
+PASS tab clean after save
+PASS REPL state survives file ops
+PASS completion popup
+PASS member completion: MGetDrivesDriveInfo[]
+PASS 176 templates in the gallery
+PASS boot and scheduler categories
+ERROR page.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('#gItems .item b:text-is("jobs.cfg - scheduled scripts")')
+    - locator resolved to <b>jobs.cfg - scheduled scripts</b>
+  - attempting click action
+    - waiting for element to be visible, enabled and stable
+    - element is not stable
+  - retrying click action
+    - waiting for element to be visible, enabled and stable
+  - element was detached from the DOM, retrying
+
+    at /data/MicroCS-v2-work/tests/studio/test_studio.js:126:14 {
+  name: 'TimeoutError'
+}

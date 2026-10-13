@@ -666,3 +666,44 @@ and NOTES maintained; push/fetch/tree verify next. Continue malicious-bytecode
 stack/control-flow/type safety and remaining whole-scope LVGL/TFT/Studio/core/
 security/roadmap; hardware/independent review unavailable still block release.
 No merge/tag/release/provisioning/irreversible device actions or secrets.
+
+## Checkpoint22 — image metadata/varints (WIP; broad gates running)
+
+Predecessor9d07f501d66da041245afbddd25b4c593ee2097b remains tree-verified;
+main/base d3def1ff534c59a6726037ccf31f61535647e857 unchanged. Targeted common
+v1-v4 load/copy/XIP/disassembly metadata validation added: canonical/nonoverflow
+varints, wide-slot-before-cast, arity/parameter types/flags/entry invariants,
+nonempty code and boolean capture tags; bitmap count avoids clen+8 overflow.
+NO full stack/type/initialized-local/fallthrough/exception-flow verifier; trusted
+compiler-image warning retained. No sandbox/auth/signing/audit/board security claim.
+
+Frozen original baseline409 checks passes after independent actual-size tracker;
+104 malformed LOADS accepted, NEVER executed. Original sum-of-hints tracker
+reported128 subsequent balance failures; cause eight old-size hints zero for
+allocated one-byte zero-arity type arrays, not retained physical allocations.
+Initial prototype compile errors and original tracker failure preserved/recorded;
+fixed rejection prevents those allocations. Initialfixed721 checks passes.
+Expanded metadata default/GC-stress/compiler-OFF2641 each and corrected float32
+2641 pass ASan/UBSan/leaks; remaining matrix pending at preparation. Standalone
+CMake/CTest passed; host85 source/image/XIP passed within ongoing fullmakecheck.
+ActualLVGL8/9 default835/allfont887 EACH plus fivegoldens EACHconfig passed.
+ActualTFT131557 normal and GCstress pass; five actualESP32 crosslinks pass,
+artifact/pin hashes recorded. GCC11.5 sameflags -Os hostbytecode object text
+13025->13193bytes, data/bss0; NOTMCU/runtime/performance improvement evidence.
+
+In-flight initial matrix nominalfloat32 used nonexistent MCS_FLOAT32=1, which
+is duplicate default, NOTfloat32 evidence. Runner corrected to documented
+MCS_FLOAT_DOUBLE=0, separate correctedfloat32 run passes. Keep initial log,
+consolidate eight real initial configs + corrected run only when all finish.
+InitialStudiofull test EXIT2 jobs.cfg click unstable/detached timeout preserved;
+not waived; diagnose/retest, do not call Studio gate passed.
+
+Running/frozen production source: fullcheck cmd_26bb97c2f5fc4f9a970d73da7941;
+metadata initialmatrix cmd_83ead7b8d16d43e49f2e0f1cd514; separate sanitizedhost85
+then400source+400load/disasmimage fuzz cmd_a490822bf9b74c8091ca680657af. All other
+jobs exited successfully except Studio initial timeout. Do not change production
+sources until frozen fullcheck exits; do not claim fullmatrix/broad/fuzz pass yet.
+Evidence: development/evidence/image-metadata22/. Staged/cumulativepatches and
+/data/backups/NOTES.md maintained. Continue fullgates, Studio diagnosis, then
+stack/control-flow/type safety and every remaining fullscope requirement.
+No merge/tag/release/provisioning/irreversible security/device operations.

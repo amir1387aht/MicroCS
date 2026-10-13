@@ -425,6 +425,11 @@ static uint64_t rv(loader_t* l) {
     uint64_t v = 0;
     for (unsigned sh = 0; sh < 64; sh += 7) {
         uint8_t c = r8(l);
+        /* A uint64 varint has at most one payload bit in byte ten.
+         * Reject overflow before shifting, and noncanonical redundant zeros. */
+        if (l->bad || (sh == 63 && c > 1) || (sh && c == 0)) {
+            l->bad = true; return 0;
+        }
         v |= (uint64_t)(c & 0x7F) << sh;
         if (!(c & 0x80)) return v;
     }
@@ -473,8 +478,8 @@ static mcs_string_t* rstr(loader_t* l) {
    images must still come from a trusted compiler (see docs/SECURITY.md). */
 static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn, bool v4) {
     uint32_t clen = fn->code_len;
-    if (!clen) return true;
-    uint32_t nbytes = (clen + 8) / 8;
+    if (!clen) return false;
+    uint32_t nbytes = (clen >> 3) + 1; /* avoid uint32 overflow at large lengths */
     uint8_t* starts = MCS_ALLOC(vm, uint8_t, nbytes);
     if (!starts) return false;
     memset(starts, 0, nbytes);
@@ -526,7 +531,7 @@ static bool validate_code(mcs_vm_t* vm, mcs_function_t* fn, bool v4) {
             mcs_function_t* f = AS_FUNCTION(fn->consts[u16]);
             for (uint32_t i = 0; i < f->upvalue_count && ok; i++) {
                 uint8_t is_local = a[2 + i * 2], idx = a[3 + i * 2];
-                ok = is_local ? idx < fn->max_slots : idx < fn->upvalue_count;
+                ok = is_local <= 1 && (is_local ? idx < fn->max_slots : idx < fn->upvalue_count);
             }
             break;
         }
@@ -555,11 +560,27 @@ static mcs_function_t* read_fn(loader_t* l) {
     if (++l->depth > 64) { l->bad = true; return NULL; }
     mcs_function_t* fn = mcs_new_function(vm);
     fn->name = rstr(l); fn->source = rstr(l);
-    fn->arity = r8(l); fn->min_arity = r8(l); fn->upvalue_count = r8(l); fn->flags = (uint8_t)(r8(l) & ~FN_XIP);
-    fn->max_slots = (uint16_t)(l->v3 ? rn(l) : r16(l));
-    if (r8(l)) {
-        fn->param_types = MCS_ALLOC(vm, uint8_t, fn->arity ? fn->arity : 1);
-        for (int i = 0; i < fn->arity; i++) fn->param_types[i] = r8(l);
+    fn->arity = r8(l); fn->min_arity = r8(l); fn->upvalue_count = r8(l);
+    uint8_t flags = r8(l);
+    uint32_t slots = l->v3 ? rn(l) : r16(l);
+    uint8_t has_types = r8(l);
+    /* Check wide metadata before narrowing or allocating. Slot zero is the
+     * callee/receiver, followed by the declared parameters. FN_XIP remains
+     * accepted on disk for compatibility, but ownership is runtime-only. */
+    if (l->bad || slots > UINT16_MAX || slots < (uint32_t)fn->arity + 1 ||
+        fn->min_arity > fn->arity || has_types > 1 || (has_types && !fn->arity) ||
+        (flags & ~(FN_HAS_PARAMS | FN_IS_CTOR | FN_IS_STATIC | FN_XIP)) ||
+        ((flags & FN_HAS_PARAMS) && !fn->arity)) {
+        l->bad = true; return NULL;
+    }
+    fn->flags = (uint8_t)(flags & ~FN_XIP);
+    fn->max_slots = (uint16_t)slots;
+    if (has_types) {
+        fn->param_types = MCS_ALLOC(vm, uint8_t, fn->arity);
+        for (int i = 0; i < fn->arity; i++) {
+            fn->param_types[i] = r8(l);
+            if (fn->param_types[i] > PT_OBJECT) l->bad = true;
+        }
     }
     uint32_t nk = rn(l);
     if (l->bad || nk > 65536) { l->bad = true; return NULL; }
@@ -605,6 +626,7 @@ static mcs_function_t* read_fn(loader_t* l) {
     }
     if (l->bad) return NULL;
     uint32_t clen = rn(l);
+    if (!clen) { l->bad = true; return NULL; }
     if (!need(l, clen)) return NULL;
 #if MCS_ENABLE_XIP
     if (l->xip && clen) {   /* execute in place: the image buffer outlives the VM's use of it */
@@ -729,6 +751,8 @@ mcs_function_t* mcs_load_image_ex(mcs_vm_t* vm, const uint8_t* img, size_t len, 
     }
 #endif
     mcs_function_t* fn = l.bad ? NULL : read_fn(&l);
+    /* The image entry is invoked without arguments or captured upvalues. */
+    if (fn && (fn->arity || fn->min_arity || fn->upvalue_count || (fn->flags & FN_HAS_PARAMS))) l.bad = true;
     if (l.gslots) MCS_FREE(vm, uint16_t, l.gslots, l.gcount);
     if (l.strs) MCS_FREE(vm, mcs_string_t*, l.strs, l.scap);
     vm->gc_pause--;

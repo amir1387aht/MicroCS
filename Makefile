@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: tft-sprite-budget-test tft-transport-test lexer-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: image-metadata-test tft-sprite-budget-test tft-transport-test lexer-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -391,3 +391,12 @@ build/test_lexer_keywords: tests/c/test_lexer_keywords.c $(OBJ)
 lexer-test: build/test_lexer_keywords
 	./build/test_lexer_keywords
 .PHONY: lexer-test
+
+# v1-v4 loader metadata boundaries; not complete untrusted-image verification.
+build/test_image_metadata: tests/c/test_image_metadata.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+image-metadata-test: build/test_image_metadata
+	./build/test_image_metadata
+image-metadata-matrix:
+	python3 tools/test_image_metadata.py --cc "$(CC)"
+.PHONY: image-metadata-test image-metadata-matrix
