@@ -12,6 +12,7 @@ FILES = sorted(glob.glob(os.path.join(ROOT, "src", "*.c")) + glob.glob(os.path.j
 
 # table name -> (section, C# type, "instance" | "static", note)
 MAP = {
+    "sprite_members": ("Optional TFT_eSPI (Arduino)", "TftSprite", "instance", "bounded actual 8/16-bit native sprites; RGB565 script colors; [TFT_ESPI.md](TFT_ESPI.md)"),
     "tft_members": ("Optional TFT_eSPI (Arduino)", "Tft", "instance", "real Arduino WIP subset; explicit setup; [TFT_ESPI.md](TFT_ESPI.md)"),
     "tft_statics": ("Optional TFT_eSPI (Arduino)", "Tft", "static", "actual upstream header version, not manifest/tag"),
     "lv_gui_members": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "instance", "`MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md))"),

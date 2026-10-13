@@ -1,7 +1,12 @@
 /* Compile/link fixture using actual ESP32 Arduino/TFT_eSPI/LVGL sources.
  * Do not flash the arbitrary fixture pinout onto hardware without review. */
 #include <MicroCS.h>
-static void out(void *, const char *s, size_t n) { Serial.write((const uint8_t *)s, n); }
+#if MCS_ENABLE_TFT_ESPI
+#include "sprite_contract.h"
+#endif
+static void out(void *, const char *s, size_t n) {
+    Serial.write((const uint8_t *)s, n);
+}
 void setup() {
     Serial.begin(115200);
     mcs_config_t cfg;
@@ -11,10 +16,23 @@ void setup() {
     cfg.ticks_fn = mcs_arduino_ticks;
     cfg.delay_fn = mcs_arduino_delay;
     mcs_vm_t *vm = mcs_new(&cfg);
-    if (!vm) { Serial.println("VM OOM"); return; }
+    if (!vm) {
+        Serial.println("VM OOM");
+        return;
+    }
+#if MCS_ENABLE_TFT_ESPI
+    mcs_result_t contract = mcs_exec_source(vm, "sprite-contract.cs", sprite_contract);
+    if (contract != MCS_OK) {
+        Serial.println(mcs_last_error(vm));
+        mcs_free(vm);
+        return;
+    }
+#endif
     const char *source =
 #if MCS_ENABLE_TFT_ESPI
         "var d = new Tft(); d.Begin(); d.Rotation = 1; d.Fill(0xF800); "
+        "var s = new TftSprite(d,32,16); s.Fill(0x001F); s.DrawPixel(0,0,0xF800); "
+        "s.Push(10,10); s.PushTransparent(10,30,0x001F); s.Dispose(); "
         "d.DrawPixel(0,0,0xFFFF); d.DrawLine(1,1,20,20,0x07E0); "
         "d.DrawRect(30,30,20,20,0x001F); d.FillRect(60,30,20,20,0xFFFF); "
         "d.DrawCircle(100,100,10,0x001F); d.FillCircle(130,100,10,0x07E0); "
@@ -33,7 +51,8 @@ void setup() {
 #endif
         ;
     mcs_result_t result = mcs_exec_source(vm, "tft-fixture.cs", source);
-    if (result != MCS_OK) Serial.println(mcs_last_error(vm));
+    if (result != MCS_OK)
+        Serial.println(mcs_last_error(vm));
     mcs_free(vm);
 }
 void loop() {}

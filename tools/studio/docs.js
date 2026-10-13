@@ -1736,9 +1736,11 @@ new(string message, Exception inner) | Wrapping another exception
 new() | One native driver; no hardware initialization before Begin
 Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .Begin(): void | Idempotent real hardware initialization; no per-transfer acknowledgement is exposed upstream
-.Dispose(): void | Idempotent native cleanup; rejects while an attached LvGui is live
+.Dispose(): void | Idempotent native cleanup; rejects while a TftSprite child or attached LvGui is live
 .Width: int | Actual rotated driver width after Begin
 .Height: int | Actual rotated driver height after Begin
+.SpriteBytes: int | Reserved upstream pixel allocation bytes; excludes native object/allocator overhead
+.SpriteCount: int | Live bounded sprites; their parent shares one GC pin
 .Rotation: int | 0..3; set before attaching LVGL
 .Fill(int rgb565): void | Fill screen; color 0..65535
 .DrawPixel(int x, int y, int rgb565): void | Coordinates -32767..32767
@@ -1753,4 +1755,23 @@ Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .SetTouch(int xOffset, int xRange, int yOffset, int yRange, int flags): void | Requires TOUCH_CS and actual board calibration; nonzero ranges; flags0..7
 .AttachLVGL(): void | Only with LVGL; Begin first, attach before new LvGui; roots display owner
 .DetachLVGL(): void | Only with LVGL; dispose GUI before detach
+@TftSprite | Optional real TFT_eSPI RAM sprite; exact 8/16-bit depths; bounded native allocation; not a physical display
+new(Tft owner, int width, int height, int depth = 16) | Dimensions 1..4096; default total pixel budget64KiB/count16; owner may be unbegun; depth8 uses native RGB332
+.Dispose(): void | Idempotent; releases pixels/native object/accounting and shared parent pin
+.Width: int | Actual native sprite width
+.Height: int | Actual native sprite height
+.ColorDepth: int | Read-only exact 8 or 16; no implicit unsupported-depth conversion
+.Fill(int rgb565): void | Native fillSprite; RGB565 input, native RGB332 quantization at depth8
+.DrawPixel(int x, int y, int rgb565): void | Clipped native pixel
+.DrawLine(int x1, int y1, int x2, int y2, int rgb565): void | Native sprite line
+.DrawRect(int x, int y, int width, int height, int rgb565): void | Native sprite rectangle
+.FillRect(int x, int y, int width, int height, int rgb565): void | Native sprite rectangle fill
+.DrawCircle(int x, int y, int radius, int rgb565): void | Native sprite circle
+.FillCircle(int x, int y, int radius, int rgb565): void | Native sprite circle fill
+.TextColor(int foreground, int background): void | RGB565 colors
+.TextSize(int size): void | 1..7
+.DrawText(string text, int x, int y, int font): int | Actual compiled font, <=4096bytes/no NUL, native width
+.ReadPixel(int x, int y): int | Bounds-checked RAM read as RGB565; depth8 colors are quantized
+.Push(int x, int y): void | Synchronous physical push; requires parent Begin and LVGL detached; no IO acknowledgement
+.PushTransparent(int x, int y, int rgb565): void | Actual upstream color-keyed push; depth8 key quantized by native code
 `;

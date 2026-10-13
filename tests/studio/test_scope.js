@@ -40,6 +40,9 @@ test('string value="x"; void Run() { int value=1; } value./*caret*/',{value:'str
 test('record Point(int X, int Y); void Later(int arg) { int local=1; /*caret*/ }',{arg:'int',local:'int'});
 test('void Run(string separator="a,b", int number=1) { /*caret*/ }',{separator:'string',number:'int'});
 assert.strictEqual(L.classes.Tft.ctors.length,1); checks++;
+assert.strictEqual(L.classes.TftSprite.ctors.length,1); checks++;
+assert.strictEqual(L.classes.TftSprite.ctors[0].params.length,4); checks++;
+assert.strictEqual(L.classes.TftSprite.ctors[0].params[3].def,'16'); checks++;
 const documented=L.symbols('void Run(string separator="a,b", int number=1) {}').funcs.Run[0];
 assert.strictEqual(documented.params.length,2); assert.strictEqual(documented.params[0].def,'"a,b"'); checks++;
 for (const [source, present, absent] of [

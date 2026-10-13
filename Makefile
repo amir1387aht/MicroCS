@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: tft-transport-test lexer-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: tft-sprite-budget-test tft-transport-test lexer-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -68,7 +68,11 @@ tft-transport-test: | build
 	$(CC) -std=c99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_USER_CONFIG=0 -DMCS_ENABLE_TFT_ESPI=1 \
 	  tests/tft/test_rgb565.c modules/tft/mcs_display_rgb565.c -o build/test_rgb565
 	./build/test_rgb565
-.PHONY: tft-transport-test
+.PHONY: tft-transport-test tft-sprite-budget-test
+tft-sprite-budget-test: | build
+	$(CC) -std=c99 -O1 -Wall -Wextra -Werror -Iinclude tests/tft/test_sprite_budget.c -o build/test_sprite_budget
+	./build/test_sprite_budget
+	python3 tools/gen_tft_fixture.py --check
 
 # Optional real LVGL (no download): native CMake build, default graphics OFF.
 # make lvgl-test LVGL_MAJOR=8 LVGL_DIR=/path/lvgl LVGL_CONFIG=/path/lv_conf.h

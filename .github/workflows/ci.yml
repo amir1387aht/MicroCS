@@ -579,6 +579,10 @@ jobs:
             -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
             tests/tft/test_rgb565.c modules/tft/mcs_display_rgb565.c -o /tmp/test_rgb565
           /tmp/test_rgb565
+          cc -std=c99 -Wall -Wextra -Werror -Iinclude -O1 -g -fsanitize=address,undefined \
+            -fno-omit-frame-pointer tests/tft/test_sprite_budget.c -o /tmp/test_sprite_budget
+          /tmp/test_sprite_budget
+          python3 tools/gen_tft_fixture.py --check
       - uses: actions/upload-artifact@v4
         with:
           name: optional-tft-cross-builds-not-hardware-proof

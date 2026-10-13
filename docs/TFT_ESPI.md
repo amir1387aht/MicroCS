@@ -77,6 +77,62 @@ The native TFT object is destroyed before its VM-accounted allocation is freed.
 Capability `TFT` means this linked class is available, **not** that a physical
 display exists. Capability queries never initialize the display.
 
+## Bounded native RAM sprites
+
+`TFT.Sprite` advertises the linked `TftSprite` class, not connected hardware.
+`new TftSprite(owner, width, height, depth = 16)` owns one actual upstream
+TFT_eSprite/frame. Exact depths **8 and 16** are currently implemented. Depth8
+accepts RGB565 script colors but upstream converts pixels to RGB332; ReadPixel
+returns the resulting quantized RGB565. No silent rounding of unsupported depths.
+One live parent may own up to `MCS_TFT_SPRITE_COUNT` sprites (default16); all share
+**one** parent GC pin, not one pin each. Dispose parent is rejected until children
+are disposed/collected. A surviving child roots the owner; VM teardown finalizes
+newer children before the older parent. Dispose is idempotent, stale calls raise.
+
+`MCS_TFT_SPRITE_BYTES` (default65536) bounds aggregate **requested native pixel
+allocation**, including upstream's one off-screen pixel: `(width*height+1)*2`
+for16bit and `width*height+1` for8bit. This is not a total process RAM limit:
+allocator metadata/fragmentation, stack, and native driver objects are extra.
+Driver/sprite objects use the VM allocator, while upstream pixel calloc/PSRAM
+is outside the VM heap; SpriteBytes reports its reserved request separately.
+Reservations are published before potentially panicking VM allocations and
+rolled back on failed native pixel allocation/finalization. Native pixel OOM
+raises; this does not establish hardware OOM behavior without board execution.
+
+```csharp
+var display = new Tft();
+var sprite = new TftSprite(display, 32, 16); // RAM operations need no Begin
+try {
+    sprite.Fill(0x001F);
+    sprite.DrawPixel(0, 0, 0xF800);
+    Console.WriteLine(sprite.ReadPixel(0, 0)); // RAM RGB565, not physical readback
+    display.Begin();                         // now initializes physical hardware
+    sprite.Push(10, 10);                      // synchronous, no DMA
+    sprite.PushTransparent(10, 30, 0x001F);
+} finally {
+    sprite.Dispose();                        // children before parent
+    display.Dispose();
+}
+```
+
+Sprites expose Width, Height, ColorDepth, Fill, ReadPixel, Push,
+PushTransparent, and the same validated DrawPixel/Line/Rect/FillRect/Circle/
+FillCircle/TextColor/TextSize/DrawText as Tft. Drawing dispatch uses actual
+upstream virtual sprite methods, not physical init/rotation/pushImage through
+a base pointer. ReadPixel rejects out-of-bounds coordinates instead of returning
+upstream's ambiguous sentinel. Push requires a begun parent with LVGL detached;
+color-key conversion/byte-order restoration are actual upstream behavior.
+
+Depth1/4, palettes, multiple frames, resize/rotation, scroll, sprite-to-sprite
+and rotated pushes are **not bound yet**. The inspected upstream4bit automatic
+palette allocator writes without checking calloc failure, so exposing it without
+a safe ownership/allocation adapter would be a known OOM defect. No fabricated
+palette success or replacement library is used. The opted-in real firmware
+fixture embeds `tests/tft/sprite_contract.cs` with RAM/lifetime/invalid-argument
+assertions; source/header parity and cross-link are checked. **Those assertions
+have not been executed on a board**. Host arithmetic sanitizers test only the
+shared allocation calculation, not native rendering or native GC execution.
+
 ## LVGL bridge and lifetime
 
 After `Begin`, optional touch calibration and rotation, call `d.AttachLVGL()`
@@ -115,8 +171,8 @@ ASan/UBSan tests for unaligned/padded buffers, partial chunks, ownership,
 overflow/window rejection and sink-failure propagation. These are transport
 unit tests, not a mocked TFT library substituted for real cross-builds.
 
-This is a functional subset, **not complete v2 TFT support**. Sprites, general
-image/font assets, filesystem fonts, other drawing families, native readback,
+This is a functional subset, **not complete v2 TFT support**. Complete sprite
+depths/operations, general image/font assets, filesystem fonts, other drawing families, native readback,
 DMA/async, bus sharing/latency policy, other upstream platforms and hardware
 lifecycle validation remain release blockers. Hardware OOM/IO/touch behavior
 must be audited on each advertised board. Security/full v2 completion is not

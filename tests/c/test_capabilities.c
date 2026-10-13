@@ -22,6 +22,8 @@ int main(void) {
 #if !MCS_ENABLE_TFT_ESPI
     CHECK(!mcs_capability_has(vm, "TFT"));
     CHECK(!mcs_global_exists(vm, "Tft"));
+    CHECK(!mcs_capability_has(vm, "TFT.Sprite"));
+    CHECK(!mcs_global_exists(vm, "TftSprite"));
 #endif
     CHECK(!mcs_capability_has(NULL, "GPIO"));
     CHECK(!mcs_capability_has(vm, NULL));

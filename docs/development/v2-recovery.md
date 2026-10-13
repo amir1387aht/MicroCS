@@ -383,3 +383,37 @@ and software tests separately passed; exact final release still needs all gates.
 No broad security/hardware/full-v2 completion claimed. No merge/tag/release.
 
 Remote CI on checkpoint12:91success/1failure (full Studio browser job), consistent with the newly reproduced protocol vocabulary defect. This was fixed, all local serial/editor/vocabulary and rebuilt embedded gates pass; new checkpoint13 CI must complete independently. No failed CI result was called green.
+
+## Checkpoint 14 — bounded actual TFT_eSprite RAM support
+
+Added native8/16-bit single-frame sprites, shared parent owner pin, explicit
+count/requested pixel-byte quotas (defaults16/65536), distinct upstream pixel
+heap reporting, stale/invalid-depth/read-bounds errors and parent disposal guard.
+Actual upstream virtual drawing dispatch is used for primitives/compiled font
+text; RAM ReadPixel and physical synchronous/color-key pushes are distinguished.
+Push requires begun parent/LVGL detached. No1/4-bit palette fallback: upstream
+4-bit automatic palette allocation has an unchecked calloc-failure write and
+must be safely adapted before exposing it. No native pointers or DMA exposed.
+
+Added actual firmware RAM/lifetime contract (source/header parity checked),
+TFT.Sprite capability, generated API/help and guarded formatted template214.
+155924 shared allocation arithmetic checks pass with ASan/UBSan; capability,
+packaging/config/docs and actual editor completion gates pass. Standalone,
+LVGL8,LVGL9,touch-LVGL9 and graphics-OFF all cross-link with the unchanged exact
+pinned upstream dependencies. Artifact/source/pin hashes and raw outputs are in
+`evidence/tft-sprites14/`; static sections are not peak/runtime RAM measurements.
+Native firmware assertions have not been executed on a physical board.
+
+Previous remote head652dfbce684523970562bfc8d511f9ed4cd0bae3 has92/92 CI success;
+main stilld3def1ff534c59a6726037ccf31f61535647e857 after a fresh fetch. Full host
+`make -j2 check` is running with log `/data/backups/v2-sprites14-full-host.log`;
+full serial Studio runs to `/data/backups/v2-sprites14-full-studio.log`. Neither
+running result is called passed here. Next: finish these gates, then make real
+upstream headless RAM/lifetime/fault-injection tests reproducible. Prototype
+uses actual unchanged generic TFT source and a test-only Arduino boundary that
+aborts hardware IO; it is not a substitute for the real ESP32 cross-builds or
+hardware. Full sprite/API/LVGL/core/security/roadmap scope remains unfinished.
+
+Recovery patch `/data/backups/v2-checkpoint-14-staged.patch`, cumulative base patch
+and notes are maintained; GitHub commit containing this entry is checkpoint14.
+No merge, tag, release, provisioning or irreversible device operation.

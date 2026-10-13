@@ -395,6 +395,12 @@
 #ifndef MCS_ENABLE_TFT_ESPI
 #define MCS_ENABLE_TFT_ESPI 0     /* Tft class; Arduino only; docs/TFT_ESPI.md */
 #endif
+#ifndef MCS_TFT_SPRITE_BYTES
+#define MCS_TFT_SPRITE_BYTES 65536 /* total requested native pixel bytes; excludes allocator overhead */
+#endif
+#ifndef MCS_TFT_SPRITE_COUNT
+#define MCS_TFT_SPRITE_COUNT 16    /* live sprites share one parent GC pin */
+#endif
 
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
  * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by

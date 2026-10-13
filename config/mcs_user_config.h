@@ -256,6 +256,12 @@
 #ifndef MCS_ENABLE_TFT_ESPI
 #define MCS_ENABLE_TFT_ESPI 0     /* optional Arduino TFT_eSPI; explicit setup/dependency */
 #endif
+#ifndef MCS_TFT_SPRITE_BYTES
+#define MCS_TFT_SPRITE_BYTES 65536 /* total requested native pixel bytes; excludes allocator overhead */
+#endif
+#ifndef MCS_TFT_SPRITE_COUNT
+#define MCS_TFT_SPRITE_COUNT 16    /* live sprites share one parent GC pin */
+#endif
 
 #ifndef MCS_ENABLE_U8G2
 #define MCS_ENABLE_U8G2           0    /* "u8g2" driver: C# U8g2 / U8x8 (needs the u8g2 library) */

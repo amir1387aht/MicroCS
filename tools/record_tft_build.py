@@ -64,6 +64,8 @@ def main():
     files = ['include/mcs.h', 'include/mcs_config.h', 'include/mcs_capabilities.def', 'src/mcs_vm.c',
              'ports/arduino/mcs_arduino_tft.cpp', 'tools/pio_build.py', 'library.json',
              'tests/tft/platformio.ini', 'tests/tft/src/main.cpp',
+             'tests/tft/src/sprite_contract.h', 'tests/tft/sprite_contract.cs',
+             'include/mcs_tft_sprite_budget.h',
              'tests/tft/configs/lvgl8/lv_conf.h', 'tests/tft/configs/lvgl9/lv_conf.h',
              'modules/tft/mcs_display_rgb565.c', 'include/mcs_display_rgb565.h',
              'modules/lvgl/mcs_lvgl.c', 'modules/lvgl/mcs_lvgl_calls.inc',

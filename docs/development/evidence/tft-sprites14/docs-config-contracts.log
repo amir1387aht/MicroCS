@@ -1,0 +1,11 @@
+python3 tools/wiki_sync.py --check
+wiki: 47 pages, links OK
+python3 tools/studio/gen_templates.py --check
+gen_templates --check: OK (214 templates)
+gen_config --check: OK
+OK config template: profile mismatch warns
+cc -std=c99 -O1 -Wall -Wextra -Werror -Iinclude tests/tft/test_sprite_budget.c -o build/test_sprite_budget
+./build/test_sprite_budget
+155924/155924 sprite allocation arithmetic checks passed (not native/hardware execution)
+python3 tools/gen_tft_fixture.py --check
+PASS TFT sprite fixture source parity

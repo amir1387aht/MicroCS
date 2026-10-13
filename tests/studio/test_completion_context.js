@@ -28,7 +28,10 @@ fs.mkdirSync(OUT, { recursive: true });
             ['var display = new Tft(); display.', 'AttachLVGL'],
             ['var gui = new LvGui(160,80); gui.', 'Pump'],
             ['Tft.', 'Version'],
-            ['new Tf', 'Tft']
+            ['new Tf', 'Tft'],
+            ['var sprite = new TftSprite(display,12,10); sprite.', 'ReadPixel'],
+            ['var sprite = new TftSprite(display,12,10,8); sprite.', 'PushTransparent'],
+            ['new TftS', 'TftSprite']
         ]) {
             assert((await suggest(src)).includes(member), 'optional graphics help: ' + src);
         }
