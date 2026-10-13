@@ -1,6 +1,7 @@
 /* Actual unchanged upstream TFT_eSPI + MicroCS wrapper/VM. Only the Arduino
  * boundary is test-provided. Physical IO aborts, never returns fake success. */
 #include "TFT_eSPI.h"
+#include "../../../ports/arduino/mcs_tft_sprite_native.h"
 #include "mcs.h"
 #include "mcs_hal.h"
 #include "mcs_tft.h"
@@ -129,7 +130,7 @@ static void scope_tests() {
         "var scopeParent=new Tft(); var warm=new TftSprite(scopeParent,12,10); warm.Dispose();");
     mcs_value_t parent = mcs_get_global(vm, "scopeParent"), result;
     mcs_value_t args[] = {parent, mcs_int(12), mcs_int(10)};
-    fail_vm_size = sizeof(TFT_eSprite);
+    fail_vm_size = sizeof(mcs_tft_safe_sprite);
     CHECK(mcs_new_object(vm, "TftSprite", 3, args, &result) == MCS_ERR_MEMORY);
     CHECK(fail_vm_size == 0);
     CHECK(mcs_tft_scope_end(vm, outer) == 0);
@@ -220,6 +221,21 @@ int main(int argc, char **argv) {
         CHECK(full.createSprite(2, 2));
         reduced.setColorDepth(8);
         CHECK(reduced.createSprite(2, 2));
+        mcs_tft_safe_sprite palette(&parent), bitmap(&parent);
+        CHECK(palette.createChecked(3, 5, 4));
+        CHECK(bitmap.createChecked(9, 3, 1));
+        for (int i = 0; i < 16; i++)
+            CHECK(palette.getPaletteColor(i) == pgm_read_word(default_4bit_palette + i));
+        for (int index = 0; index < 16; index++) {
+            uint16_t color = (uint16_t)(index * 4097);
+            palette.setPaletteColor(index, color);
+            palette.fillSprite(index);
+            CHECK(palette.readPixelValue(2, 4) == index && palette.readPixel(2, 4) == color);
+        }
+        for (int bit = 0; bit < 2; bit++) {
+            bitmap.fillSprite(bit);
+            CHECK(bitmap.readPixelValue(8, 2) == bit);
+        }
         const uint16_t blue[] = {0, 11, 21, 31};
         for (uint32_t color = 0; color <= 65535; color++) {
             full.drawPixel(1, 1, color);
@@ -237,6 +253,8 @@ int main(int argc, char **argv) {
         return 1;
     CHECK(mcs_capability_has(vm, "TFT"));
     CHECK(mcs_capability_has(vm, "TFT.Sprite"));
+    CHECK(mcs_capability_has(vm, "TFT.Palette"));
+    CHECK(mcs_capability_has(vm, "TFT.Bitmap"));
     mcs_mem_stats_t before, after;
     mcs_mem_stats(vm, &before);
     for (int i = 0; i < 100; i++) {
@@ -271,8 +289,18 @@ int main(int argc, char **argv) {
     CHECK(strstr(mcs_last_error(vm), "OutOfMemoryException"));
     run(vm, "if(parent.SpriteCount!=0 || parent.SpriteBytes!=0) throw new Exception(\"native OOM "
             "reservation\");");
+    mcs_value_t palette_args[] = {parent, mcs_int(12), mcs_int(10), mcs_int(4)};
+    for (size_t failed_request : {size_t(32), size_t(61)}) {
+        fail_native_bytes = failed_request; // first palette, then pixels after palette succeeded
+        CHECK(mcs_new_object(vm, "TftSprite", 4, palette_args, &result) == MCS_ERR_RUNTIME);
+        CHECK(fail_native_bytes == 0);
+        CHECK(strstr(mcs_last_error(vm), "OutOfMemoryException"));
+        run(vm, "if(parent.SpriteCount!=0 || parent.SpriteBytes!=0) throw new "
+                "Exception(\"palette/pixel OOM reservation\"); var retry4=new "
+                "TftSprite(parent,12,10,4); retry4.Dispose();");
+    }
     // Fault during VM-accounted native object allocation, AFTER reservation.
-    fail_vm_size = sizeof(TFT_eSprite);
+    fail_vm_size = sizeof(mcs_tft_safe_sprite);
     CHECK(mcs_new_object(vm, "TftSprite", 3, args, &result) == MCS_ERR_MEMORY);
     CHECK(fail_vm_size == 0);
     mcs_gc(vm); // Panicking constructor's unreachable userdata rolls back here.

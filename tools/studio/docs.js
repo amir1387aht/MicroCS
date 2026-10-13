@@ -1739,7 +1739,7 @@ Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .Dispose(): void | Idempotent native cleanup; rejects while a TftSprite child or attached LvGui is live
 .Width: int | Actual rotated driver width after Begin
 .Height: int | Actual rotated driver height after Begin
-.SpriteBytes: int | Reserved upstream pixel allocation bytes; excludes native object/allocator overhead
+.SpriteBytes: int | Reserved upstream pixel+palette request bytes; excludes native object/allocator overhead
 .SpriteCount: int | Live bounded sprites; their parent shares one GC pin
 .Rotation: int | 0..3; set before attaching LVGL
 .Fill(int rgb565): void | Fill screen; color 0..65535
@@ -1755,23 +1755,27 @@ Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .SetTouch(int xOffset, int xRange, int yOffset, int yRange, int flags): void | Requires TOUCH_CS and actual board calibration; nonzero ranges; flags0..7
 .AttachLVGL(): void | Only with LVGL; Begin first, attach before new LvGui; roots display owner
 .DetachLVGL(): void | Only with LVGL; dispose GUI before detach
-@TftSprite | Optional real TFT_eSPI RAM sprite; exact 8/16-bit depths; bounded native allocation; not a physical display
-new(Tft owner, int width, int height, int depth = 16) | Dimensions 1..4096; default total pixel budget64KiB/count16; owner may be unbegun; depth8 uses native RGB332
+@TftSprite | Optional real TFT_eSPI RAM sprite; exact1/4/8/16-bit depths; bounded native allocation; not a physical display
+new(Tft owner, int width, int height, int depth = 16) | Dimensions 1..4096; default total pixel budget64KiB/count16; owner may be unbegun; depth1 bit/4 palette index/8 RGB332/16 RGB565
 .Dispose(): void | Idempotent; releases pixels/native object/accounting and shared parent pin
 .Width: int | Actual native sprite width
 .Height: int | Actual native sprite height
-.ColorDepth: int | Read-only exact 8 or 16; no implicit unsupported-depth conversion
-.Fill(int rgb565): void | Native fillSprite; RGB565 input, native RGB332 quantization at depth8
-.DrawPixel(int x, int y, int rgb565): void | Clipped native pixel
-.DrawLine(int x1, int y1, int x2, int y2, int rgb565): void | Native sprite line
-.DrawRect(int x, int y, int width, int height, int rgb565): void | Native sprite rectangle
-.FillRect(int x, int y, int width, int height, int rgb565): void | Native sprite rectangle fill
-.DrawCircle(int x, int y, int radius, int rgb565): void | Native sprite circle
-.FillCircle(int x, int y, int radius, int rgb565): void | Native sprite circle fill
-.TextColor(int foreground, int background): void | RGB565 colors
+.ColorDepth: int | Read-only exact1/4/8/16; no implicit unsupported-depth conversion
+.Fill(int color): void | Native fillSprite; depth1 bit0..1, depth4 index0..15, depth8/16 RGB565
+.DrawPixel(int x, int y, int color): void | Clipped native pixel
+.DrawLine(int x1, int y1, int x2, int y2, int color): void | Native sprite line
+.DrawRect(int x, int y, int width, int height, int color): void | Native sprite rectangle
+.FillRect(int x, int y, int width, int height, int color): void | Native sprite rectangle fill
+.DrawCircle(int x, int y, int radius, int color): void | Native sprite circle
+.FillCircle(int x, int y, int radius, int color): void | Native sprite circle fill
+.TextColor(int foreground, int background): void | Exact native depth color ranges (1bit0..1,4bit0..15,8/16bitRGB565)
 .TextSize(int size): void | 1..7
 .DrawText(string text, int x, int y, int font): int | Actual compiled font, <=4096bytes/no NUL, native width
-.ReadPixel(int x, int y): int | Bounds-checked RAM read as RGB565; depth8 colors are quantized
+.ReadPixel(int x, int y): int | Bounds-checked mapped RGB565 RAM read; depth8 quantization; not physical readback
+.ReadValue(int x, int y): int | Bounds-checked raw bit/index/RGB332 byte or RGB565 word
+.SetPaletteColor(int index, int rgb565): void | Depth4 only; index0..15; exact RGB565 entry
+.GetPaletteColor(int index): int | Depth4 only; index0..15; RGB565 entry
+.BitmapColors(int foreground, int background): void | Depth1 only; distinct RGB565 colors; native PARENT-wide mapping affects all its1bit sprites
 .Push(int x, int y): void | Synchronous physical push; requires parent Begin and LVGL detached; no IO acknowledgement
-.PushTransparent(int x, int y, int rgb565): void | Actual upstream color-keyed push; depth8 key quantized by native code
+.PushTransparent(int x, int y, int color): void | Actual upstream key: RGB5658/16, palette index4, only0for1; parent Begin required
 `;

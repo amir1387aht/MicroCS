@@ -33,3 +33,13 @@ const full=parseCapabilities('capabilities=1\n'+names.map(n=>n+'=0').join('\n')+
 assert(full && full.size===names.length,'every native capability must preserve protocol parsing');
 assert(full.has('TFT') && !full.has('TFT_eSPI'));
 console.log('PASS entire native vocabulary fits existing protocol v1 grammar');
+
+// Earlier sprite-only firmware must not offer packed-format APIs it lacks.
+const packed=TEMPLATES.find(t=>t.src.endsWith('/tft_packed.cs'));
+const earlier=parseCapabilities('capabilities=1\nCompiler=1\nTFT=1\nTFT.Sprite=1\n');
+assert(packed && !templateCompatible(packed,earlier,true));
+const packedCaps=parseCapabilities('capabilities=1\nCompiler=1\nTFT=1\nTFT.Sprite=1\nTFT.Palette=1\nTFT.Bitmap=1\n');
+assert(templateCompatible(packed,packedCaps,true));
+assert(templateCompatible(packed,earlier,false),'offline browse keeps all examples');
+assert(!templateCompatible(packed,new Map([...packedCaps].map(([n,v])=>[n,n==='TFT.Bitmap'?false:v])),true));
+console.log('PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware');

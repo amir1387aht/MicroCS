@@ -1,0 +1,4 @@
+PASS TFT sprite fixture source parity
+131555/131555 actual upstream sprite/VM checks passed; native C# contract +20 undisposed teardowns; hardware IO forbidden
+PASS physical-IO guard self-test aborts actual upstream init; no fake transfer success
+PASS pinned real upstream 16e37595040eac69cd628e4bffb56fc30cad6299; test-only generic Arduino boundary, NOT hardware validation

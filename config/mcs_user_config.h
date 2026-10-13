@@ -257,7 +257,7 @@
 #define MCS_ENABLE_TFT_ESPI 0     /* optional Arduino TFT_eSPI; explicit setup/dependency */
 #endif
 #ifndef MCS_TFT_SPRITE_BYTES
-#define MCS_TFT_SPRITE_BYTES 65536 /* total requested native pixel bytes; excludes allocator overhead */
+#define MCS_TFT_SPRITE_BYTES 65536 /* total native pixel+palette requests; excludes allocator overhead */
 #endif
 #ifndef MCS_TFT_SPRITE_COUNT
 #define MCS_TFT_SPRITE_COUNT 16    /* live sprites share one parent GC pin */

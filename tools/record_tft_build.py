@@ -65,7 +65,7 @@ def main():
              'ports/arduino/mcs_arduino_tft.cpp', 'tools/pio_build.py', 'library.json',
              'tests/tft/platformio.ini', 'tests/tft/src/main.cpp',
              'tests/tft/src/sprite_contract.h', 'tests/tft/sprite_contract.cs',
-             'include/mcs_tft_sprite_budget.h',
+             'include/mcs_tft_sprite_budget.h', 'ports/arduino/mcs_tft_sprite_native.h',
              'tests/tft/configs/lvgl8/lv_conf.h', 'tests/tft/configs/lvgl9/lv_conf.h',
              'modules/tft/mcs_display_rgb565.c', 'include/mcs_display_rgb565.h',
              'modules/lvgl/mcs_lvgl.c', 'modules/lvgl/mcs_lvgl_calls.inc',

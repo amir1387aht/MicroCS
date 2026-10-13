@@ -32,7 +32,7 @@ try { sprite.Push(0, 0); throw new Exception("unbegun push accepted"); }
 catch (InvalidOperationException e) {}
 try { owner.Dispose(); throw new Exception("live child parent disposed"); }
 catch (InvalidOperationException e) {}
-try { var bad = new TftSprite(owner, 4, 4, 4); throw new Exception("unsupported depth accepted"); }
+try { var bad = new TftSprite(owner, 4, 4, 3); throw new Exception("unsupported depth accepted"); }
 catch (NotSupportedException e) {}
 try { var big = new TftSprite(owner, 256, 256); throw new Exception("budget bypass"); }
 catch (OutOfMemoryException e) {}
@@ -47,6 +47,53 @@ Check(owner.SpriteBytes == 16 && reduced.ColorDepth == 8, "8bit allocation");
 reduced.Fill(0xFFFF);
 Check(reduced.ReadPixel(2, 4) == 0xFFFF, "native RGB332 to RGB565");
 reduced.Dispose();
+// Packed formats use strict indices; their readback returns mapped RGB565.
+var palette = new TftSprite(owner, 3, 5, 4);
+Check(owner.SpriteBytes == 43 && palette.ColorDepth == 4, "palette budget/odd width");
+palette.SetPaletteColor(3, 0xF800);
+Check(palette.GetPaletteColor(3) == 0xF800, "native palette entry");
+palette.Fill(0);
+palette.DrawPixel(2, 4, 3);
+Check(palette.ReadValue(2, 4) == 3 && palette.ReadPixel(2, 4) == 0xF800, "odd nibble read");
+palette.TextColor(15, 0);
+palette.TextSize(1);
+Check(palette.DrawText("A", 0, 0, 1) > 0, "palette native font");
+try { palette.DrawPixel(0, 0, 16); throw new Exception("palette index truncated"); }
+catch (ArgumentOutOfRangeException e) {}
+try { palette.GetPaletteColor(16); throw new Exception("bad palette index"); }
+catch (ArgumentOutOfRangeException e) {}
+try { palette.BitmapColors(0, 1); throw new Exception("wrong bitmap depth"); }
+catch (NotSupportedException e) {}
+palette.Dispose();
+var bitmap = new TftSprite(owner, 9, 3, 1);
+var peer = new TftSprite(owner, 5, 1, 1);
+Check(owner.SpriteBytes == 9 && bitmap.ColorDepth == 1, "bitmap byte rows");
+bitmap.BitmapColors(0x07E0, 0xF800); // Actual mapping belongs to the shared parent.
+bitmap.Fill(0);
+peer.Fill(1);
+Check(peer.ReadPixel(4, 0) == 0x07E0, "parent-wide bitmap mapping");
+bitmap.DrawPixel(8, 2, 1);
+Check(bitmap.ReadValue(8, 2) == 1 && bitmap.ReadPixel(8, 2) == 0x07E0, "bitmap odd width bit");
+Check(bitmap.ReadValue(7, 2) == 0 && bitmap.ReadPixel(7, 2) == 0xF800, "bitmap background");
+try { bitmap.DrawPixel(0, 0, 2); throw new Exception("bitmap index truncated"); }
+catch (ArgumentOutOfRangeException e) {}
+try { bitmap.BitmapColors(1, 1); throw new Exception("implicit bitmap color inversion"); }
+catch (ArgumentException e) {}
+try { bitmap.SetPaletteColor(0, 1); throw new Exception("wrong palette depth"); }
+catch (NotSupportedException e) {}
+try { bitmap.ReadPixel(9, 0); throw new Exception("padding bit exposed"); }
+catch (ArgumentOutOfRangeException e) {}
+try { bitmap.PushTransparent(0, 0, 1); throw new Exception("unsupported bit transparency"); }
+catch (NotSupportedException e) {}
+bitmap.TextColor(1, 0);
+Check(bitmap.DrawText("A", 0, 0, 1) > 0, "bitmap native font");
+bitmap.Dispose();
+peer.Dispose();
+try { var overflow = new TftSprite(owner, 4096, 32, 4); throw new Exception("palette quota overhead omitted"); }
+catch (OutOfMemoryException e) {}
+try { var overflow = new TftSprite(owner, 4096, 128, 1); throw new Exception("bitmap quota overhead omitted"); }
+catch (OutOfMemoryException e) {}
+Check(owner.SpriteBytes == 0 && owner.SpriteCount == 0, "packed formats release");
 var sprites = new TftSprite[16];
 for (int i = 0; i < 16; i++)
     sprites[i] = new TftSprite(owner, 2, 2);

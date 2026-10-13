@@ -17,6 +17,12 @@ int main(void) {
     CHECK(mcs_tft_sprite_allocation(1, 1, 8, &bytes) && bytes == 2);
     CHECK(mcs_tft_sprite_allocation(4096, 4096, 16, &bytes) && bytes == 33554434);
     CHECK(mcs_tft_sprite_allocation(4096, 4096, 8, &bytes) && bytes == 16777217);
+    CHECK(mcs_tft_sprite_allocation(1, 1, 4, &bytes) && bytes == 34);
+    CHECK(mcs_tft_sprite_allocation(1, 1, 1, &bytes) && bytes == 2);
+    CHECK(mcs_tft_sprite_allocation(4096, 4096, 4, &bytes) && bytes == 8388641);
+    CHECK(mcs_tft_sprite_allocation(4096, 4096, 1, &bytes) && bytes == 2097153);
+    CHECK(mcs_tft_sprite_allocation(3, 5, 4, &bytes) && bytes == 43);
+    CHECK(mcs_tft_sprite_allocation(9, 3, 1, &bytes) && bytes == 7);
     const int bad[] = {INT_MIN, -1, 0, 4097, INT_MAX};
     for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
         bytes = 123;
@@ -24,7 +30,7 @@ int main(void) {
         CHECK(!mcs_tft_sprite_allocation(8, bad[i], 16, &bytes) && bytes == 123);
     }
     for (int depth = -1; depth <= 33; depth++) {
-        if (depth == 8 || depth == 16)
+        if (depth == 1 || depth == 4 || depth == 8 || depth == 16)
             continue;
         bytes = 123;
         CHECK(!mcs_tft_sprite_allocation(3, 5, depth, &bytes) && bytes == 123);
@@ -32,6 +38,10 @@ int main(void) {
     CHECK(!mcs_tft_sprite_allocation(3, 5, 16, NULL));
     for (int w = 1; w <= 4096; w += 7) {
         for (int h = 1; h <= 4096; h += 31) {
+            CHECK(mcs_tft_sprite_allocation(w, h, 4, &bytes) &&
+                  bytes == ((size_t)w + 1) / 2 * h + 33);
+            CHECK(mcs_tft_sprite_allocation(w, h, 1, &bytes) &&
+                  bytes == ((size_t)w + 7) / 8 * h + 1);
             CHECK(mcs_tft_sprite_allocation(w, h, 8, &bytes) && bytes == (size_t)w * h + 1);
             CHECK(mcs_tft_sprite_allocation(w, h, 16, &bytes) && bytes == ((size_t)w * h + 1) * 2);
         }

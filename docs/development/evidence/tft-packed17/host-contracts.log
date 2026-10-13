@@ -1,0 +1,153 @@
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_bytecode.c -o build/mcs_bytecode.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_compiler.c -o build/mcs_compiler.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_fmt.c -o build/mcs_fmt.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lexer.c -o build/mcs_lexer.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lib.c -o build/mcs_lib.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lib_bytes.c -o build/mcs_lib_bytes.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lib_coll.c -o build/mcs_lib_coll.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lib_json.c -o build/mcs_lib_json.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_lib_str.c -o build/mcs_lib_str.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_object.c -o build/mcs_object.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_opt.c -o build/mcs_opt.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_parser.c -o build/mcs_parser.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_value.c -o build/mcs_value.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c src/mcs_vm.c -o build/mcs_vm.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/ble/mcs_ble_lib.c -o build/mod/ble/mcs_ble_lib.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/ble/mcs_ble_sim.c -o build/mod/ble/mcs_ble_sim.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/drivers/mcs_drivers.c -o build/mod/drivers/mcs_drivers.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/drivers/mcs_drv_servo.c -o build/mod/drivers/mcs_drv_servo.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/mod/drivers/mcs_drv_u8g2.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/drivers/mcs_drv_ws2812.c -o build/mod/drivers/mcs_drv_ws2812.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_flash.c -o build/mod/fs/mcs_flash.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_flashfs.c -o build/mod/fs/mcs_flashfs.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_fs_lib.c -o build/mod/fs/mcs_fs_lib.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs.c -o build/mod/fs/mcs_vfs.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs_lfs.c -o build/mod/fs/mcs_vfs_lfs.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs_posix.c -o build/mod/fs/mcs_vfs_posix.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs_ram.c -o build/mod/fs/mcs_vfs_ram.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs_tinyfs.c -o build/mod/fs/mcs_vfs_tinyfs.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/fs/mcs_vfs_yaffs.c -o build/mod/fs/mcs_vfs_yaffs.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/hal/mcs_hal_cfg.c -o build/mod/hal/mcs_hal_cfg.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/hal/mcs_hal_dma.c -o build/mod/hal/mcs_hal_dma.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/hal/mcs_hal_lib.c -o build/mod/hal/mcs_hal_lib.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/hal/mcs_hal_sim.c -o build/mod/hal/mcs_hal_sim.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/lvgl/mcs_lvgl.c -o build/mod/lvgl/mcs_lvgl.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/net/mcs_net_lib.c -o build/mod/net/mcs_net_lib.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/net/mcs_net_sim.c -o build/mod/net/mcs_net_sim.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/net/mcs_net_sock.c -o build/mod/net/mcs_net_sock.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/net/mcs_net_srv.c -o build/mod/net/mcs_net_srv.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/os/mcs_os.c -o build/mod/os/mcs_os.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/runtime/mcs_runtime.c -o build/mod/runtime/mcs_runtime.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/sched/mcs_sched.c -o build/mod/sched/mcs_sched.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/shell/mcs_shell.c -o build/mod/shell/mcs_shell.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/tft/mcs_display_rgb565.c -o build/mod/tft/mcs_display_rgb565.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude -c modules/threads/mcs_threads.c -o build/mod/threads/mcs_threads.o
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude build/mcs_bytecode.o build/mcs_compiler.o build/mcs_fmt.o build/mcs_lexer.o build/mcs_lib.o build/mcs_lib_bytes.o build/mcs_lib_coll.o build/mcs_lib_json.o build/mcs_lib_str.o build/mcs_object.o build/mcs_opt.o build/mcs_parser.o build/mcs_value.o build/mcs_vm.o build/mod/ble/mcs_ble_lib.o build/mod/ble/mcs_ble_sim.o build/mod/drivers/mcs_drivers.o build/mod/drivers/mcs_drv_servo.o build/mod/drivers/mcs_drv_u8g2.o build/mod/drivers/mcs_drv_ws2812.o build/mod/fs/mcs_flash.o build/mod/fs/mcs_flashfs.o build/mod/fs/mcs_fs_lib.o build/mod/fs/mcs_vfs.o build/mod/fs/mcs_vfs_lfs.o build/mod/fs/mcs_vfs_posix.o build/mod/fs/mcs_vfs_ram.o build/mod/fs/mcs_vfs_tinyfs.o build/mod/fs/mcs_vfs_yaffs.o build/mod/hal/mcs_hal_cfg.o build/mod/hal/mcs_hal_dma.o build/mod/hal/mcs_hal_lib.o build/mod/hal/mcs_hal_sim.o build/mod/lvgl/mcs_lvgl.o build/mod/net/mcs_net_lib.o build/mod/net/mcs_net_sim.o build/mod/net/mcs_net_sock.o build/mod/net/mcs_net_srv.o build/mod/os/mcs_os.o build/mod/runtime/mcs_runtime.o build/mod/sched/mcs_sched.o build/mod/shell/mcs_shell.o build/mod/tft/mcs_display_rgb565.o build/mod/threads/mcs_threads.o ports/unix/main.c -o mcs -lm
+PASS t01_basics.cs
+PASS t01_basics.cs (image)
+PASS t01_basics.cs (xip)
+PASS t02_oop.cs
+PASS t02_oop.cs (image)
+PASS t02_oop.cs (xip)
+PASS t03_collections.cs
+PASS t03_collections.cs (image)
+PASS t03_collections.cs (xip)
+PASS t04_exceptions.cs
+PASS t04_exceptions.cs (image)
+PASS t04_exceptions.cs (xip)
+PASS t05_functional.cs
+PASS t05_functional.cs (image)
+PASS t05_functional.cs (xip)
+PASS t06_gc_stress.cs
+PASS t06_gc_stress.cs (image)
+PASS t06_gc_stress.cs (xip)
+PASS t07_filesystem.cs
+PASS t07_filesystem.cs (image)
+PASS t07_filesystem.cs (xip)
+PASS t08_hal.cs
+PASS t08_hal.cs (image)
+PASS t08_hal.cs (xip)
+PASS t09_scheduler.cs
+PASS t09_scheduler.cs (image)
+PASS t09_scheduler.cs (xip)
+PASS t10_lang_phase2.cs
+PASS t10_lang_phase2.cs (image)
+PASS t10_lang_phase2.cs (xip)
+PASS t11_tuples_ranges.cs
+PASS t11_tuples_ranges.cs (image)
+PASS t11_tuples_ranges.cs (xip)
+PASS t12_memory_churn.cs
+PASS t12_memory_churn.cs (image)
+PASS t12_memory_churn.cs (xip)
+PASS t13_stdlib_more.cs
+PASS t13_stdlib_more.cs (image)
+PASS t13_stdlib_more.cs (xip)
+PASS t14_low_resource.cs
+PASS t14_low_resource.cs (image)
+PASS t14_low_resource.cs (xip)
+PASS t15_hal_v2.cs
+PASS t15_hal_v2.cs (image)
+PASS t15_hal_v2.cs (xip)
+PASS t16_bytes.cs
+PASS t16_bytes.cs (image)
+PASS t16_bytes.cs (xip)
+PASS t17_optimizer.cs
+PASS t17_optimizer.cs (image)
+PASS t17_optimizer.cs (xip)
+PASS t18_utils.cs
+PASS t18_utils.cs (image)
+PASS t18_utils.cs (xip)
+PASS t19_ledstrip.cs
+PASS t19_ledstrip.cs (image)
+PASS t19_ledstrip.cs (xip)
+PASS t20_sched_sleep.cs
+PASS t20_sched_sleep.cs (image)
+PASS t20_sched_sleep.cs (xip)
+PASS t21_servo.cs
+PASS t21_servo.cs (image)
+PASS t21_servo.cs (xip)
+PASS t22_hal_config.cs
+PASS t22_hal_config.cs (image)
+PASS t22_hal_config.cs (xip)
+PASS t23_dma.cs
+PASS t23_dma.cs (image)
+PASS t23_dma.cs (xip)
+PASS t24_net.cs
+PASS t24_net.cs (image)
+PASS t24_net.cs (xip)
+PASS t25_json.cs
+PASS t25_json.cs (image)
+PASS t25_json.cs (xip)
+PASS t26_robustness.cs
+PASS t26_robustness.cs (image)
+PASS t26_robustness.cs (xip)
+PASS t27_dotnet_semantics.cs
+PASS t27_dotnet_semantics.cs (image)
+PASS t27_dotnet_semantics.cs (xip)
+PASS err_limits.cs
+PASS err_member.cs
+PASS err_runtime.cs
+PASS err_syntax.cs
+----
+85 passed, 0 failed
+71/71 capability checks passed
+83/83 capability checks passed
+64/64 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS entire native vocabulary fits existing protocol v1 grammar
+PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies
+python3 tools/wiki_sync.py --check
+wiki: 47 pages, links OK
+python3 tools/studio/gen_templates.py --check
+gen_templates --check: OK (215 templates)
+gen_config --check: OK
+OK config template: profile mismatch warns
+cc -std=c99 -O1 -Wall -Wextra -Werror -Iinclude tests/tft/test_sprite_budget.c -o build/test_sprite_budget
+./build/test_sprite_budget
+311804/311804 sprite allocation arithmetic checks passed (not native/hardware execution)
+python3 tools/gen_tft_fixture.py --check
+PASS TFT sprite fixture source parity
+311804/311804 sprite allocation arithmetic checks passed (not native/hardware execution)

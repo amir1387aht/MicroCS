@@ -487,3 +487,45 @@ scope test jobs completed. Recovery staged patch `/data/backups/v2-checkpoint-16
 cumulative binary base patch and NOTES maintained. Next safely bind palettes/1/4
 bit colors (upstream unchecked palette calloc), then fuller sprite/LVGL assets/
 fonts/build routes/core/Studio/security/roadmap/hardware scope. No merge/release.
+
+## Checkpoint 17 — safe native palettes/bitmaps and compatible capabilities
+
+Added exact1/4-bit depths alongside8/16. Inspected upstream createPalette's
+unchecked calloc write; implemented a small real TFT_eSprite subclass that checks
+its protected native32byte palette before actual upstream createSprite/default
+palette initialization. The real native destructor frees it even after pixel OOM;
+no library source rewrite/replacement. Quota now includes palette, padded rows,
+off-screen pixel. Strict1bit/4bit index ranges prevent silent native truncation;
+RGB5658/16 inputs stay unchanged. Added raw ReadValue, actual palette get/set,
+parent-wide BitmapColors (explicitly NOT per-sprite), reject equal colors instead
+of native inversion, and0-only1bit transparency (native ignores other keys).
+Arguments are checked before physical push/begun gate; no rejected-call IO.
+
+Real upstream native+VM sanitizer tests pass131555 checks in EACH normal and
+GC-stress variant, adding palette/default entry/index roundtrips, bit/nibble odd
+widths, actual packed C# primitives/GLCD and quota/error cases. Forced actual
+palette calloc OOM and pixel OOM AFTER palette allocation both balance VM/native
+lifetime reservations and permit reuse. Shared allocation arithmetic311804 checks
+pass normally/ASan/UBSan. Five actual ESP32 standalone/LVGL8/LVGL9/touch/OFF variants
+cross-link with refreshed artifact/source/pin hashes. Earlier initial tests/matrix
+preceded new capability entries; final BOTH native variants and ALL five embedded
+variants reran after changes, avoiding mixed-source proof. Evidence in
+`evidence/tft-packed17/`, no physical/PSRAM/production host/full API validation.
+
+Found/avoided new-template compatibility ambiguity: older TFT.Sprite firmware
+lacks packed APIs. Appended legal wire TFT.Palette/TFT.Bitmap and require both in
+new RAM-only example instead of assuming class availability proves depth APIs.
+Legacy/offline/false/missing capability filtering, all-vocabulary grammar, OFF
+negative probes and allocation-free positive probes pass. Header packaging includes
+native guard without vendor headers. Generated API/help,215 formatted templates,
+host85 source/image/XIP/config/docs/package, actual editor/geometry and full
+serial Studio pass. Scope/native pending-child safety from checkpoint16 preserved.
+
+Remote predecessor9c2fee8e1e2b3c0a895c3db13ab22d781175665c fetched/tree-verified;
+main remainsd3def1ff534c59a6726037ccf31f61535647e857. Latest snapshots: checkpoint15
+90success/2running; checkpoint16 91success/1running, no failures so far but NOT
+called green until complete. No active local gate jobs remain. Staged recovery
+patch `/data/backups/v2-checkpoint-17-staged.patch`, cumulative base patch/NOTES
+maintained. Next fuller sprite/image/font APIs, LVGL assets/builds/core/Studio/
+security/roadmap; all remaining release/hardware/review gates still block merge.
+No merge/tag/release/provisioning or irreversible device action.

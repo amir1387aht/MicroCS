@@ -38,5 +38,6 @@ with tempfile.TemporaryDirectory() as tmp:
     config=(bundle/'src/mcs_user_config.h').read_text()
     assert '#define MCS_ENABLE_TFT_ESPI 1' in config and '#define MCS_LVGL_MAJOR 8' in config
     assert 'TFT_eSPI' in (bundle/'library.properties').read_text() and 'lvgl' in (bundle/'library.properties').read_text()
+    assert (bundle/'src/mcs_tft_sprite_native.h').exists()
     assert not (bundle/'src/TFT_eSPI.h').exists() and not (bundle/'src/lvgl.h').exists()
 print('PASS Arduino optional graphics packaging: generated includes and explicit dependencies')

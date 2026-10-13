@@ -20,3 +20,7 @@ Attach the synchronous TFT backend before constructing a GUI. Dispose the GUI be
 [tft_sprite.cs] TFT_eSPI RAM sprite and synchronous push
 requires: Compiler, TFT, TFT.Sprite
 Draw into a bounded actual16-bit native sprite, read its RAM pixel and push to reviewed hardware. Dispose child before parent; no DMA or physical-readback claim.
+
+[tft_packed.cs] Native TFT palette and bitmap RAM
+requires: Compiler, TFT, TFT.Sprite, TFT.Palette, TFT.Bitmap
+Use strict4-bit palette indices and1-bit pixels with real native RAM readback. Safe palette allocation, padded rows and parent-wide bitmap mapping; no physical IO.

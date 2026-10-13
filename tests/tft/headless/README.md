@@ -24,7 +24,9 @@ The harness invokes actual upstream init in a separate process and requires an
 abort with the physical-IO error prefix, proving the guard is enabled. A sprite
 operation accidentally reaching GPIO or SPI therefore cannot pass.
 
-Native script assertions cover pixels/primitives/compiled GLCD text, invalid
+Native script assertions cover all1/4/8/16bit formats, odd bit/nibble widths,
+strict bit/palette colors, parent-wide bitmap mapping, palette getter/setter,
+GLCD text for low-bit sprites and invalid
 inputs/depth/bounds, default quota/count, shared parent pin, GC-only parent
 retention, idempotent Dispose and reuse. Native C++ tests additionally check all
 65536 RGB565 words against actual16bit storage and native8bit RGB332 quantization,
@@ -33,7 +35,7 @@ source/image shell runs,24 repeated normal/error/Stop scopes, nested/preexisting
 and foreign-VM ownership, OOM-before-GC scope rollback, persistent machine exec,
 allocation-free capability
 probes and measured VM allocation balance. A linker calloc fault injector forces
-actual upstream pixel OOM; a VM allocator fault targets the native sprite object
+actual upstream palette and subsequent pixel OOM; a VM allocator fault targets the native sprite object
 after reservation, followed by GC/reuse. No native library source is rewritten to
 manufacture either allocation failure. ASan/UBSan/leak detection must be enabled
 by the caller/environment with suitable compiler sanitizer libraries installed.

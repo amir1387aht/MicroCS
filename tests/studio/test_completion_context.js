@@ -31,7 +31,10 @@ fs.mkdirSync(OUT, { recursive: true });
             ['new Tf', 'Tft'],
             ['var sprite = new TftSprite(display,12,10); sprite.', 'ReadPixel'],
             ['var sprite = new TftSprite(display,12,10,8); sprite.', 'PushTransparent'],
-            ['new TftS', 'TftSprite']
+            ['new TftS', 'TftSprite'],
+            ['var palette=new TftSprite(display,3,5,4); palette.', 'SetPaletteColor'],
+            ['var bitmap=new TftSprite(display,9,3,1); bitmap.', 'BitmapColors'],
+            ['var bitmap=new TftSprite(display,9,3,1); bitmap.', 'ReadValue']
         ]) {
             assert((await suggest(src)).includes(member), 'optional graphics help: ' + src);
         }

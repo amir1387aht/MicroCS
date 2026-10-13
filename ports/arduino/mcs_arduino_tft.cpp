@@ -5,6 +5,7 @@
 #if MCS_ENABLE_TFT_ESPI
 #include <TFT_eSPI.h>
 #include "mcs_tft_sprite_budget.h"
+#include "mcs_tft_sprite_native.h"
 #include <new>
 #include <string.h>
 #if MCS_ENABLE_LVGL
@@ -37,7 +38,7 @@ struct tft_t {
 #endif
 };
 struct sprite_t {
-    TFT_eSprite *display;
+    mcs_tft_safe_sprite *display;
     tft_t *owner;
     sprite_t *previous, *next;
     size_t bytes;
@@ -99,6 +100,19 @@ static bool integer(mcs_vm_t *vm, mcs_value_t value, int32_t low, int32_t high, 
     }
     *out = (int32_t)n;
     return true;
+}
+/* Low-depth upstream sprites consume indices, not silently narrowed RGB565. */
+static bool color_value(mcs_vm_t *vm, mcs_value_t self, mcs_value_t value, int32_t *out) {
+    sprite_t *s = (sprite_t *)mcs_userdata_of(self, &sprite_def);
+    int32_t maximum = 65535;
+    if (s && s->display) {
+        int depth = s->display->getColorDepth();
+        if (depth == 1)
+            maximum = 1;
+        else if (depth == 4)
+            maximum = 15;
+    }
+    return integer(vm, value, 0, maximum, out);
 }
 #define TFT_CHECK()                                                                                \
     tft_t *d = checked(vm, self);                                                                  \
@@ -214,7 +228,7 @@ NATIVE(tft_rotation_set) {
 NATIVE(tft_fill) {
     TFT_CHECK();
     int32_t color;
-    if (integer(vm, argv[0], 0, 65535, &color))
+    if (color_value(vm, self, argv[0], &color))
         d->display->fillScreen((uint16_t)color);
     return mcs_null();
 }
@@ -222,7 +236,7 @@ NATIVE(tft_pixel) {
     DRAW_CHECK();
     int32_t x, y, c;
     if (integer(vm, argv[0], -32767, 32767, &x) && integer(vm, argv[1], -32767, 32767, &y) &&
-        integer(vm, argv[2], 0, 65535, &c))
+        color_value(vm, self, argv[2], &c))
         display->drawPixel(x, y, (uint16_t)c);
     return mcs_null();
 }
@@ -231,7 +245,7 @@ NATIVE(tft_line) {
     int32_t x, y, x2, y2, c;
     if (integer(vm, argv[0], -32767, 32767, &x) && integer(vm, argv[1], -32767, 32767, &y) &&
         integer(vm, argv[2], -32767, 32767, &x2) && integer(vm, argv[3], -32767, 32767, &y2) &&
-        integer(vm, argv[4], 0, 65535, &c))
+        color_value(vm, self, argv[4], &c))
         display->drawLine(x, y, x2, y2, (uint16_t)c);
     return mcs_null();
 }
@@ -242,7 +256,7 @@ static mcs_value_t rectangle(mcs_vm_t *vm, mcs_value_t self, mcs_value_t *argv, 
     int32_t x, y, w, h, c;
     if (integer(vm, argv[0], -32767, 32767, &x) && integer(vm, argv[1], -32767, 32767, &y) &&
         integer(vm, argv[2], 1, 4096, &w) && integer(vm, argv[3], 1, 4096, &h) &&
-        integer(vm, argv[4], 0, 65535, &c)) {
+        color_value(vm, self, argv[4], &c)) {
         if (filled)
             display->fillRect(x, y, w, h, (uint16_t)c);
         else
@@ -264,7 +278,7 @@ static mcs_value_t circle(mcs_vm_t *vm, mcs_value_t self, mcs_value_t *argv, boo
         return mcs_null();
     int32_t x, y, r, c;
     if (integer(vm, argv[0], -32767, 32767, &x) && integer(vm, argv[1], -32767, 32767, &y) &&
-        integer(vm, argv[2], 0, 4096, &r) && integer(vm, argv[3], 0, 65535, &c)) {
+        integer(vm, argv[2], 0, 4096, &r) && color_value(vm, self, argv[3], &c)) {
         if (filled)
             display->fillCircle(x, y, r, (uint16_t)c);
         else
@@ -283,7 +297,7 @@ NATIVE(tft_fill_circle) {
 NATIVE(tft_text_color) {
     DRAW_CHECK();
     int32_t fg, bg;
-    if (integer(vm, argv[0], 0, 65535, &fg) && integer(vm, argv[1], 0, 65535, &bg))
+    if (color_value(vm, self, argv[0], &fg) && color_value(vm, self, argv[1], &bg))
         display->setTextColor((uint16_t)fg, (uint16_t)bg);
     return mcs_null();
 }
@@ -424,8 +438,8 @@ NATIVE(tft_set_touch) {
  * published before VM-accounted allocations that may panic/longjmp on OOM. */
 static void sprite_release(mcs_vm_t *vm, sprite_t *s) {
     if (s->display) {
-        s->display->~TFT_eSprite();
-        mcs_mem_realloc(vm, s->display, sizeof(TFT_eSprite), 0);
+        s->display->~mcs_tft_safe_sprite();
+        mcs_mem_realloc(vm, s->display, sizeof(mcs_tft_safe_sprite), 0);
         s->display = NULL;
     }
     if (s->owner) {
@@ -463,13 +477,13 @@ static void sprite_ctor(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *a
         return;
     size_t bytes;
     if (!mcs_tft_sprite_allocation(w, h, depth, &bytes)) {
-        mcs_raise(vm, "NotSupportedException",
-                  "TftSprite currently supports exact 8 or 16 bit depth");
+        mcs_raise(vm, "NotSupportedException", "TftSprite supports exact 1, 4, 8 or 16 bit depth");
         return;
     }
     if (d->sprite_count >= MCS_TFT_SPRITE_COUNT || bytes > MCS_TFT_SPRITE_BYTES ||
         d->sprite_bytes > MCS_TFT_SPRITE_BYTES - bytes) {
-        mcs_raise(vm, "OutOfMemoryException", "TFT sprite count/native pixel budget exceeded");
+        mcs_raise(vm, "OutOfMemoryException",
+                  "TFT sprite count/native pixel+palette budget exceeded");
         return;
     }
     if (!d->sprite_count) {
@@ -488,12 +502,11 @@ static void sprite_ctor(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *a
     s->bytes = bytes;
     d->sprite_count++;
     d->sprite_bytes += bytes;
-    void *memory = mcs_mem_realloc(vm, NULL, 0, sizeof(TFT_eSprite));
-    s->display = new (memory) TFT_eSprite(d->display);
-    s->display->setColorDepth((int8_t)depth);
-    if (!s->display->createSprite((int16_t)w, (int16_t)h, 1)) {
+    void *memory = mcs_mem_realloc(vm, NULL, 0, sizeof(mcs_tft_safe_sprite));
+    s->display = new (memory) mcs_tft_safe_sprite(d->display);
+    if (!s->display->createChecked((int16_t)w, (int16_t)h, (int8_t)depth)) {
         sprite_release(vm, s);
-        mcs_raise(vm, "OutOfMemoryException", "Native TFT sprite pixel allocation failed");
+        mcs_raise(vm, "OutOfMemoryException", "Native TFT sprite pixel/palette allocation failed");
     }
 }
 NATIVE(sprite_dispose) {
@@ -508,18 +521,73 @@ NATIVE(sprite_fill) {
     (void)argc;
     sprite_t *s = sprite_checked(vm, self);
     int32_t color;
-    if (s && integer(vm, argv[0], 0, 65535, &color))
+    if (s && color_value(vm, self, argv[0], &color))
         s->display->fillSprite((uint16_t)color);
     return mcs_null();
 }
-NATIVE(sprite_read) {
-    (void)argc;
+static mcs_value_t sprite_read_value(mcs_vm_t *vm, mcs_value_t self, mcs_value_t *argv, bool raw) {
     sprite_t *s = sprite_checked(vm, self);
     int32_t x, y;
     if (!s || !integer(vm, argv[0], 0, s->display->width() - 1, &x) ||
         !integer(vm, argv[1], 0, s->display->height() - 1, &y))
         return mcs_null();
-    return mcs_int(s->display->readPixel(x, y));
+    return mcs_int(raw ? s->display->readPixelValue(x, y) : s->display->readPixel(x, y));
+}
+NATIVE(sprite_read) {
+    (void)argc;
+    return sprite_read_value(vm, self, argv, false);
+}
+NATIVE(sprite_read_raw) {
+    (void)argc;
+    return sprite_read_value(vm, self, argv, true);
+}
+NATIVE(sprite_palette_set) {
+    (void)argc;
+    sprite_t *s = sprite_checked(vm, self);
+    int32_t index, color;
+    if (!s)
+        return mcs_null();
+    if (s->display->getColorDepth() != 4) {
+        mcs_raise(vm, "NotSupportedException", "Palette requires a 4-bit sprite");
+        return mcs_null();
+    }
+    if (integer(vm, argv[0], 0, 15, &index) && integer(vm, argv[1], 0, 65535, &color))
+        s->display->setPaletteColor((uint8_t)index, (uint16_t)color);
+    return mcs_null();
+}
+NATIVE(sprite_palette_get) {
+    (void)argc;
+    sprite_t *s = sprite_checked(vm, self);
+    int32_t index;
+    if (!s)
+        return mcs_null();
+    if (s->display->getColorDepth() != 4) {
+        mcs_raise(vm, "NotSupportedException", "Palette requires a 4-bit sprite");
+        return mcs_null();
+    }
+    return integer(vm, argv[0], 0, 15, &index)
+               ? mcs_int(s->display->getPaletteColor((uint8_t)index))
+               : mcs_null();
+}
+NATIVE(sprite_bitmap_colors) {
+    (void)argc;
+    sprite_t *s = sprite_checked(vm, self);
+    int32_t fg, bg;
+    if (!s)
+        return mcs_null();
+    if (s->display->getColorDepth() != 1) {
+        mcs_raise(vm, "NotSupportedException", "BitmapColors requires a 1-bit sprite");
+        return mcs_null();
+    }
+    if (!integer(vm, argv[0], 0, 65535, &fg) || !integer(vm, argv[1], 0, 65535, &bg))
+        return mcs_null();
+    if (fg == bg) {
+        mcs_raise(vm, "ArgumentException",
+                  "Bitmap foreground/background must differ; no implicit inversion");
+        return mcs_null();
+    }
+    s->display->setBitmapColor((uint16_t)fg, (uint16_t)bg); // actual upstream PARENT-wide mapping
+    return mcs_null();
 }
 NATIVE(sprite_depth) {
     (void)argc;
@@ -530,9 +598,18 @@ NATIVE(sprite_depth) {
 static mcs_value_t sprite_push(mcs_vm_t *vm, mcs_value_t self, mcs_value_t *argv,
                                bool transparent) {
     sprite_t *s = sprite_checked(vm, self);
-    int32_t x, y, color;
-    if (!s)
+    int32_t x, y, color = 0;
+    if (!s || !integer(vm, argv[0], -32767, 32767, &x) || !integer(vm, argv[1], -32767, 32767, &y))
         return mcs_null();
+    if (transparent) {
+        if (!color_value(vm, self, argv[2], &color))
+            return mcs_null();
+        if (s->display->getColorDepth() == 1 && color != 0) {
+            mcs_raise(vm, "NotSupportedException",
+                      "Upstream 1-bit transparency only supports index 0");
+            return mcs_null();
+        }
+    }
     if (!s->owner->begun) {
         mcs_raise(vm, "InvalidOperationException", "Call parent Tft.Begin before pushing sprite");
         return mcs_null();
@@ -544,12 +621,9 @@ static mcs_value_t sprite_push(mcs_vm_t *vm, mcs_value_t self, mcs_value_t *argv
         return mcs_null();
     }
 #endif
-    if (!integer(vm, argv[0], -32767, 32767, &x) || !integer(vm, argv[1], -32767, 32767, &y))
-        return mcs_null();
-    if (transparent) {
-        if (integer(vm, argv[2], 0, 65535, &color))
-            s->display->pushSprite(x, y, (uint16_t)color);
-    } else
+    if (transparent)
+        s->display->pushSprite(x, y, (uint16_t)color);
+    else
         s->display->pushSprite(x, y);
     return mcs_null();
 }
@@ -588,6 +662,10 @@ static const mcs_reg_t sprite_members[] = {MCS_FN("Dispose", sprite_dispose, 0),
                                            MCS_FN("TextSize", tft_text_size, 1),
                                            MCS_FN("DrawText", tft_draw_text, 4),
                                            MCS_FN("ReadPixel", sprite_read, 2),
+                                           MCS_FN("ReadValue", sprite_read_raw, 2),
+                                           MCS_FN("SetPaletteColor", sprite_palette_set, 2),
+                                           MCS_FN("GetPaletteColor", sprite_palette_get, 1),
+                                           MCS_FN("BitmapColors", sprite_bitmap_colors, 2),
                                            MCS_FN("Push", sprite_push_plain, 2),
                                            MCS_FN("PushTransparent", sprite_push_transparent, 3),
                                            MCS_REG_END};
