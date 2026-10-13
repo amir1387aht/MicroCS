@@ -82,6 +82,8 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("/tmp/studio-test.log").read_text()[-2500:]; print("::error title=Studio failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
           fi
           exit "$result"
+      - name: Template gallery geometry (desktop, phone, compact window)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: ESP BLE menuconfig gating and limits
         run: |
           python3 -m pip install kconfiglib==14.1.0
