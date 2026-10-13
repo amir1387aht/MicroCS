@@ -57,12 +57,2604 @@
     "x",
     "y"
   ],
+  "bound_common_widget_calls": {
+    "lv_animimg_set_duration": {
+      "call_name": "set_duration",
+      "receiver": "animimg",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_animimg_set_duration",
+          "header": "src/extra/widgets/animimg/lv_animimg.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_animimg_set_duration",
+          "header": "src/widgets/animimage/lv_animimage.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_animimg_set_repeat_count": {
+      "call_name": "set_repeat_count",
+      "receiver": "animimg",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_animimg_set_repeat_count",
+          "header": "src/extra/widgets/animimg/lv_animimg.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_animimg_set_repeat_count",
+          "header": "src/widgets/animimage/lv_animimage.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_get_angle_end": {
+      "call_name": "get_angle_end",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_angle_end",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_angle_end",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "lv_value_precise_t"
+        }
+      }
+    },
+    "lv_arc_get_angle_start": {
+      "call_name": "get_angle_start",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_angle_start",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_angle_start",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "lv_value_precise_t"
+        }
+      }
+    },
+    "lv_arc_get_bg_angle_end": {
+      "call_name": "get_bg_angle_end",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_bg_angle_end",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_bg_angle_end",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "lv_value_precise_t"
+        }
+      }
+    },
+    "lv_arc_get_bg_angle_start": {
+      "call_name": "get_bg_angle_start",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_bg_angle_start",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_bg_angle_start",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "lv_value_precise_t"
+        }
+      }
+    },
+    "lv_arc_get_max_value": {
+      "call_name": "get_max_value",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_max_value",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "int16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_max_value",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_arc_get_min_value": {
+      "call_name": "get_min_value",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_min_value",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "int16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_min_value",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_arc_get_value": {
+      "call_name": "get_value",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_get_value",
+          "header": "src/widgets/lv_arc.h",
+          "params": [],
+          "return": "int16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_get_value",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_arc_set_angles": {
+      "call_name": "set_angles",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_angles",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t",
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_angles",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t",
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_bg_angles": {
+      "call_name": "set_bg_angles",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_bg_angles",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t",
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_bg_angles",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t",
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_bg_end_angle": {
+      "call_name": "set_bg_end_angle",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_bg_end_angle",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_bg_end_angle",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_bg_start_angle": {
+      "call_name": "set_bg_start_angle",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_bg_start_angle",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_bg_start_angle",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_change_rate": {
+      "call_name": "set_change_rate",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_change_rate",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_change_rate",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_end_angle": {
+      "call_name": "set_end_angle",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_end_angle",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_end_angle",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_range": {
+      "call_name": "set_range",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_range",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "int16_t",
+            "int16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_range",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_rotation": {
+      "call_name": "set_rotation",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_rotation",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_rotation",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_start_angle": {
+      "call_name": "set_start_angle",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_start_angle",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_start_angle",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "lv_value_precise_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_arc_set_value": {
+      "call_name": "set_value",
+      "receiver": "arc",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_arc_set_value",
+          "header": "src/widgets/lv_arc.h",
+          "params": [
+            "int16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_arc_set_value",
+          "header": "src/widgets/arc/lv_arc.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_bar_get_max_value": {
+      "call_name": "get_max_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_get_max_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_get_max_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_bar_get_min_value": {
+      "call_name": "get_min_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_get_min_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_get_min_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_bar_get_start_value": {
+      "call_name": "get_start_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_get_start_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_get_start_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_bar_get_value": {
+      "call_name": "get_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_get_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_get_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_bar_set_range": {
+      "call_name": "set_range",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_set_range",
+          "header": "src/widgets/lv_bar.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_set_range",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_bar_set_start_value": {
+      "call_name": "set_start_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_set_start_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_set_start_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_bar_set_value": {
+      "call_name": "set_value",
+      "receiver": "bar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_bar_set_value",
+          "header": "src/widgets/lv_bar.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_bar_set_value",
+          "header": "src/widgets/bar/lv_bar.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_calendar_set_today_date": {
+      "call_name": "set_today_date",
+      "receiver": "calendar",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_calendar_set_today_date",
+          "header": "src/extra/widgets/calendar/lv_calendar.h",
+          "params": [
+            "uint32_t",
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_calendar_set_today_date",
+          "header": "src/widgets/calendar/lv_calendar.h",
+          "params": [
+            "uint32_t",
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_chart_get_point_count": {
+      "call_name": "get_point_count",
+      "receiver": "chart",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_chart_get_point_count",
+          "header": "src/extra/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_chart_get_point_count",
+          "header": "src/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_chart_get_pressed_point": {
+      "call_name": "get_pressed_point",
+      "receiver": "chart",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_chart_get_pressed_point",
+          "header": "src/extra/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_chart_get_pressed_point",
+          "header": "src/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_chart_refresh": {
+      "call_name": "refresh",
+      "receiver": "chart",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_chart_refresh",
+          "header": "src/extra/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_chart_refresh",
+          "header": "src/widgets/chart/lv_chart.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_chart_set_div_line_count": {
+      "call_name": "set_div_line_count",
+      "receiver": "chart",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_chart_set_div_line_count",
+          "header": "src/extra/widgets/chart/lv_chart.h",
+          "params": [
+            "uint8_t",
+            "uint8_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_chart_set_div_line_count",
+          "header": "src/widgets/chart/lv_chart.h",
+          "params": [
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_chart_set_point_count": {
+      "call_name": "set_point_count",
+      "receiver": "chart",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_chart_set_point_count",
+          "header": "src/extra/widgets/chart/lv_chart.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_chart_set_point_count",
+          "header": "src/widgets/chart/lv_chart.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_checkbox_get_text": {
+      "call_name": "get_text",
+      "receiver": "checkbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_checkbox_get_text",
+          "header": "src/widgets/lv_checkbox.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_checkbox_get_text",
+          "header": "src/widgets/checkbox/lv_checkbox.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_checkbox_set_text": {
+      "call_name": "set_text",
+      "receiver": "checkbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_checkbox_set_text",
+          "header": "src/widgets/lv_checkbox.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_checkbox_set_text",
+          "header": "src/widgets/checkbox/lv_checkbox.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_add_option": {
+      "call_name": "add_option",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_add_option",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [
+            "const char *",
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_add_option",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [
+            "const char *",
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_clear_options": {
+      "call_name": "clear_options",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_clear_options",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_clear_options",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_close": {
+      "call_name": "close",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_close",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_close",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_get_options": {
+      "call_name": "get_options",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_get_options",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_get_options",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_dropdown_get_selected": {
+      "call_name": "get_selected",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_get_selected",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_get_selected",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_dropdown_get_selected_highlight": {
+      "call_name": "get_selected_highlight",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_get_selected_highlight",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_get_selected_highlight",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_dropdown_get_symbol": {
+      "call_name": "get_symbol",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_get_symbol",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_get_symbol",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_dropdown_get_text": {
+      "call_name": "get_text",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_get_text",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_get_text",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_dropdown_is_open": {
+      "call_name": "is_open",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_is_open",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_is_open",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_dropdown_open": {
+      "call_name": "open",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_open",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_open",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_set_options": {
+      "call_name": "set_options",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_set_options",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_set_options",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_set_selected": {
+      "call_name": "set_selected",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_set_selected",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_set_selected",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_dropdown_set_selected_highlight": {
+      "call_name": "set_selected_highlight",
+      "receiver": "dropdown",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_dropdown_set_selected_highlight",
+          "header": "src/widgets/lv_dropdown.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_dropdown_set_selected_highlight",
+          "header": "src/widgets/dropdown/lv_dropdown.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_image_get_antialias": {
+      "call_name": "get_antialias",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_get_antialias",
+          "header": "src/widgets/lv_img.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_image_get_antialias",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_image_get_offset_x": {
+      "call_name": "get_offset_x",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_get_offset_x",
+          "header": "src/widgets/lv_img.h",
+          "params": [],
+          "return": "lv_coord_t"
+        },
+        "9.4.0": {
+          "fn": "lv_image_get_offset_x",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_image_get_offset_y": {
+      "call_name": "get_offset_y",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_get_offset_y",
+          "header": "src/widgets/lv_img.h",
+          "params": [],
+          "return": "lv_coord_t"
+        },
+        "9.4.0": {
+          "fn": "lv_image_get_offset_y",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_image_set_antialias": {
+      "call_name": "set_antialias",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_set_antialias",
+          "header": "src/widgets/lv_img.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_image_set_antialias",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_image_set_offset_x": {
+      "call_name": "set_offset_x",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_set_offset_x",
+          "header": "src/widgets/lv_img.h",
+          "params": [
+            "lv_coord_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_image_set_offset_x",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_image_set_offset_y": {
+      "call_name": "set_offset_y",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_set_offset_y",
+          "header": "src/widgets/lv_img.h",
+          "params": [
+            "lv_coord_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_image_set_offset_y",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_image_set_pivot": {
+      "call_name": "set_pivot",
+      "receiver": "image",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_img_set_pivot",
+          "header": "src/widgets/lv_img.h",
+          "params": [
+            "lv_coord_t",
+            "lv_coord_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_image_set_pivot",
+          "header": "src/widgets/image/lv_image.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_keyboard_set_popovers": {
+      "call_name": "set_popovers",
+      "receiver": "keyboard",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_keyboard_set_popovers",
+          "header": "src/extra/widgets/keyboard/lv_keyboard.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_keyboard_set_popovers",
+          "header": "src/widgets/keyboard/lv_keyboard.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_label_cut_text": {
+      "call_name": "cut_text",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_cut_text",
+          "header": "src/widgets/lv_label.h",
+          "params": [
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_label_cut_text",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_label_get_recolor": {
+      "call_name": "get_recolor",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_get_recolor",
+          "header": "src/widgets/lv_label.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_label_get_recolor",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_label_get_text_selection_end": {
+      "call_name": "get_text_selection_end",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_get_text_selection_end",
+          "header": "src/widgets/lv_label.h",
+          "params": [],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_label_get_text_selection_end",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_label_get_text_selection_start": {
+      "call_name": "get_text_selection_start",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_get_text_selection_start",
+          "header": "src/widgets/lv_label.h",
+          "params": [],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_label_get_text_selection_start",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_label_ins_text": {
+      "call_name": "ins_text",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_ins_text",
+          "header": "src/widgets/lv_label.h",
+          "params": [
+            "uint32_t",
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_label_ins_text",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [
+            "uint32_t",
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_label_set_recolor": {
+      "call_name": "set_recolor",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_set_recolor",
+          "header": "src/widgets/lv_label.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_label_set_recolor",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_label_set_text": {
+      "call_name": "set_text",
+      "receiver": "label",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_label_set_text",
+          "header": "src/widgets/lv_label.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_label_set_text",
+          "header": "src/widgets/label/lv_label.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_led_get_brightness": {
+      "call_name": "get_brightness",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_get_brightness",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [],
+          "return": "uint8_t"
+        },
+        "9.4.0": {
+          "fn": "lv_led_get_brightness",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [],
+          "return": "uint8_t"
+        }
+      }
+    },
+    "lv_led_off": {
+      "call_name": "off",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_off",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_led_off",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_led_on": {
+      "call_name": "on",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_on",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_led_on",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_led_set_brightness": {
+      "call_name": "set_brightness",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_set_brightness",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [
+            "uint8_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_led_set_brightness",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [
+            "uint8_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_led_set_color": {
+      "call_name": "set_color",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_set_color",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [
+            "lv_color_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_led_set_color",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [
+            "lv_color_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_led_toggle": {
+      "call_name": "toggle",
+      "receiver": "led",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_led_toggle",
+          "header": "src/extra/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_led_toggle",
+          "header": "src/widgets/led/lv_led.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_line_get_y_invert": {
+      "call_name": "get_y_invert",
+      "receiver": "line",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_line_get_y_invert",
+          "header": "src/widgets/lv_line.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_line_get_y_invert",
+          "header": "src/widgets/line/lv_line.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_line_set_y_invert": {
+      "call_name": "set_y_invert",
+      "receiver": "line",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_line_set_y_invert",
+          "header": "src/widgets/lv_line.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_line_set_y_invert",
+          "header": "src/widgets/line/lv_line.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_menu_clear_history": {
+      "call_name": "clear_history",
+      "receiver": "menu",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_menu_clear_history",
+          "header": "src/extra/widgets/menu/lv_menu.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_menu_clear_history",
+          "header": "src/widgets/menu/lv_menu.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_roller_get_options": {
+      "call_name": "get_options",
+      "receiver": "roller",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_roller_get_options",
+          "header": "src/widgets/lv_roller.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_roller_get_options",
+          "header": "src/widgets/roller/lv_roller.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_roller_get_selected": {
+      "call_name": "get_selected",
+      "receiver": "roller",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_roller_get_selected",
+          "header": "src/widgets/lv_roller.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_roller_get_selected",
+          "header": "src/widgets/roller/lv_roller.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_roller_set_selected": {
+      "call_name": "set_selected",
+      "receiver": "roller",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_roller_set_selected",
+          "header": "src/widgets/lv_roller.h",
+          "params": [
+            "uint16_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_roller_set_selected",
+          "header": "src/widgets/roller/lv_roller.h",
+          "params": [
+            "uint32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_roller_set_visible_row_count": {
+      "call_name": "set_visible_row_count",
+      "receiver": "roller",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_roller_set_visible_row_count",
+          "header": "src/widgets/lv_roller.h",
+          "params": [
+            "uint8_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_roller_set_visible_row_count",
+          "header": "src/widgets/roller/lv_roller.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_slider_get_left_value": {
+      "call_name": "get_left_value",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_get_left_value",
+          "header": "src/widgets/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_get_left_value",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_slider_get_max_value": {
+      "call_name": "get_max_value",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_get_max_value",
+          "header": "src/widgets/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_get_max_value",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_slider_get_min_value": {
+      "call_name": "get_min_value",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_get_min_value",
+          "header": "src/widgets/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_get_min_value",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_slider_get_value": {
+      "call_name": "get_value",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_get_value",
+          "header": "src/widgets/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_get_value",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_slider_is_dragged": {
+      "call_name": "is_dragged",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_is_dragged",
+          "header": "src/widgets/lv_slider.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_is_dragged",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_slider_set_range": {
+      "call_name": "set_range",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_set_range",
+          "header": "src/widgets/lv_slider.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_set_range",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_slider_set_value": {
+      "call_name": "set_value",
+      "receiver": "slider",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_slider_set_value",
+          "header": "src/widgets/lv_slider.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_slider_set_value",
+          "header": "src/widgets/slider/lv_slider.h",
+          "params": [
+            "int32_t",
+            "lv_anim_enable_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spangroup_get_expand_height": {
+      "call_name": "get_expand_height",
+      "receiver": "spangroup",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spangroup_get_expand_height",
+          "header": "src/extra/widgets/span/lv_span.h",
+          "params": [
+            "lv_coord_t"
+          ],
+          "return": "lv_coord_t"
+        },
+        "9.4.0": {
+          "fn": "lv_spangroup_get_expand_height",
+          "header": "src/widgets/span/lv_span.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_spangroup_get_expand_width": {
+      "call_name": "get_expand_width",
+      "receiver": "spangroup",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spangroup_get_expand_width",
+          "header": "src/extra/widgets/span/lv_span.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_spangroup_get_expand_width",
+          "header": "src/widgets/span/lv_span.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_spangroup_get_indent": {
+      "call_name": "get_indent",
+      "receiver": "spangroup",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spangroup_get_indent",
+          "header": "src/extra/widgets/span/lv_span.h",
+          "params": [],
+          "return": "lv_coord_t"
+        },
+        "9.4.0": {
+          "fn": "lv_spangroup_get_indent",
+          "header": "src/widgets/span/lv_span.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_spangroup_set_indent": {
+      "call_name": "set_indent",
+      "receiver": "spangroup",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spangroup_set_indent",
+          "header": "src/extra/widgets/span/lv_span.h",
+          "params": [
+            "lv_coord_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spangroup_set_indent",
+          "header": "src/widgets/span/lv_span.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_decrement": {
+      "call_name": "decrement",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_decrement",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_decrement",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_get_rollover": {
+      "call_name": "get_rollover",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_get_rollover",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_get_rollover",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_spinbox_get_step": {
+      "call_name": "get_step",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_get_step",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_get_step",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_spinbox_get_value": {
+      "call_name": "get_value",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_get_value",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "int32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_get_value",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "int32_t"
+        }
+      }
+    },
+    "lv_spinbox_increment": {
+      "call_name": "increment",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_increment",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_increment",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_cursor_pos": {
+      "call_name": "set_cursor_pos",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_cursor_pos",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint8_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_cursor_pos",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_digit_format": {
+      "call_name": "set_digit_format",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_digit_format",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint8_t",
+            "uint8_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_digit_format",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_range": {
+      "call_name": "set_range",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_range",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_range",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "int32_t",
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_rollover": {
+      "call_name": "set_rollover",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_rollover",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_rollover",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_step": {
+      "call_name": "set_step",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_step",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_step",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_set_value": {
+      "call_name": "set_value",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_set_value",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_set_value",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_step_next": {
+      "call_name": "step_next",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_step_next",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_step_next",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_spinbox_step_prev": {
+      "call_name": "step_prev",
+      "receiver": "spinbox",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_spinbox_step_prev",
+          "header": "src/extra/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_spinbox_step_prev",
+          "header": "src/widgets/spinbox/lv_spinbox.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_table_get_cell_value": {
+      "call_name": "get_cell_value",
+      "receiver": "table",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_table_get_cell_value",
+          "header": "src/widgets/lv_table.h",
+          "params": [
+            "uint16_t",
+            "uint16_t"
+          ],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_table_get_cell_value",
+          "header": "src/widgets/table/lv_table.h",
+          "params": [
+            "uint32_t",
+            "uint32_t"
+          ],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_textarea_add_char": {
+      "call_name": "add_char",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_add_char",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_add_char",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_add_text": {
+      "call_name": "add_text",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_add_text",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_add_text",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_clear_selection": {
+      "call_name": "clear_selection",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_clear_selection",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_clear_selection",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_cursor_down": {
+      "call_name": "cursor_down",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_cursor_down",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_cursor_down",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_cursor_left": {
+      "call_name": "cursor_left",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_cursor_left",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_cursor_left",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_cursor_right": {
+      "call_name": "cursor_right",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_cursor_right",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_cursor_right",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_cursor_up": {
+      "call_name": "cursor_up",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_cursor_up",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_cursor_up",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_get_accepted_chars": {
+      "call_name": "get_accepted_chars",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_accepted_chars",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_accepted_chars",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_textarea_get_cursor_click_pos": {
+      "call_name": "get_cursor_click_pos",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_cursor_click_pos",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_cursor_click_pos",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_textarea_get_cursor_pos": {
+      "call_name": "get_cursor_pos",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_cursor_pos",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_cursor_pos",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_textarea_get_max_length": {
+      "call_name": "get_max_length",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_max_length",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "uint32_t"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_max_length",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_textarea_get_one_line": {
+      "call_name": "get_one_line",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_one_line",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_one_line",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_textarea_get_password_bullet": {
+      "call_name": "get_password_bullet",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_password_bullet",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_password_bullet",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_textarea_get_password_mode": {
+      "call_name": "get_password_mode",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_password_mode",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_password_mode",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_textarea_get_password_show_time": {
+      "call_name": "get_password_show_time",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_password_show_time",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "uint16_t"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_password_show_time",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "uint32_t"
+        }
+      }
+    },
+    "lv_textarea_get_placeholder_text": {
+      "call_name": "get_placeholder_text",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_placeholder_text",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_placeholder_text",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_textarea_get_text": {
+      "call_name": "get_text",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_text",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_text",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "const char *"
+        }
+      }
+    },
+    "lv_textarea_get_text_selection": {
+      "call_name": "get_text_selection",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_get_text_selection",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_get_text_selection",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    },
+    "lv_textarea_set_cursor_click_pos": {
+      "call_name": "set_cursor_click_pos",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_cursor_click_pos",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_cursor_click_pos",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_cursor_pos": {
+      "call_name": "set_cursor_pos",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_cursor_pos",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_cursor_pos",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "int32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_max_length": {
+      "call_name": "set_max_length",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_max_length",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_max_length",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_one_line": {
+      "call_name": "set_one_line",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_one_line",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_one_line",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_password_mode": {
+      "call_name": "set_password_mode",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_password_mode",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_password_mode",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_password_show_time": {
+      "call_name": "set_password_show_time",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_password_show_time",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "uint16_t"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_password_show_time",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "uint32_t"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_placeholder_text": {
+      "call_name": "set_placeholder_text",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_placeholder_text",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_placeholder_text",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_text": {
+      "call_name": "set_text",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_text",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_text",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "const char *"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_set_text_selection": {
+      "call_name": "set_text_selection",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_set_text_selection",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_set_text_selection",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [
+            "bool"
+          ],
+          "return": "void"
+        }
+      }
+    },
+    "lv_textarea_text_is_selected": {
+      "call_name": "text_is_selected",
+      "receiver": "textarea",
+      "versions": {
+        "8.4.0": {
+          "fn": "lv_textarea_text_is_selected",
+          "header": "src/widgets/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        },
+        "9.4.0": {
+          "fn": "lv_textarea_text_is_selected",
+          "header": "src/widgets/textarea/lv_textarea.h",
+          "params": [],
+          "return": "bool"
+        }
+      }
+    }
+  },
+  "owned_text_calls": [
+    "lv_dropdown_set_text",
+    "lv_dropdown_set_symbol",
+    "lv_textarea_set_accepted_chars",
+    "lv_textarea_set_password_bullet",
+    "lv_label_set_text_static",
+    "lv_checkbox_set_text_static"
+  ],
   "pins": {
     "8.4.0": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
     "9.4.0": "c016f72d4c125098287be5e83c0f1abed4706ee5"
   },
   "schema": 1,
-  "status": "WIP: scalar style subset; not a complete LVGL wrapper",
+  "status": "WIP: scalar styles/common widget methods/owned text subset; not a complete LVGL wrapper",
   "versions": {
     "8.4.0": {
       "declaration_candidates": {
