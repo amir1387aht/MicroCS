@@ -19,6 +19,11 @@ global.window = {};
 const studio = (f) => fs.readFileSync(path.join(__dirname, '../../tools/studio', f), 'utf8');
 const { TEMPLATES, SNIPPETS } = new Function(studio('templates.js') + '\n' + studio('snippets.js') + '; return { TEMPLATES, SNIPPETS };')();
 let fails = 0;
+function failure(message) {
+  fails++; console.log(message);
+  if (process.env.GITHUB_ACTIONS) console.log('::error title=Studio template failure::' +
+    message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A'));
+}
 const all = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)) && (ONLY !== 'ble' || isBle(t)));
 const cs = all.filter((t) => HAS_BLE || !isBle(t));   // no Ble classes in this build
 function run(t) {
@@ -34,9 +39,9 @@ function run(t) {
     p.on('close', (code, signal) => {
       clearTimeout(kill);
       if (oled) err = err.split('\n').filter((l) => !/^[|+]/.test(l)).join('\n');   // the drawn frames
-      if (oled && (/has no U8g2/.test(out) || !/\[oled 0x3C frame/.test(out + err))) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: drew nothing on the simulated OLED`); }
+      if (oled && (/has no U8g2/.test(out) || !/\[oled 0x3C frame/.test(out + err))) { failure(`FAIL ${t.cat} / ${t.name}: drew nothing on the simulated OLED`); }
       const ok = code === 0 || /time limit|budget/i.test(err) || /Unhandled exception\. (IOException|TimeoutException)/.test(err) || signal === 'SIGTERM';
-      if (!ok) { fails++; console.log(`FAIL ${t.cat} / ${t.name}\n${err.trim().split('\n').slice(0, 4).join('\n')}`); }
+      if (!ok) failure(`FAIL ${t.cat} / ${t.name} (exit=${code}, signal=${signal})\n${err.trim().split('\n').slice(0, 8).join('\n')}\n${out.slice(-500)}`);
       fs.rmSync(dir, { recursive: true, force: true });
       done();
     });
