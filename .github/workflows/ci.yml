@@ -110,6 +110,12 @@ jobs:
         run: node tests/studio/test_project.js ./mcs
       - name: Project workflow over real host shell (fake Web Serial boundary)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_browser.js ./mcs
+      - name: Portable project schema, source text and actual source/image execution
+        run: node tests/studio/test_project_file.js ./mcs && node tests/studio/test_source.js
+      - name: Portable download/reopen, canonical editing and real host execution
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_file_browser.js ./mcs
+      - name: Long-name status geometry (desktop/phone/short, dark/light)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_status_layout.js
       - name: Source-project dialog geometry (32 long names, desktop/phone/short, dark/light)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_layout.js
       - name: Template gallery geometry (desktop, phone, compact window)

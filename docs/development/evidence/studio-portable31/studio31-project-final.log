@@ -1,0 +1,3 @@
+wrote /data/MicroCS-v2-next/build/studio-project/project.mcsb (310 bytes)
+wrote /data/MicroCS-v2-next/build/studio-project/project.mcsb (315 bytes)
+PASS explicit project symbols/navigation/bundling: 53 assertions; actual source/copy/XIP execution, no external import/SDK claim

@@ -183,14 +183,17 @@ fields and methods to the original source name; multiple overload locations ask
 which one to open. Ambiguous foreign class declarations are not silently chosen.
 Error stack-frame/compile locations map to the original run snapshot. Clickable
 old diagnostics do not jump into changed or closed sources; an older temporary
-bundle is not confused with a later run. Textarea line endings are normalized
-for edit comparison only, not rewritten by bundle construction.
+bundle is not confused with a later run. Canonical source preserves CRLF/CR/LF;
+only the textarea and language-assistance view use LF. Diagnostics compare exact
+raw snapshots. Firmware/compiler line numbers count LF: a diagnostic spanning
+multiple CR-only editor rows is reported as ambiguous instead of guessed.
 
 Limits: 1–32 `.cs` text members, at most 256 Ki UTF-16 units total and 512 KiB
 UTF-8 after bundling. Every member must have closed literals/block comments and
 balanced structural delimiters; complete EOF line comments are supported.
-Membership and the last run map are **session-only**, not a persistent/exported
-project manifest. Save/download individual files separately. This is **source
+Active membership and the last run map are **session-only** unless you explicitly
+download/reopen the portable snapshot below; run maps are never persisted.
+Individual file saves remain separate. This is **source
 bundling**, not dynamic imports, packages, .NET assemblies or a new namespace
 resolver: the runtime's existing `using`/namespace behavior remains unchanged.
 No assets, include paths or external SDKs are packaged. Editor assistance remains
@@ -208,3 +211,75 @@ fabricated protocol successes. It checks original-file preservation, membership,
 completion/signatures/hover, definition selection, mapped errors, stale positions,
 Stop/recovery, duplicate runs, compiler-off gating, collisions and temporary
 cleanup. It is not physical-device evidence.
+
+
+## Portable source snapshots (`.microcsproj`, v2 WIP)
+
+After creating an explicit project, use **⋯ → Download source project…**. The
+confirmation warns that this is **plaintext**, including unsaved edits. Choose a
+filename, not a path. Downloading neither marks individual files saved nor writes
+to a board. An incomplete draft can be saved; Run still requires complete source.
+Keep private credentials out of source snapshots and share them accordingly.
+
+**⋯ → Open source project…** validates the entire UTF-8 JSON file before changing
+membership, then asks for confirmation. It creates **new independent unsaved
+local tabs**; existing tabs and device files remain unchanged. The entry file is
+selected and runs last. No file is fetched, executed or saved on import. A fresh
+offline browser can restore membership/order/entry/source from the file alone.
+This is explicit portability, **not automatic project saving or cloud sync**.
+
+Version 1 has exactly these fields (IDs relate members, not browser/device IDs):
+
+```json
+{
+  "format": "microcs-source-project",
+  "version": 1,
+  "name": "sensor",
+  "entry": "source-2",
+  "files": [
+    {"id": "source-1", "name": "lib/meter.cs", "text": "class Meter { public int Read() { return 42; } }\n"},
+    {"id": "source-2", "name": "main.cs", "text": "Console.WriteLine(new Meter().Read());\n"}
+  ]
+}
+```
+
+Limits: 2 MiB UTF-8 JSON (checked before reading an oversized browser file),
+1–32 members, 256 Ki UTF-16 source units total, 1–128 character project name,
+1–64 ASCII letter/digit/underscore/hyphen member IDs, and 1–256 character relative
+`.cs` labels. IDs must be unique; duplicate display names can have distinct IDs.
+Unknown/missing fields, invalid encoding/version, NUL source, controls in labels,
+absolute/URL/device paths, backslashes and empty/dot/traversal path segments are
+rejected. Labels do not cause filesystem access. Leading `/` on an existing
+device-tab label is removed only for export; the reopened tab has no device path.
+JSON escaping retains Unicode, CRLF/CR/LF and unfinished literal text. A BOM is
+accepted on import. Validation is **not authentication, signing or a sandbox**.
+No assets, packages, URL imports, assemblies or Visual Studio `.csproj` support.
+
+The editor now keeps canonical raw source separately from its normalized display.
+Opening, switching and untouched re-export no longer silently change CRLF/CR
+inside multiline literals. Formatting uses raw source; replacement, raw line
+movement/duplication and clipboard paste preserve their tested source segments.
+New structural line breaks use the first existing ending (LF for empty source).
+Native browser undo remains browser-owned; a bounded side cache (128 snapshots,
+2 Mi UTF-16 units across raw+display copies, cleared on tab opening) restores
+canonical endings for recent text undo/redo. Arbitrarily old mixed-ending undo
+beyond that cache and EOL-only replacements with unchanged display text are
+**not proved byte-preserving**; broader editor history remains a v2 release gate.
+
+Long filename/connection labels are ellipsized with exact hover titles. Status
+connection/busy/cursor fields stay visible in the tested desktop/phone/short
+viewports; encoding is hidden on small screens. Header and tab/tool controls
+scroll locally rather than widening the document. This is a scoped status/layout
+fix, not a complete phone-editor/side-panel accessibility or performance audit.
+
+```sh
+node tests/studio/test_project_file.js ./mcs
+node tests/studio/test_source.js
+CHROME=/path/to/chromium node tests/studio/test_project_file_browser.js ./mcs
+CHROME=/path/to/chromium node tests/studio/test_status_layout.js
+```
+
+The portable browser gate exercises actual download/reopen, schema/encoding/size
+rejection, confirmations/cancellation, fresh-context source navigation, raw
+multiline payload editing and real host-shell execution. Status tests change DOM
+labels only for geometry; they do not claim device connection/IO acknowledgement.

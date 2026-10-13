@@ -634,13 +634,17 @@ class Editor {
     this.onChange = () => {}; this.onCursor = () => {};
     const ta = this.ta;
     ta.addEventListener("input", (e) => {
-      this.refresh(); this.onChange();
+      this.refresh(false, e.inputType); this.onChange();
       const ch = e.data || "";
       if (e.inputType === "insertText" && /[\w.]/.test(ch)) this.suggest(false);
       else if (e.inputType === "insertText" && ch === " " && /\b(new|using)\s$/.test(ta.value.slice(Math.max(0, ta.selectionStart - 7), ta.selectionStart))) this.suggest(true);
       else this.hideComplete();
       if (/^insert(Text|ReplacementText)?$/.test(e.inputType) && /^[(,]/.test(ch)) this.sigUpdate(true);
       else if (this.sig) this.sigUpdate(false);
+    });
+    ta.addEventListener("paste", e => {
+      if (ta.readOnly || !e.clipboardData) return;
+      e.preventDefault(); this.insert(e.clipboardData.getData("text/plain"), null, null, true);
     });
     ta.addEventListener("scroll", () => this.syncScroll());
     ta.addEventListener("keydown", (e) => this.key(e));
@@ -671,11 +675,12 @@ class Editor {
     s.remove();
   }
   open(tab) {
-    if (this.tab) this.stash();
+    if (this.tab && this.tab !== tab) this.stash();
     this.tab = tab;
     this.hideComplete(); this.sigHide(); this.hoverHide();
     this.setError(0);
-    this.ta.value = tab.text;
+    this.sourceHistory = []; this.sourceHistoryBytes = 0;
+    this.ta.value = SourceText.display(tab.text);
     this.ta.readOnly = !!tab.readOnly;
     this.refresh(true);
     requestAnimationFrame(() => {
@@ -688,14 +693,38 @@ class Editor {
   }
   stash() {
     if (!this.tab) return;
-    this.tab.text = this.ta.value;
+    this.syncSource();
     this.tab.sel = [this.ta.selectionStart, this.ta.selectionEnd];
     this.tab.scroll = [this.ta.scrollTop, this.ta.scrollLeft];
   }
   get value() { return this.ta.value; }
-  refresh(force) {
-    const v = this.ta.value;
-    if (this.tab) this.tab.text = v;
+  // Bounded canonical snapshots restore mixed EOLs for native undo/redo.
+  // The browser owns text undo; this side cache never intercepts keystrokes.
+  rememberSource(raw) {
+    if (!this.sourceHistory) this.sourceHistory = [];
+    if (this.sourceHistory[this.sourceHistory.length - 1]?.raw === raw) return;
+    const item = { raw, view: SourceText.display(raw) };
+    this.sourceHistory.push(item);
+    this.sourceHistoryBytes = (this.sourceHistoryBytes || 0) + raw.length + item.view.length;
+    while (this.sourceHistory.length > 128 || this.sourceHistoryBytes > 2 * 1024 * 1024) {
+      const old = this.sourceHistory.shift(); this.sourceHistoryBytes -= old.raw.length + old.view.length;
+    }
+  }
+  syncSource(inputType) {
+    if (!this.tab) return;
+    const raw = this.tab.text, next = this.ta.value;
+    if (SourceText.display(raw) === next) return;
+    this.rememberSource(raw);
+    let historic = null;
+    if (/^history(Undo|Redo)$/.test(inputType || "")) for (let i = this.sourceHistory.length - 1; i >= 0; i--) {
+      if (this.sourceHistory[i].view === next) { historic = this.sourceHistory[i]; break; }
+    }
+    this.tab.text = historic ? historic.raw : SourceText.reconcile(raw, next);
+    this.rememberSource(this.tab.text);
+  }
+  rawSlice(a, b) { this.syncSource(); return SourceText.slice(this.tab.text, a, b); }
+  refresh(force, inputType) {
+    this.syncSource(inputType);
     if (this.raf && !force) return;
     const draw = () => {
       this.raf = 0;
@@ -804,11 +833,18 @@ class Editor {
     this.cursorMoved();
   }
   /* insert keeping the browser's undo history */
-  insert(text, selStart, selEnd) {
+  insert(text, selStart, selEnd, exact = false) {
     const ta = this.ta;
+    this.syncSource();
     if (selStart != null) ta.setSelectionRange(selStart, selEnd);
-    if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
-    this.refresh();
+    const canonical = SourceText.edits(this.tab.text, [{ a: ta.selectionStart, b: ta.selectionEnd, text }], exact);
+    this.rememberSource(this.tab.text);
+    // execCommand dispatches input synchronously: its intermediate LF result
+    // is replaced by the known canonical edit once the browser updates undo.
+    const plain = SourceText.display(text);
+    if (!document.execCommand("insertText", false, plain)) ta.setRangeText(plain, ta.selectionStart, ta.selectionEnd, "end");
+    if (ta.value === SourceText.display(canonical)) this.tab.text = canonical;
+    this.rememberSource(this.tab.text); this.refresh(); this.onChange();
   }
   lineRange() {
     const v = this.ta.value, s = this.ta.selectionStart, e = this.ta.selectionEnd;
@@ -843,7 +879,8 @@ class Editor {
     if (mod && e.key === "/") { e.preventDefault(); this.toggleComment(); return; }
     if (mod && (e.key === "d" || e.key === "D") && !e.shiftKey) {
       e.preventDefault(); const [a, b] = this.lineRange(); const t = v.slice(a, b);
-      this.insert("\n" + t, b, b); ta.setSelectionRange(s + t.length + 1, en + t.length + 1); return;
+      const newline = (this.tab.text.match(/\r\n|\r|\n/) || ["\n"])[0];
+      this.insert(newline + this.rawSlice(a, b), b, b, true); ta.setSelectionRange(s + t.length + 1, en + t.length + 1); return;
     }
     if (e.key === "Tab") {
       e.preventDefault();
@@ -900,22 +937,25 @@ class Editor {
     const ta = this.ta, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
     const [a, b] = this.lineRange();
     if (dir < 0 && a === 0 || dir > 0 && b >= v.length) return;
-    const block = v.slice(a, b);
+    const block = this.rawSlice(a, b);
     if (dir < 0) {
-      const pa = v.lastIndexOf("\n", a - 2) + 1, prev = v.slice(pa, a - 1);
-      this.insert(block + "\n" + prev, pa, b);
-      ta.setSelectionRange(s - prev.length - 1, en - prev.length - 1);
+      const pa = v.lastIndexOf("\n", a - 2) + 1, prev = this.rawSlice(pa, a - 1);
+      this.insert(block + this.rawSlice(a - 1, a) + prev, pa, b, true);
+      const length = SourceText.display(prev).length;
+      ta.setSelectionRange(s - length - 1, en - length - 1);
     } else {
       let nb = v.indexOf("\n", b + 1); if (nb < 0) nb = v.length;
-      const next = v.slice(b + 1, nb);
-      this.insert(next + "\n" + block, a, nb);
-      ta.setSelectionRange(s + next.length + 1, en + next.length + 1);
+      const next = this.rawSlice(b + 1, nb);
+      this.insert(next + this.rawSlice(b, b + 1) + block, a, nb, true);
+      const length = SourceText.display(next).length;
+      ta.setSelectionRange(s + length + 1, en + length + 1);
     }
     this.cursorMoved();
   }
   copyLines(down) {
     const ta = this.ta, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd, [a, b] = this.lineRange(), t = v.slice(a, b);
-    this.insert("\n" + t, b, b);
+    const newline = (this.tab.text.match(/\r\n|\r|\n/) || ["\n"])[0];
+    this.insert(newline + this.rawSlice(a, b), b, b, true);
     if (down) ta.setSelectionRange(s + t.length + 1, en + t.length + 1); else ta.setSelectionRange(s, en);
   }
   deleteLines() {
@@ -927,11 +967,12 @@ class Editor {
   /* re-indent by braces / parentheses (4 spaces), trim trailing white space */
   formatDocument() {
     const ta = this.ta, v = ta.value;
-    const out = Editor.format(v);
-    if (out === v) { toast("Already formatted"); return; }
+    this.syncSource();
+    const out = Editor.format(this.tab.text);
+    if (out === this.tab.text) { toast("Already formatted"); return; }
     const row = this.caret().row;
-    this.insert(out, 0, v.length);
-    const lines = out.split("\n"); let p = 0; for (let i = 0; i < row && i < lines.length; i++) p += lines[i].length + 1;
+    this.insert(out, 0, v.length, true);
+    const lines = SourceText.display(out).split("\n"); let p = 0; for (let i = 0; i < row && i < lines.length; i++) p += lines[i].length + 1;
     p += /^\s*/.exec(lines[row] || "")[0].length;
     ta.setSelectionRange(p, p); this.cursorMoved();
   }
@@ -1270,8 +1311,9 @@ class Editor {
     const f = this.find; if (!f || this.ta.readOnly) return;
     const re = this.findRegex(); if (!re) return;
     const v = this.ta.value, n = f.matches.length; if (!n) return;
-    const out = f.re ? v.replace(re, $("fRep").value) : v.replace(re, () => $("fRep").value);
-    this.ta.focus(); this.insert(out, 0, v.length);
+    this.syncSource();
+    const out = SourceText.replaceAll(this.tab.text, re, $("fRep").value, !f.re);
+    this.ta.focus(); this.insert(out, 0, v.length, true);
     this.findCompute(false); toast(`Replaced ${n} occurrence${n === 1 ? "" : "s"}`); $("fRep").focus();
   }
   wireFind() {
@@ -1495,7 +1537,7 @@ const store = {
 };
 const App = {
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
-  capabilities: null, capabilitiesKnown: false, project: null, lastProjectRun: null, projectBusy: false,
+  capabilities: null, capabilitiesKnown: false, project: null, lastProjectRun: null, projectBusy: false, projectImportBusy: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
 
   /* ---------- connection */
@@ -1593,7 +1635,9 @@ const App = {
   setConn(state, text) {
     $("connDot").className = "dot" + (state === "on" ? " on" : state === "busy" ? " busy" : "");
     $("connText").textContent = text;
+    $("connText").title = text;
     $("sbConn").textContent = state === "on" ? "Connected · " + text : state === "busy" ? text : "Offline";
+    $("sbConn").title = $("sbConn").textContent;
     document.querySelector("footer").classList.toggle("off", state === "off");
     const b = $("btnConnect");
     b.classList.toggle("primary", state !== "on");
@@ -1608,7 +1652,7 @@ const App = {
   updateButtons() {
     const t = this.tab(), c = dev.connected;
     $("btnSave").disabled = !t || t.readOnly || (!t.dirty && t.path && !t.local) || (!c && !t.local);
-    $("btnRun").disabled = !c || !t || this.projectBusy || t.binary && extOf(t.path || "") !== "mcsb";
+    $("btnRun").disabled = !c || !t || this.projectBusy || this.projectImportBusy || t.binary && extOf(t.path || "") !== "mcsb";
     $("btnStop").disabled = !c || !dev.running;
     $("sbBusy").textContent = dev.running ? "▶ running" : dev.pending ? "● working…" : "Ready";
     document.querySelector("footer").classList.toggle("run", !!(c && dev.running));     // orange while a script runs, like debugging in VS
@@ -1869,7 +1913,7 @@ const App = {
   /* ---------- tabs */
   tab() { return this.tabs.find((t) => t.id === this.active) || null; },
   openTab({ path = null, text = "", saved = null, binary = null, local = false, name = null }) {
-    const t = { id: Math.random().toString(36).slice(2), path, name, text, saved, binary, local, readOnly: !!binary, dirty: saved === null || saved !== text };
+    const t = { id: crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, "0")).join(""), path, name, text, saved, binary, local, readOnly: !!binary, dirty: saved === null || saved !== text };
     if (binary) t.dirty = false;
     this.tabs.push(t);
     this.activate(t.id);
@@ -1885,6 +1929,7 @@ const App = {
     if (t) ed.open(t);
     this.renderTabs(); this.renderFiles(); this.updateButtons();
     $("sbFile").textContent = t ? (t.path || t.name || "untitled") + (t.local ? " (this computer)" : "") : "";
+    $("sbFile").title = $("sbFile").textContent;
   },
   async closeTab(id) {
     const t = this.tabs.find((x) => x.id === id);
@@ -1966,6 +2011,7 @@ const App = {
       t.saved = text;
       this.renderTabs();
       $("sbFile").textContent = t.path;
+      $("sbFile").title = t.path;
       if (dirName(t.path) === this.cwd) this.refresh(true);
       return true;
     } catch (e) { toast("Save failed: " + e.message, "err", 6000); return false; }
@@ -1978,25 +2024,31 @@ const App = {
     return this.project.members.map(id => {
       const t = this.tabs.find(t => t.id === id);
       if (!t || t.binary) throw new Error("A project member was closed or is no longer a source file. Recreate the project or reopen its members.");
-      return { id: t.id, name: t.path || t.name || "untitled.cs", text: t.id === this.active ? ed.ta.value : t.text };
+      if (t.id === this.active) ed.syncSource();
+      return { id: t.id, name: t.path || t.name || "untitled.cs", text: t.text };
     });
   },
   setProjectMembers(members, entryId, name) {
     if (this.projectBusy) throw new Error("Wait for the current project run to finish.");
     const old = this.project;
     this.project = { members: [...members], entryId, name: String(name || "project") };
-    try { Lang.projectBundle(this.projectDocuments(), entryId); }
+    try {
+      const documents = this.projectDocuments();
+      Lang.validateProjectDocuments(documents);
+      if (!documents.some(d => d.id === entryId)) throw new Error("The project entry file is missing.");
+      if (!this.project.name.trim() || this.project.name.length > 128 || /[\x00-\x1f\x7f]/.test(this.project.name)) throw new Error("Project name must be at most 128 characters without controls.");
+    }
     catch (e) { this.project = old; throw e; }
     this.syncProjectLang();
   },
   syncProjectLang() {
     try {
       const documents = this.projectDocuments();
-      Lang.setProjectDocuments(documents, this.active);
+      Lang.setProjectDocuments(documents?.map(d => ({ ...d, text: SourceText.display(d.text) })), this.active);
     } catch { Lang.setProjectDocuments(null); } // incomplete membership gives no stale assistance
   },
   async createProject() {
-    if (this.projectBusy) { toast("Wait for the current project run to finish.", "err"); return; }
+    if (this.projectBusy || this.projectImportBusy) { toast("Wait for the current project run to finish.", "err"); return; }
     ed.stash();
     const entry = this.tab();
     const members = this.tabs.filter(t => !t.binary && /\.cs$/i.test(t.path || t.name || ""));
@@ -2005,6 +2057,51 @@ const App = {
     if (name === null) return;
     try { this.setProjectMembers(members.map(t => t.id), entry.id, name); toast(`Project ${name}: ${members.length} source files. Shift+F5 runs the bundle.`, "ok", 6000); }
     catch (e) { toast(e.message, "err", 6000); }
+  },
+  async downloadProject() {
+    if (!this.project || this.projectBusy || this.projectImportBusy) { toast("Create an idle source project first.", "err"); return; }
+    try {
+      ed.stash();
+      const text = SourceProject.stringify(this.project.name, this.projectDocuments(), this.project.entryId);
+      const suggested = this.project.name.replace(/[<>:"/\\|?*]/g, "_").slice(0, 100) + ".microcsproj";
+      const filename = await dialog({ title: "Download source project", text: "This snapshot includes every project member's source code in plaintext, including unsaved edits. Store/share it accordingly. Individual source files are not saved, uploaded or marked clean. Incomplete code can be saved and reopened; it cannot run until completed.", value: suggested, ok: "Download" });
+      if (filename === null) return;
+      if (!filename.trim() || filename.length > 128 || /[<>:"/\\|?*\x00-\x1f\x7f]/.test(filename)) { toast("Use a simple project filename (1–128 characters), not a path.", "err"); return; }
+      download(/\.microcsproj$/i.test(filename) ? filename : filename + ".microcsproj", enc.encode(text));
+      toast("Project snapshot downloaded; individual source files are unchanged.", "ok");
+    } catch (e) { toast("Project download failed: " + e.message, "err", 6000); }
+  },
+  async openProjectFile(file) {
+    if (this.projectBusy || this.projectImportBusy || dev.running) { toast("Wait for the current project operation/run to finish.", "err"); return false; }
+    this.projectImportBusy = true; this.updateButtons();
+    try {
+      if (!file || file.size > SourceProject.MAX_BYTES) throw new Error("Project file exceeds 2 MiB.");
+      const bytes = await file.arrayBuffer();
+      if (bytes.byteLength > SourceProject.MAX_BYTES) throw new Error("Project file exceeds 2 MiB.");
+      const snapshot = SourceProject.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      const entry = snapshot.files.find(f => f.id === snapshot.entry);
+      const yes = await dialog({ title: "Open source project", text: `${snapshot.name}: open ${snapshot.files.length} new source tabs in this order: ${snapshot.files.map(f => f.name).join(", ")}. Entry ${entry.name} runs last. Replace current project membership only; existing tabs/files remain unchanged. Nothing is executed, fetched or saved to a device.`, ok: "Open" });
+      if (!yes) return false;
+      if (this.projectBusy || dev.running) throw new Error("A script/project run started; stop it before importing.");
+      ed.stash();
+      const old = { tabs: [...this.tabs], active: this.active, project: this.project, run: this.lastProjectRun };
+      try {
+        const mapped = new Map();
+        for (const source of snapshot.files) {
+          const tab = this.openTab({ name: source.name, text: source.text, saved: null, local: true });
+          mapped.set(source.id, tab.id);
+        }
+        this.setProjectMembers([...mapped.values()], mapped.get(snapshot.entry), snapshot.name);
+        this.lastProjectRun = null; this.activate(mapped.get(snapshot.entry));
+      } catch (e) {
+        this.tabs = old.tabs; this.project = old.project; this.lastProjectRun = old.run;
+        ed.tab = null; this.activate(old.active); this.syncProjectLang();
+        throw e;
+      }
+      toast(`Opened project ${snapshot.name}. Its source files are new unsaved tabs.`, "ok", 6000);
+      return true;
+    } catch (e) { toast("Project open failed: " + e.message, "err", 6000); return false; }
+    finally { this.projectImportBusy = false; this.updateButtons(); }
   },
   async gotoDefinition() {
     const tab = this.tab(); if (!tab || tab.binary) return;
@@ -2032,13 +2129,22 @@ const App = {
     const location = Lang.projectLocation(run.bundle, line);
     const tab = location && this.tabs.find(t => t.id === location.documentId);
     if (!tab) { toast("The project diagnostic belongs to a closed source file.", "err"); return true; }
-    const current = tab.id === this.active ? ed.ta.value : tab.text;
-    if (current.replace(/\r\n|\r/g, "\n") !== location.text.replace(/\r\n|\r/g, "\n")) { toast("This source changed after the project run; its old diagnostic position is stale.", "err"); return true; }
-    this.activate(tab.id); ed.setError(location.line); ed.gotoLine(location.line); ed.stash(); return true;
+    if (tab.id === this.active) ed.syncSource();
+    const current = tab.text;
+    if (current !== location.text) { toast("This source changed after the project run; its old diagnostic position is stale.", "err"); return true; }
+    // Firmware/compiler lines count LF, while the editor also displays lone CR
+    // as a break. Map unambiguous lines; never highlight a guessed CR-only row.
+    let offset = 0;
+    for (let i = 1; i < location.line; i++) offset = current.indexOf("\n", offset) + 1;
+    let end = current.indexOf("\n", offset); if (end < 0) end = current.length;
+    const segment = current.slice(offset, end).replace(end < current.length ? /\r$/ : /$^/, "");
+    if (segment.includes("\r")) { toast("This diagnostic spans CR-only editor rows; its line-only position is ambiguous.", "err"); return true; }
+    const row = SourceText.display(current.slice(0, offset)).split("\n").length;
+    this.activate(tab.id); ed.setError(row); ed.gotoLine(row); ed.stash(); return true;
   },
   async runProject() {
     if (!this.project) { toast("Create a source project first.", "err"); return; }
-    if (!dev.connected || dev.running || this.projectBusy) { toast("Connect an idle device before Run project.", "err"); return; }
+    if (!dev.connected || dev.running || this.projectBusy || this.projectImportBusy) { toast("Connect an idle device before Run project.", "err"); return; }
     if (this.capabilitiesKnown && this.capabilities?.get("Compiler") !== true) { toast("This firmware does not report an on-device compiler.", "err"); return; }
     const projectName = this.project.name;
     this.projectBusy = true; this.updateButtons();
@@ -2067,13 +2173,13 @@ const App = {
 
   /* ---------- running */
   async runCurrent(selectionOnly) {
-    if (this.projectBusy) { toast("Wait for the project run to finish or Stop it first.", "err"); return; }
+    if (this.projectBusy || this.projectImportBusy) { toast("Wait for the project operation to finish or Stop the run first.", "err"); return; }
     const t = this.tab();
     if (!t || !dev.connected) return;
     ed.stash();
     if (selectionOnly) {
       const s = ed.ta.selectionStart, e = ed.ta.selectionEnd;
-      const code = s !== e ? ed.ta.value.slice(s, e) : ed.ta.value.slice(ed.lineRange()[0], ed.lineRange()[1]);
+      const code = s !== e ? ed.rawSlice(s, e) : ed.rawSlice(ed.lineRange()[0], ed.lineRange()[1]);
       const tmp = "/.studio_run.cs";
       try {
         await dev.op(() => dev.put(tmp, enc.encode(code)));
@@ -2373,9 +2479,11 @@ const App = {
       { label: "Go to definition  F12", icon: "code", disabled: !t || !!t.binary, run: () => this.gotoDefinition() },
       { label: "Format document  Shift+Alt+F", icon: "code", disabled: !t || !!t.binary || t.readOnly, run: () => ed.formatDocument() },
       "-",
-      { label: "Create project from open C# files…", icon: "folder", disabled: !t || !!t.binary || this.projectBusy, run: () => this.createProject() },
-      { label: this.project ? `Run project ${this.project.name}  Shift+F5` : "Run project  Shift+F5", icon: "play", disabled: !this.project || !dev.connected || dev.running || this.projectBusy || this.capabilitiesKnown && this.capabilities?.get("Compiler") !== true, run: () => this.runProject() },
-      { label: "Close project (keep files)", icon: "x", disabled: !this.project || this.projectBusy, run: () => { this.project = null; this.lastProjectRun = null; Lang.setProjectDocuments(null); toast("Project closed; open files are unchanged."); } },
+      { label: "Create project from open C# files…", icon: "folder", disabled: !t || !!t.binary || this.projectBusy || this.projectImportBusy, run: () => this.createProject() },
+      { label: "Open source project…", icon: "open", disabled: this.projectBusy || this.projectImportBusy || dev.running, run: () => $("openProject").click() },
+      { label: "Download source project…", icon: "download", disabled: !this.project || this.projectBusy || this.projectImportBusy, run: () => this.downloadProject() },
+      { label: this.project ? `Run project ${this.project.name}  Shift+F5` : "Run project  Shift+F5", icon: "play", disabled: !this.project || !dev.connected || dev.running || this.projectBusy || this.projectImportBusy || this.capabilitiesKnown && this.capabilities?.get("Compiler") !== true, run: () => this.runProject() },
+      { label: "Close project (keep files)", icon: "x", disabled: !this.project || this.projectBusy || this.projectImportBusy, run: () => { this.project = null; this.lastProjectRun = null; Lang.setProjectDocuments(null); toast("Project closed; open files are unchanged."); } },
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
       { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
       { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
@@ -2466,6 +2574,10 @@ const App = {
       if (isText(data)) { const text = new TextDecoder().decode(data); this.openTab({ name: f.name, text, saved: text, local: true }); }
       else this.openTab({ name: f.name, binary: data, local: true });
     };
+    $("openProject").onchange = async (e) => {
+      const file = e.target.files[0]; e.target.value = "";
+      if (file) await this.openProjectFile(file);
+    };
     $("btnSave").onclick = () => this.save();
     $("btnRun").onclick = () => this.runCurrent(false);
     $("btnStop").onclick = () => this.stop();
@@ -2485,6 +2597,7 @@ const App = {
     addEventListener("drop", (e) => e.preventDefault());
 
     addEventListener("keydown", (e) => {
+      if ($("modalBg").classList.contains("show")) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
       else if (e.key === "F12" && !e.altKey && !mod) { e.preventDefault(); this.gotoDefinition(); }

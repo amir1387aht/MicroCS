@@ -1,0 +1,18 @@
+{
+  "format": "microcs-source-project",
+  "version": 1,
+  "name": "portable project",
+  "entry": "source-2",
+  "files": [
+    {
+      "id": "source-1",
+      "name": "lib/util.cs",
+      "text": "class Meter { public int Read() { return 42; } }\n"
+    },
+    {
+      "id": "source-2",
+      "name": "main.cs",
+      "text": "Console.WriteLine(new Meter().Read());\n"
+    }
+  ]
+}

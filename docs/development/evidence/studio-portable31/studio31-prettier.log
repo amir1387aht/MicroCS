@@ -1,0 +1,6 @@
+tools/studio/source.js 77ms
+tools/studio/project.js 25ms
+tests/studio/test_source.js 21ms
+tests/studio/test_project_file.js 24ms
+tests/studio/test_project_file_browser.js 100ms
+tests/studio/test_status_layout.js 16ms

@@ -857,6 +857,6 @@
 
   parseDocs(window.MCS_DOCS_SRC);
 
-  window.Lang = { setProjectDocuments, definitionsAt, projectBundle, projectLocation, classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, functionsAt, classInfo, isClassName, membersOf, ctorsOf,
+  window.Lang = { validateProjectDocuments: validateDocuments, setProjectDocuments, definitionsAt, projectBundle, projectLocation, classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, functionsAt, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();

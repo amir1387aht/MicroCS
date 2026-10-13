@@ -1030,3 +1030,39 @@ record REMOTE30SHA. PR remains DRAFT/OPEN/UNMERGED; main/optionalgraphicsOFF/rel
 restrictions retained. Full original core/graphics/Studio/security/verifier/
 roadmap/benchmarks/hardware/independentreview scope STILL BLOCKING. No merge/tag/
 release/provisioning, hostile bytecode execution or sourcecloudexfiltration.
+
+## Checkpoint31 — portable Studio snapshots, raw source preservation and status
+
+Predecessor30 remote e42924aa3fbe01774f8e892a08cd668239750ab6 treeverified
+fec3cd400e7378d7b8b816220591b774181e9ccb; exact30CI all92 loaded jobs nowSUCCESS.
+Main unchanged d3def1ff... . No runtime/C/opcode/API/image/security changes;
+actual mcs executable byteidentical to29. Prior runtime gates not relabeled.
+
+Added strict portable plaintext `.microcsproj` v1 download/reopen including
+unfinished unsaved drafts; new local IDs/tabs/no device binding, confirmation,
+full prevalidation/fatalUTF8/2MiJSON/32members/256KiUTF16/relativelabel/schema guards.
+Fresh offline browser restores memberorder/entry/text/F12 from downloaded file.
+No auto-save/cloud/URLfetch/execute/originalclean/devicewrite/signing/.csproj/SDK.
+Canonical source/display offset mapping fixes observed CRLF/CR literal loss on
+untouched activation/export; raw formatting/paste/replace/move/copy tested,
+recent browserownedundo/redo restored by bounded128/2Mi sidecache. Diagnostic
+staleness compares exact rawsnapshot; ambiguous CR-only compilerline mapping
+refused. Old undo beyondcache and sameview EOL-only edits STILL release gaps.
+
+56portablemodel+80sourceassertions pass; final portablebrowser46(actualhostsource
+output matches unchanged CLI, tempcleanup), existing project53/browser28,
+modal24/status90 plus full existing Studio/serial/editor/completion/gallery/
+scope69/lexer/highlight/formatter/caps/metadata/217C#218total77snippets/echo/wiki47
+allcompletedEXIT0 on frozen finalproductionhashes. Source/timing/harness/geometry
+initial failures retained and explained, no assertion suppression. Sourcehist
+size/entrycaps and exactrawdiagnostic refusal directly checked. Tool Node24.14.1,
+Playwright1.63.0/Chromium153, explicit NODE_PATH package location corrected.
+
+Bounded long-label status/footer fixes pass desktop/phone/short dark/light; local
+header/tabs scroll instead of widening apptrack. Exact PNG rasterSVG evidence
+visually inspected, not drawings. Phone main-editor sidebar usability remains
+NEXT, not claimed fixed by status geometry. Detailed logs/downloads/hash/tool/CI
+provenance in evidence/studio-portable31. Local staged/cumulativebinarypatches+
+NOTES prepared; push/fetch/treeverify before remoteSHA record. New31CI independent.
+PR remains OPEN/DRAFT/UNMERGED. Full original scope/release gates STILL BLOCKING;
+no merge/tag/release/provisioning or hostile-image execution. Continue work.

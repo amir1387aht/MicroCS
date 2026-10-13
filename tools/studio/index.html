@@ -14,6 +14,7 @@
     api.js        classes and members known to completion
     docs.js       signatures and docs: completion details, parameter info, hover
     lang.js       C# language service: symbols, type inference, call context
+    project.js    bounded portable plaintext source-project snapshots
     templates.js  templates and examples (generated from templates/ by gen_templates.py)
     snippets.js   completion snippets
     studio.js     the app: serial link, editor, file manager, console
@@ -75,6 +76,7 @@
         <button class="btn ghost sm icon" id="btnUpload" title="Upload files from this computer" disabled><svg class="i"><use href="#i-upload"/></svg></button>
         <button class="btn ghost sm icon" id="btnRefresh" title="Refresh" disabled><svg class="i"><use href="#i-refresh"/></svg></button>
         <input type="file" id="fileInput" multiple hidden>
+        <input type="file" id="openProject" hidden accept=".microcsproj,application/json">
         <input type="file" id="openLocal" hidden accept=".cs,.txt,.json,.csv,.cfg,.md,.ini,.xml,.html,.mcsb,*/*">
       </div>
       <div class="crumbs" id="crumbs"></div>
@@ -214,6 +216,8 @@
 <script src="api.js"></script>
 <script src="docs.js"></script>
 <script src="lang.js"></script>
+<script src="project.js"></script>
+<script src="source.js"></script>
 <script src="templates.js"></script>
 <script src="snippets.js"></script>
 <script src="studio.js"></script>

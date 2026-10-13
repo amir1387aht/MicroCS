@@ -1,0 +1,2 @@
+PASS formatter: multiline payloads/comments, incomplete literals, interpolation, Unicode, mixed LF/CRLF/CR, idempotence
+PASS formatter compiled/runtime outputs unchanged for all multiline string prefixes

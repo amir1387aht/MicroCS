@@ -1,0 +1,9 @@
+AssertionError [ERR_ASSERTION]: {"width":1400,"state":"off","key":"busy","g":{"conn":{"left":10,"right":71.765625,"width":61.765625,"text":"Offline","title":"Offline"},"file":{"left":85.765625,"right":645.765625,"width":560,"text":"source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_31.cs (this computer)","title":"source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_source_member_31.cs (this computer)"},"busy":{"left":1725.53125,"right":1760,"width":34.46875,"text":"Ready","title":""},"pos":{"left":1774,"right":1900.59375,"width":126.59375,"text":"Ln 123456, Col 654321","title":""}}}
+    at /data/MicroCS-v2-next/tests/studio/test_status_layout.js:13:42 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}

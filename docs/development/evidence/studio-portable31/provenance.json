@@ -1,0 +1,92 @@
+{
+  "predecessor_remote": "e42924aa3fbe01774f8e892a08cd668239750ab6",
+  "predecessor_local": "b27f01fd0ef74100a7585fa300bd9a8fe6ca978b",
+  "main": "d3def1ff534c59a6726037ccf31f61535647e857",
+  "recorded_utc": "2026-10-13T22:59:25.468234+00:00",
+  "node": "v24.14.1",
+  "chromium": "Google Chrome for Testing 153.0.8010.12",
+  "playwright": "1.63.0",
+  "NODE_PATH": "/vercel/sandbox/node_modules",
+  "test_counts": {
+    "portable-browser": 46,
+    "project-browser": 28,
+    "full-serial-browser": 89
+  },
+  "screenshots": {
+    "390x844-dark.png": {
+      "png_sha256": "b4daa1454d25a6f8cd072251ab7d117fbcdb37775c93f24adf12048b20fc4acd",
+      "svg": "390x844-dark.svg",
+      "size": [
+        390,
+        844
+      ]
+    },
+    "1400x860-light.png": {
+      "png_sha256": "90af2136169de4e2ce3ca054056c21bb594a47610485f5a5baa2bc7df8e9d55b",
+      "svg": "1400x860-light.svg",
+      "size": [
+        1400,
+        860
+      ]
+    },
+    "reopened-project-f12.png": {
+      "png_sha256": "f6bd7c5aa12f78a4e440e68f87979dd21ae175fc7d1fe01743f294c63b7d559d",
+      "svg": "reopened-project-f12.svg",
+      "size": [
+        667,
+        375
+      ]
+    }
+  },
+  "source_hashes": {
+    "tools/studio/api.js": "e0eabaac6d977f21d837d2bc149c51a4a4b5339f00bc58689e99ea31163f9063",
+    "tools/studio/bench_scope.js": "8e9a25f34a329266a182724adfe4d7ae09259360f13e0f2dbe0dc3c2573d7dcb",
+    "tools/studio/docs.js": "d8585bf8d86f552e467df874dad1c984185d1f04c3ec8b39cd3135dc757aa738",
+    "tools/studio/lang.js": "c2c049d480828825ff831d69323e3b9fa8da09b7f3a2540c94c8ac8fce6b9962",
+    "tools/studio/snippets.js": "a8853cfedb99ede6e5bc9914f814c0ff120a9b037a2fa1955866fc9eef6bcb41",
+    "tools/studio/studio.js": "11bfb04c05382c541633159848e45bcedd21f115a5af460b0657e3d390744e50",
+    "tools/studio/templates.js": "1a9fdf3f70fff0324b5a54d9f50bcda55dbcb55ccc3ee01eecd46fb9d0fc2ed0",
+    "tools/studio/project.js": "664b08f728b4797b0b6fd68e2973fee29aecf2f15c930b7800e417d55d57ebe5",
+    "tools/studio/source.js": "9a377495f44f90d946a2ed8e167dbf5c7b49044bde2f67c575893c4a46b577ef",
+    "tools/studio/studio.css": "4bb51f10d5652f81fe57d4f0ec2c6a82c4ca215193b28a3dbb612cf488ce50bd",
+    "tools/studio/index.html": "1adfd48c55cedbd8da47dc5e4d14f53602af52a47f9e3e7baa2d168ff7f690cc",
+    "mcs": "cc67696f31ae14031a0d692ebd02ec673994c80a3452612f1a102ef4a311a4e1",
+    "src/mcs_bytecode.c": "151699e519f51ed7963dbbad81f4a4419e22f1bd0073d2db1454fd769a03070f",
+    "src/mcs_compiler.c": "5f7411945a08896f0b2ae98a809b453db0e216ee709967cd7d4354af0abe0857",
+    "src/mcs_fmt.c": "86dc009f7f9118ea130302b8576304060468a960449f35955078a693646f04ae",
+    "src/mcs_lexer.c": "9ecd95b7e515d30615c38b402e304e3a7ba9bd8194481660e46009761f13c40d",
+    "src/mcs_lib.c": "05367f8863aafe901c9311a6a58cd0d0e1d9cf7110490fdc480a27f173d76a94",
+    "src/mcs_lib_bytes.c": "528a839eda7901f459bd70b4d9a9f06260d982b369309b1559c9d4a622e52b7c",
+    "src/mcs_lib_coll.c": "50e8d560dc5aa53467bfd6dafe4818c47e0bdd460ee8828818efb51fbe2a059d",
+    "src/mcs_lib_json.c": "7821f7cede00aa1cae1d82f041de49fd3b0a0968b1be575a35e03e3d4b3d3add",
+    "src/mcs_lib_str.c": "5568b9ba461546dbf4f64c5ec70a00895fd40f67ab7cf52cdc33db4c61bdec56",
+    "src/mcs_object.c": "1dba58bb2afb522db84d9e7c315609c907ce040f404a98ae573c6c65bb67d774",
+    "src/mcs_opt.c": "45971af2fc38232289f897878efc438ee6cbcd23c36e45df8c753d819cb090a6",
+    "src/mcs_parser.c": "25bb768257bad9fed38bf25ef058a57e34acaf0918c1a39c2ae060a522770e93",
+    "src/mcs_value.c": "336ce7a0d7d29044de9f334507b2ecfcd4faad8bc29a75183092eb192fde5402",
+    "src/mcs_vm.c": "8ff0cb3d792019311c7563db32f7a17738cb69e973f0a3a185546396692fcf59",
+    "include/MicroCS.h": "729ab899e7ac049d37b96d661c22ffe692704b966e20676d6764b3a44a5034da",
+    "include/mcs.h": "abbea2f78f9909ee09062d6255b6371af75337ddb90452a662e7786ef69831b3",
+    "include/mcs_bind.h": "9690fe178e534cf6dac82427de64da5b01fe31bd474a8ff3f8f7407f07e9e5cb",
+    "include/mcs_ble.h": "5fb6922d5ba9dc6aa2cc23642d713cfceb183a3c67c126c4415c34a1b38f406e",
+    "include/mcs_config.h": "b7e6e5ebbbeb9ae2ea2a2f3d010c620c730d2d42af6e8d0510c02fc44a51433a",
+    "include/mcs_display_rgb565.h": "cfddc15d5d151029e5db19d3b2f696f9a393b38df0b4671c39b9ebfa2105b4db",
+    "include/mcs_driver.h": "45b9c50901f900a9e61c0962a7bd90034095e8d5c48e2e0eb07b5d2b2d28f626",
+    "include/mcs_flash.h": "1dcb52912886dd0177b1bede740cc036aa32204d07c020511e26c6660e4b236a",
+    "include/mcs_hal.h": "60e74630e112150b2ed04f1e132458977bfafa5c6975c341ed43ebcd0d9d7869",
+    "include/mcs_hal_internal.h": "dcd0f49be79625133c6a76c24421b663e1923c8499fb31661c6943e4f099db5c",
+    "include/mcs_lvgl.h": "e7d53db53ac1b3c1bd2526f3f23da1147a9232bafe8566d3ae7726ec1caebdc6",
+    "include/mcs_net.h": "d3f890c67305c2b6d11e3ae26962f9a49996dc110decec988ec46de4f1af1cd1",
+    "include/mcs_os.h": "18048df8a5f63413dffc085563b26287542a3ed5a3a80b8377b2f67cdc88b31d",
+    "include/mcs_runtime.h": "6b004901cd10125243090c95938b33d0e4b25f1a84c90dfe5ec4830e18f81f9f",
+    "include/mcs_sched.h": "87c5244957ff828bf57ca463e5c0395a2c2f03d05d6989d07d9fd6b8b8cc8306",
+    "include/mcs_shell.h": "45a8783337cde30013ccfc6160fd7f036e50e37a45133136755922b18484179f",
+    "include/mcs_tft.h": "8606469f798b5ab3313ce1fc3607180204be9da1d436c8c8c1f8317fb3ad09d3",
+    "include/mcs_tft_sprite_budget.h": "bd715e6c0309365e915a83f676ab57b639b71713c10c3aff3c9d535abe643af7",
+    "include/mcs_threads.h": "9eeba77585cee47987979d3029f8452fd33f148e65b40feac9bec8abf00e166c",
+    "include/mcs_vfs.h": "1985b3ff63050b07d8480f9397067972e7f0b930c8f4852239b045fb36e05649",
+    "include/mcs_ws2812_backends.h": "3dc14a676dca06119e8dda664d81026c4014ad4628eb7d5a82b8bbae7794d16d"
+  },
+  "runtime_changes": "none; same tested checkpoint29 executable",
+  "validation": "all final gate processes completed EXIT0; source hashes unchanged throughout final validation; no physical device evidence"
+}

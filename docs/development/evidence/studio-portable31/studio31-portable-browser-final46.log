@@ -1,0 +1,47 @@
+PASS export explicitly warns source snapshot is plaintext
+PASS modal blocks background Run project shortcut
+PASS cancelled export produces no file
+PASS export rejects a pathname instead of silent filesystem routing
+PASS dedicated portable project extension
+PASS export retains explicit member order and relative labels, excludes unrelated tab
+PASS snapshot includes unsaved source exactly
+PASS project export does not mark individual source files saved
+PASS export performs no device write
+PASS rejected version.microcsproj preserves existing tabs/project
+PASS rejected encoding.microcsproj preserves existing tabs/project
+PASS rejected unknown.microcsproj preserves existing tabs/project
+PASS rejected large.microcsproj preserves existing tabs/project
+PASS oversized file rejected before arrayBuffer allocation/read
+PASS import confirmation explains isolated tabs and no device execution
+PASS cancelled import leaves project/tab identities unchanged
+PASS import dialog cannot start a background run
+PASS actual imported snapshot restores source contents/order
+PASS new independent tab IDs/no device binding, originals retained
+PASS actual host serial execution of imported project, not mocked success
+PASS restored run preserves original device file and cleans temporary bundle
+PASS unfinished code saved exactly, not lost to Run-only syntax validation
+PASS unfinished draft does not upload or run
+PASS fresh context has no session-only membership to rely on
+PASS project file alone restores membership/order/entry after reopening
+PASS cross-file navigation restored in fresh offline context
+PASS import and activation preserve CRLF/CR inside verbatim payload exactly
+PASS untouched re-export preserves exact mixed source, not textarea LF conversion
+PASS native character typing preserves mixed literal separators
+PASS native undo restores canonical source, including mixed EOLs
+PASS native redo restores canonical edited snapshot
+PASS browser formatter retains literal bytes and mixed source EOLs
+PASS formatter remains native-undoable with exact raw source
+PASS paste event retains its own exact CRLF/CR bytes
+PASS actual replace-all retains CRLF/CR/LF across multiple changed lines
+FAIL move line uses raw source segments rather than normalized payload
+FAIL move line native undo restores original mixed endings
+FAIL duplicate lines keeps copied raw separators
+PASS original mixed-EOL source is valid for the real compiler
+PASS imported literal runtime output matches unchanged raw CLI source
+PASS mixed-EOL project execution cleans its temporary source
+PASS LF compiler row maps past an earlier CR-only editor separator without guessing
+PASS ambiguous compiler row spanning CR-only editor rows refuses a guessed highlight
+PASS EOL-only source change invalidates the exact raw run snapshot
+PASS canonical undo side cache enforces its entry count bound
+PASS canonical undo side cache enforces its raw-plus-display size bound
+3 FAILED

@@ -1,0 +1,29 @@
+PASS export explicitly warns source snapshot is plaintext
+PASS modal blocks background Run project shortcut
+PASS cancelled export produces no file
+PASS export rejects a pathname instead of silent filesystem routing
+PASS dedicated portable project extension
+PASS export retains explicit member order and relative labels, excludes unrelated tab
+PASS snapshot includes unsaved source exactly
+PASS project export does not mark individual source files saved
+PASS export performs no device write
+PASS rejected version.microcsproj preserves existing tabs/project
+PASS rejected encoding.microcsproj preserves existing tabs/project
+PASS rejected unknown.microcsproj preserves existing tabs/project
+PASS rejected large.microcsproj preserves existing tabs/project
+PASS oversized file rejected before arrayBuffer allocation/read
+PASS import confirmation explains isolated tabs and no device execution
+PASS cancelled import leaves project/tab identities unchanged
+PASS import dialog cannot start a background run
+PASS actual imported snapshot restores source contents/order
+PASS new independent tab IDs/no device binding, originals retained
+PASS actual host serial execution of imported project, not mocked success
+PASS restored run preserves original device file and cleans temporary bundle
+PASS unfinished code saved exactly, not lost to Run-only syntax validation
+PASS unfinished draft does not upload or run
+PASS fresh context has no session-only membership to rely on
+PASS project file alone restores membership/order/entry after reopening
+PASS cross-file navigation restored in fresh offline context
+FAIL import and activation preserve CRLF/CR inside verbatim payload exactly
+FAIL untouched re-export preserves exact mixed source, not textarea LF conversion
+2 FAILED

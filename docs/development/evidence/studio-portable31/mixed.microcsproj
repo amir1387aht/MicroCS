@@ -1,0 +1,13 @@
+{
+  "format": "microcs-source-project",
+  "version": 1,
+  "name": "line endings",
+  "entry": "source-1",
+  "files": [
+    {
+      "id": "source-1",
+      "name": "mixed.cs",
+      "text": "var payload = @\"one\r\nβ two\rthree\";\r\nConsole.WriteLine(payload.Length);\n"
+    }
+  ]
+}
