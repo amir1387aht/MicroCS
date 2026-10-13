@@ -48,7 +48,7 @@
 #if SOC_DAC_SUPPORTED
 #include "driver/dac_oneshot.h"
 #endif
-#if SOC_TWAI_SUPPORTED
+#if SOC_TWAI_SUPPORTED && !SOC_TWAI_SUPPORT_FD
 #include "driver/twai.h"
 #endif
 #if SOC_USB_SERIAL_JTAG_SUPPORTED
@@ -1122,7 +1122,7 @@ static int e_i2s_read(void* ctx, int bus, uint8_t* buf, size_t n, uint32_t timeo
 #endif
 
 /* ------------------------------------------------------------------ CAN (TWAI) */
-#if SOC_TWAI_SUPPORTED
+#if SOC_TWAI_SUPPORTED && !SOC_TWAI_SUPPORT_FD
 static bool g_twai;
 static int e_can_open(void* ctx, int bus, uint32_t bitrate) {
     (void)ctx;
@@ -1489,7 +1489,7 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->i2s_read = e_i2s_read;
     hal->i2s_close = e_i2s_close;
 #endif
-#if SOC_TWAI_SUPPORTED
+#if SOC_TWAI_SUPPORTED && !SOC_TWAI_SUPPORT_FD
     hal->can_open = e_can_open;
     hal->can_send = e_can_send;
     hal->can_recv = e_can_recv;

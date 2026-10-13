@@ -1,0 +1,3 @@
+# esp32c61: ESP-IDF 5.5 Wi-Fi + TLS + BLE need more than the older 2 MB app slot.
+# This target-specific layout keeps the normal S3 / older-chip partitions unchanged.
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_large.csv"

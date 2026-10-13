@@ -1,0 +1,7 @@
+# C5 / C61 on IDF 5.5: Wi-Fi 6 + TLS + NimBLE exceed the older 2 MB app slot.
+# 4 MB flash: 2.5 MB app, 1472 KB storage. Does not change the S3 / older-chip layout.
+# Name,   Type, SubType, Offset,   Size
+nvs,      data, nvs,     0x9000,   0x6000
+phy_init, data, phy,     0xf000,   0x1000
+factory,  app,  factory, 0x10000,  0x280000
+storage,  data, spiffs,  0x290000, 0x170000

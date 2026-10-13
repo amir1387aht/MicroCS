@@ -8,7 +8,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   queue / GATT / scan / discovery limits, subscriptions, timeouts and UART buffer. The
   front-end connection limit follows NimBLE (C2 supports at most two); the BLE overlay uses
   two connections. Added BLE builds for C2 / C6 / H2 and IDF 5.5.2 builds for C5 / C61,
-  plus non-BLE S2 / P4 checks. BLE remains opt-in, absent from release builds.
+  plus non-BLE S2 / P4 checks. Guarded legacy CAN on CAN-FD-only chips (IDF omits
+  the legacy TWAI driver there), fixing C5 firmware link failures. C5 / C61 target defaults
+  use a 2.5 MB app slot; older chips retain their existing flash layout. Corrected TX-power clamping on C6 / C61 (minimum -15 dBm)
+  and the +20 dBm readback on newer controllers. BLE remains opt-in, absent from release builds.
 * **HTTP client diagnostics / framing** — distinguish a server closing before its status
   line from truncated headers, body or chunks; reject invalid / overflowing chunk lengths,
   invalid chunk terminators, incomplete trailers and overlong response lines. Added local

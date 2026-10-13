@@ -130,7 +130,7 @@ mcs_esp32_hal_init(&hal, &pins);
 | `LedStrip` | `ws2812` driver (menuconfig → MicroCS → *WS2812 / NeoPixel driver*): RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
 | `Timer` | `gptimer` |
 | `I2S` | `i2s_std` |
-| `CAN` | TWAI |
+| `CAN` | Legacy TWAI (not CAN-FD-only chips such as C5; the new TWAI driver is not wrapped yet) |
 | `Watchdog` | task watchdog |
 | `RTC` | `gettimeofday` / `settimeofday` |
 | `Hal.UniqueId` | eFuse MAC |
@@ -212,6 +212,13 @@ this and use two connections so they are valid on C2 as well as the larger chips
 
 Wi-Fi and BLE can coexist on chips that have both radios; H2 has BLE but no Wi-Fi.
 S2 / P4 cannot run this onboard NimBLE backend (an external / hosted radio is not implemented).
+C5 / C61 target defaults use `partitions_large.csv`: a 2.5 MB app and 1472 KB storage
+on 4 MB flash (IDF 5.5 Wi-Fi + TLS + BLE exceed the older 2 MB app). S3 and older-chip
+layouts are unchanged. When changing a partition table on an already flashed device,
+back up scripts first: the storage offset changes; restore them after formatting the new
+filesystem. In an existing C5 / C61 configuration select `partitions_large.csv` under
+*Partition Table → Custom partition CSV file*.
+
 These are compile / simulator checks, not real-board radio validation.
 Backend: [`mcs_port_esp32_ble.c`](mcs_port_esp32_ble.c).
 

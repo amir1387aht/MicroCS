@@ -74,7 +74,14 @@ jobs:
       - run: make -j
       - run: npm install --no-save --no-package-lock playwright-core@1
       - name: tools/studio against the host device shell
-        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs
+        run: |
+          set +e
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs 2>&1 | tee /tmp/studio-test.log
+          result=${PIPESTATUS[0]}
+          if [ "$result" != 0 ]; then
+            python3 -c 'from pathlib import Path; s=Path("/tmp/studio-test.log").read_text()[-2500:]; print("::error title=Studio failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+          fi
+          exit "$result"
       - name: ESP BLE menuconfig gating and limits
         run: |
           python3 -m pip install kconfiglib==14.1.0

@@ -89,9 +89,11 @@ discovery limits, subscriptions, timeouts and BleUart buffer. Connections and MT
 *NimBLE Options*; the C# connection table follows NimBLE (the C2 allows at most two).
 The supplied overlay uses two connections and enables bond persistence. ESP32 / S3 / C2 /
 C3 / C6 / H2 have BLE build coverage on IDF 5.3.2; C5 / C61 use IDF 5.5.2. S2 and P4 have
-no onboard BLE radio. H2 has no Wi-Fi. Real-board operation still requires hardware testing.
+no onboard BLE radio. H2 has no Wi-Fi. C5 / C61 target defaults use a 2.5 MB app partition
+(`partitions_large.csv`) for their larger Wi-Fi + TLS + NimBLE firmware. If you change an
+existing device's partition table, back up and restore scripts: its storage offset changes. Real-board operation still requires hardware testing.
 
- `CONFIG_MICROCS_BLE_RESERVE_KB`
+`CONFIG_MICROCS_BLE_RESERVE_KB`
 (default 48) is kept free for the controller and host when the C# heap is sized. Wi-Fi and BLE run
 together (the radio is time-shared). The original ESP32 is tight on IRAM with Wi-Fi + BLE: the
 file moves the Wi-Fi / lwIP fast paths to flash and builds with `-Os`.
