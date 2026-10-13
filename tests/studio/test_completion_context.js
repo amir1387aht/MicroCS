@@ -15,7 +15,7 @@ fs.mkdirSync(OUT, { recursive: true });
         await page.evaluate(() => App.newScratch());
         const suggest = async src => page.evaluate(src => {
             ed.ta.value = src; ed.ta.setSelectionRange(src.length, src.length);
-            ed.hideComplete(); ed.suggest(true);
+            ed.refresh(true); ed.hideComplete(); ed.suggest(true);
             return ed.box.style.display === 'block' ? ed.items.map(i => i.label) : [];
         }, src);
         for (const src of ['$"{Con', '$@"line\n{Con', '@$"line\n{Con', '$"{x /* } */ + Con', '$"{$"{Con']) {
@@ -40,6 +40,13 @@ fs.mkdirSync(OUT, { recursive: true });
         });
         assert(cleared, 'explicit parameter help cannot leak a stale popup into literal text');
         assert(await page.evaluate(() => !!ed.describe('$"{Console.WriteLine}', { a: 11, word: 'WriteLine' })), 'hover documents interpolation member');
+        // Exercise real keyboard input too: auto-paired quotes/braces must not
+        // suppress assistance when the caret is still inside an expression.
+        for (const [typed, label] of [['$"{Con', 'Console'], ['$"{Console.', 'WriteLine'], ['$@"{Con', 'Console'], ['@$"{Console.', 'WriteLine']]) {
+            await page.fill('#ta', ''); await page.click('#ta');
+            await page.keyboard.type(typed, { delay: 10 });
+            await page.waitForFunction(label => ed.box.style.display === 'block' && ed.items.some(i => i.label === label), label);
+        }
         await suggest('$@"status\n{Console.');
         await page.screenshot({ path: OUT + '/interpolation-completion.png' });
         assert.deepStrictEqual(errors, [], 'no page errors');

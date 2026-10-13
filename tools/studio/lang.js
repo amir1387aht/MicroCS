@@ -211,8 +211,14 @@
     p = Math.max(0, Math.min(src.length, p));
     const lex = lexical(src);
     if (p === src.length) return lex.eof;
+    // Context describes an insertion point, not the character to its right.
+    // An auto-paired outer quote is lexed as the start of a nested string while
+    // a hole is unfinished: the caret BEFORE that quote is still expression code.
+    let lo = 0, hi = lex.strings.length;
+    while (lo < hi) { const mid = (lo + hi) >>> 1; if (lex.strings[mid].start < p) lo = mid + 1; else hi = mid; }
+    if (lex.strings[lo]?.start === p) return "code";
     // Binary search keeps moving the caret independent of the document size.
-    let lo = 0, hi = lex.ranges.length;
+    lo = 0; hi = lex.ranges.length;
     while (lo < hi) { const mid = (lo + hi) >>> 1; if (lex.ranges[mid].end <= p) lo = mid + 1; else hi = mid; }
     const r = lex.ranges[lo];
     return r && r.start <= p ? (r.kind === "delimiter" ? "code" : r.kind) : "code";

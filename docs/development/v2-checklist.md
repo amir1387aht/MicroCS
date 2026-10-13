@@ -7,7 +7,7 @@ Status: work in progress. No v2 release is authorized by this checklist until **
 - Base: `d3def1ff534c59a6726037ccf31f61535647e857` (current main, including gallery geometry repair).
 - Dedicated branch: `feat/microcs-v2`; no existing user checkout was changed.
 - Latest published version observed: v1.14.0. No new tag chosen yet.
-- Preserve append-only public APIs/opcodes, language/stdlib, image v1 compatibility, source/image/XIP execution, feature flags, min/lowram/64-KB profiles, board/HAL/network/filesystem/thread behavior, shell commands and persistent REPL state.
+- Preserve append-only public APIs/opcodes, language/stdlib, existing supported v1-release image compatibility (loader currently accepts format versions 1–4), source/image/XIP execution, feature flags, min/lowram/64-KB profiles, board/HAL/network/filesystem/thread behavior, shell commands and persistent REPL state.
 - Inventory inputs: `evidence/v2-baseline/compatibility-files.txt`; `include/mcs.h`, `include/MicroCS.h`, `include/mcs_config.h`, `include/profiles/`, `docs/LANGUAGE.md`, `docs/STDLIB.md`, `docs/BYTECODE.md`, port/build definitions. Detailed API/behavior mapping is **pending**.
 - No third-party sources vendored; optional LVGL/TFT remain off until implemented and off in release builds thereafter.
 
@@ -17,7 +17,7 @@ Status: work in progress. No v2 release is authorized by this checklist until **
 |---|---|---|
 | Recovery | clean branch, coherent WIP commits, local binary patches, remote journal/raw results, fetch/tree verification | branch created; checkpoint journal maintained |
 | Baseline | identical v1/v2 configs, test logs; compiler/REPL/load/XIP/heap/flash maps; host and MCU timing distributions | 85 host source/image/XIP tests pass; checked distribution harness added; clean-source performance run and full matrix pending |
-| Studio lexical model | highlighting/completion/signatures/hover agree on expression vs text; both verbatim prefixes, nested strings/comments, escapes, formats, incomplete inputs | shared lexer implemented; Node + actual browser completion/signature/hover regressions pass; full serial Studio suite and gallery geometry pass |
+| Studio lexical model | highlighting/completion/signatures/hover agree on expression vs text; both verbatim prefixes, nested strings/comments, escapes, formats, incomplete inputs | shared lexer + insertion-boundary correction implemented; Node + actual keyboard/browser completion/signature/hover regressions pass; full serial Studio and gallery geometry pass (JS boundary follow-up serial rerun pending) |
 | Studio broader assistance | scope/types/imports/native API coverage, placeholders, responsive cached model; serial, echo, cancellation, undo, long files, Unicode, offline/capability/visual regressions | formatter literal/line-ending preservation fixed with compiler/runtime regressions; broader scope/import/navigation audit pending |
 | Core/compiler/REPL optimization | profiling-led changes; before/after time/RAM/flash; semantics, OOM, cancellation/lifetimes, portability | first keyword-lookup candidate implemented with exhaustive token regressions and isolated before/after host evidence; full footprint/profile/performance scope pending |
 | LVGL 8/9 | pinned real upstream matrix; coverage for enabled public families; adapter, version/link/config discovery, lifecycle/input/flush/files/fonts/drawing; all build routes; examples/docs | absent today; 8.4/9.4 docs retrieved; root pages alone do not prove API compatibility |

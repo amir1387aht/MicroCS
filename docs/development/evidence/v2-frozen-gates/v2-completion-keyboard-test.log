@@ -1,0 +1,5 @@
+page.waitForFunction: Timeout 30000ms exceeded.
+    at /vercel/sandbox/data/MicroCS-v2-work/tests/studio/test_completion_context.js:48:24 {
+  log: [],
+  name: 'TimeoutError'
+}

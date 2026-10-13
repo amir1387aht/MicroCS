@@ -22,7 +22,7 @@ suppress suggestions and clear stale signature popups. Added Node + actual
 offline browser regressions and CI steps; updated Studio documentation.
 
 Tests passed: `node tests/studio/test_lexical.js`, `node tests/studio/test_highlight.js`,
-`NODE_PATH=/data/node_modules CHROME=/usr/bin/chromium node tests/studio/test_completion_context.js`.
+`NODE_PATH=/data/node_modules CHROME=$(command -v chromium) node tests/studio/test_completion_context.js`.
 One initial test used the offset after the dot instead of the dot; corrected the
 fixture (not the implementation). Browser screenshot: local
 `build/studio-context/interpolation-completion.png`.
@@ -160,3 +160,37 @@ release evidence. No graphics/security/hardware review scope completed.
 Draft PR #43 remains unmergeable by policy; observe CI on each NEW head.
 Next: finish these frozen gates, fuzz source/image, inspect CI failure/pending
 jobs, test remaining editor semantics and implement unfinished coverage.
+
+## Checkpoint 8 — frozen host gates and actual-keyboard boundary correction
+
+Frozen runtime checkpoint 8936b6d8a3a81d048733d7d750eb411521728273:
+- `make -j2 check`: PASSED on a separate unchanged-source checkout (all config/
+  flags, GC stress, docs/generators, and all eleven 85-test alternate suites).
+- ASan/UBSan target: PASSED after restoring missing runtime SONAME lookup locally;
+  no weakened sanitizer options. Initial missing-library failure retained.
+- ASan/UBSan source fuzz 400, seed 131026: 0 findings.
+- ASan/UBSan image loader/disassembler fuzz 400, seed 131026: 0 findings.
+  Mutated images were NOT executed; this does not prove stack/type verification.
+
+Visual screenshot review found the new test was setting textarea values without
+redrawing source. Corrected the test to refresh the real editor. Added real
+keyboard typing tests rather than only calling suggest(): these exposed a caret
+boundary defect when the outer auto-paired quote is lexed as an unfinished
+nested string. Insertion context BEFORE a literal opener must be code, not the
+character-to-the-right's string context. Corrected via binary lookup of literal
+starts; same cache/depth limits retained. Node boundary, highlighting, formatter
+and actual-keyboard completion regressions pass for Console and Console members.
+All browser input, not a mocked language service. Full serial Studio suite being
+rerun with this JS-only correction; no C/runtime change since frozen checkpoint.
+A debug probe first used nonexistent /usr/bin/chromium; re-inspection used the
+actual command-v path and reproduced the bug before fixing it.
+
+Reviewed gallery mobile dark / desktop light screenshots: useful controls and
+nonoverlap; code preview remains visible on desktop (hidden deliberately on phone).
+New interpolation screenshot now redraws source before capture. Last CI sample
+on de89cbc head had 89 jobs: 15 success, 16 in progress, 58 queued, no completed
+failures. This is NOT green CI for this new head; fetch/check exact head after push.
+Completed raw gate logs under evidence/v2-frozen-gates. Local patch/remote-tree
+verification in NOTES after push. Main untouched; draft #43; no tag/merge/release.
+All remaining LVGL/TFT, security, broad core/REPL, Studio scope/import/navigation,
+board/peripheral TODOs, API/docs/example and hardware/review gates remain pending.

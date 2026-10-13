@@ -30,6 +30,12 @@ for (const [src, context] of cases) {
     assert.strictEqual(blank.length, src.length, 'offsets retained');
     for (let i = 0; i < src.length; i++) if (/\r|\n/.test(src[i])) assert.strictEqual(blank[i], src[i], 'line endings retained');
 }
+for (const src of ['$"{Con"', '$"{Console."', '$@"{Con"', '@$"{Con"']) {
+    assert.strictEqual(Lang.contextAt(src, src.length - 1), 'code', 'caret before auto-paired quote remains in expression: ' + src);
+}
+assert.strictEqual(Lang.contextAt('"text"', 0), 'code', 'before literal opener is code');
+assert.strictEqual(Lang.contextAt('"text"', 1), 'string', 'after literal opener is text');
+assert.strictEqual(Lang.contextAt('"text"', 5), 'string', 'before closed literal quote is text');
 const full = '$@"literal {Console.WriteLine(1, Math.Max(2, 3)):000} tail";';
 assert.strictEqual(Lang.contextAt(full, full.indexOf('Console')), 'code');
 assert.strictEqual(Lang.contextAt(full, full.indexOf('literal')), 'string');
