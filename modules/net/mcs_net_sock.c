@@ -210,7 +210,7 @@ int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_
 int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
     return conn_open(vm, c, host, port, tls, timeout, ca, op);
 }
-/* PC simulator: ports below 1024 need root there, so HttpServer(80) / DnsServer (53) move to
+/* PC simulator: ports below 1024 need root there, so TCP listeners / DnsServer (53) move to
  * port + 8000 (8080, 8053) with a note instead of failing. Boards never get here. */
 bool mcs__host_port(int err, uint16_t* port) {
 #if !defined(ESP_PLATFORM) && !MCS_NET_LWIP
@@ -478,19 +478,10 @@ NATIVE(lst_start) {
     LS();
     OPT_INT(0, backlog, 4);
     if (l->fd >= 0) return mcs_null();
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return sock_fail(vm, "TcpListener.Start", errno);
-    int one = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
-    struct sockaddr_in a; mk_addr(&a, l->ip, l->port);
-    if (bind(fd, (struct sockaddr*)&a, sizeof a) < 0 || listen(fd, (int)(backlog < 1 ? 1 : backlog)) < 0) {
-        int e = errno; close(fd);
-        return sock_fail(vm, "TcpListener.Start", e);
-    }
-    set_nonblock(fd);
+    int fd = mcs__tcp_listen(vm, l->ip, &l->port, (int)backlog, "TcpListener.Start");
+    if (fd < 0) return mcs_null();
     l->fd = fd;
     mcs__net_track(vm, &l->resource, l, lst_fin);
-    socklen_t al = sizeof a;
-    if (getsockname(fd, (struct sockaddr*)&a, &al) == 0) l->port = ntohs(a.sin_port);   /* port 0: the one picked */
     return mcs_null();
 }
 NATIVE(lst_stop) { LS(); lst_fin(vm, l); return mcs_null(); }

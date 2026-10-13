@@ -6,7 +6,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 * **Web templates / foreground network lifecycle** — moved the raw HTTP example into
   Web server and WebSocket; servers now run until Stop rather than two seconds and use
-  port 80. Close sockets, listeners, DNS servers and WebSockets at foreground run exit
+  port 80. Raw TCP listeners share the host privileged-port fallback used by HttpServer.
+  Close sockets, listeners, DNS servers and WebSockets at foreground run exit
   (normal, error or abort), preserving earlier interactive resources. Native server
   loops service idle work and Stop even with busy/stalled clients; propagate cancellation
   through native tail calls and nested route callbacks. Added shell lifecycle regressions.

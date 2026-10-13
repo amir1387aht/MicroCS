@@ -433,7 +433,9 @@ The web templates live under **Web server and WebSocket**. They serve until **St
 Ctrl-C, rather than exiting after two seconds. Open the exact `http://` address printed
 by the script: a listener on port 8080 needs `http://<board-ip>:8080/`; a bare IP uses
 port 80 (the templates now default to 80). Your phone must be able to reach the board
-on the same LAN; guest-network/client isolation can block it.
+on the same LAN; guest-network/client isolation can block it. On a restricted host,
+TCP listeners and `HttpServer` fall back from port 80 to 8080 on permission denial
+(`DnsServer`: 53 to 8053), with a diagnostic; boards retain their requested ports.
 
 `HttpServer.Run()` and socket waits service idle/event work and cancellation, even with
 continuous traffic or a browser stalled halfway through a request. A foreground script
