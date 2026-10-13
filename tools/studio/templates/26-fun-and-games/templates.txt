@@ -36,3 +36,7 @@ Console game: play X against a simple computer O (cells 1-9).
 [hangman.cs] Hangman
 requires: Random, StringBuilder, List, StringExtra
 Console game: guess the hidden word one letter at a time.
+
+[nim.cs] Nim
+requires: Random, StringExtra, Math
+Console game: take 1-3 stones, whoever takes the last one loses. 
