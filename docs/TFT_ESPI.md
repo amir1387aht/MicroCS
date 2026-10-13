@@ -160,6 +160,37 @@ have not been executed on a board**. Host arithmetic sanitizers test only the
 shared allocation calculation. A separate explicit real-library headless RAM
 route is documented below; it does not replace the actual Arduino cross-builds.
 
+## Checked row-major images
+
+`TFT.Image` is an append-only linked-API capability. Earlier TFT/Sprite firmware
+can lack this method; guard with `Hal.Has("TFT.Image")` rather than class presence.
+Both `Tft.DrawImage(x, y, width, height, pixels)` and `TftSprite.DrawImage(...)`
+accept an actual array or List with **exactly width*height integer entries** in
+row-major order. Dimensions are1..4096, positions nonnegative, the entire rectangle
+must fit the canvas, and each call has a fixed **4096-pixel maximum**. There is no
+implicit clipping, file decoding, custom indexer/enumerator callback, or string
+conversion. Null, wrong lengths/types and invalid colors raise before drawing any
+pixels. This rejection atomicity is not a physical IO rollback guarantee.
+
+Physical/8/16-bit input is RGB5650..65535 (native8-bit sprites quantize to RGB332).
+Depth4 input is one palette index0..15 **per integer**, depth1 is one bit0..1 per
+integer, not caller-packed bytes. All entries are checked in a first pass; a late
+invalid value cannot leave earlier pixels modified. No allocation or callback is
+invoked between validation and drawing. These are bounded synchronous native
+calls; hardware Stop latency is unmeasured, and Stop cannot interrupt this call
+mid-transfer. Larger pictures must be split by the application into checked tiles.
+
+8/16-bit transfers use the actual **mutable RAM** upstream pushImage overload,
+explicit derived-type dispatch (pushImage is not virtual),64-word/128-byte stack
+chunks, and restore the driver's prior byte-swap setting. No whole-image native
+allocation, VLA, PROGMEM pointer, or retained script pointer. Native1/4-bit images
+use actual drawPixel with exact indices, avoiding upstream packed odd-width row
+assumptions. The script array/List still consumes its own VM RAM;128bytes is only
+the transfer chunk, not total call/driver memory. Physical drawing requires Begin
+and LVGL detached, uses a synchronous write transaction, and has no upstream
+per-transfer acknowledgement. Host tests exercise actual RAM sprite paths only;
+physical IO/transactions need reviewed board execution.
+
 ## Foreground file lifetime versus persistent REPL/embedding
 
 Shell `run`/interactive `.run` (including source or image files and boot-file

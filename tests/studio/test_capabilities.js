@@ -43,3 +43,10 @@ assert(templateCompatible(packed,packedCaps,true));
 assert(templateCompatible(packed,earlier,false),'offline browse keeps all examples');
 assert(!templateCompatible(packed,new Map([...packedCaps].map(([n,v])=>[n,n==='TFT.Bitmap'?false:v])),true));
 console.log('PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware');
+
+const image=TEMPLATES.find(t=>t.src.endsWith('/tft_image.cs'));
+assert(image && !templateCompatible(image,packedCaps,true));
+assert(templateCompatible(image,new Map([...packedCaps,['TFT.Image',true]]),true));
+assert(!templateCompatible(image,new Map([...packedCaps,['TFT.Image',false]]),true));
+assert(templateCompatible(image,earlier,false));
+console.log('PASS image template requires actual new TFT.Image API, preserving older firmware filtering');

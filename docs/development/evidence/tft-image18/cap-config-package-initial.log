@@ -1,0 +1,44 @@
+gen_config --check: OK
+OK config template: profile mismatch warns
+72/72 capability checks passed
+84/84 capability checks passed
+65/65 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS entire native vocabulary fits existing protocol v1 grammar
+PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware
+PASS image template requires actual new TFT.Image API, preserving older firmware filtering
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies
+usage: mcs [options] [file.cs | file.mcsb] [args]
+  -c FILE      compile to bytecode image (.mcsb)
+  -C FILE      compile to C header with a const byte array
+  -o OUT       output path for -c / -C
+  -n NAME      array name for -C (default: mcs_app)
+  -s           strip debug line info from images
+  -O0          do not optimize the image (for VMs built with MCS_ENABLE_SUPEROPS=0)
+  -d FILE      disassemble
+  -e CODE      execute code string
+  --heap N     heap limit in bytes (emulate a small MCU)
+  --stack N    value stack slots
+  --stats      print memory statistics at exit
+  --xip        run .mcsb images in place (no code copy, see mcs_exec_image_xip)
+  --fs DIR     mount host directory DIR at / for File/Directory (default: .)
+  --ramfs N    mount an N-byte RAM filesystem at / instead
+  --no-fs      no filesystem (File/Directory unavailable)
+  --ro         mount the filesystem read-only
+  --sim        simulated board with every peripheral (--sim-log traces it,
+               --sim-virtual uses a deterministic virtual clock for timers)
+  --oled[=SPEC] with --sim: an SSD1306 128x64 OLED at I2C 0x3C whose frames are
+               drawn on stderr; SPEC: comma list of sh1106, 128x32, 0x3D (U8g2 etc.)
+  --time-limit MS, --step-limit N   abort a run that exceeds the budget
+  --run-for MS stop the job scheduler after MS (default: until no jobs or Ctrl-C)
+  --shell      standalone runtime: boot scripts, jobs, script upload protocol
+  --repl       like --shell but starts at the interactive C# prompt (the device REPL)
+  --no-boot    with --shell/--repl: do not run /boot.cs, /jobs.cfg, /main.cs
+  --echo       with --shell/--repl: echo typed input like a device on a raw UART
+  --features   print compile-time features and exit
+  -v           version

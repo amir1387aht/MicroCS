@@ -25,6 +25,8 @@ abort with the physical-IO error prefix, proving the guard is enabled. A sprite
 operation accidentally reaching GPIO or SPI therefore cannot pass.
 
 Native script assertions cover all1/4/8/16bit formats, odd bit/nibble widths,
+checked row-major image arrays/Lists across64-word chunks and odd-width rows,
+late bad-value/type rejection without partial drawing, bounds/size/work-limit checks,
 strict bit/palette colors, parent-wide bitmap mapping, palette getter/setter,
 GLCD text for low-bit sprites and invalid
 inputs/depth/bounds, default quota/count, shared parent pin, GC-only parent

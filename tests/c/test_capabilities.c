@@ -25,6 +25,7 @@ int main(void) {
     CHECK(!mcs_capability_has(vm, "TFT.Sprite"));
     CHECK(!mcs_capability_has(vm, "TFT.Palette"));
     CHECK(!mcs_capability_has(vm, "TFT.Bitmap"));
+    CHECK(!mcs_capability_has(vm, "TFT.Image"));
     CHECK(!mcs_global_exists(vm, "TftSprite"));
 #endif
     CHECK(!mcs_capability_has(NULL, "GPIO"));

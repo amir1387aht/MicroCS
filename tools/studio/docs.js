@@ -1744,6 +1744,7 @@ Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .Rotation: int | 0..3; set before attaching LVGL
 .Fill(int rgb565): void | Fill screen; color 0..65535
 .DrawPixel(int x, int y, int rgb565): void | Coordinates -32767..32767
+.DrawImage(int x, int y, int width, int height, int[] pixels): void | TFT.Image; exact row-major array/List of RGB565 integers; <=4096 pixels; whole image in bounds; Begin and LVGL detached
 .DrawLine(int x1, int y1, int x2, int y2, int rgb565): void | Synchronous native line
 .DrawRect(int x, int y, int width, int height, int rgb565): void | Dimensions 1..4096
 .FillRect(int x, int y, int width, int height, int rgb565): void | Dimensions 1..4096
@@ -1763,6 +1764,7 @@ new(Tft owner, int width, int height, int depth = 16) | Dimensions 1..4096; defa
 .ColorDepth: int | Read-only exact1/4/8/16; no implicit unsupported-depth conversion
 .Fill(int color): void | Native fillSprite; depth1 bit0..1, depth4 index0..15, depth8/16 RGB565
 .DrawPixel(int x, int y, int color): void | Clipped native pixel
+.DrawImage(int x, int y, int width, int height, int[] pixels): void | TFT.Image; exact row-major array/List; depth1 bits, depth4 indices, depth8/16 RGB565; <=4096 pixels; all values validated before drawing
 .DrawLine(int x1, int y1, int x2, int y2, int color): void | Native sprite line
 .DrawRect(int x, int y, int width, int height, int color): void | Native sprite rectangle
 .FillRect(int x, int y, int width, int height, int color): void | Native sprite rectangle fill

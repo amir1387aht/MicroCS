@@ -240,6 +240,86 @@ NATIVE(tft_pixel) {
         display->drawPixel(x, y, (uint16_t)c);
     return mcs_null();
 }
+/* Checked row-major script image, no retained pointers or native heap. Keep a
+ * fixed 4096-pixel limit: validation and transfer do not invoke script callbacks
+ * or safepoints, so a collection cannot mutate between validation and drawing.
+ * This is bounded synchronous work, not a measured hardware Stop-latency claim.
+ * pushImage is NOT virtual: dispatch through the exact native derived type. */
+NATIVE(tft_image) {
+    (void)argc;
+    sprite_t *sprite = NULL;
+    tft_t *owner = NULL;
+    TFT_eSPI *display = NULL;
+    if (mcs_userdata_of(self, &sprite_def)) {
+        sprite = sprite_checked(vm, self);
+        if (!sprite)
+            return mcs_null();
+        display = sprite->display;
+    } else {
+        owner = checked(vm, self);
+        if (!owner)
+            return mcs_null();
+        display = owner->display;
+#if MCS_ENABLE_LVGL
+        if (owner->pin >= 0) {
+            mcs_raise(vm, "InvalidOperationException", "Detach LVGL before drawing an image");
+            return mcs_null();
+        }
+#endif
+    }
+    int32_t x, y, w, h;
+    if (!integer(vm, argv[0], 0, 4095, &x) || !integer(vm, argv[1], 0, 4095, &y) ||
+        !integer(vm, argv[2], 1, 4096, &w) || !integer(vm, argv[3], 1, 4096, &h))
+        return mcs_null();
+    if (w > display->width() || h > display->height() || x > display->width() - w ||
+        y > display->height() - h || w > 4096 / h) {
+        mcs_raise(vm, "ArgumentOutOfRangeException",
+                  "Image must fit the canvas and contain <=4096 pixels");
+        return mcs_null();
+    }
+    int kind = mcs_obj_kind(argv[4]);
+    if ((kind != MCS_O_ARRAY && kind != MCS_O_LIST) || mcs_len(argv[4]) != (uint32_t)(w * h)) {
+        mcs_raise(vm, "ArgumentException",
+                  "Image requires an array or List with exactly width*height integers");
+        return mcs_null();
+    }
+    /* Validate every entry before any pixel changes, including a late bad value. */
+    for (uint32_t i = 0; i < (uint32_t)(w * h); ++i) {
+        int32_t color;
+        if (!color_value(vm, self, mcs_index(argv[4], i), &color))
+            return mcs_null();
+    }
+    int depth = sprite ? sprite->display->getColorDepth() : 16;
+    if (depth == 1 || depth == 4) {
+        /* Real native drawPixel avoids upstream packed pushImage odd-row/padding
+         * assumptions. Script values are exact bits/indices, not packed bytes. */
+        for (int32_t row = 0; row < h; ++row)
+            for (int32_t col = 0; col < w; ++col)
+                sprite->display->drawPixel(
+                    x + col, y + row, (uint16_t)mcs_index(argv[4], (uint32_t)(row * w + col)).as.i);
+        return mcs_null();
+    }
+    bool swap = display->getSwapBytes();
+    display->setSwapBytes(true);
+    if (owner)
+        display->startWrite();
+    uint16_t pixels[64]; // 128 bytes; mutable RAM overload, no PROGMEM/VLA path
+    for (int32_t row = 0; row < h; ++row) {
+        for (int32_t col = 0; col < w; col += 64) {
+            int32_t n = w - col < 64 ? w - col : 64;
+            for (int32_t i = 0; i < n; ++i)
+                pixels[i] = (uint16_t)mcs_index(argv[4], (uint32_t)(row * w + col + i)).as.i;
+            if (sprite)
+                sprite->display->pushImage(x + col, y + row, n, 1, pixels);
+            else
+                display->pushImage(x + col, y + row, n, 1, pixels);
+        }
+    }
+    if (owner)
+        display->endWrite();
+    display->setSwapBytes(swap);
+    return mcs_null();
+}
 NATIVE(tft_line) {
     DRAW_CHECK();
     int32_t x, y, x2, y2, c;
@@ -653,6 +733,7 @@ static const mcs_reg_t sprite_members[] = {MCS_FN("Dispose", sprite_dispose, 0),
                                            MCS_GET("ColorDepth", sprite_depth),
                                            MCS_FN("Fill", sprite_fill, 1),
                                            MCS_FN("DrawPixel", tft_pixel, 3),
+                                           MCS_FN("DrawImage", tft_image, 5),
                                            MCS_FN("DrawLine", tft_line, 5),
                                            MCS_FN("DrawRect", tft_rect, 5),
                                            MCS_FN("FillRect", tft_fill_rect, 5),
@@ -681,6 +762,7 @@ static const mcs_reg_t tft_members[] = {MCS_FN("Begin", tft_begin, 0),
                                         MCS_SET("Rotation", tft_rotation_set),
                                         MCS_FN("Fill", tft_fill, 1),
                                         MCS_FN("DrawPixel", tft_pixel, 3),
+                                        MCS_FN("DrawImage", tft_image, 5),
                                         MCS_FN("DrawLine", tft_line, 5),
                                         MCS_FN("DrawRect", tft_rect, 5),
                                         MCS_FN("FillRect", tft_fill_rect, 5),

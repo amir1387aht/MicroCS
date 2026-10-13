@@ -529,3 +529,31 @@ patch `/data/backups/v2-checkpoint-17-staged.patch`, cumulative base patch/NOTES
 maintained. Next fuller sprite/image/font APIs, LVGL assets/builds/core/Studio/
 security/roadmap; all remaining release/hardware/review gates still block merge.
 No merge/tag/release/provisioning or irreversible device action.
+
+## Checkpoint18 — bounded checked images, not full TFT completion
+
+Added DrawImage on both native classes: whole-canvas rectangle,<=4096 pixels,
+exact array/List length and all integer/depth colors validated before any writes.
+Derived mutable pushImage8/16 uses64word chunks/restores swap; native drawPixel
+1/4 avoids packed odd-width pitfalls. No extra heap/retained pointers/callbacks,
+no VLA/PROGMEM path. Physical requires Begin/LVGL detached and synchronous write
+transaction; no physical ack or measured Stop-latency claim. New TFT.Image is a
+legal append-only capability, guarding new RAM-only image template;216 templates.
+
+Frozen native131556 C++ checks EACH normal/GC-stress ASan/UBSan/leaks pass plus
+C# per-pixel129x3 all-depth/List/window/type/range/rejection-atomicity tests.
+Five final real embedded cross-links pass; source/config/pin/artifact provenance
+saved. Host85 source/image/XIP,69 scoped declarations, formatter/runtime,215 C#
+templates, capability/config/package/docs and actual browser editor/gallery/full
+serial Studio pass. Initial unsupported --compile command exit64 preserved; -c
+retry source-image files pass. Evidence `evidence/tft-image18/` has raw logs,
+source hashes and cross provenance. All local jobs complete; no source waived.
+
+Remote predecessor7409877dd10f820eb26b7a276bb08b72e11effd8 fetched; main remains
+d3def1ff534c59a6726037ccf31f61535647e857. CI snapshot cp15 91success/1running,
+cp17 86success/6running, no failure, NOT reported green yet. Staged checkpoint18
+patch and cumulative base patch/NOTES maintained; push/fetch/tree verification
+next. More sprite operations/assets, LVGL, core/Studio/security/roadmap/hardware/
+independent review remain blocking; no merge/tag/release/provisioning. Next safe
+bounded sprite copy (avoid upstream odd4bit padding/overlap hazards), then other
+full-scope work. No active local test jobs remain.

@@ -255,6 +255,7 @@ int main(int argc, char **argv) {
     CHECK(mcs_capability_has(vm, "TFT.Sprite"));
     CHECK(mcs_capability_has(vm, "TFT.Palette"));
     CHECK(mcs_capability_has(vm, "TFT.Bitmap"));
+    CHECK(mcs_capability_has(vm, "TFT.Image"));
     mcs_mem_stats_t before, after;
     mcs_mem_stats(vm, &before);
     for (int i = 0; i < 100; i++) {

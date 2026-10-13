@@ -6,6 +6,62 @@ void Check(bool ok, string reason)
         throw new Exception(reason);
 }
 var owner = new Tft(); // Native RAM sprites do not require physical Begin.
+// Every depth: odd rows, boundaries at64/128, exact row-major semantics.
+void CheckImage(Tft parent, int depth)
+{
+    var target = new TftSprite(parent, 129, 3, depth);
+    var values = new int[387];
+    for (int i = 0; i < values.Length; i++)
+        values[i] = depth == 1 ? i % 2 : depth == 4 ? i % 16 : (i * 173) % 65536;
+    values[64] = 0;
+    values[128] = depth < 8 ? 1 : 65535;
+    target.DrawImage(0, 0, 129, 3, values);
+    for (int i = 0; i < values.Length; i++)
+    {
+        int expected = values[i];
+        if (depth == 8)
+            expected = ((expected & 0xE000) >> 8) | ((expected & 0x0700) >> 6) | ((expected & 0x0018) >> 3);
+        Check(target.ReadValue(i % 129, i / 129) == expected, "row/chunk image depth");
+    }
+    var list = new List<int>();
+    list.Add(1); list.Add(0); list.Add(1); list.Add(0); list.Add(1); list.Add(0);
+    target.DrawImage(126, 1, 3, 2, list);
+    Check(target.ReadValue(128, 2) == 0, "List subwindow last pixel");
+    target.Fill(0);
+    var lateBad = new int[] { 1, depth == 1 ? 2 : depth == 4 ? 16 : 65536 };
+    try { target.DrawImage(0, 0, 2, 1, lateBad); throw new Exception("bad image accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    Check(target.ReadValue(0, 0) == 0, "late value rejection is atomic");
+    try { target.DrawImage(0, 0, 2, 1, new object[] { 1, "bad" }); throw new Exception("mixed image accepted"); }
+    catch (ArgumentException e) {}
+    Check(target.ReadValue(0, 0) == 0, "late type rejection is atomic");
+    try { target.DrawImage(0, 0, 2, 1, list); throw new Exception("wrong length accepted"); }
+    catch (ArgumentException e) {}
+    try { target.DrawImage(0, 0, 1, 1, null); throw new Exception("null image accepted"); }
+    catch (ArgumentException e) {}
+    try { target.DrawImage(0, 0, 1, 1, "1"); throw new Exception("string image accepted"); }
+    catch (ArgumentException e) {}
+    try { target.DrawImage(128, 2, 2, 1, lateBad); throw new Exception("image bounds accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.DrawImage(-1, 0, 1, 1, new int[] { 0 }); throw new Exception("negative image position accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.DrawImage(0, 0, 0, 1, new int[0]); throw new Exception("zero width accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.DrawImage(0, 0, 4096, 4096, new int[0]); throw new Exception("huge image accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    target.Dispose();
+    try { target.DrawImage(0, 0, 1, 1, new int[] { 0 }); throw new Exception("disposed image accepted"); }
+    catch (ObjectDisposedException e) {}
+}
+CheckImage(owner, 1); CheckImage(owner, 4); CheckImage(owner, 8); CheckImage(owner, 16);
+var limitTarget = new TftSprite(owner, 70, 70);
+try { limitTarget.DrawImage(0, 0, 70, 70, new int[0]); throw new Exception("image work limit bypass"); }
+catch (ArgumentOutOfRangeException e) {}
+limitTarget.Dispose();
+// Unbegun physical driver must never silently act like RAM success.
+try { owner.DrawImage(0, 0, 1, 1, new int[] { 0 }); throw new Exception("unbegun image accepted"); }
+catch (InvalidOperationException e) {}
+
 var sprite = new TftSprite(owner, 12, 10);
 Check(owner.SpriteCount == 1 && owner.SpriteBytes == 242, "sprite accounting");
 Check(sprite.Width == 12 && sprite.Height == 10 && sprite.ColorDepth == 16, "dimensions/depth");

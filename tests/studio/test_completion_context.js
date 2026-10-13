@@ -28,6 +28,8 @@ fs.mkdirSync(OUT, { recursive: true });
             ['var display = new Tft(); display.', 'AttachLVGL'],
             ['var gui = new LvGui(160,80); gui.', 'Pump'],
             ['Tft.', 'Version'],
+            ['var display = new Tft(); display.', 'DrawImage'],
+            ['var sprite = new TftSprite(display,12,10); sprite.', 'DrawImage'],
             ['new Tf', 'Tft'],
             ['var sprite = new TftSprite(display,12,10); sprite.', 'ReadPixel'],
             ['var sprite = new TftSprite(display,12,10,8); sprite.', 'PushTransparent'],
