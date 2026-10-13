@@ -808,15 +808,23 @@ static int rd_fill(rd_t* r) {
     return n;
 }
 /* line without CRLF into out (cap); -1 error / closed early */
-static int rd_line(rd_t* r, char* out, size_t cap) {
+static int rd_line(rd_t* r, char* out, size_t cap, const char* phase) {
     size_t n = 0;
     for (;;) {
         int f = rd_fill(r);
         if (f < 0) return -1;
-        if (f == 0) { if (!mcs_has_exception(r->vm)) mcs_raise(r->vm, "IOException", "Http: connection closed in the middle of the response"); return -1; }
+        if (f == 0) {
+            if (!mcs_has_exception(r->vm)) {
+                if (!n && !strcmp(phase, "status line"))
+                    mcs_raise(r->vm, "IOException", "Http: server closed before sending an HTTP response (try HTTPS or another endpoint)");
+                else mcs_raise(r->vm, "IOException", "Http: connection closed while reading %s", phase);
+            }
+            return -1;
+        }
         char ch = (char)r->buf[r->pos++];
         if (ch == '\n') { if (n && out[n - 1] == '\r') n--; out[n] = 0; return (int)n; }
-        if (n + 1 < cap) out[n++] = ch;
+        if (n + 1 >= cap) { mcs_raise(r->vm, "IOException", "Http: %s too long", phase); return -1; }
+        out[n++] = ch;
     }
 }
 
@@ -874,16 +882,35 @@ static bool copy_body(rd_t* r, sink_t* k, size_t n) {
     return true;
 }
 static bool chunked_body(rd_t* r, sink_t* k) {
-    char line[64];
+    char line[256];
     for (;;) {
-        if (rd_line(r, line, sizeof line) < 0) return false;
-        size_t n = (size_t)strtoul(line, NULL, 16);
+        if (rd_line(r, line, sizeof line, "chunk size") < 0) return false;
+        /* Reject invalid / overflowing sizes, rather than treating them as a zero chunk. */
+        const char* p = line;
+        size_t n = 0; int digits = 0;
+        for (;;) {
+            int d = *p >= '0' && *p <= '9' ? *p - '0' :
+                    *p >= 'a' && *p <= 'f' ? *p - 'a' + 10 :
+                    *p >= 'A' && *p <= 'F' ? *p - 'A' + 10 : -1;
+            if (d < 0) break;
+            if (n > ((size_t)-1 - (size_t)d) / 16) break;
+            n = n * 16 + (size_t)d; digits++; p++;
+        }
+        while (*p == ' ' || *p == '\t') p++;
+        if (!digits || (*p && *p != ';') || n == (size_t)-1) {
+            mcs_raise(r->vm, "IOException", "Http: invalid chunk size"); return false;
+        }
         if (n == 0) {                                   /* trailers until the empty line */
-            for (int i = 0; i < 32; i++) { int l = rd_line(r, line, sizeof line); if (l <= 0) break; }
-            return true;
+            for (int i = 0; i < 32; i++) {
+                int l = rd_line(r, line, sizeof line, "chunk trailers");
+                if (l < 0) return false;
+                if (l == 0) return true;
+            }
+            mcs_raise(r->vm, "IOException", "Http: too many chunk trailers"); return false;
         }
         if (!copy_body(r, k, n)) return false;
-        if (rd_line(r, line, sizeof line) < 0) return false;
+        if (rd_line(r, line, sizeof line, "chunk terminator") < 0) return false;
+        if (line[0]) { mcs_raise(r->vm, "IOException", "Http: invalid chunk terminator"); return false; }
     }
 }
 
@@ -1000,7 +1027,7 @@ static bool http_do(mcs_vm_t* vm, const char* method, const char* url0, const ui
         memset(rd, 0, sizeof *rd);
         rd->vm = vm; rd->c = &c; rd->timeout = timeout;
         char sl[160];
-        if (rd_line(rd, sl, sizeof sl) < 0) break;
+        if (rd_line(rd, sl, sizeof sl, "status line") < 0) break;
         if (strncmp(sl, "HTTP/", 5) || !strchr(sl, ' ')) { mcs_raise(vm, "IOException", "Http: not an HTTP response from %s", u->host); break; }
         const char* sp = strchr(sl, ' ');
         r->status = atoi(sp + 1);
@@ -1011,7 +1038,7 @@ static bool http_do(mcs_vm_t* vm, const char* method, const char* url0, const ui
         bool hdr_ok = true;
         for (;;) {
             char hl[256];
-            int n = rd_line(rd, hl, sizeof hl);
+            int n = rd_line(rd, hl, sizeof hl, "response headers");
             if (n < 0) { hdr_ok = false; break; }
             if (n == 0) break;
             if (r->hdr_len + (size_t)n + 2 <= r->hdr_cap) { memcpy(r->hdr + r->hdr_len, hl, (size_t)n); r->hdr_len += (size_t)n; memcpy(r->hdr + r->hdr_len, "\r\n", 2); r->hdr_len += 2; }

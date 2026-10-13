@@ -183,9 +183,37 @@ Opt-in, not in the release images: [`sdkconfig.ble`](example/sdkconfig.ble) turn
 idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ble" set-target esp32s3 build flash monitor
 ```
 
-Every chip with Bluetooth LE (ESP32, S3, C2, C3, C5, C6, H2). `CONFIG_MICROCS_BLE_RESERVE_KB`
-(48 KB) stays outside the VM heap for the controller and NimBLE; bonds are kept in NVS. Wi-Fi
-and BLE work together. Backend: [`mcs_port_esp32_ble.c`](mcs_port_esp32_ble.c).
+### menuconfig
+
+`idf.py menuconfig` → **Component config → MicroCS → Bluetooth LE** is visible on chips
+with an onboard BLE radio, even before Bluetooth is enabled. It shows the missing
+prerequisites instead of silently hiding the switch:
+
+1. **Component config → Bluetooth → Bluetooth**: enable.
+2. **Host**: **NimBLE - BLE only**; **Controller**: **Enabled**.
+3. **NimBLE Options**: leave **extended advertising** off (MicroCS uses legacy advertising).
+4. **MicroCS → Bluetooth LE**: enable the C# API; configure the default name, event queue,
+   GATT services / attributes / value pool, scan / discovery results, subscriptions, timeouts
+   and UART buffer. RAM reservation defaults to 48 KB. Larger pools consume more static RAM.
+5. **Bluetooth → NimBLE Options**: set connections, preferred MTU, bonding / security and NVS
+   persistence. The MicroCS connection table follows the NimBLE connection limit (C2: at most
+   two). On ESP32 also match the controller's BLE connection count; on S3 / C3 allow enough
+   controller activities for connections plus scanning / advertising.
+
+Menuconfig choices override the corresponding `MCS_BLE_*` values in `mcs_user_config.h`.
+Bonds survive reset when `CONFIG_BT_NIMBLE_NVS_PERSIST=y`. The supplied BLE defaults enable
+this and use two connections so they are valid on C2 as well as the larger chips.
+
+| Chip | Onboard BLE | ESP-IDF build coverage |
+| --- | --- | --- |
+| ESP32, S3, C2, C3, C6, H2 | yes | 5.3.2, BLE-enabled CI builds |
+| C5, C61 | yes | 5.5.2, BLE-enabled CI builds |
+| S2, P4 | no | BLE unavailable; non-BLE CI builds |
+
+Wi-Fi and BLE can coexist on chips that have both radios; H2 has BLE but no Wi-Fi.
+S2 / P4 cannot run this onboard NimBLE backend (an external / hosted radio is not implemented).
+These are compile / simulator checks, not real-board radio validation.
+Backend: [`mcs_port_esp32_ble.c`](mcs_port_esp32_ble.c).
 
 The backend is [`mcs_port_esp32_net.c`](mcs_port_esp32_net.c); the C# API, events, options and
 limits are in [docs/NETWORK.md](../../docs/NETWORK.md).

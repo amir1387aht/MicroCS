@@ -115,10 +115,22 @@ menu "MicroCS"
             background at every boot. Wifi.Forget() removes them.
     endif
 
+    menu "Bluetooth LE"
+        depends on SOC_BLE_SUPPORTED
+
+    comment "Enable Bluetooth and choose NimBLE under Component config > Bluetooth"
+        depends on !BT_ENABLED || !BT_NIMBLE_ENABLED
+    comment "Enable the Bluetooth controller and disable NimBLE extended advertising"
+        depends on BT_NIMBLE_ENABLED && (!BT_CONTROLLER_ENABLED || BT_NIMBLE_EXT_ADV)
+
     config MICROCS_BLE
         bool "Bluetooth LE (C# Ble, BleService, BleConnection, BleUart on NimBLE)"
         default n
-        depends on BT_NIMBLE_ENABLED
+        depends on BT_ENABLED && BT_NIMBLE_ENABLED && BT_CONTROLLER_ENABLED && !BT_NIMBLE_EXT_ADV
+        select BT_NIMBLE_ROLE_CENTRAL
+        select BT_NIMBLE_ROLE_PERIPHERAL
+        select BT_NIMBLE_ROLE_BROADCASTER
+        select BT_NIMBLE_ROLE_OBSERVER
         help
             The C# Bluetooth Low Energy classes (docs/BLE.md): advertising and
             beacons (iBeacon / Eddystone), scanning, a GATT server built from
@@ -138,6 +150,73 @@ menu "MicroCS"
             The example firmware sizes the C# heap so that this much RAM stays
             free for NimBLE and the controller, which start on the first Ble
             call. 0 = no reservation.
+
+    if MICROCS_BLE
+    config MICROCS_BLE_NAME
+        string "Default BLE device name"
+        default "MicroCS"
+
+    config MICROCS_BLE_QUEUE
+        int "Event queue (bytes)"
+        default 2048
+        range 256 65535
+
+    config MICROCS_BLE_MAX_SERVICES
+        int "Local GATT services"
+        default 8
+        range 1 32
+
+    config MICROCS_BLE_MAX_ATTRS
+        int "Local characteristics and descriptors"
+        default 32
+        range 1 128
+
+    config MICROCS_BLE_VALUE_POOL
+        int "Local attribute value pool (bytes)"
+        default 2048
+        range 128 65535
+
+    config MICROCS_BLE_MAX_VALUE
+        int "Largest attribute value (bytes)"
+        default 512
+        range 20 512
+
+    config MICROCS_BLE_SCAN_MAX
+        int "Devices returned by a scan"
+        default 32
+        range 1 128
+
+    config MICROCS_BLE_MAX_DISC
+        int "Results per GATT discovery"
+        default 32
+        range 1 128
+
+    config MICROCS_BLE_MAX_SUBS
+        int "Remote notification subscriptions"
+        default 8
+        range 1 32
+
+    config MICROCS_BLE_TIMEOUT
+        int "GATT operation timeout (ms)"
+        default 5000
+        range 100 120000
+
+    config MICROCS_BLE_CONNECT_TIMEOUT
+        int "Connection timeout (ms)"
+        default 10000
+        range 100 120000
+
+    config MICROCS_BLE_UART_RX
+        int "BleUart receive buffer (bytes)"
+        default 512
+        range 32 65535
+
+    comment "Connections, preferred MTU, security and bonds: Bluetooth > NimBLE Options"
+    endif
+    endmenu
+
+    comment "Bluetooth LE unavailable: this chip has no onboard BLE radio"
+        depends on !SOC_BLE_SUPPORTED
 
     config MICROCS_THREADS
         bool "Real threads on FreeRTOS tasks (C# Thread.Run / RunOn, both cores)"

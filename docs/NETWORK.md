@@ -304,6 +304,16 @@ use `Download` for big files (written to `path.tmp`, renamed when complete).
 bundle (`CONFIG_MBEDTLS_CERTIFICATE_BUNDLE`, on by default). For a private CA pass its PEM
 to `TcpClient.ConnectTls(host, port, ms, caPem)`. `Net.Has("Tls")` is false on the PC.
 
+### Troubleshooting an HTTP client connection
+
+A successful `Wifi.Connect` / DHCP lease establishes Wi-Fi, not the health of a remote HTTP
+service. `Http: server closed before sending an HTTP response` means no HTTP status line
+arrived before the peer closed. Try `http://example.com/`, a local HTTP server, or the
+endpoint's HTTPS URL (when `Net.Has("Tls")`); port 80 may be blocked or the service may have
+stopped accepting plain HTTP. A close during headers, a chunk line or a Content-Length body
+is reported separately and remains an error: incomplete data is not returned as success.
+The Studio `http_get.cs` template is a basic web-page smoke test, not a time-API / JSON test.
+
 ## HTTP server
 
 ```csharp

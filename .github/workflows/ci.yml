@@ -75,6 +75,10 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright-core@1
       - name: tools/studio against the host device shell
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_studio.js ./mcs
+      - name: ESP BLE menuconfig gating and limits
+        run: |
+          python3 -m pip install kconfiglib==14.1.0
+          python3 tests/test_esp_config.py
       - name: templates.js is generated from tools/studio/templates/
         run: python3 tools/studio/gen_templates.py --check
       - name: every Studio template compiles and runs on the simulated board
@@ -227,7 +231,7 @@ jobs:
   esp-idf:
     name: ESP-IDF · ${{ matrix.target }} ${{ matrix.fs }}
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.3.2
+    container: espressif/idf:${{ matrix.idf || 'v5.3.2' }}
     strategy:
       fail-fast: false
       matrix:
@@ -243,6 +247,13 @@ jobs:
           - { target: esp32, fs: ble }
           - { target: esp32s3, fs: ble }
           - { target: esp32c3, fs: ble }
+          - { target: esp32c2, fs: ble }
+          - { target: esp32c6, fs: ble }
+          - { target: esp32h2, fs: ble }
+          - { target: esp32c5, fs: ble, idf: v5.5.2 }
+          - { target: esp32c61, fs: ble, idf: v5.5.2 }
+          - { target: esp32s2, fs: littlefs }
+          - { target: esp32p4, fs: littlefs }
     steps:
       - uses: actions/checkout@v4
       - name: Build ports/esp32/example
@@ -265,6 +276,18 @@ jobs:
           if [ "${{ matrix.fs }}" = ble ]; then cat sdkconfig.ble >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
+          # Kconfig must not silently drop BLE, including on low-RAM C2 and BLE-only H2.
+          if [ "${{ matrix.fs }}" = ble ]; then
+            grep -qx 'CONFIG_MICROCS_BLE=y' sdkconfig
+            grep -qx 'CONFIG_BT_NIMBLE_ENABLED=y' sdkconfig
+            grep -qx 'CONFIG_BT_CONTROLLER_ENABLED=y' sdkconfig
+            # IDF tool prefixes differ by architecture; use the configured nm from CMake.
+            NM=$(sed -n 's/^CMAKE_NM:FILEPATH=//p' build/CMakeCache.txt)
+            "$NM" build/*.elf > /tmp/mcs-symbols.txt
+            grep -q ' mcs_esp32_ble$' /tmp/mcs-symbols.txt
+          else
+            ! grep -qx 'CONFIG_MICROCS_BLE=y' sdkconfig
+          fi
           # one image for `esptool.py write_flash 0 ...` (bootloader + partition table + app)
           mkdir -p $GITHUB_WORKSPACE/fw
           cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $GITHUB_WORKSPACE/fw/microcs-${{ matrix.target }}-${{ matrix.fs }}.bin @flash_args
