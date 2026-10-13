@@ -50,6 +50,9 @@ int mcs_shell_poll_break(mcs_vm_t* vm) {
 int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
     if (!cap) return -1;
     size_t n = 0;
+    /* Machine-protocol clients (Studio) own local echo. Raw REPL terminals
+     * still need firmware echo; never discard real script output to deduplicate it. */
+    bool echo = sh->echo && sh->repl;
     for (;;) {
         if (sh->in_pos >= sh->in_len) {
             sh->in_pos = sh->in_len = 0;
@@ -64,10 +67,10 @@ int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
         if (b == 0x03) { mcs_request_abort(sh->vm); return -1; }
         if (b == '\n' && sh->rl_cr) { sh->rl_cr = false; continue; }   /* CR LF */
         sh->rl_cr = b == '\r';
-        if (b == '\r' || b == '\n') { if (sh->echo) out(sh, "\r\n"); break; }
-        if (b == 0x08 || b == 0x7F) { if (n) { n--; if (sh->echo) out(sh, "\b \b"); } continue; }
+        if (b == '\r' || b == '\n') { if (echo) out(sh, "\r\n"); break; }
+        if (b == 0x08 || b == 0x7F) { if (n) { n--; if (echo) out(sh, "\b \b"); } continue; }
         if (b < 0x20 && b != '\t') continue;
-        if (n + 1 < cap) { buf[n++] = (char)b; if (sh->echo) sh->t.write(sh->t.ud, (const char*)&b, 1); }
+        if (n + 1 < cap) { buf[n++] = (char)b; if (echo) sh->t.write(sh->t.ud, (const char*)&b, 1); }
     }
     buf[n] = 0;
     return (int)n;

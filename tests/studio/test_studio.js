@@ -236,12 +236,18 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check((await page.$$eval('.tab', e => e.length)) === nTabs - 1, 'tab close button closes the tab');
 
   // Console.ReadLine gets the console line while a script runs; Stop works while it waits
-  fs.writeFileSync(ROOT + '/ask.cs', 'Console.Write("name? ");\nvar n = Console.ReadLine();\nConsole.WriteLine($"hi {n}");\nConsole.ReadLine();\nConsole.WriteLine("unreached");\n');
+  fs.writeFileSync(ROOT + '/ask.cs', 'Console.Write("name? ");\nvar n = Console.ReadLine();\nConsole.WriteLine($"hi [{n}]");\nConsole.Write("hex? ");\nvar h = Console.ReadLine();\nConsole.WriteLine("value=" + Convert.ToInt32(h, 16));\nConsole.ReadLine();\nConsole.WriteLine("unreached");\n');
   await page.evaluate(() => { App.runPath('/ask.cs'); });
   await page.waitForFunction(() => /name\? /.test(document.getElementById('term').innerText), null, { timeout: 8000 }).catch(() => {});
-  await page.fill('#cin', 'Bob'); await page.press('#cin', 'Enter');
-  await page.waitForFunction(() => /hi Bob/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
-  check(/hi Bob/.test(await page.innerText('#term')), 'Console.ReadLine reads the console line');
+  await page.fill('#cin', 'Bob  '); await page.press('#cin', 'Enter');
+  await page.waitForFunction(() => /hi \[Bob  \]/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
+  check(/hi \[Bob  \]/.test(await page.innerText('#term')), 'Console.ReadLine reads the console line');
+  const readLineOutput = (await page.textContent('#term')).split('name? ').pop();
+  check((readLineOutput.match(/Bob/g) || []).length === 2, 'input shown once plus genuine application output (echo=' + (process.env.ECHO || '1') + ')');
+  check(/hi \[Bob  \]/.test(readLineOutput), 'Console.ReadLine preserves trailing spaces');
+  await page.fill('#cin', '0x01'); await page.press('#cin', 'Enter');
+  await page.waitForFunction(() => /value=1/.test(document.getElementById('term').innerText), null, { timeout: 5000 });
+  check(((await page.textContent('#term')).split('hex? ').pop().match(/0x01/g) || []).length === 1, 'second input displayed once');
   await page.click('#btnStop');
   await page.waitForFunction(() => (document.getElementById('term').innerText.match(/■ stopped/g) || []).length >= 2, null, { timeout: 5000 }).catch(() => {});
   tt = await page.innerText('#term');
