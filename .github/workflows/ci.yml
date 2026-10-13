@@ -517,6 +517,21 @@ jobs:
         run: |
           make lvgl-test LVGL_MAJOR=${{ matrix.major }} LVGL_DIR=/tmp/lvgl LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}.h"
           sh tests/run_tests.sh build/lvgl${{ matrix.major }}/mcs
+      - name: Real graphics ASan/UBSan lifecycle, owned strings and OOM
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          cmake -S . -B build/lvgl-sanitized -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=${{ matrix.major }} \
+            -DMICROCS_LVGL_ROOT=/tmp/lvgl -DMICROCS_LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}.h" -DMICROCS_CONFIG=NONE \
+            -DCMAKE_C_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer"
+          cmake --build build/lvgl-sanitized --target mcs test_lvgl -j2
+          build/lvgl-sanitized/test_lvgl
+          for t in basic pointer widgets constructors; do
+            build/lvgl-sanitized/mcs tests/lvgl/$t.cs > build/lvgl-sanitized/$t.out
+            cmp build/lvgl-sanitized/$t.out tests/lvgl/$t.out
+          done
       - name: Disabled widget and color/stride/alignment variant
         run: |
           cmake -S . -B build/lvgl-disabled -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=${{ matrix.major }} \

@@ -1,0 +1,10 @@
+[ 80%] Built target lvgl
+[ 80%] Building C object CMakeFiles/microcs.dir/src/mcs_vm.c.o
+[ 80%] Building C object CMakeFiles/microcs.dir/modules/lvgl/mcs_lvgl.c.o
+[ 80%] Building C object CMakeFiles/microcs.dir/modules/runtime/mcs_runtime.c.o
+[ 82%] Building C object CMakeFiles/microcs.dir/modules/shell/mcs_shell.c.o
+[ 82%] Linking C static library libmicrocs.a
+[ 98%] Built target microcs
+[100%] Building C object CMakeFiles/mcs.dir/ports/unix/main.c.o
+[100%] Linking C executable mcs
+[100%] Built target mcs

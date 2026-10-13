@@ -1,0 +1,1 @@
+Checkpoint11 native/script/disabled regression logs run from the checkpoint11 working source before saving; frozen checkpoint10 sanitizer logs are explicitly named as such. These are real upstream host tests, not embedded hardware evidence. See v2-recovery.md for exact version pins and scope.

@@ -1677,6 +1677,50 @@ Equals(object a, object b): bool | Same UUID (16-bit vs base UUID too)
 IsValid(object uuid): bool | Parses as a UUID
 Name(object uuid): string | Bluetooth SIG name (null if unknown)
 
+@LvGui | Optional real LVGL8/9 WIP subset (requires LVGL capability, docs/LVGL.md); no physical display implied
+new(int width, int height) | One owned display/pointer device; dimensions 1..4096; explicit Dispose or using
+Version: string | Actual pinned LVGL headers: 8.4.0 or 9.4.0
+const Clicked: int | Queued interaction event
+const ValueChanged: int | Queued value event
+const Pressed: int | Pointer pressed
+const Released: int | Pointer released
+const Focused: int | Object focused
+const Defocused: int | Object defocused
+const Checked: int | Checked state bit
+const Disabled: int | Disabled state bit
+const PartMain: int | Main style part
+const PartIndicator: int | Indicator style part
+const PartKnob: int | Knob style part
+.Screen: LvObject | Active screen (dispose GUI instead of deleting)
+.Backend: string | Headless or configured synchronous native RGB565 sink
+.FlushCount: int | Real completed render flush callbacks
+.DroppedEvents: int | Bounded queue overflow count
+.Pump(int elapsedMs): int | Service real LVGL; explicit elapsed 0..1000 ms; backend failures raise
+.Input(int x, int y, bool pressed): void | Real pointer injection only without configured pointer backend
+.PollEvent(): object[] | [LvObject, eventCode] or null; no VM calls inside LVGL callbacks
+.Dispose(): void | Idempotent display/input/assets teardown and stale-handle invalidation
+
+@LvObject | Generation-checked real LVGL widget; returned by LvGui/other objects, not a raw-pointer constructor
+.Kind: string | Real upstream widget class
+.Text: string | Label/textarea/checkbox text (copies into LVGL)
+.Value: int | Slider/bar/arc value; other kinds raise
+.Width: int | Real layout width
+.Height: int | Real layout height
+.Parent: LvObject | Parent or null
+.ChildCount: int | Real child count
+.Child(int index): LvObject | Checked zero-based index; native child class inferred
+.Create(string widget): LvObject | Enabled real widget constructor; disabled/unbound families raise
+.SetSize(int width, int height): void | Coordinates -32767..32767
+.SetPos(int x, int y): void | Coordinates -32767..32767
+.SetRange(int minimum, int maximum): void | Slider/bar/arc; minimum below maximum
+.SetStyle(string property, int value, int selector = 0): void | 56 real common scalar styles; RGB 0xRRGGBB; typed pointer/enum styles unbound
+.Call(string method, params object[] args): object | Real common widget function suffix with checked kind/arity/types/ranges; see versioned coverage
+.AddState(int state): void | Valid exposed state bit mask
+.ClearState(int state): void | Clear valid state bits
+.SendEvent(int code): void | Only the exposed interaction event constants; queues event, no native pointer
+.Clean(): void | Delete children; old generation handles rejected
+.Delete(): void | Delete object and invalidate all handles; active screen protected
+
 @Exception | Base of every exception
 new() | Without a message
 new(string message) | With a message

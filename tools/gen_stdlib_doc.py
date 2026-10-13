@@ -14,7 +14,7 @@ FILES = sorted(glob.glob(os.path.join(ROOT, "src", "*.c")) + glob.glob(os.path.j
 MAP = {
     "lv_gui_members": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "instance", "`MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md))"),
     "lv_gui_statics": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "static", "real pinned upstream version"),
-    "lv_object_members": ("Optional LVGL GUI (modules/lvgl)", "LvObject", "instance", "generation-checked handles; config-disabled operations raise"),
+    "lv_object_members": ("Optional LVGL GUI (modules/lvgl)", "LvObject", "instance", "generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise"),
     "console_fns": ("Core", "Console", "static", ""),
     "convert_fns": ("Core", "Convert", "static", ""),
     "math_fns": ("Core", "Math", "static", "`MCS_STDLIB_MATH`"),

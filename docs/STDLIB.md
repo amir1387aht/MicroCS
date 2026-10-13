@@ -132,7 +132,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 |---|---|---|---|---|
 | **LvGui** | instance | `Screen` `DroppedEvents` `FlushCount` `Backend` | `Pump(·)` `PollEvent()` `Input(·, ·, ·)` `Dispose()` | `MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md)) |
 | **LvGui** | static | `Version` | — | real pinned upstream version |
-| **LvObject** | instance | `Kind` `Text` `Value` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` | generation-checked handles; config-disabled operations raise |
+| **LvObject** | instance | `Kind` `Text` `Value` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` `Call(…)` | generation-checked handles; `Call` suffixes/signatures in versioned coverage; disabled/unbound operations raise |
 
 ## Network (modules/net)
 
@@ -202,4 +202,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1346 members in 112 tables._
+_1347 members in 112 tables._

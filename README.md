@@ -693,7 +693,8 @@ optimized with superinstructions, `-O0` = plain bytecode):
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
-- [ ] ROM-resident class metadata, LVGL bindings
+- [ ] ROM-resident class metadata; complete optional LVGL v8/v9 and TFT_eSPI bindings
+  ([LVGL WIP](docs/LVGL.md): real 8.4/9.4 headless rendering/object/style/input subset now implemented; full coverage and hardware/vendor matrix unfinished)
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 

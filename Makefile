@@ -73,7 +73,7 @@ mcs-lvgl:
 	$(CMAKE) --build "$(LVGL_BUILD)" --target mcs test_lvgl -j2
 lvgl-test: mcs-lvgl
 	"$(LVGL_BUILD)/test_lvgl"
-	@for t in basic pointer; do "$(LVGL_BUILD)/mcs" tests/lvgl/$$t.cs > "$(LVGL_BUILD)/$$t.out" 2>&1 && \
+	@for t in basic pointer widgets constructors; do "$(LVGL_BUILD)/mcs" tests/lvgl/$$t.cs > "$(LVGL_BUILD)/$$t.out" 2>&1 && \
 	  cmp "$(LVGL_BUILD)/$$t.out" tests/lvgl/$$t.out || exit 1; done
 .PHONY: mcs-lvgl lvgl-test
 

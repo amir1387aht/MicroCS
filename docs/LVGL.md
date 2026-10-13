@@ -128,11 +128,46 @@ using (var gui = new LvGui(320, 240)) {
 Handle slots are bounded by `MCS_LVGL_OBJECTS`, never expose native pointers,
 and include deletion generations. LVGL delete notifications invalidate every
 wrapper even after ancestor deletion, slot reuse, GUI disposal or repeat runs.
-Owner pins keep the GUI alive while a handle exists. Dispose is idempotent.
+One shared owner pin keeps the GUI alive while any handle exists (not one scarce pin per widget). Dispose is idempotent.
 GC/VM finalization closes live input/display resources before freeing VM buffers.
 Shell file scopes close GUIs created during foreground runs after any result,
 including exceptions, OOM and Stop. Other embedders explicitly use
 `mcs_lvgl_scope_begin/end`; an older retained GUI is not silently disposed.
+
+### Common widget methods and retained text
+
+`object.Call("method_suffix", arguments...)` dispatches **128 generated common
+widget functions** from the pinned real public headers (including inline APIs),
+with exact receiver kind, arity, scalar/bool/copying-string types and bounds.
+The versioned JSON inventory lists exact names/signatures; unknown, disabled or
+unowned pointer/asset methods raise, never return dummy success. For example:
+
+```cs
+var spin = gui.Screen.Create("spinbox");
+spin.Call("set_range", 0, 100);
+spin.Call("set_step", 5);
+spin.Call("set_value", 10);
+spin.Call("increment");
+Console.WriteLine(spin.Call("get_value")); // real upstream value: 15
+```
+
+Upstream readback/clamping is preserved (for example, default LED brightness
+77 clamps to 80). Nullable C string getters return null or a new VM string.
+Resource counts are bounded: chart points 1..512, chart divisions 0..512,
+textarea maximum 0..65535, spinbox digits 1..9 and valid separator/ranges,
+calendar year/month/day 1..9999 / 1..12 / 1..31. This calendar bound does not
+promise calendar-date validation such as rejecting February 31.
+
+Additional **ownership-aware** calls copy into VM-accounted storage for
+retaining upstream APIs: dropdown `set_text` / string `set_symbol`, textarea
+`set_accepted_chars` / `set_password_bullet`, label/checkbox `set_text_static`.
+No pointer to an unrooted temporary script string escapes. Replacements release
+old storage; deletion releases it only **after** native destruction, not during
+DELETE callbacks. Repeated GC/static-text/teardown needs sanitizer coverage on
+each changed snapshot. Typed images/fonts/canvas/chart-series, enums and complex
+assets remain unbound until their complete ownership contracts are implemented.
+Native child widgets are classified using real upstream class descriptors,
+not a guessed script variable type.
 
 ## Native driver backend
 
@@ -162,8 +197,11 @@ python3 tools/gen_lvgl.py --v8 ../lvgl8 --v9 ../lvgl9 --check
 
 Tests link both real libraries and exercise rendering sinks, odd widths, repeated
 teardown/GC, stale handle reuse, external LVGL protection, bounded queues,
-wrong-widget errors and real pointer hit testing. Subsequent checkpoints must
-add disabled-widget/color/alignment builds, missing/mismatched dependencies,
-OOM/Stop/exception scopes and sanitized runs. Upstream assertion/OOM behavior,
+wrong-widget errors and real pointer hit testing. Both disabled-widget variants,
+v9 color-depth 32 / padded stride / 64-byte alignment, dependency failures,
+forced VM draw-buffer OOM, exception and execution-budget Stop scope teardown
+pass. All 56 scalar style setters have real native readback tests. A frozen
+first-render snapshot passed ASan/UBSan with leak detection on both real versions;
+newer widget/retained-text/shared-owner changes require their own frozen run. Upstream assertion/OOM behavior,
 prebuilt ABI provenance and driver latency need further validation; this is not
 a production OOM/security/thread-safety guarantee.

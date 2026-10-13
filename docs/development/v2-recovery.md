@@ -263,3 +263,27 @@ constructors/styles functional coverage, remaining typed APIs/assets/input/
 thread/async drivers and vendor build routes; implement real TFT_eSPI bridge.
 LVGL wrapper remains WIP/incomplete; security/broader compiler/Studio/roadmap
 and hardware/review gates remain unfinished. All release/merge actions blocked.
+
+## Checkpoint 11 — expanded real LVGL widget API and allocation recovery
+
+128 header-derived common widget calls plus six explicit VM-owned retained-text
+calls, all 28 advertised constructors and all 56 scalar styles read back against
+both real versions. One shared GUI owner pin replaces per-handle pins: 40 live
+handles no longer exhaust the default 16-pin budget; owner survives child-only
+reachability then finalizes after last handle is collected. Native child classes
+are inferred from LVGL descriptors. Negative/unknown state masks are rejected.
+Retained string buffers live until native destruction completes, not merely its
+DELETE event; replacements/deletion/Dispose/VM teardown free VM-accounted memory.
+Public guarded handle-constructor allocation errors are propagated as exceptions,
+and new native widgets are rolled back on wrapper failure. Fault injection warms
+the lazy Create member before arming, to test the handle allocation rather than
+an unrelated dispatch allocation. Both versions: 796 native checks, no failures;
+basic/pointer/widgets/constructors golden outputs and disabled variants passed.
+Config/header generation checks and Node lexical/highlight tests passed. Earlier
+checkpoint10 frozen native/basic/pointer ASan/UBSan passed; newly expanded source
+still requires a separate frozen sanitizer run. CI now runs graphics sanitizers.
+All logs reflect actual tested configurations, not MCU/hardware coverage.
+
+TFT upstream inspected at commit 16e37595040eac69cd628e4bffb56fc30cad6299:
+library manifest 2.5.43 but header reports 2.5.44; do NOT invent a v2.5.43 tag.
+No TFT implementation or hardware claim yet. All other v2/release blockers remain.
