@@ -1,0 +1,16 @@
+{
+  "ports/arduino/mcs_arduino_tft.cpp": "75258da143c5922cebbc9137b583c6d418629e644f22a1566476f284c64d082f",
+  "ports/arduino/mcs_tft_sprite_native.h": "bb7c39b8811b62e0b382255fe6877cae7f80e6de8c358e225a4ceb1492549ba1",
+  "include/mcs_tft_sprite_budget.h": "bd715e6c0309365e915a83f676ab57b639b71713c10c3aff3c9d535abe643af7",
+  "include/mcs_capabilities.def": "183cc1b2ecfccf7818869b58d620df94fe185b6da32112412c9d1059783dbd49",
+  "tests/tft/headless/test_sprite.cpp": "d735727ad69a78cad3af8fd8a8c9570cbb59b17af4c3731a0ac07e75dc7b616f",
+  "tests/tft/sprite_contract.cs": "8d6f721eda0ea7faef81a56e1765e4248bd6496a7bc0a6e961af2c0df3c153a2",
+  "tests/tft/src/sprite_contract.h": "ab969dd7f52c8b4cbe3725d39b5a9badf8a76db9a55d81b4054d98250af1ffe7",
+  "tests/tft/test_sprite_budget.c": "39f284cf98fccd3a3d39fe04627d8ecb82457df829dbfbff01b06cbb86af976e",
+  "tests/studio/test_capabilities.js": "a40069ea0e54ba8266e302fcc93994a4b51352ec530f1bb20719640d914a1654",
+  "tools/test_tft_headless.py": "be99db892684dd474607e053875958f7992f9a8ad81e4886dd2bb58e5d5a3edc",
+  "tools/studio/docs.js": "2f871555dec0c224e6233d095a53f731b5222d75f117936975a35119a726801b",
+  "tools/studio/templates/32-optional-gui/tft_image.cs": "837f9fe14ce8599e1b1bf6f95102292830a607864e9e6fcb7b1ed732a51b0412",
+  "tests/studio/test_completion_context.js": "70bef1851d5ffb80ac4efc4681071122d4e173c1e812e262f9b67086a44220d4",
+  "tools/studio/templates/32-optional-gui/tft_copy.cs": "e28645da8380d6e77aaa6bc7f5b4b38d1e1bb993b42772be8ae10aefb70a0a09"
+}

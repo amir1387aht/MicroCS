@@ -63,6 +63,92 @@ limitTarget.Dispose();
 try { owner.DrawImage(0, 0, 1, 1, new int[] { 0 }); throw new Exception("unbegun image accepted"); }
 catch (InvalidOperationException e) {}
 
+void CheckCopy(Tft parent, int depth, int targetDepth)
+{
+    var source = new TftSprite(parent, 129, 3, depth);
+    var destination = new TftSprite(parent, 131, 5, targetDepth);
+    var pixels = new int[387];
+    for (int i = 0; i < pixels.Length; i++)
+        pixels[i] = depth == 1 ? i % 2 : depth == 4 ? i % 16 : (i * 173) % 65536;
+    source.DrawImage(0, 0, 129, 3, pixels);
+    destination.Fill(0);
+    if (depth == 4)
+    {
+        source.SetPaletteColor(3, 0xF800);
+        destination.SetPaletteColor(3, 0x07E0);
+    }
+    source.CopyTo(destination, 1, 1);
+    for (int i = 0; i < pixels.Length; i++)
+    {
+        int expected = pixels[i];
+        if (targetDepth == 8)
+            expected = ((expected & 0xE000) >> 8) | ((expected & 0x0700) >> 6) | ((expected & 0x0018) >> 3);
+        Check(destination.ReadValue(1 + i % 129, 1 + i / 129) == expected, "native copy depth/odd padded rows");
+        int original = pixels[i];
+        if (depth == 8)
+            original = ((original & 0xE000) >> 8) | ((original & 0x0700) >> 6) | ((original & 0x0018) >> 3);
+        Check(source.ReadValue(i % 129, i / 129) == original, "copy preserves source");
+    }
+    Check(destination.ReadValue(0, 0) == 0 && destination.ReadValue(130, 4) == 0, "copy preserves outside pixels");
+    if (depth == 4)
+        Check(destination.ReadPixel(4, 1) == 0x07E0 && source.ReadPixel(3, 0) == 0xF800, "copy indices not source palette");
+    try { source.CopyTo(source, 0, 0); throw new Exception("self copy accepted"); }
+    catch (ArgumentException e) {}
+    try { source.CopyTo(null, 0, 0); throw new Exception("null copy accepted"); }
+    catch (InvalidCastException e) {}
+    try { source.CopyTo(parent, 0, 0); throw new Exception("wrong copy class accepted"); }
+    catch (InvalidCastException e) {}
+    try { source.CopyTo(destination, 3, 0); throw new Exception("copy clipped silently"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { source.CopyTo(destination, -1, 0); throw new Exception("negative copy accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    destination.Dispose();
+    try { source.CopyTo(destination, 0, 0); throw new Exception("disposed target accepted"); }
+    catch (ObjectDisposedException e) {}
+    source.Dispose();
+    try { source.CopyTo(destination, 0, 0); throw new Exception("disposed source accepted"); }
+    catch (ObjectDisposedException e) {}
+}
+CheckCopy(owner, 1, 1); CheckCopy(owner, 4, 4); CheckCopy(owner, 8, 8);
+CheckCopy(owner, 16, 16); CheckCopy(owner, 16, 8);
+// Every unsupported depth pair is rejected before destination changes.
+var depths = new int[] { 1, 4, 8, 16 };
+foreach (int first in depths)
+{
+    foreach (int second in depths)
+    {
+        if (first == second || first == 16 && second == 8)
+            continue;
+        var from = new TftSprite(owner, 2, 2, first);
+        var to = new TftSprite(owner, 2, 2, second);
+        from.Fill(1); to.Fill(0);
+        try { from.CopyTo(to, 0, 0); throw new Exception("unsupported depth pair accepted"); }
+        catch (NotSupportedException e) {}
+        Check(to.ReadValue(0, 0) == 0, "bad pair destination untouched");
+        to.Dispose(); from.Dispose();
+    }
+}
+// Exact4096-pixel acceptance and4097 rejection for both bounded APIs.
+var boundary = new TftSprite(owner, 64, 64);
+var boundaryTo = new TftSprite(owner, 64, 64);
+var boundaryPixels = new int[4096];
+for (int i = 0; i < boundaryPixels.Length; i++)
+    boundaryPixels[i] = (i * 31) % 65536;
+boundary.DrawImage(0, 0, 64, 64, boundaryPixels);
+boundary.CopyTo(boundaryTo, 0, 0);
+for (int i = 0; i < boundaryPixels.Length; i++)
+    Check(boundaryTo.ReadValue(i % 64, i / 64) == boundaryPixels[i], "4096 pixels accepted exactly");
+boundaryTo.Dispose(); boundary.Dispose();
+var over = new TftSprite(owner, 17, 241); //4097 pixels
+var overTo = new TftSprite(owner, 17, 241);
+overTo.Fill(0);
+try { over.DrawImage(0, 0, 17, 241, new int[0]); throw new Exception("4097 image accepted"); }
+catch (ArgumentOutOfRangeException e) {}
+try { over.CopyTo(overTo, 0, 0); throw new Exception("4097 copy accepted"); }
+catch (ArgumentOutOfRangeException e) {}
+Check(overTo.ReadValue(16, 240) == 0, "over-limit copy untouched");
+overTo.Dispose(); over.Dispose();
+
 var sprite = new TftSprite(owner, 12, 10);
 Check(owner.SpriteCount == 1 && owner.SpriteBytes == 242, "sprite accounting");
 Check(sprite.Width == 12 && sprite.Height == 10 && sprite.ColorDepth == 16, "dimensions/depth");

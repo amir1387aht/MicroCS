@@ -1775,6 +1775,7 @@ new(Tft owner, int width, int height, int depth = 16) | Dimensions 1..4096; defa
 .DrawText(string text, int x, int y, int font): int | Actual compiled font, <=4096bytes/no NUL, native width
 .ReadPixel(int x, int y): int | Bounds-checked mapped RGB565 RAM read; depth8 quantization; not physical readback
 .ReadValue(int x, int y): int | Bounds-checked raw bit/index/RGB332 byte or RGB565 word
+.CopyTo(TftSprite destination, int x, int y): void | TFT.SpriteCopy; whole source must fit distinct live destination; <=4096pixels;16->16/8,8->8,4->4,1->1; indices retain target palette; RAM only
 .SetPaletteColor(int index, int rgb565): void | Depth4 only; index0..15; exact RGB565 entry
 .GetPaletteColor(int index): int | Depth4 only; index0..15; RGB565 entry
 .BitmapColors(int foreground, int background): void | Depth1 only; distinct RGB565 colors; native PARENT-wide mapping affects all its1bit sprites

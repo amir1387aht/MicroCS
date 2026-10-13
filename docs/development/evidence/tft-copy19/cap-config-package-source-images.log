@@ -1,0 +1,18 @@
+gen_config --check: OK
+OK config template: profile mismatch warns
+73/73 capability checks passed
+85/85 capability checks passed
+66/66 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS entire native vocabulary fits existing protocol v1 grammar
+PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware
+PASS image template requires actual new TFT.Image API, preserving older firmware filtering
+PASS copy template requires new TFT.SpriteCopy API rather than class/image presence
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies
+wrote /data/backups/sprite-contract19.mcsb (8012 bytes)
+wrote /data/backups/tft-copy19.mcsb (618 bytes)

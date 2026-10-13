@@ -557,3 +557,35 @@ next. More sprite operations/assets, LVGL, core/Studio/security/roadmap/hardware
 independent review remain blocking; no merge/tag/release/provisioning. Next safe
 bounded sprite copy (avoid upstream odd4bit padding/overlap hazards), then other
 full-scope work. No active local test jobs remain.
+
+## Checkpoint19 — checked sprite copies and exact image work boundaries
+
+CopyTo distinct live RAM sprites via actual readPixel/readPixelValue/drawPixel,
+exact upstream-supported depth pairs16->16/8,8->8,4->4,1->1. Whole source must fit
+at nonnegative coordinates,<=4096pixels; no clipping/self-overlap/transparency.
+Destination palettes preserved; no callbacks/allocation/pointers retained. Avoid
+upstream memcpy-overlap/odd4bit packed-row assumptions, no fast-copy/DMA claim.
+Append-only TFT.SpriteCopy capability and guarded RAM-only template;217templates.
+
+Native131557 C++ checks EACH normal/GC-stress ASan/UBSan/leaks pass; additional
+C# pixel assertions for all five supported pairs/all eleven rejected pairs,
+129x3 odd-row/source/outside/palette preservation, null/wrong-class/self/stale/
+bounds errors. Exact4096-pixel image and copy accepted, every copied pixel checked;
+4097 both rejected before writes. Five actual embedded cross-links with coherent
+source/config/pin/artifact hashes pass. Host85 source/image/XIP,69 scoped assertions,
+formatter/runtime,216 C#templates, capability/config/package/source-image/docs,
+actual browser editor/gallery/full serial Studio pass. Raw evidence and hashes
+`evidence/tft-copy19/`. Normal source/adapter fixture unchanged after runtime run;
+only docs/Studio tests metadata followed, no mixed-source matrix claim.
+
+Remote predecessor16ab100feaa3a70e88e9c1825828395b503376d7 fetched/tree-verified;
+main unchangedd3def1ff534c59a6726037ccf31f61535647e857. Latest cp18 CI64success/
+19running/9queued, no failure, NOT called green. All targeted local gates complete;
+ONE broader make -j2 check still RUNNING as cmd_695c127bb79b4274881cfe37a6b7,
+log `/data/backups/v2-tft-copy19-full-check.log`, not claimed passed; preserve source
+freeze until it exits. Generated lowram node_image may differ by debug path only;
+inspect and restore ONLY that generated file after completion, never blanket-reset.
+Staged checkpoint19/cumulative base patches and NOTES maintained; push/treeverify
+next. Continue actual LVGL built-in static fonts after full-check freeze ends;
+full TFT/LVGL/core/Studio/security/roadmap/hardware/review scope still blocks merge,
+tag and release. No provisioning or irreversible device action.

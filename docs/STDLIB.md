@@ -138,7 +138,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **TftSprite** | instance | `Width` `Height` `ColorDepth` | `Dispose()` `Fill(·)` `DrawPixel(·, ·, ·)` `DrawImage(·, ·, ·, ·, ·)` `DrawLine(·, ·, ·, ·, ·)` `DrawRect(·, ·, ·, ·, ·)` `FillRect(·, ·, ·, ·, ·)` `DrawCircle(·, ·, ·, ·)` `FillCircle(·, ·, ·, ·)` `TextColor(·, ·)` `TextSize(·)` `DrawText(·, ·, ·, ·)` `ReadPixel(·, ·)` `ReadValue(·, ·)` `SetPaletteColor(·, ·)` `GetPaletteColor(·)` `BitmapColors(·, ·)` `Push(·, ·)` `PushTransparent(·, ·, ·)` | bounded actual1/4/8/16-bit sprites; exact native bit/index/RGB565 script colors; [TFT_ESPI.md](TFT_ESPI.md) |
+| **TftSprite** | instance | `Width` `Height` `ColorDepth` | `Dispose()` `Fill(·)` `DrawPixel(·, ·, ·)` `DrawImage(·, ·, ·, ·, ·)` `DrawLine(·, ·, ·, ·, ·)` `DrawRect(·, ·, ·, ·, ·)` `FillRect(·, ·, ·, ·, ·)` `DrawCircle(·, ·, ·, ·)` `FillCircle(·, ·, ·, ·)` `TextColor(·, ·)` `TextSize(·)` `DrawText(·, ·, ·, ·)` `ReadPixel(·, ·)` `ReadValue(·, ·)` `CopyTo(·, ·, ·)` `SetPaletteColor(·, ·)` `GetPaletteColor(·)` `BitmapColors(·, ·)` `Push(·, ·)` `PushTransparent(·, ·, ·)` | bounded actual1/4/8/16-bit sprites; exact native bit/index/RGB565 script colors; [TFT_ESPI.md](TFT_ESPI.md) |
 | **Tft** | instance | `Width` `Height` `SpriteBytes` `SpriteCount` `Rotation` | `Begin()` `Dispose()` `Fill(·)` `DrawPixel(·, ·, ·)` `DrawImage(·, ·, ·, ·, ·)` `DrawLine(·, ·, ·, ·, ·)` `DrawRect(·, ·, ·, ·, ·)` `FillRect(·, ·, ·, ·, ·)` `DrawCircle(·, ·, ·, ·)` `FillCircle(·, ·, ·, ·)` `TextColor(·, ·)` `TextSize(·)` `DrawText(·, ·, ·, ·)` `SetTouch(·, ·, ·, ·, ·)` `AttachLVGL()` `DetachLVGL()` | real Arduino WIP subset; explicit setup; [TFT_ESPI.md](TFT_ESPI.md) |
 | **Tft** | static | `Version` | — | actual upstream header version, not manifest/tag |
 
@@ -210,4 +210,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1391 members in 115 tables._
+_1392 members in 115 tables._

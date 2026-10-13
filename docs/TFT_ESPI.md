@@ -151,7 +151,7 @@ PushTransparent's key is RGB565 for8/16, palette index for4, and only bit0 for1
 (upstream always treats bit0 as transparent; requesting bit1 raises). Arguments
 are validated before the begun-parent gate; no physical IO occurs on rejection.
 
-Multiple frames, resize/rotation, scroll, sprite-to-sprite and rotated pushes are
+Multiple frames, resize/rotation, scroll, transparent sprite-to-sprite and rotated pushes are
 **not bound yet**. Colors/depths now have implementations, but this is not full
 sprite/API coverage or physical color validation. The opted-in real firmware
 fixture embeds `tests/tft/sprite_contract.cs` with RAM/lifetime/invalid-argument
@@ -190,6 +190,31 @@ the transfer chunk, not total call/driver memory. Physical drawing requires Begi
 and LVGL detached, uses a synchronous write transaction, and has no upstream
 per-transfer acknowledgement. Host tests exercise actual RAM sprite paths only;
 physical IO/transactions need reviewed board execution.
+
+## Checked RAM sprite copies
+
+`TFT.SpriteCopy` advertises `source.CopyTo(destination, x, y)`; old TFT.Sprite
+firmware can lack this method. Both sprites must be live and **distinct**, with
+a whole source rectangle fitting inside the destination at nonnegative coordinates.
+A fixed4096-pixel maximum bounds synchronous work; no clipping/resize/rotation,
+transparent key, physical transfer or retained pixel pointer. Invalid target
+classes/null raise InvalidCastException; self-copy raises ArgumentException;
+unsupported depth pairs raise NotSupportedException and bounds/work limits raise
+ArgumentOutOfRangeException before any destination pixels change.
+
+Supported pairs match upstream: **16->16/8,8->8,4->4,1->1**. Actual readPixel and
+native drawPixel copy RGB565 for16/8 (8-bit destination quantization), and actual
+readPixelValue/drawPixel preserve exact indices/bits for4/1. The destination's
+palette is **not** replaced: the same4-bit index can display a different RGB565
+color there. Bitmap mapping is already parent-wide, not an independent palette.
+Source pixels and destination pixels outside the rectangle are unchanged.
+
+The adapter deliberately does not call upstream pushToSprite: its memcpy path
+is unsafe for overlapping self-copies and its packed4-bit source assumptions can
+mishandle odd-width padded rows. Using actual native pixel APIs handles these
+rows without rewriting/vendorizing pixel storage. This is bounded per-pixel work,
+**not** a fast memcpy/DMA claim. No callback/allocation/safepoint within the copy;
+Stop is observed after the native call, not during it. Board timing is unmeasured.
 
 ## Foreground file lifetime versus persistent REPL/embedding
 

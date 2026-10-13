@@ -30,6 +30,7 @@ fs.mkdirSync(OUT, { recursive: true });
             ['Tft.', 'Version'],
             ['var display = new Tft(); display.', 'DrawImage'],
             ['var sprite = new TftSprite(display,12,10); sprite.', 'DrawImage'],
+            ['var sprite = new TftSprite(display,12,10); sprite.', 'CopyTo'],
             ['new Tf', 'Tft'],
             ['var sprite = new TftSprite(display,12,10); sprite.', 'ReadPixel'],
             ['var sprite = new TftSprite(display,12,10,8); sprite.', 'PushTransparent'],

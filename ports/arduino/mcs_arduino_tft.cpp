@@ -715,6 +715,47 @@ NATIVE(sprite_push_transparent) {
     (void)argc;
     return sprite_push(vm, self, argv, true);
 }
+/* Exact supported native depth pairs, but read/draw through real upstream APIs
+ * instead of pushToSprite's memcpy/packed odd-width assumptions. Source and
+ * destination are distinct live wrappers, rooted by the VM's call arguments.
+ * No callbacks/allocation/safepoints can invalidate them mid-copy. */
+NATIVE(sprite_copy) {
+    (void)argc;
+    sprite_t *source = sprite_checked(vm, self);
+    if (!source)
+        return mcs_null();
+    sprite_t *destination = sprite_checked(vm, argv[0]);
+    if (!destination)
+        return mcs_null();
+    if (source == destination) {
+        mcs_raise(vm, "ArgumentException",
+                  "CopyTo requires distinct source and destination sprites");
+        return mcs_null();
+    }
+    int depth = source->display->getColorDepth();
+    int target_depth = destination->display->getColorDepth();
+    if (depth != target_depth && !(depth == 16 && target_depth == 8)) {
+        mcs_raise(vm, "NotSupportedException", "CopyTo supports16->16/8,8->8,4->4,1->1");
+        return mcs_null();
+    }
+    int32_t x, y;
+    if (!integer(vm, argv[1], 0, 4095, &x) || !integer(vm, argv[2], 0, 4095, &y))
+        return mcs_null();
+    int32_t w = source->display->width(), h = source->display->height();
+    int32_t dw = destination->display->width(), dh = destination->display->height();
+    if (w > dw || h > dh || x > dw - w || y > dh - h || w > 4096 / h) {
+        mcs_raise(vm, "ArgumentOutOfRangeException",
+                  "CopyTo must fit the target and contain <=4096 pixels");
+        return mcs_null();
+    }
+    for (int32_t row = 0; row < h; ++row)
+        for (int32_t col = 0; col < w; ++col) {
+            uint16_t color = depth < 8 ? source->display->readPixelValue(col, row)
+                                       : source->display->readPixel(col, row);
+            destination->display->drawPixel(x + col, y + row, color);
+        }
+    return mcs_null();
+}
 NATIVE(tft_sprite_bytes) {
     (void)argc;
     (void)argv;
@@ -744,6 +785,7 @@ static const mcs_reg_t sprite_members[] = {MCS_FN("Dispose", sprite_dispose, 0),
                                            MCS_FN("DrawText", tft_draw_text, 4),
                                            MCS_FN("ReadPixel", sprite_read, 2),
                                            MCS_FN("ReadValue", sprite_read_raw, 2),
+                                           MCS_FN("CopyTo", sprite_copy, 3),
                                            MCS_FN("SetPaletteColor", sprite_palette_set, 2),
                                            MCS_FN("GetPaletteColor", sprite_palette_get, 1),
                                            MCS_FN("BitmapColors", sprite_bitmap_colors, 2),

@@ -28,3 +28,7 @@ Use strict4-bit palette indices and1-bit pixels with real native RAM readback. S
 [tft_image.cs] Checked TFT row-major image RAM
 requires: Compiler, TFT, TFT.Sprite, TFT.Image
 Draw a bounded image from exact row-major integer array/List values into native RAM. All entries validated before drawing; no physical IO, filesystem decoding or DMA.
+
+[tft_copy.cs] Checked TFT sprite-to-sprite RAM copy
+requires: Compiler, TFT, TFT.Sprite, TFT.Image, TFT.SpriteCopy
+Copy a bounded real RAM sprite without overlap or odd packed-row hazards. Exact supported depth pairs, destination palettes preserved; no physical IO or DMA.

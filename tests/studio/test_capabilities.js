@@ -50,3 +50,11 @@ assert(templateCompatible(image,new Map([...packedCaps,['TFT.Image',true]]),true
 assert(!templateCompatible(image,new Map([...packedCaps,['TFT.Image',false]]),true));
 assert(templateCompatible(image,earlier,false));
 console.log('PASS image template requires actual new TFT.Image API, preserving older firmware filtering');
+
+const copy=TEMPLATES.find(t=>t.src.endsWith('/tft_copy.cs'));
+const imageCaps=new Map([...packedCaps,['TFT.Image',true]]);
+assert(copy && !templateCompatible(copy,imageCaps,true));
+assert(templateCompatible(copy,new Map([...imageCaps,['TFT.SpriteCopy',true]]),true));
+assert(!templateCompatible(copy,new Map([...imageCaps,['TFT.SpriteCopy',false]]),true));
+assert(templateCompatible(copy,earlier,false));
+console.log('PASS copy template requires new TFT.SpriteCopy API rather than class/image presence');
