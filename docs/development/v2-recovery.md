@@ -589,3 +589,30 @@ Staged checkpoint19/cumulative base patches and NOTES maintained; push/treeverif
 next. Continue actual LVGL built-in static fonts after full-check freeze ends;
 full TFT/LVGL/core/Studio/security/roadmap/hardware/review scope still blocks merge,
 tag and release. No provisioning or irreversible device action.
+
+## Checkpoint20 — completed broader host/profile gate after19
+
+The only local running job recorded in19, make -j2 check
+(cmd_695c127bb79b4274881cfe37a6b7), EXIT0. Frozen production source stayed unchanged
+through final completion; docs/recovery bookkeeping did not alter test inputs.
+All default native/profile/config/GC-stress/feature-flag/ports-template checks and
+11 alternate configurations EACH85/85 scripts pass. Raw full output and exact
+source hashes `evidence/host-full20/`. This updates previously pending gate status;
+not a new TFT hardware/LVGL/fullrelease or optimization performance claim.
+
+Generated lowram node_image path diff backed up under
+/data/backups/v2-copy19-generated-node-image.patch; exact binary validation proves
+only encoded filename length60->48 and removal of six-byte ../../ prefix,
+1601->1595 bytes, all others equal. Initial raw-length assumption assertion failed
+while researching encoding (not a source/test failure); corrected encoded-length
+proof recorded. Restored ONLY generated node_image toHEAD after job complete.
+No other user/source reset. All local jobs now completed, worktree clean before
+journal/evidence step. cp15 and17 public CI confirmed92/92 successful each; cp18/19
+not yet called green. Remote predecessor3a602faded2c94a80b9e84847111d6d81a1c1b85
+fetched/tree-verified, main stilld3def1ff534c59a6726037ccf31f61535647e857.
+
+Staged checkpoint20 patch/cumulative base patch and NOTES maintained; push/tree
+verification next. Continue actual statically owned LVGL built-in font lookup/
+selection/readback with actual public8.4/9.4 declarations; fullscope/hardware/
+independent security review still block merge, tag and release. No irreversible
+device actions, provisioning or secret material generated.

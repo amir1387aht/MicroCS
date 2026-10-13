@@ -1,0 +1,1 @@
+Exact binary change: only encoded debug filename length60->48 and ../../ prefix;1601->1595bytes. All other bytes identical. Initial naive raw-length assumption failed; inspection showed encoded string field.
