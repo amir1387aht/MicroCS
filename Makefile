@@ -400,3 +400,10 @@ image-metadata-test: build/test_image_metadata
 image-metadata-matrix:
 	python3 tools/test_image_metadata.py --cc "$(CC)"
 .PHONY: image-metadata-test image-metadata-matrix
+
+# Post-fix functional resource limits; executes only trusted compiler output.
+stack-capacity-test:
+	python3 tools/test_stack_capacity.py --cc "$(CC)" --variant default
+stack-capacity-matrix:
+	python3 tools/test_stack_capacity.py --cc "$(CC)"
+.PHONY: stack-capacity-test stack-capacity-matrix

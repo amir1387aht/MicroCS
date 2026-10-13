@@ -19,7 +19,11 @@ attacker with physical/debug access.
 
 Because stack balance is not verified, a hand-crafted image can still corrupt the VM when
 it *runs*: treat `.mcsb` files like firmware (build them with `mcs`, ship them over a
-trusted channel). Source scripts have no such caveat — the compiler only emits balanced code.
+trusted channel). Compiler output is balanced, but its temporary operand peak can exceed a
+configured stack even when its local slots fit. The v2 runtime checks growing
+stack writes and reports a catchable limit error; see
+[the validation scope and limitations](development/runtime-stack-capacity.md).
+This does not establish complete VM/native memory safety or untrusted-image safety.
 
 Recommendations: give each untrusted script a step/time budget, mount system scripts
 read-only, put user uploads on a NOEXEC mount if they should only be data, and disable

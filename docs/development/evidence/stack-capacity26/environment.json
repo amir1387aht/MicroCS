@@ -1,0 +1,15 @@
+{
+  "runtime_sha256": "34031f6d2a0ebe7ddb0d92764b77d6f5284120d558f9f04a095c8bd76728d4be",
+  "baseline_remote": "e9caed00d8fda6db43e63352c2157a5c05aad498",
+  "gcc": "gcc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "sanitizer_environment": {
+    "LD_LIBRARY_PATH": "/data/toolchains/sanitizer-libs",
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  },
+  "runtime_libraries": {
+    "libasan.so.6": "9ab8f4a4757f6d7a070554409c493de262b2e7fbdafeda87fbd2b2f3e79961d6",
+    "libubsan.so.1": "4b56f4b8ce16aaf587b9b10e5fd844bffe08d153c2ab1a9d78ecf72a5402b43f"
+  },
+  "scope": "post-fix trusted-source resource limits; no pre-fix memory-corruption reproduction; no hostile-image execution; no hardware/32-bit/performance/full-verifier claim"
+}

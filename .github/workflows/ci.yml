@@ -38,6 +38,11 @@ jobs:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: python3 tools/test_image_metadata.py --sanitize
+      - name: Trusted-source stack resource limits (post-fix functional matrix)
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: python3 tools/test_stack_capacity.py --sanitize
       - name: Host-only stack-flow research (not a security verifier)
         env:
           ASAN_OPTIONS: detect_leaks=1:halt_on_error=1

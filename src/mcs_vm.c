@@ -222,6 +222,7 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
     if (argc != fn->arity || ((fn->flags & FN_HAS_PARAMS) && !pass_array)) {
         if ((fn->flags & FN_HAS_PARAMS) && argc >= fn->arity - 1 && !pass_array) {
             int extra = argc - (fn->arity - 1);
+            if (extra == 0 && vm->sp == vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return CALL_ERR; }
             mcs_list_t* arr = mcs_new_listobj(vm, MCS_O_ARRAY, (uint32_t)extra);
             for (int i = 0; i < extra; i++) arr->items[i] = vm->sp[-extra + i];
             vm->sp -= extra;
@@ -229,14 +230,14 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
             argc = fn->arity;
             orig = argc;
         } else if (argc >= fn->min_arity && argc < fn->arity) {
-            if (vm->sp + (fn->arity - argc) >= vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return CALL_ERR; }
+            if ((size_t)(fn->arity - argc) >= (size_t)(vm->stack_end - vm->sp)) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return CALL_ERR; }
             while (argc < fn->arity) { PUSH(mcs_null()); argc++; }
         } else {
             mcs_throw(vm, EXC_ARGUMENT, "No overload for method '%s' takes %d arguments", callee_name(OBJ_VAL(cl)), argc);
             return CALL_ERR;
         }
     }
-    if (vm->frame_count >= vm->cfg.max_frames || vm->sp + fn->max_slots + MCS_STACK_MARGIN >= vm->stack_end) {
+    if (vm->frame_count >= vm->cfg.max_frames || (size_t)fn->max_slots + MCS_STACK_MARGIN >= (size_t)(vm->stack_end - vm->sp)) {
         mcs_throw(vm, EXC_STACKOVF, "Stack overflow (call depth %d).", vm->frame_count);
         return CALL_ERR;
     }
@@ -468,6 +469,7 @@ static bool setf_slow(mcs_vm_t* vm, mcs_value_t obj, mcs_string_t* name) {
         vm->sp--;
         return mcs_call_internal(vm, v, obj, 1, &val, NULL) == MCS_OK;
     }
+    if (vm->sp == vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return false; }
     vm->sp[-1] = obj; PUSH(val);   /* [obj, val] as SET_FIELD sees it */
     if (set_member_op(vm, name) == CALL_ERR) return false;
     vm->sp--;
@@ -870,6 +872,9 @@ static bool unwind(mcs_vm_t* vm, int base_frame) {
         mcs_handler_t* h = &vm->handlers[vm->handler_count - 1];
         if (h->frame < base_frame) return false;
         vm->handler_count--;
+        /* A catch needs one free slot for its exception. Skip an unusable
+         * handler without constructing an out-of-range pointer or rethrowing. */
+        if ((size_t)h->sp >= (size_t)(vm->stack_end - vm->stack)) continue;
         mcs_value_t* nsp = vm->stack + h->sp;
         close_upvalues(vm, nsp);
         vm->frame_count = h->frame + 1;
@@ -961,7 +966,12 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef PUSH
 #undef POP
 #undef PEEK
-#define PUSH(v) (*sp++ = (v))
+#define CHECK_PUSH(n) do { \
+        if ((size_t)(n) > (size_t)(vm->stack_end - sp)) { \
+            SAVE(); mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); THROWN(); \
+        } \
+    } while (0)
+#define PUSH(v) do { CHECK_PUSH(1); *sp++ = (v); } while (0)
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
 #define SYNC() (vm->sp = sp)
@@ -986,7 +996,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define ENTER_FAST(CL, ARGC) do { \
         mcs_function_t* fn_ = (CL)->fn; \
         if ((ARGC) == fn_->arity && !(fn_->flags & FN_HAS_PARAMS) && vm->frame_count < vm->cfg.max_frames && \
-            sp + fn_->max_slots + MCS_STACK_MARGIN < vm->stack_end) { \
+            (size_t)fn_->max_slots + MCS_STACK_MARGIN < (size_t)(vm->stack_end - sp)) { \
             frame = &vm->frames[vm->frame_count++]; \
             frame->closure = (CL); frame->ip = ip = fn_->code; frame->slots = slots = sp - (ARGC) - 1; frame->argc = (uint8_t)(ARGC); \
             consts = fn_->consts; LOAD_GMAP(fn_); \
@@ -1025,7 +1035,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH(mcs_int(v)); DISPATCH(); }
     CASE(POP) sp--; DISPATCH();
     CASE(DUP) { a = PEEK(0); PUSH(a); DISPATCH(); }
-    CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH(b); DISPATCH(); }
+    CASE(DUP2) { CHECK_PUSH(2); a = PEEK(1); b = PEEK(0); PUSH(a); PUSH(b); DISPATCH(); }
     CASE(SWAP) { a = PEEK(0); sp[-1] = sp[-2]; sp[-2] = a; DISPATCH(); }
     CASE(ROT) {
         int n = READ8();
@@ -1041,7 +1051,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(GET_GLOBAL) {
         uint16_t s = GSLOT(READ16());
         const mcs_value_t* gv = &vm->globals[s];
-        if (gv->type != MCS_T_UNDEF) { *sp++ = *gv; DISPATCH(); }
+        if (gv->type != MCS_T_UNDEF) { PUSH(*gv); DISPATCH(); }
         a = *gv;
         if (a.type == MCS_T_UNDEF) {   /* first use of a built-in / registered class */
             SAVE();
@@ -1266,7 +1276,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LI_FORM(O) \
     CASE(LI_##O) { \
         const mcs_value_t* pa_ = &slots[ip[0]]; mcs_int_t y_ = (int8_t)ip[1]; \
-        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { sp->as.i = BXE_##O(pa_->as.i, y_); sp->type = MCS_T_INT; sp++; ip += 2; DISPATCH(); } \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { CHECK_PUSH(1); sp->as.i = BXE_##O(pa_->as.i, y_); sp->type = MCS_T_INT; sp++; ip += 2; DISPATCH(); } \
         sop = OP_##O; goto li_slow; \
     }
     BX_EACH(LI_FORM)
@@ -1425,7 +1435,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (!arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)) THROWN(); \
         PUTV(r); DISPATCH(); \
     }
-#define PUT_PUSH(v) do { sp->type = MCS_T_INT; sp->as.i = (v); sp++; } while (0)
+#define PUT_PUSH(v) do { CHECK_PUSH(1); sp->type = MCS_T_INT; sp->as.i = (v); sp++; } while (0)
 #define PUTV_PUSH(v) PUSH(v)
 #define PUT_TOP(v) do { sp[-1].type = MCS_T_INT; sp[-1].as.i = (v); } while (0)
 #define PUTV_TOP(v) (sp[-1] = (v))
@@ -1506,8 +1516,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     CASE(GET_INDEX_LL) {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
-            *sp++ = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; DISPATCH();
+            PUSH(AS_LIST(*pa_)->items[pi_->as.i]); ip += 2; DISPATCH();
         }
+        CHECK_PUSH(2);
         sp[0] = *pa_; sp[1] = *pi_; sp += 2; ip += 2;
         SAVE();
         CHECKCALL(get_index_op(vm));
@@ -1518,6 +1529,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
             AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; MCS_LIST_TOUCH(AS_LIST(*pa_)); sp--; ip += 2; DISPATCH();
         }
+        CHECK_PUSH(2);
         b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; ip += 2;
         SAVE();
         if (!index_set_stmt(vm)) THROWN();
@@ -1913,13 +1925,29 @@ on_abort:
 #undef POP
 #undef PEEK
 #undef SYNC
+#undef CHECK_PUSH
 #define PUSH(v) (*vm->sp++ = (v))
 #define POP() (*--vm->sp)
 #define PEEK(n) (vm->sp[-1 - (n)])
 
 /* ================================================================ calling from C */
+/* Validate before reading argv or appending a receiver. Integer remaining-room
+ * checks avoid pointer arithmetic beyond the stack object, even for INT_MAX. */
+static bool check_call_args(mcs_vm_t* vm, int argc, const mcs_value_t* argv, mcs_value_t* result) {
+    if (argc < 0 || (argc != 0 && argv == NULL)) {
+        if (result) *result = mcs_null();
+        mcs_throw(vm, EXC_ARGUMENT, "Invalid call arguments.");
+        return false;
+    }
+    if ((size_t)argc + 1 + MCS_STACK_MARGIN >= (size_t)(vm->stack_end - vm->sp)) {
+        if (result) *result = mcs_null();
+        mcs_throw(vm, EXC_STACKOVF, "Stack overflow.");
+        return false;
+    }
+    return true;
+}
 mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
-    if (vm->sp + argc + 1 + MCS_STACK_MARGIN >= vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return MCS_ERR_RUNTIME; }
+    if (!check_call_args(vm, argc, argv, result)) return MCS_ERR_RUNTIME;
     mcs_value_t* base = vm->sp;
     int base_frame = vm->frame_count;
     int base_handlers = vm->handler_count;
@@ -2033,9 +2061,15 @@ mcs_result_t mcs_call(mcs_vm_t* vm, const char* name, int argc, const mcs_value_
 
 mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
+    if (!check_call_args(vm, argc, argv, result)) {
+        GUARD_END(vm);
+        if (vm->run_depth > 0) return MCS_ERR_RUNTIME;
+        return finish(vm, MCS_ERR_RUNTIME);
+    }
     mcs_string_t* nm = mcs_intern_c(vm, name);
     mcs_value_t* base = vm->sp;
     int base_frame = vm->frame_count;
+    int base_handlers = vm->handler_count;
     PUSH(recv);
     for (int i = 0; i < argc; i++) PUSH(argv[i]);
     int st = invoke_op(vm, nm, argc);
@@ -2043,7 +2077,7 @@ mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int ar
     if (st == CALL_FRAME) r = run(vm, base_frame);
     else if (st == CALL_ERR) r = MCS_ERR_RUNTIME;
     if (result) *result = r == MCS_OK ? vm->sp[-1] : mcs_null();
-    if (r != MCS_OK) { close_upvalues(vm, base); vm->frame_count = base_frame; }
+    if (r != MCS_OK) { close_upvalues(vm, base); vm->frame_count = base_frame; vm->handler_count = base_handlers; }
     vm->sp = base;
     GUARD_END(vm);
     if (vm->run_depth > 0) return r;

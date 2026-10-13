@@ -796,3 +796,60 @@ Evidence `evidence/stack-flow25/`, design/repro `image-stack-flow-research.md`.
 Staged/cumulativepatches +NOTES kept; push/fetch/treeverify next. Continue actual
 stack capacity/peak safety (including source/copy/XIP), compactverification and
 remaining fullscope. No merge/tag/release/provisioning/irreversible actions.
+
+## Checkpoint26 — defensive stack append guards (WIP, not full v2 completion)
+
+Recovered remote25 e9caed00d8fda6db43e63352c2157a5c05aad498 exactly; main
+remains d3def1ff534c59a6726037ccf31f61535647e857. New dedicated checkout
+/data/MicroCS-v2-next, clean baseline worktree /data/MicroCS-v2-baseline.
+No old checkout overwritten. Baseline host85 passed. No pre-fix corruption
+reproducer was run and no hostile bytecode executed; that requested baseline
+is explicitly NOT established by this continuation.
+
+Production mcs_vm.c now checks growing register-stack writes, fused/global/index
+expansions, default/params/helper appends and saved-handler exception capacity.
+Frame/C-call reservations use remaining-slot integer comparisons, avoiding
+out-of-object pointer construction. C calls reject negative argc, nonzero argc
+with NULL argv and oversized counts before argument reads/receiver append.
+Failed mcs_invoke restores saved handler count. Native returns reuse freed
+receiver/argument slots; APIs/opcodes/images remain unchanged. Not a complete
+stack/type/initialization/lifetime verifier; untrusted execution unsupported.
+
+Fresh patched host85 ASan/UBSan/leaks passed. New post-fix trusted-source resource
+suite passed all14 REAL variants: default/GCstress/XIPoff/sourceOPT/switch/compact/
+INT64/float32/noFLOAT each4752 checks; compilerOFF/lowram/MCU each3240;
+superopsOFF2442; min1686. Seven sources, eight capacities, source/copy/XIP,
+catch/closed captured local/native callback, invalid C arguments, result alias,
+near-margin native return, direct Stop/recovery, collection and physical
+allocator teardown. Not an exhaustive append-path/OOM/cancellation proof.
+No mutation/fuzz execution added. Test runner hashes sources/headers/fixtures.
+Actual unchanged pinned TFT host-native sanitizer regression131557 passes
+plus20undisposed teardowns/physicalIOguard, NOT hardware. GCC11.5 sameflags
+-Os host VM object text57735->59945 B, data/bss0; MCUfootprint/performance not
+established. New docs link check passed; CI YAML parsed; whitespace checked.
+
+Preserved an initial sanitizer launch failure caused by missing SONAME aliases
+in system GCC directory; local aliases under /data/toolchains/sanitizer-libs
+resolved it without suppression. Pinned clangformat18.1.8/CMake3.31.6 restored
+under /data/toolchains/format-cmake. Runtime source is frozen while compiling.
+
+STILL RUNNING: full makecheck cmd_3f9f49b4cf70440fab027d681bc2;
+corrected LVGL8/9allfont sanitizer/goldens cmd_18d73955ac104d7fa93532bd68ed;
+corrected Studio browser/node/fullserial cmd_a1caa8a6aaaa471f955947c1ed54.
+LVGL initial command used two nonexistent golden filenames; native8passed887
+and first2goldens before command failure, NOT a full8/9 pass. Retain initial
+log /data/stack-lvgl.log. Studio initial command lacked CHROME and could not
+launch its bundled-browser path; rerun uses installed sandbox Chromium with
+no assertions removed. Retain /data/stack-studio-node.log. Do not label running
+jobs passed. Checked cp25combinedstatus contains0contexts/pending; paged check
+read establishes92total and ONEsuccess, not an all92 pass.
+
+SEPARATE UNCOMMITTED research delta: corrected BIN_LKS/LIS operand mappings,
+new trusted-only/arithmetic runner. Sanitized load-only488trusted compilerimages/
+1346functions and fourarithmetic images passed; no production integration, no
+handcrafted/fileerror/selftest run in this continuation. Keep out of26payload;
+checkpoint separately with docs/logs. Backups under /data/backups include staged
+and cumulative binary patches. Complete remaining gates, checked benchmark
+comparison, API/native/OOM/boundary coverage, crosslinks, fullverifier and every
+original fullscope workstream. Hardware/reviewer gaps remain release blockers.
+No merge/tag/release/provisioning/security-lock/device operations.
