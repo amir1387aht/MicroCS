@@ -1,0 +1,2 @@
+text	   data	    bss	    dec	    hex	filename
+ 753095	   1520	   4480	 759095	  b9537	/vercel/sandbox/data/raw/microcs-stack26/bench-baseline/measure

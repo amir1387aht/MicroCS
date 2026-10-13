@@ -1,0 +1,12 @@
+{
+  "old_bytes": 1601,
+  "new_bytes": 1595,
+  "path_offset": 94,
+  "old_path": "../../examples/lowram/node.cs",
+  "new_path": "examples/lowram/node.cs",
+  "old_encoded_length": 60,
+  "new_encoded_length": 48,
+  "all_other_bytes_equal": true,
+  "initial_comparison_failure": "Assumed serialized string length excluded NUL; diagnostic corrected, original artifact preserved",
+  "restored_only_after_full_gate_success": true
+}

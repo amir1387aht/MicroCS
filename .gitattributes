@@ -1,3 +1,6 @@
 
 # Preserve raw tool output exactly; source whitespace checks still apply.
 docs/development/evidence/**/*.log -whitespace
+# Preserve byte-exact benchmark CSV/report output (standard CSV emits CRLF).
+docs/development/evidence/stack-benchmarks28/*/summary.csv -whitespace
+docs/development/evidence/stack-benchmarks28/*-profile.txt -whitespace

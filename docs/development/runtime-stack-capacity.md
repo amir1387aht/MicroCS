@@ -67,3 +67,29 @@ runtime overhead; there is no universal speedup claim. Host ELF sections are
 not MCU flash, and host wall time is not hardware timing. A future bounded
 compiler-derived peak reservation is a separate optimization, not permission
 to omit runtime checks or trust arbitrary image metadata.
+
+### Completed host comparison (checkpoint28)
+
+Fresh full `make check` passes on the unchanged guarded production sources,
+including all eleven alternate configurations with 85 cases each. The generated
+lowram image differs only by its relative debug source path and corresponding
+NUL-inclusive string length; all other bytes are equal. Only that generated
+file was restored, after the successful gate exit.
+
+[Raw measurements and provenance](evidence/stack-benchmarks28/) contain 1,250
+checked samples per version (five workloads × ten phases × 25 repetitions),
+recorded after the local compilation/test jobs ended. Baseline is the clean
+checkpoint25 tree; fixed source hashes correspond to the guarded runtime in
+checkpoint26, unchanged through later documentation/research checkpoints.
+Every sample checks output and teardown. Independent raw-record median checks
+agree with the [50 matched workload/phase groups](evidence/stack-benchmarks28/comparison.csv).
+Requested peak/retained bytes and image sizes match in each group.
+
+The same-flags GCC11.5 `-Os` host VM object has 57,735 bytes of text before and
+59,945 after, with zero data/bss. This is a safety/code-size trade-off, not an MCU
+measurement. Timing deltas are retained per workload/phase with p10/p90 rather
+than pooled into a universal performance claim. Baseline was measured before
+fixed in one sequential session, not randomized; shared-host scheduling, thermal
+and ordering effects remain limitations. There is no statistically established
+causal overhead or broad speedup claim. These results do not replace the full
+original host/MCU/peripheral performance and release requirements.

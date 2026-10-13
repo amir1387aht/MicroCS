@@ -890,3 +890,58 @@ ONLY that generated path. Checked benchmark comparison/crosslinks/exactnewCI
 and broaderstack/OOM/API/handler coverage remain pending, alongside original
 fullscope. No merge/release/provisioning; hardware/reviewer release blockers
 not waived. Save staged/cumulativepatches, push/fetch/treeverify then continue.
+
+## Checkpoint28 — completed full host gates + checked stack-guard comparison
+
+Predecessor27 REMOTE3b994b28b1bd83343178cd31197107e78cd6be09 treeverified
+50581e4b31cfac144900fe9412053168a31abbac. Production source/header/runtime
+UNCHANGED versus26. Fullmakecheck cmd_3f9f49b4cf70440fab027d681bc2 EXIT0:
+host/native/config/profile/GCstress/feature flags/ports and all11 alternate
+configurations EACH85/85 pass. Exact raw full log now committed, not relabeled
+historical evidence. Only generated lowramheader changed during makecheck;
+backup kept, binary comparison proves ONLY ../../ debugpath->relativepath and
+60->48 NUL-inclusive length change,1601->1595B; allotherbytes equal. Restored
+ONLY that path AFTER fullgate successful exit; no other changes discarded.
+Initial comparison assumed string length excluded NUL and assertion stopped;
+corrected against actual bytes, no acceptance assertion waived.
+
+Benchmark job cmd_5014da56038444c6811d39b45e75 waited for fullgate completion
+and ran identical current harness/flags against clean remote25baseline and
+fixedproduction source:1250 checked samples EACH, fiveworkloads x10phases x25.
+Every sample output/result and physical allocator teardown checked. Raw samples,
+commands/header/source/harness/binary hashes, flags/environment/linksize,
+pergroup median/p10/p90 and comparison stored in evidence/stack-benchmarks28/.
+No deliberate localcompiler/test jobs competed during samples. Profiled bothraw
+files:1250rows x11cols, no duplicates/nulls; compositeworkload/phase/iteration
+key,25eachgroup. Constantverified=1 is expected, not a quality error. Initial
+pandasread_json precision truncated decimaldigits and exactmedian crosscheck
+stopped; precise_float=True restores original JSON precision. Independent
+statistics.median of rawrecords now equals EVERY pandasgroup median. No raw
+sample edited, dropped or remeasured to improve results.
+
+Requested peak/retained memory and image sizes equal in all50 matchedgroups.
+GCC11.5 sameflags -Os VMobject text57735->59945B, data/bss0. Timings retained
+perworkload/phase; sequential baseline-then-fixed order/sharedhost effects mean
+no universal speedup/statistically-established causal overhead claim. Not MCU
+flash/timing/32bit/physicalperipheral evidence. Benchrunner optional-module
+provenance wording updated: integrations exist but remain OFF for these flags;
+no production or measured behavior changed.
+
+Completed runtime14-config, host85sanitizers, actualTFT131557, LVGL8+9EACH887+
+fivegoldens, Studio full/editor/gallery and research488+4 LOADONLY evidence
+remains valid since production frozen. All local gate jobs EXIT0; no active
+jobs at checkpoint preparation. ExactnewheadCI not established green; PR43
+still OPEN/DRAFT/UNMERGED, main unchanged. NewC-call/native/OOM/cancellation/
+exact-boundary and32bitcrosslink completeness, fulltype/controlflow/localinit/
+lifetime verifier, all original unfinishedgraphics/Studio/core/security/roadmap,
+actualhardware/independentreview and release gates remain BLOCKING. No hostile
+bytecode executed, pre-fixcorruption reproduced, merge/tag/release/provisioning
+or irreversible actions. Push/fetch/treeverify; update PR latest status without
+removing historical notes. Local backups/NOTES retained, remote journal/evidence
+is recovery source, not disposable local paths.
+
+Checkpoint28 packaging note: generated benchmark CSV uses standard CRLF and
+profiler text has a terminal blank line. Whitespace check initially reported
+those raw-output formats; bounded .gitattributes rules preserve byte-exact raw
+CSV/report evidence, analogous to existing raw-log rules. No sample/report was
+rewritten to appear cleaner; source/documentation whitespace checks still apply.

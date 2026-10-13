@@ -75,7 +75,7 @@ def main():
         'memory': 'requested bytes via custom realloc, including VM; excludes libc overhead, source/expected buffers and external image copies; not RSS, pool high-water or MCU RAM',
         'cache': 'vm-cold (fresh VM) does not mean cold CPU/OS caches; phases run in fixed order; no warm-up samples discarded',
         'security': 'unchanged current default; no authenticated shell or signed image module added',
-        'optional_modules': 'default disabled (no LVGL/TFT integration yet); no dependency flags added',
+        'optional_modules': 'default disabled; existing optional LVGL/TFT integrations are not enabled by these benchmark flags',
         'validation': 'every sample checks result/output; all VMs must release every tracked byte; .out expectations are mathematical fixtures, not .NET comparison',
     }
     meta_path = out / 'metadata.json'
