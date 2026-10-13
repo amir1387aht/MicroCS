@@ -24,6 +24,26 @@ class H(http.server.BaseHTTPRequestHandler):
             self.send_response(200); self.send_header("Transfer-Encoding", "chunked"); self.end_headers()
             for part in [b"abc", b"defgh", b"X" * 3000]: self.wfile.write(b"%x\r\n" % len(part) + part + b"\r\n")
             self.wfile.write(b"0\r\n\r\n"); return
+        # Deliberately fragmented or malformed wire responses (no public network needed).
+        wire = {
+            "/empty": b"",
+            "/short-header": b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n",
+            "/short-body": b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nab",
+            "/close-body": b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclosed-body",
+            "/bad-chunk": b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nxyz\r\n",
+            "/huge-chunk": b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF\r\n",
+            "/bad-terminator": b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nabXX\r\n0\r\n\r\n",
+            "/short-trailer": b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\nX-Trailer: x\r\n",
+            "/chunk-ext": b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2;foo=bar\r\nab\r\n0\r\nX-Trailer: x\r\n\r\n",
+            "/long-header": b"HTTP/1.1 200 OK\r\nX-Long: " + b"x" * 300 + b"\r\n\r\n",
+        }
+        if p in wire:
+            self.close_connection = True
+            # Splitting inside CRLF and chunk sizes exercises the buffered reader.
+            for i in range(0, len(wire[p]), 3):
+                try: self.connection.sendall(wire[p][i:i+3])
+                except (BrokenPipeError, ConnectionResetError): break
+            return
         if p == "/missing": return self.reply(404, b"nf!")
         if p == "/json": return self.reply(200, b'{"temp":21.5,"ok":true}', "application/json")
         if p == "/big": return self.reply(200, b"B" * 70000)
@@ -57,6 +77,13 @@ try { Http.GetString(b + "/missing"); } catch (HttpRequestException e) { Console
 try { Http.Get(b + "/missing").EnsureSuccess(); } catch (HttpRequestException) { Console.WriteLine("EnsureSuccess threw"); }
 Console.WriteLine(Http.GetString(b + "/json"));
 try { Http.Get(b + "/big"); } catch (IOException e) { Console.WriteLine("too big: IOException"); }
+foreach (var path in new string[] { "/empty", "/short-header", "/short-body", "/bad-chunk", "/huge-chunk", "/bad-terminator", "/short-trailer", "/long-header" })
+{
+    try { Http.Get(b + path); Console.WriteLine("BAD accepted " + path); }
+    catch (IOException e) { Console.WriteLine(path + ": " + e.Message); }
+}
+Console.WriteLine("close " + Http.GetString(b + "/close-body"));
+Console.WriteLine("extension " + Http.GetString(b + "/chunk-ext"));
 Console.WriteLine("download " + Http.Download(b + "/big", "/big.bin") + " " + File.ReadAllBytes("/big.bin").Length + " tmp gone " + !File.Exists("/big.bin.tmp"));
 try { Http.Download(b + "/missing", "/m.txt"); } catch (HttpRequestException) { Console.WriteLine("download 404: " + File.Exists("/m.txt") + " " + File.Exists("/m.txt.tmp")); }
 Http.UserAgent = "Greenhouse/2"; Console.WriteLine(Http.GetString(b + "/ua"));
@@ -88,6 +115,16 @@ HttpRequestException HTTP 404 Not Found: http://127.0.0.1:PORT/missing
 EnsureSuccess threw
 {"temp":21.5,"ok":true}
 too big: IOException
+/empty: Http: server closed before sending an HTTP response (try HTTPS or another endpoint)
+/short-header: Http: connection closed while reading response headers
+/short-body: Http: connection closed before the whole body arrived
+/bad-chunk: Http: invalid chunk size
+/huge-chunk: Http: invalid chunk size
+/bad-terminator: Http: invalid chunk terminator
+/short-trailer: Http: connection closed while reading chunk trailers
+/long-header: Http: response headers too long
+close closed-body
+extension ab
 download 70000 70000 tmp gone True
 download 404: False False
 hello /ua ua=Greenhouse/2 key=None

@@ -4,8 +4,11 @@
 # (or `rm sdkconfig` first when the project was configured before)
 CONFIG_BT_ENABLED=y
 CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_CONTROLLER_ENABLED=y
+CONFIG_BT_NIMBLE_EXT_ADV=n
 CONFIG_MICROCS_BLE=y
-CONFIG_BT_NIMBLE_MAX_CONNECTIONS=4
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2
+# matches the smallest supported chip (C2); raise it in NimBLE Options on larger chips
 CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU=247
 # bonds survive a reset (NVS)
 CONFIG_BT_NIMBLE_NVS_PERSIST=y

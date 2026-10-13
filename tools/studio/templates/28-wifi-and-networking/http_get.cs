@@ -1,15 +1,12 @@
-// Http.Get returns an HttpResponse; network errors throw SocketException / TimeoutException
+// A plain HTTP smoke test; no dependency on a JSON / time API.
+// Use your own endpoint or https://example.com/ if your network blocks port 80.
 Wifi.Connect("MicroCS-Lab", "microcs123");
-Http.Timeout = 8000;
+Http.Timeout = 15000;
 try
 {
-    var r = Http.Get("http://worldtimeapi.org/api/timezone/Etc/UTC");
+    var r = Http.Get("http://example.com/");
     Console.WriteLine($"{r.StatusCode} {r.Reason}  {r.ContentType}  {r.Body.Length} bytes");
-    if (r.IsSuccess)
-    {
-        var doc = Json.Parse(r.Body);
-        Console.WriteLine("utc: " + doc["datetime"]);
-    }
+    Console.WriteLine(r.Body);
 }
 catch (IOException e) { Console.WriteLine("network error: " + e.Message); }
 catch (TimeoutException) { Console.WriteLine("timed out"); }

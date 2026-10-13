@@ -1,7 +1,7 @@
 /*
  * MicroCS port for Espressif chips with ESP-IDF 5.x:
  * ESP32, ESP32-S2, ESP32-S3, ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C6, ESP32-H2, ESP32-P4.
- * (Wi-Fi / Bluetooth classes are not part of this port yet.)
+ * (Wi-Fi and Bluetooth LE are available on chips with the corresponding radio.)
  *
  * Use it as an ESP-IDF component: clone the repository into components/MicroCS
  * of your project (the repository root has the CMakeLists.txt), then
@@ -138,8 +138,8 @@ bool mcs_esp32_wifi_autoconnect(const char* ssid, const char* password);
  * first Ble call that needs it (Ble.Enable, StartAdvertising, Scan ...). */
 #if MCS_ENABLE_BLE
 #include "sdkconfig.h"
-#if !CONFIG_BT_NIMBLE_ENABLED
-#error "MCS_ENABLE_BLE on ESP32 needs Bluetooth with the NimBLE host (CONFIG_BT_ENABLED + CONFIG_BT_NIMBLE_ENABLED)"
+#if !CONFIG_SOC_BLE_SUPPORTED || !CONFIG_BT_ENABLED || !CONFIG_BT_NIMBLE_ENABLED || !CONFIG_BT_CONTROLLER_ENABLED
+#error "MCS_ENABLE_BLE on ESP32 needs an onboard BLE radio, Bluetooth, the NimBLE host and controller enabled"
 #endif
 #define MCS_ESP32_BLE 1
 #include "mcs_ble.h"

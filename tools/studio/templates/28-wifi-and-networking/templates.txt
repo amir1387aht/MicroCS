@@ -23,8 +23,8 @@ Hostname, country, TX power, power save, protocols and a fixed IP address.
 [wifi_saved.cs] Saved network (NVS)
 Store credentials in flash once; later scripts just call Wifi.Connect().
 
-[http_get.cs] HTTP GET and JSON
-Fetch a URL, check the status code and pick fields out of a JSON reply.
+[http_get.cs] HTTP GET
+Fetch a web page, print its status and body; use your own HTTP or HTTPS endpoint.
 
 [http_post.cs] HTTP POST JSON
 Send a sensor reading as JSON with custom headers; read the reply.
