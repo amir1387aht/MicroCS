@@ -21,8 +21,12 @@
 #error "MCS_TFT_SPRITE_BYTES must be 1..16777216"
 #endif
 namespace {
+struct sprite_t;
 struct tft_t {
     TFT_eSPI *display;
+    mcs_vm_t *vm;
+    uint64_t serial;
+    sprite_t *sprites;
     bool begun, calibrated;
     int sprite_pin;
     unsigned sprite_count;
@@ -35,9 +39,12 @@ struct tft_t {
 struct sprite_t {
     TFT_eSprite *display;
     tft_t *owner;
+    sprite_t *previous, *next;
     size_t bytes;
 };
 static tft_t *active_tft;
+static uint64_t owner_serial;
+static void sprite_release(mcs_vm_t *vm, sprite_t *s);
 extern const mcs_class_def_t sprite_def;
 extern const mcs_class_def_t tft_def;
 #define NATIVE(n) static mcs_value_t n(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv)
@@ -114,11 +121,19 @@ static void ctor(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv) {
         mcs_raise(vm, "InvalidOperationException", "One MicroCS-owned TFT can be live");
         return;
     }
+    if (owner_serial == UINT64_MAX) {
+        mcs_raise(vm, "InvalidOperationException", "TFT ownership generation exhausted");
+        return;
+    }
     void *memory = mcs_mem_realloc(vm, NULL, 0, sizeof(TFT_eSPI));
     d->display = new (memory) TFT_eSPI();
+    d->vm = vm;
+    d->serial = ++owner_serial;
     active_tft = d;
 }
 static void release(mcs_vm_t *vm, tft_t *d) {
+    while (d->sprites)
+        sprite_release(vm, d->sprites);
     if (!d->display)
         return;
 #if MCS_ENABLE_LVGL
@@ -415,6 +430,13 @@ static void sprite_release(mcs_vm_t *vm, sprite_t *s) {
     }
     if (s->owner) {
         tft_t *d = s->owner;
+        if (s->previous)
+            s->previous->next = s->next;
+        else
+            d->sprites = s->next;
+        if (s->next)
+            s->next->previous = s->previous;
+        s->previous = s->next = NULL;
         d->sprite_bytes -= s->bytes;
         d->sprite_count--;
         if (!d->sprite_count) {
@@ -459,6 +481,10 @@ static void sprite_ctor(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *a
         d->sprite_pin = pin;
     }
     s->owner = d;
+    s->next = d->sprites;
+    if (s->next)
+        s->next->previous = s;
+    d->sprites = s;
     s->bytes = bytes;
     d->sprite_count++;
     d->sprite_bytes += bytes;
@@ -594,6 +620,23 @@ static const mcs_reg_t tft_members[] = {MCS_FN("Begin", tft_begin, 0),
 static const mcs_reg_t tft_statics[] = {MCS_GET("Version", tft_version), MCS_REG_END};
 const mcs_class_def_t tft_def = {"Tft", sizeof(tft_t), ctor, finalizer, tft_members, tft_statics};
 } // namespace
+uint64_t mcs_tft_scope_begin(mcs_vm_t *vm) {
+    (void)vm;
+    return owner_serial;
+}
+int mcs_tft_scope_end(mcs_vm_t *vm, uint64_t checkpoint) {
+    tft_t *d = active_tft;
+    if (!d || d->vm != vm || d->serial == checkpoint)
+        return 0;
+#if MCS_ENABLE_LVGL
+    /* Never leave a live GUI pointing at a freed native driver. The caller must
+     * end its GUI scope first; fail safely without disposing any TFT children. */
+    if (d->pin >= 0 && mcs_lvgl_set_backend(vm, NULL))
+        return -1;
+#endif
+    release(vm, d); // invalidates reachable child wrappers as well as owner
+    return 0;
+}
 void mcs_tft_open_lib(mcs_vm_t *vm) {
     mcs_register_class(vm, &tft_def);
     mcs_register_class(vm, &sprite_def);

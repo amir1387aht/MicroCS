@@ -452,3 +452,38 @@ Next: foreground TFT cleanup (currently only VM teardown/explicit Dispose proven
 then safely adapt upstream palette OOM before exposing depth4; fuller sprite,
 LVGL/assets/fonts/core/Studio/security/roadmap/hardware gates remain unfinished.
 No merge/tag/release/provisioning or irreversible device action.
+
+## Checkpoint 16 — deterministic foreground TFT/sprite scope cleanup
+
+Added monotonic64-bit nonwrapping ownership markers and VM-owner checks; optional
+public C begin/end scopes. Shell run/.run/source/image/boot-file foreground
+execution ends LVGL scope first, then releases a newly created TFT and ALL its
+sprites on normal/error/Stop/OOM outcomes. Reachable wrappers become disposed;
+partially initialized sprites link before panicking allocations, so reservations
+are released before GC. Existing/nested outer/foreign VM owners are preserved.
+TFT scope end returns-1 without disposal when a live GUI uses the backend; shell
+reports an unexpected blocked cleanup rather than pretending success. Ordinary
+REPL, machine exec and deliberate embedding/app-image persistence are preserved.
+Scheduled callbacks cannot retain foreground-owned displays after file return.
+
+Real unchanged generic upstream+VM tests pass131509 checks in EACH normal and
+GC-stress sanitizer/leak variant. Added24 repeated normal/error/Stop scopes,
+nested/preexisting/foreign VM checks, failed constructor scope cleanup before GC,
+actual repeated source and image file shell runs, invalidation/reuse and persistent
+machine exec. Five actual ESP32 Arduino variants (standalone/LVGL8/LVGL9/touch/OFF)
+all cross-link again with artifact/source/pin hashes; firmware contains actual
+live-GUI refusal/post-scope assertions but has NOT been executed on a board.
+Host85 language/source/image/XIP suite, capability/package/config/docs/template
+and arithmetic gates pass; OFF C++ has no symbols/dependencies and non-Arduino
+explicit enable fails clearly. Evidence `evidence/tft-scope16/`; no hardware/full
+API/production security/v2 completion claim. Full earlier checkpoint14 host gates
+remain historical evidence, not an exact-head all-profile claim for new scope code.
+
+Checkpoint14 d3198cbd279bf8ace871c3c74378d7ef5a936e55 has92/92 successful remoteCI
+checks. Predecessor checkpoint15 ec1d8399ef39dc22d272b8e8921696dce4e87c23 was fetched
+and local/remote trees verified; its latest CI snapshot70success/19running/3queued,
+not called green yet. Main stilld3def1ff534c59a6726037ccf31f61535647e857. All local
+scope test jobs completed. Recovery staged patch `/data/backups/v2-checkpoint-16-staged.patch`,
+cumulative binary base patch and NOTES maintained. Next safely bind palettes/1/4
+bit colors (upstream unchecked palette calloc), then fuller sprite/LVGL assets/
+fonts/build routes/core/Studio/security/roadmap/hardware scope. No merge/release.

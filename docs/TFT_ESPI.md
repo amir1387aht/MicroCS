@@ -86,7 +86,8 @@ accepts RGB565 script colors but upstream converts pixels to RGB332; ReadPixel
 returns the resulting quantized RGB565. No silent rounding of unsupported depths.
 One live parent may own up to `MCS_TFT_SPRITE_COUNT` sprites (default16); all share
 **one** parent GC pin, not one pin each. Dispose parent is rejected until children
-are disposed/collected. A surviving child roots the owner; VM teardown finalizes
+are disposed/collected. A surviving child roots the owner during GC (not past explicit foreground scope
+closure); VM teardown finalizes
 newer children before the older parent. Dispose is idempotent, stale calls raise.
 
 `MCS_TFT_SPRITE_BYTES` (default65536) bounds aggregate **requested native pixel
@@ -133,6 +134,35 @@ assertions; source/header parity and cross-link are checked. **Those assertions
 have not been executed on a board**. Host arithmetic sanitizers test only the
 shared allocation calculation. A separate explicit real-library headless RAM
 route is documented below; it does not replace the actual Arduino cross-builds.
+
+## Foreground file lifetime versus persistent REPL/embedding
+
+Shell `run`/interactive `.run` (including source or image files and boot-file
+execution) closes a TFT created **inside that foreground file scope**, together
+with all its sprites, after normal return, exception, allocation panic or Stop.
+Reachable wrappers are invalidated and later calls raise ObjectDisposedException;
+rooting a child does not override explicit foreground closure. A partially
+constructed sprite is linked before panicking allocations, so ending the scope
+can release its reservation without waiting for GC. New runs can own a fresh TFT.
+Scheduled callbacks cannot retain a foreground-owned display after file return;
+create deliberately persistent firmware owners through embedding outside scopes.
+
+Existing owners created before a scope are preserved. Ordinary REPL lines and
+machine `exec` intentionally remain persistent, as do direct embedding/app-image
+lifetimes; dispose explicitly or free the VM. No regression that destroys a Tft
+between `var d = new Tft();` and a later REPL `d.Begin()` line is introduced.
+
+Embedding can call `uint64_t mark = mcs_tft_scope_begin(vm)` before execution and
+`mcs_tft_scope_end(vm, mark)` on **every** result. This generation marker detects
+new owners without comparing possibly recycled allocation addresses. End the
+matching LVGL scope **first**. TFT end returns0 for completed/no-new-owner/foreign
+VM cases; it returns-1 **without disposing the TFT or its children** if a GUI still
+uses its backend. The shell uses GUI-then-TFT ordering and reports an unexpected
+blocked cleanup instead of fake success. Generation exhaustion raises instead
+of wrapping. Tests distinguish repeated source/image file closure, nested and
+preexisting owners, foreign VMs, OOM-before-GC rollback, and persistent exec.
+The real firmware fixture includes live-LVGL refusal and post-scope invalidation
+assertions, but these physical-backend assertions are cross-built, not board-run.
 
 ## LVGL bridge and lifetime
 

@@ -1,5 +1,8 @@
 /* MicroCS - standalone runtime: boot sequence and script management protocol. */
 #include "mcs_shell.h"
+#if MCS_ENABLE_TFT_ESPI
+#include "mcs_tft.h"
+#endif
 #if MCS_ENABLE_LVGL
 #include "mcs_lvgl.h"
 #endif
@@ -82,6 +85,9 @@ int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
 static bool exists(mcs_shell_t* sh, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(sh->vfs, p, &st) && !st.is_dir; }
 
 static mcs_result_t run_file(mcs_shell_t* sh, const char* path) {
+#if MCS_ENABLE_TFT_ESPI
+    uint64_t tft_checkpoint = mcs_tft_scope_begin(sh->vm);
+#endif
 #if MCS_ENABLE_LVGL
     uint32_t gui_checkpoint = mcs_lvgl_scope_begin(sh->vm);
 #endif
@@ -91,6 +97,10 @@ static mcs_result_t run_file(mcs_shell_t* sh, const char* path) {
     mcs_result_t r = mcs_exec_file(sh->vm, sh->vfs, path);
 #if MCS_ENABLE_LVGL
     mcs_lvgl_scope_end(sh->vm, gui_checkpoint);
+#endif
+#if MCS_ENABLE_TFT_ESPI
+    if (mcs_tft_scope_end(sh->vm, tft_checkpoint) && r == MCS_OK)
+        r = mcs_fail(sh->vm, MCS_ERR_RUNTIME, "TFT scope blocked by a live LVGL owner");
 #endif
 #if MCS_ENABLE_NET
     mcs_net_scope_end(sh->vm, checkpoint);

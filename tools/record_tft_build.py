@@ -61,7 +61,7 @@ def main():
             sizes[suffix + '_sha256'] = sha(file)
             sizes[suffix + '_file_bytes'] = file.stat().st_size
         report['environments'][name] = sizes
-    files = ['include/mcs.h', 'include/mcs_config.h', 'include/mcs_capabilities.def', 'src/mcs_vm.c',
+    files = ['include/mcs_tft.h', 'modules/shell/mcs_shell.c', 'include/mcs.h', 'include/mcs_config.h', 'include/mcs_capabilities.def', 'src/mcs_vm.c',
              'ports/arduino/mcs_arduino_tft.cpp', 'tools/pio_build.py', 'library.json',
              'tests/tft/platformio.ini', 'tests/tft/src/main.cpp',
              'tests/tft/src/sprite_contract.h', 'tests/tft/sprite_contract.cs',

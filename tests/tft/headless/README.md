@@ -28,7 +28,10 @@ Native script assertions cover pixels/primitives/compiled GLCD text, invalid
 inputs/depth/bounds, default quota/count, shared parent pin, GC-only parent
 retention, idempotent Dispose and reuse. Native C++ tests additionally check all
 65536 RGB565 words against actual16bit storage and native8bit RGB332 quantization,
-20 undisposed VM teardown cycles, error/Stop teardown, allocation-free capability
+20 undisposed VM teardown cycles, error/Stop teardown, actual foreground
+source/image shell runs,24 repeated normal/error/Stop scopes, nested/preexisting
+and foreign-VM ownership, OOM-before-GC scope rollback, persistent machine exec,
+allocation-free capability
 probes and measured VM allocation balance. A linker calloc fault injector forces
 actual upstream pixel OOM; a VM allocator fault targets the native sprite object
 after reservation, followed by GC/reuse. No native library source is rewritten to
