@@ -29,9 +29,37 @@ requires: Ble, BleUart
 Nordic UART Service: chat with the board from a "Serial Bluetooth Terminal" app.
 
 [central_client.cs] Central: read a sensor
-requires: Ble, Ble.Scan, Ble.Central
+requires: Ble, Ble.Scan, Ble.Central, Ble.Read, Ble.Subscribe
 Finds a heart-rate sensor, connects, reads its battery level and subscribes to its readings.
 
 [pairing.cs] Pairing with a passkey
 requires: Ble, Ble.Server, Ble.Advertise, Ble.Security, Ble.Bonds
 A characteristic that needs an authenticated link: the board shows a passkey, bonds are kept.
+
+[diagnostics.cs] BLE capabilities and settings
+requires: Ble
+Inspects backend roles and readable/writable settings without starting the radio, then applies supported MTU and TX power preferences.
+
+[scan_parameters.cs] Passive scan with duty-cycle settings
+requires: Ble, Ble.Scan, Ble.ScanParameters
+Sets a 25% scan duty cycle, watches passive duplicate reports for five seconds and stops cleanly. ArduinoBLE does not expose scan timing.
+
+[manufacturer_data.cs] Manufacturer and service-data advertising
+requires: Ble, Ble.Advertise
+Builds a non-connectable advertisement with manufacturer bytes and battery service data. Replace the demo company ID with your assigned ID for production.
+
+[device_info.cs] Device information and custom descriptors
+requires: Ble, Ble.Server, Ble.Advertise
+Standard manufacturer/model characteristics plus a readable, writable custom value with a user-description descriptor. Inspect and write from nRF Connect.
+
+[gatt_explorer.cs] Central: discover services and descriptors
+requires: Ble, Ble.Scan, Ble.Central, Ble.Read, BitConverter
+Connects to the first heart-rate advertiser and lists services, characteristics and readable values. Change the service UUID to inspect your own peripheral.
+
+[connection_options.cs] Central: connection timing and RSSI
+requires: Ble, Ble.Scan, Ble.Central, Ble.Parameters, Ble.Rssi
+Requests 30–50 ms connection intervals with a four-second supervision timeout and prints RSSI. Parameter changes are requests; the peer may reject them.
+
+[bond_management.cs] Inspect stored BLE bonds
+requires: Ble, Ble.Bonds
+Lists bonded peer addresses without deleting anything. Set FORGET_ALL explicitly only when you intend to erase every saved pairing key.

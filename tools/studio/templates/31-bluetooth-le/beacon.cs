@@ -5,6 +5,7 @@ if (!Hal.Has("Ble") || !Hal.Has("Ble.Advertise"))
     Console.WriteLine("This firmware lacks: Ble, Ble.Advertise. Enable the needed modules or use a supported board.");
     return;
 }
+Ble.Reset();
 var ibeacon = BleAdvertisement.IBeacon("E2C56DB5-DFFB-48D2-B060-D0F5A71096E0", 1, 42);
 var eddystone = BleAdvertisement.EddystoneUrl("https://github.com"); // the encoded URL must fit 17 bytes
 ibeacon.Interval = 200;

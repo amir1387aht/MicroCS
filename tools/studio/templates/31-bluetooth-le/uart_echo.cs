@@ -5,6 +5,7 @@ if (!Hal.Has("Ble") || !Hal.Has("BleUart"))
     Console.WriteLine("This firmware lacks: Ble, BleUart. Enable the needed modules or use a supported board.");
     return;
 }
+Ble.Reset();
 var uart = new BleUart("MicroCS-UART");
 bool led = false;
 uart.OnReceive(text => {
