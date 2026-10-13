@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: lexer-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -358,3 +358,10 @@ bench-v2-test: build/bench_v2
 bench-v2:
 	python3 bench/v2/run.py --cc "$(CC)" --out build/v2-evidence-$$(date -u +%Y%m%dT%H%M%SZ)
 .PHONY: bench-v2 bench-v2-test
+
+# Keyword lookup must preserve every token enum and identifier near miss.
+build/test_lexer_keywords: tests/c/test_lexer_keywords.c $(OBJ)
+	$(CC) $(CFLAGS) -Isrc $(OBJ) $< -o $@ $(LDLIBS)
+lexer-test: build/test_lexer_keywords
+	./build/test_lexer_keywords
+.PHONY: lexer-test

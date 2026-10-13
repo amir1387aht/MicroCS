@@ -21,6 +21,7 @@ harness rather than publishing performance evidence.
 
 ## Workloads and checked outputs
 
+- `compiler`: 1200 repeated assignments, output 1200; compile-heavy fixture.
 - `calls`: fib(18) = 2584, recursive calls/dispatch.
 - `dispatch`: sum(i % 7, i=0..99999), integer loop/modulo.
 - `collections`: 200 Point instances in a List, method calls and iteration;

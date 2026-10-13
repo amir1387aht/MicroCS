@@ -41,24 +41,30 @@ void mcs_front_error(front_ctx_t* ctx, uint32_t line, uint32_t col, const char* 
 /* keyword length is stored so identifiers are rejected without strlen() */
 #define KW(w, t) { w, (uint8_t)(sizeof(w) - 1), t }
 static const struct { const char* s; uint8_t n; uint16_t t; } kw[] = {
-    KW("abstract", TK_ABSTRACT), KW("as", TK_AS), KW("base", TK_BASE), KW("bool", TK_BOOL), KW("break", TK_BREAK),
-    KW("byte", TK_BYTE), KW("case", TK_CASE), KW("catch", TK_CATCH), KW("char", TK_KCHAR), KW("class", TK_CLASS),
-    KW("const", TK_CONST), KW("continue", TK_CONTINUE), KW("decimal", TK_DECIMAL), KW("default", TK_DEFAULT),
-    KW("delegate", TK_DELEGATE), KW("do", TK_DO), KW("double", TK_DOUBLE), KW("else", TK_ELSE), KW("enum", TK_ENUM),
-    KW("event", TK_EVENT), KW("false", TK_FALSE), KW("finally", TK_FINALLY), KW("float", TK_KFLOAT), KW("for", TK_FOR),
-    KW("foreach", TK_FOREACH), KW("if", TK_IF), KW("in", TK_IN), KW("int", TK_KINT), KW("interface", TK_INTERFACE),
-    KW("internal", TK_INTERNAL), KW("is", TK_IS), KW("long", TK_LONG), KW("namespace", TK_NAMESPACE), KW("new", TK_NEW),
-    KW("null", TK_NULL), KW("object", TK_OBJECT), KW("operator", TK_OPERATOR), KW("out", TK_OUT), KW("override", TK_OVERRIDE),
-    KW("params", TK_PARAMS), KW("private", TK_PRIVATE), KW("protected", TK_PROTECTED), KW("public", TK_PUBLIC),
-    KW("readonly", TK_READONLY), KW("ref", TK_REF), KW("return", TK_RETURN), KW("sbyte", TK_SBYTE), KW("sealed", TK_SEALED),
-    KW("short", TK_SHORT), KW("static", TK_STATIC), KW("string", TK_KSTRING), KW("struct", TK_STRUCT), KW("switch", TK_SWITCH),
-    KW("this", TK_THIS), KW("throw", TK_THROW), KW("true", TK_TRUE), KW("try", TK_TRY), KW("typeof", TK_TYPEOF),
-    KW("uint", TK_UINT), KW("ulong", TK_ULONG), KW("ushort", TK_USHORT), KW("using", TK_USING), KW("virtual", TK_VIRTUAL),
-    KW("void", TK_VOID), KW("while", TK_WHILE), KW("extern", TK_EXTERN), KW("unsafe", TK_UNSAFE), KW("volatile", TK_VOLATILE),
-    KW("implicit", TK_IMPLICIT), KW("explicit", TK_EXPLICIT), KW("sizeof", TK_SIZEOF), KW("lock", TK_LOCK),
-    KW("goto", TK_GOTO), KW("checked", TK_CHECKED), KW("unchecked", TK_UNCHECKED), KW("fixed", TK_FIXED),
-    {NULL, 0, 0}
+    KW("abstract", TK_ABSTRACT), KW("as", TK_AS), KW("base", TK_BASE), KW("bool", TK_BOOL),
+    KW("break", TK_BREAK), KW("byte", TK_BYTE), KW("case", TK_CASE), KW("catch", TK_CATCH),
+    KW("char", TK_KCHAR), KW("checked", TK_CHECKED), KW("class", TK_CLASS), KW("const", TK_CONST),
+    KW("continue", TK_CONTINUE), KW("decimal", TK_DECIMAL), KW("default", TK_DEFAULT), KW("delegate", TK_DELEGATE),
+    KW("do", TK_DO), KW("double", TK_DOUBLE), KW("else", TK_ELSE), KW("enum", TK_ENUM),
+    KW("event", TK_EVENT), KW("explicit", TK_EXPLICIT), KW("extern", TK_EXTERN), KW("false", TK_FALSE),
+    KW("finally", TK_FINALLY), KW("fixed", TK_FIXED), KW("float", TK_KFLOAT), KW("for", TK_FOR),
+    KW("foreach", TK_FOREACH), KW("goto", TK_GOTO), KW("if", TK_IF), KW("implicit", TK_IMPLICIT),
+    KW("in", TK_IN), KW("int", TK_KINT), KW("interface", TK_INTERFACE), KW("internal", TK_INTERNAL),
+    KW("is", TK_IS), KW("lock", TK_LOCK), KW("long", TK_LONG), KW("namespace", TK_NAMESPACE),
+    KW("new", TK_NEW), KW("null", TK_NULL), KW("object", TK_OBJECT), KW("operator", TK_OPERATOR),
+    KW("out", TK_OUT), KW("override", TK_OVERRIDE), KW("params", TK_PARAMS), KW("private", TK_PRIVATE),
+    KW("protected", TK_PROTECTED), KW("public", TK_PUBLIC), KW("readonly", TK_READONLY), KW("ref", TK_REF),
+    KW("return", TK_RETURN), KW("sbyte", TK_SBYTE), KW("sealed", TK_SEALED), KW("short", TK_SHORT),
+    KW("sizeof", TK_SIZEOF), KW("static", TK_STATIC), KW("string", TK_KSTRING), KW("struct", TK_STRUCT),
+    KW("switch", TK_SWITCH), KW("this", TK_THIS), KW("throw", TK_THROW), KW("true", TK_TRUE),
+    KW("try", TK_TRY), KW("typeof", TK_TYPEOF), KW("uint", TK_UINT), KW("ulong", TK_ULONG),
+    KW("unchecked", TK_UNCHECKED), KW("unsafe", TK_UNSAFE), KW("ushort", TK_USHORT), KW("using", TK_USING),
+    KW("virtual", TK_VIRTUAL), KW("void", TK_VOID), KW("volatile", TK_VOLATILE), KW("while", TK_WHILE),
 };
+/* Sorted by first byte: 27 byte-sized boundaries replace a full table walk.
+ * tests/c/test_lexer_keywords.c covers every enum entry, escapes and near misses. */
+static const uint8_t kw_begin[27] = { 0, 2, 6, 13, 18, 23, 29, 30, 30, 37, 37, 37, 39, 39, 42, 46, 50, 50, 53, 61, 66, 72, 75, 76, 76, 76, 76 };
+typedef char mcs_kw_count_fits_u8[(sizeof kw / sizeof kw[0] < 256) ? 1 : -1];
 
 typedef struct {
     front_ctx_t* ctx;
@@ -276,8 +282,11 @@ bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, tokl
             while (L.p < L.end && is_ident((uint8_t)*L.p)) L.p++;
             size_t n = (size_t)(L.p - s);
             uint16_t type = TK_IDENT;
-            if (!at && n >= 2 && n <= 9 && *s >= 'a' && *s <= 'z')
-                for (int i = 0; kw[i].s; i++) if (kw[i].n == n && kw[i].s[0] == *s && memcmp(kw[i].s, s, n) == 0) { type = kw[i].t; break; }
+            if (!at && n >= 2 && n <= 9 && *s >= 'a' && *s <= 'z') {
+                unsigned group = (unsigned)(*s - 'a');
+                for (unsigned i = kw_begin[group]; i < kw_begin[group + 1]; i++)
+                    if (kw[i].n == n && memcmp(kw[i].s, s, n) == 0) { type = kw[i].t; break; }
+            }
             push_tok(&L, type, s, n);
             continue;
         }

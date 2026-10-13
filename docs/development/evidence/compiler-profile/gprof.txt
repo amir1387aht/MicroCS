@@ -1,0 +1,729 @@
+Flat profile:
+
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total
+ time   seconds   seconds    calls  us/call  us/call  name
+ 16.67      0.05     0.05     1000    50.00    50.00  mcs_lex
+ 13.33      0.09     0.04 10818000     0.00     0.00  mcs_fn_emit
+ 10.00      0.12     0.03  1203000     0.02     0.03  compile_expr
+ 10.00      0.15     0.03  1202000     0.02     0.02  has_pattern
+ 10.00      0.18     0.03                             _init
+  6.67      0.20     0.02  1202000     0.02     0.02  resolve
+  3.33      0.21     0.01  9635000     0.00     0.00  mcs_buf_putc
+  3.33      0.22     0.01  9616000     0.00     0.00  mcs_insn_len
+  3.33      0.23     0.01  2404000     0.00     0.01  emit_u16
+  3.33      0.24     0.01  1202000     0.01     0.01  mcs_prim_of
+  3.33      0.25     0.01  1202000     0.01     0.02  parse_stmt
+  3.33      0.26     0.01  1201000     0.01     0.01  compile_expr_stmt
+  3.33      0.27     0.01  1200000     0.01     0.02  prepare_target
+  3.33      0.28     0.01  1200000     0.01     0.01  target_get
+  3.33      0.29     0.01  1200000     0.01     0.01  target_set
+  3.33      0.30     0.01     1000    10.00    24.99  write_fn
+  0.00      0.30     0.00  6014000     0.00     0.00  arena_alloc
+  0.00      0.30     0.00  4813000     0.00     0.00  push_tok
+  0.00      0.30     0.00  4806000     0.00     0.00  map_global
+  0.00      0.30     0.00  2411000     0.00     0.00  mcs_buf_putn
+  0.00      0.30     0.00  2403000     0.00     0.00  parse_binary
+  0.00      0.30     0.00  2403000     0.00     0.00  parse_coalesce
+  0.00      0.30     0.00  2403000     0.00     0.00  parse_primary
+  0.00      0.30     0.00  2403000     0.00     0.00  parse_ternary
+  0.00      0.30     0.00  2403000     0.00     0.00  parse_unary
+  0.00      0.30     0.00  1217000     0.00     0.00  mcs_intern
+  0.00      0.30     0.00  1217000     0.00     0.00  strset_find
+  0.00      0.30     0.00  1204000     0.00     0.00  expect
+  0.00      0.30     0.00  1203000     0.00     0.00  fold
+  0.00      0.30     0.00  1203000     0.00     0.00  is_prim_kw
+  0.00      0.30     0.00  1203000     0.00     0.00  mcs_global_slot
+  0.00      0.30     0.00  1203000     0.00     0.00  parse_expr
+  0.00      0.30     0.00  1202000     0.00     0.02  compile_stmt
+  0.00      0.30     0.00  1202000     0.00     0.01  decl_type_ahead.constprop.0
+  0.00      0.30     0.00  1202000     0.00     0.00  parse_modifiers
+  0.00      0.30     0.00  1202000     0.00     0.01  parse_type
+  0.00      0.30     0.00  1202000     0.00     0.00  resolve_upvalue
+  0.00      0.30     0.00  1202000     0.00     0.00  skip_attributes
+  0.00      0.30     0.00  1201000     0.00     0.00  emit_invoke
+  0.00      0.30     0.00  1201000     0.00     0.00  emit_store_conv
+  0.00      0.30     0.00  1201000     0.00     0.00  emit_value
+  0.00      0.30     0.00  1201000     0.00     0.00  lex_number
+  0.00      0.30     0.00  1200000     0.00     0.00  arith_pt
+  0.00      0.30     0.00  1200000     0.00     0.00  binop_code
+  0.00      0.30     0.00  1200000     0.00     0.11  compile_assign
+  0.00      0.30     0.00   209000     0.00     0.00  mcs_realloc
+  0.00      0.30     0.00    17000     0.00     0.00  free_obj
+  0.00      0.30     0.00    13000     0.00     0.00  mcs_intern_c
+  0.00      0.30     0.00     5000     0.00     0.00  wstr
+  0.00      0.30     0.00     3000     0.00     0.00  default_for
+  0.00      0.30     0.00     2000     0.00     0.00  mcs_sys_realloc
+  0.00      0.30     0.00     2000     0.00     0.00  strset_resize
+  0.00      0.30     0.00     1000     0.00     0.00  arena_free
+  0.00      0.30     0.00     1000     0.00     0.00  compile_args
+  0.00      0.30     0.00     1000     0.00     0.05  compile_var
+  0.00      0.30     0.00     1000     0.00     0.00  declare_local
+  0.00      0.30     0.00     1000     0.00     0.00  emit_out_writeback
+  0.00      0.30     0.00     1000     0.00     0.00  hook_tick
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_buf_free
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_buf_init
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_buf_puts
+  0.00      0.30     0.00     1000     0.00   240.00  mcs_compile
+  0.00      0.30     0.00     1000     0.00   270.00  mcs_compile_image_ex
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_config_default
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_fn_add_const
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_free
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_free_image
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_free_objects
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_lazy_free
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_new
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_new_function
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_open_libs
+  0.00      0.30     0.00     1000     0.00    70.00  mcs_parse
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_strset_free
+  0.00      0.30     0.00     1000     0.00     0.00  mcs_table_free
+  0.00      0.30     0.00     1000     0.00     0.00  parse_array_lit
+  0.00      0.30     0.00     1000     0.00    20.00  parse_namespace_members
+  0.00      0.30     0.00     1000     0.00     0.00  parse_var_decls
+  0.00      0.30     0.00     1000     0.00     0.00  pre_gvar
+  0.00      0.30     0.00     1000     0.00     5.00  scan_globals
+  0.00      0.30     0.00     1000     0.00     0.00  tuple_relabel
+
+ %         the percentage of the total running time of the
+time       program used by this function.
+
+cumulative a running sum of the number of seconds accounted
+ seconds   for by this function and those listed above it.
+
+ self      the number of seconds accounted for by this
+seconds    function alone.  This is the major sort for this
+           listing.
+
+calls      the number of times this function was invoked, if
+           this function is profiled, else blank.
+
+ self      the average number of milliseconds spent in this
+ms/call    function per call, if this function is profiled,
+	   else blank.
+
+ total     the average number of milliseconds spent in this
+ms/call    function and its descendents per call, if this
+	   function is profiled, else blank.
+
+name       the name of the function.  This is the minor sort
+           for this listing. The index shows the location of
+	   the function in the gprof listing. If the index is
+	   in parenthesis it shows where it would appear in
+	   the gprof listing if it were to be printed.
+
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+
+		     Call graph (explanation follows)
+
+
+granularity: each sample hit covers 4 byte(s) for 3.33% of 0.30 seconds
+
+index % time    self  children    called     name
+                0.00    0.27    1000/1000        main [2]
+[1]     90.0    0.00    0.27    1000         mcs_compile_image_ex [1]
+                0.00    0.24    1000/1000        mcs_compile [3]
+                0.01    0.01    1000/1000        write_fn [14]
+                0.00    0.01    1000/1000        scan_globals [27]
+                0.00    0.00    5000/9635000     mcs_buf_putc [22]
+                0.00    0.00    2000/5000        wstr [31]
+                0.00    0.00    5000/209000      mcs_realloc [56]
+                0.00    0.00    1000/1000        mcs_buf_init [68]
+                0.00    0.00    1000/2411000     mcs_buf_putn [36]
+                0.00    0.00    1000/1000        mcs_buf_puts [69]
+                0.00    0.00    1000/1000        mcs_buf_free [67]
+-----------------------------------------------
+                                                 <spontaneous>
+[2]     90.0    0.00    0.27                 main [2]
+                0.00    0.27    1000/1000        mcs_compile_image_ex [1]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+                0.00    0.00    1000/1000        mcs_free_image [73]
+                0.00    0.00    1000/2000        mcs_sys_realloc [60]
+                0.00    0.00    1000/1000        hook_tick [66]
+                0.00    0.00    1000/1000        mcs_free [72]
+                0.00    0.00    1000/1000        mcs_config_default [70]
+                0.00    0.00    1000/1000        mcs_new [76]
+-----------------------------------------------
+                0.00    0.24    1000/1000        mcs_compile_image_ex [1]
+[3]     80.0    0.00    0.24    1000         mcs_compile [3]
+                0.00    0.13 1200000/1200000     compile_assign [4]
+                0.00    0.07    1000/1000        mcs_parse [5]
+                0.00    0.03 1202000/1202000     compile_stmt [10]
+                0.01    0.00 1201000/1201000     compile_expr_stmt [21]
+                0.00    0.00    1000/1000        compile_var [29]
+                0.00    0.00    3000/10818000     mcs_fn_emit [7]
+                0.00    0.00    3000/6014000     arena_alloc [33]
+                0.00    0.00    2000/1217000     mcs_intern [42]
+                0.00    0.00    2000/13000       mcs_intern_c [58]
+                0.00    0.00    1000/1000        arena_free [62]
+                0.00    0.00    1000/1000        mcs_new_function [77]
+                0.00    0.00    1000/1000        declare_local [64]
+                0.00    0.00    1000/1000        pre_gvar [83]
+-----------------------------------------------
+                0.00    0.13 1200000/1200000     mcs_compile [3]
+[4]     43.3    0.00    0.13 1200000         compile_assign [4]
+                0.03    0.01 1200000/1202000     compile_expr <cycle 1> [9]
+                0.01    0.02 1200000/1200000     prepare_target [13]
+                0.01    0.01 2400000/2404000     emit_u16 [18]
+                0.01    0.00 1200000/1200000     target_get [19]
+                0.01    0.00 1200000/1200000     target_set [20]
+                0.01    0.00 3600000/10818000     mcs_fn_emit [7]
+                0.00    0.00 1200000/1201000     emit_invoke [30]
+                0.00    0.00 1200000/1200000     binop_code [55]
+                0.00    0.00 1200000/1200000     arith_pt [54]
+                0.00    0.00 1200000/1201000     emit_store_conv [52]
+-----------------------------------------------
+                0.00    0.07    1000/1000        mcs_compile [3]
+[5]     23.3    0.00    0.07    1000         mcs_parse [5]
+                0.05    0.00    1000/1000        mcs_lex [6]
+                0.00    0.02    1000/1000        parse_namespace_members [17]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.05    0.00    1000/1000        mcs_parse [5]
+[6]     16.7    0.05    0.00    1000         mcs_lex [6]
+                0.00    0.00 3612000/4813000     push_tok [34]
+                0.00    0.00 1201000/1201000     lex_number [53]
+-----------------------------------------------
+                0.00    0.00    2000/10818000     emit_invoke [30]
+                0.00    0.00    2000/10818000     compile_var [29]
+                0.00    0.00    3000/10818000     mcs_compile [3]
+                0.00    0.00 1200000/10818000     target_set [20]
+                0.00    0.00 1200000/10818000     target_get [19]
+                0.00    0.00 1201000/10818000     emit_value [28]
+                0.00    0.00 1206000/10818000     compile_expr <cycle 1> [9]
+                0.01    0.00 2404000/10818000     emit_u16 [18]
+                0.01    0.00 3600000/10818000     compile_assign [4]
+[7]     13.3    0.04    0.00 10818000         mcs_fn_emit [7]
+                0.00    0.00   20000/209000      mcs_realloc [56]
+-----------------------------------------------
+[8]     13.0    0.03    0.01 1202000+2000    <cycle 1 as a whole> [8]
+                0.03    0.01 1203000+1000        compile_expr <cycle 1> [9]
+                0.00    0.00    1000             compile_args <cycle 1> [63]
+-----------------------------------------------
+                                1000             compile_expr <cycle 1> [9]
+                                1000             compile_args <cycle 1> [63]
+                0.00    0.00    1000/1202000     compile_var [29]
+                0.00    0.00    1000/1202000     compile_expr_stmt [21]
+                0.03    0.01 1200000/1202000     compile_assign [4]
+[9]     13.0    0.03    0.01 1203000+1000    compile_expr <cycle 1> [9]
+                0.00    0.00 1206000/10818000     mcs_fn_emit [7]
+                0.00    0.00 1201000/1201000     emit_value [28]
+                0.00    0.00    2000/1202000     resolve [16]
+                0.00    0.00    2000/2404000     emit_u16 [18]
+                0.00    0.00    1000/1201000     emit_invoke [30]
+                0.00    0.00 1203000/1203000     fold [45]
+                0.00    0.00    1000/1000        emit_out_writeback [65]
+                0.00    0.00    1000/3000        default_for [59]
+                                1000             compile_args <cycle 1> [63]
+                                1000             compile_expr <cycle 1> [9]
+-----------------------------------------------
+                0.00    0.03 1202000/1202000     mcs_compile [3]
+[10]    10.0    0.00    0.03 1202000         compile_stmt [10]
+                0.03    0.00 1202000/1202000     has_pattern [11]
+-----------------------------------------------
+                             14420000             has_pattern [11]
+                0.03    0.00 1202000/1202000     compile_stmt [10]
+[11]    10.0    0.03    0.00 1202000+14420000 has_pattern [11]
+                             14420000             has_pattern [11]
+-----------------------------------------------
+                                                 <spontaneous>
+[12]    10.0    0.03    0.00                 _init [12]
+-----------------------------------------------
+                0.01    0.02 1200000/1200000     compile_assign [4]
+[13]    10.0    0.01    0.02 1200000         prepare_target [13]
+                0.02    0.00 1200000/1202000     resolve [16]
+-----------------------------------------------
+                0.01    0.01    1000/1000        mcs_compile_image_ex [1]
+[14]     8.3    0.01    0.01    1000         write_fn [14]
+                0.01    0.00 9625000/9635000     mcs_buf_putc [22]
+                0.01    0.00 4808000/9616000     mcs_insn_len [23]
+                0.00    0.00    3000/5000        wstr [31]
+                0.00    0.00 2405000/2411000     mcs_buf_putn [36]
+                0.00    0.00 2403000/4806000     map_global [35]
+-----------------------------------------------
+                0.01    0.01 1202000/1202000     parse_namespace_members [17]
+[15]     6.7    0.01    0.01 1202000         parse_stmt [15]
+                0.00    0.01 1202000/1202000     decl_type_ahead.constprop.0 [24]
+                0.00    0.00 1201000/6014000     arena_alloc [33]
+                0.00    0.00 1201000/1202000     parse_expr <cycle 2> [48]
+                0.00    0.00 1201000/1204000     expect [44]
+-----------------------------------------------
+                0.00    0.00    2000/1202000     compile_expr <cycle 1> [9]
+                0.02    0.00 1200000/1202000     prepare_target [13]
+[16]     6.7    0.02    0.00 1202000         resolve [16]
+                0.00    0.00 1202000/1202000     resolve_upvalue [50]
+                0.00    0.00 1202000/1217000     mcs_intern [42]
+                0.00    0.00 1202000/1203000     mcs_global_slot [47]
+-----------------------------------------------
+                0.00    0.02    1000/1000        mcs_parse [5]
+[17]     6.7    0.00    0.02    1000         parse_namespace_members [17]
+                0.01    0.01 1202000/1202000     parse_stmt [15]
+                0.00    0.00 1202000/1202000     parse_modifiers [49]
+                0.00    0.00 1202000/1202000     skip_attributes [51]
+                0.00    0.00    1000/1000        parse_var_decls [82]
+-----------------------------------------------
+                0.00    0.00    1000/2404000     emit_invoke [30]
+                0.00    0.00    1000/2404000     compile_var [29]
+                0.00    0.00    2000/2404000     compile_expr <cycle 1> [9]
+                0.01    0.01 2400000/2404000     compile_assign [4]
+[18]     6.3    0.01    0.01 2404000         emit_u16 [18]
+                0.01    0.00 2404000/10818000     mcs_fn_emit [7]
+-----------------------------------------------
+                0.01    0.00 1200000/1200000     compile_assign [4]
+[19]     4.8    0.01    0.00 1200000         target_get [19]
+                0.00    0.00 1200000/10818000     mcs_fn_emit [7]
+-----------------------------------------------
+                0.01    0.00 1200000/1200000     compile_assign [4]
+[20]     4.8    0.01    0.00 1200000         target_set [20]
+                0.00    0.00 1200000/10818000     mcs_fn_emit [7]
+-----------------------------------------------
+                0.01    0.00 1201000/1201000     mcs_compile [3]
+[21]     3.3    0.01    0.00 1201000         compile_expr_stmt [21]
+                0.00    0.00    1000/1202000     compile_expr <cycle 1> [9]
+-----------------------------------------------
+                0.00    0.00    5000/9635000     wstr [31]
+                0.00    0.00    5000/9635000     mcs_compile_image_ex [1]
+                0.01    0.00 9625000/9635000     write_fn [14]
+[22]     3.3    0.01    0.00 9635000         mcs_buf_putc [22]
+                0.00    0.00    5000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.01    0.00 4808000/9616000     scan_globals [27]
+                0.01    0.00 4808000/9616000     write_fn [14]
+[23]     3.3    0.01    0.00 9616000         mcs_insn_len [23]
+-----------------------------------------------
+                0.00    0.01 1202000/1202000     parse_stmt [15]
+[24]     3.3    0.00    0.01 1202000         decl_type_ahead.constprop.0 [24]
+                0.00    0.01 1202000/1202000     parse_type [26]
+                0.00    0.00    1000/1203000     is_prim_kw [46]
+-----------------------------------------------
+                0.01    0.00 1202000/1202000     parse_type [26]
+[25]     3.3    0.01    0.00 1202000         mcs_prim_of [25]
+-----------------------------------------------
+                0.00    0.01 1202000/1202000     decl_type_ahead.constprop.0 [24]
+[26]     3.3    0.00    0.01 1202000         parse_type [26]
+                0.01    0.00 1202000/1202000     mcs_prim_of [25]
+                0.00    0.00 1202000/1203000     is_prim_kw [46]
+                0.00    0.00 1202000/6014000     arena_alloc [33]
+-----------------------------------------------
+                0.00    0.01    1000/1000        mcs_compile_image_ex [1]
+[27]     1.7    0.00    0.01    1000         scan_globals [27]
+                0.01    0.00 4808000/9616000     mcs_insn_len [23]
+                0.00    0.00 2403000/4806000     map_global [35]
+-----------------------------------------------
+                0.00    0.00 1201000/1201000     compile_expr <cycle 1> [9]
+[28]     1.5    0.00    0.00 1201000         emit_value [28]
+                0.00    0.00 1201000/10818000     mcs_fn_emit [7]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile [3]
+[29]     0.0    0.00    0.00    1000         compile_var [29]
+                0.00    0.00    1000/1202000     compile_expr <cycle 1> [9]
+                0.00    0.00    1000/2404000     emit_u16 [18]
+                0.00    0.00    2000/10818000     mcs_fn_emit [7]
+                0.00    0.00    1000/6014000     arena_alloc [33]
+                0.00    0.00    1000/1217000     mcs_intern [42]
+                0.00    0.00    1000/1203000     mcs_global_slot [47]
+                0.00    0.00    1000/1201000     emit_store_conv [52]
+-----------------------------------------------
+                0.00    0.00    1000/1201000     compile_expr <cycle 1> [9]
+                0.00    0.00 1200000/1201000     compile_assign [4]
+[30]     0.0    0.00    0.00 1201000         emit_invoke [30]
+                0.00    0.00    1000/2404000     emit_u16 [18]
+                0.00    0.00    2000/10818000     mcs_fn_emit [7]
+                0.00    0.00    1000/1217000     mcs_intern [42]
+                0.00    0.00    1000/1000        mcs_fn_add_const [71]
+-----------------------------------------------
+                0.00    0.00    2000/5000        mcs_compile_image_ex [1]
+                0.00    0.00    3000/5000        write_fn [14]
+[31]     0.0    0.00    0.00    5000         wstr [31]
+                0.00    0.00    5000/9635000     mcs_buf_putc [22]
+                0.00    0.00    5000/2411000     mcs_buf_putn [36]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+[32]     0.0    0.00    0.00 1202000+9614000 <cycle 2 as a whole> [32]
+                0.00    0.00 1203000+1200000     parse_expr <cycle 2> [48]
+                0.00    0.00 2403000             parse_ternary <cycle 2> [40]
+                0.00    0.00 2403000             parse_coalesce <cycle 2> [38]
+                0.00    0.00 2403000             parse_binary <cycle 2> [37]
+                0.00    0.00 2403000             parse_unary <cycle 2> [41]
+                0.00    0.00    1000             parse_array_lit <cycle 2> [81]
+-----------------------------------------------
+                0.00    0.00    1000/6014000     pre_gvar [83]
+                0.00    0.00    1000/6014000     compile_var [29]
+                0.00    0.00    1000/6014000     parse_var_decls [82]
+                0.00    0.00    2000/6014000     parse_unary <cycle 2> [41]
+                0.00    0.00    3000/6014000     mcs_compile [3]
+                0.00    0.00 1200000/6014000     parse_expr <cycle 2> [48]
+                0.00    0.00 1201000/6014000     parse_stmt [15]
+                0.00    0.00 1202000/6014000     parse_type [26]
+                0.00    0.00 2403000/6014000     parse_primary [39]
+[33]     0.0    0.00    0.00 6014000         arena_alloc [33]
+                0.00    0.00   58000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00 1201000/4813000     lex_number [53]
+                0.00    0.00 3612000/4813000     mcs_lex [6]
+[34]     0.0    0.00    0.00 4813000         push_tok [34]
+                0.00    0.00    2000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00 2403000/4806000     scan_globals [27]
+                0.00    0.00 2403000/4806000     write_fn [14]
+[35]     0.0    0.00    0.00 4806000         map_global [35]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/2411000     mcs_compile_image_ex [1]
+                0.00    0.00    5000/2411000     wstr [31]
+                0.00    0.00 2405000/2411000     write_fn [14]
+[36]     0.0    0.00    0.00 2411000         mcs_buf_putn [36]
+                0.00    0.00    5000/209000      mcs_realloc [56]
+-----------------------------------------------
+                             2403000             parse_coalesce <cycle 2> [38]
+[37]     0.0    0.00    0.00 2403000         parse_binary <cycle 2> [37]
+                             2403000             parse_unary <cycle 2> [41]
+-----------------------------------------------
+                             2403000             parse_ternary <cycle 2> [40]
+[38]     0.0    0.00    0.00 2403000         parse_coalesce <cycle 2> [38]
+                             2403000             parse_binary <cycle 2> [37]
+-----------------------------------------------
+                0.00    0.00 2403000/2403000     parse_unary <cycle 2> [41]
+[39]     0.0    0.00    0.00 2403000         parse_primary [39]
+                0.00    0.00 2403000/6014000     arena_alloc [33]
+-----------------------------------------------
+                             2403000             parse_expr <cycle 2> [48]
+[40]     0.0    0.00    0.00 2403000         parse_ternary <cycle 2> [40]
+                             2403000             parse_coalesce <cycle 2> [38]
+-----------------------------------------------
+                             2403000             parse_binary <cycle 2> [37]
+[41]     0.0    0.00    0.00 2403000         parse_unary <cycle 2> [41]
+                0.00    0.00 2403000/2403000     parse_primary [39]
+                0.00    0.00    2000/6014000     arena_alloc [33]
+                                1000             parse_array_lit <cycle 2> [81]
+-----------------------------------------------
+                0.00    0.00    1000/1217000     emit_invoke [30]
+                0.00    0.00    1000/1217000     compile_var [29]
+                0.00    0.00    2000/1217000     mcs_compile [3]
+                0.00    0.00   11000/1217000     mcs_new [76]
+                0.00    0.00 1202000/1217000     resolve [16]
+[42]     0.0    0.00    0.00 1217000         mcs_intern [42]
+                0.00    0.00 1217000/1217000     strset_find [43]
+                0.00    0.00   16000/209000      mcs_realloc [56]
+                0.00    0.00    2000/2000        strset_resize [61]
+-----------------------------------------------
+                0.00    0.00 1217000/1217000     mcs_intern [42]
+[43]     0.0    0.00    0.00 1217000         strset_find [43]
+-----------------------------------------------
+                0.00    0.00    1000/1204000     parse_array_lit <cycle 2> [81]
+                0.00    0.00    2000/1204000     parse_var_decls [82]
+                0.00    0.00 1201000/1204000     parse_stmt [15]
+[44]     0.0    0.00    0.00 1204000         expect [44]
+-----------------------------------------------
+                0.00    0.00 1203000/1203000     compile_expr <cycle 1> [9]
+[45]     0.0    0.00    0.00 1203000         fold [45]
+                0.00    0.00    2000/3000        default_for [59]
+-----------------------------------------------
+                0.00    0.00    1000/1203000     decl_type_ahead.constprop.0 [24]
+                0.00    0.00 1202000/1203000     parse_type [26]
+[46]     0.0    0.00    0.00 1203000         is_prim_kw [46]
+-----------------------------------------------
+                0.00    0.00    1000/1203000     compile_var [29]
+                0.00    0.00 1202000/1203000     resolve [16]
+[47]     0.0    0.00    0.00 1203000         mcs_global_slot [47]
+                0.00    0.00    2000/209000      mcs_realloc [56]
+-----------------------------------------------
+                             1200000             parse_expr <cycle 2> [48]
+                                1000             parse_array_lit <cycle 2> [81]
+                0.00    0.00    1000/1202000     parse_var_decls [82]
+                0.00    0.00 1201000/1202000     parse_stmt [15]
+[48]     0.0    0.00    0.00 1203000+1200000 parse_expr <cycle 2> [48]
+                0.00    0.00 1200000/6014000     arena_alloc [33]
+                             2403000             parse_ternary <cycle 2> [40]
+                             1200000             parse_expr <cycle 2> [48]
+-----------------------------------------------
+                0.00    0.00 1202000/1202000     parse_namespace_members [17]
+[49]     0.0    0.00    0.00 1202000         parse_modifiers [49]
+-----------------------------------------------
+                0.00    0.00 1202000/1202000     resolve [16]
+[50]     0.0    0.00    0.00 1202000         resolve_upvalue [50]
+-----------------------------------------------
+                0.00    0.00 1202000/1202000     parse_namespace_members [17]
+[51]     0.0    0.00    0.00 1202000         skip_attributes [51]
+-----------------------------------------------
+                0.00    0.00    1000/1201000     compile_var [29]
+                0.00    0.00 1200000/1201000     compile_assign [4]
+[52]     0.0    0.00    0.00 1201000         emit_store_conv [52]
+-----------------------------------------------
+                0.00    0.00 1201000/1201000     mcs_lex [6]
+[53]     0.0    0.00    0.00 1201000         lex_number [53]
+                0.00    0.00 1201000/4813000     push_tok [34]
+-----------------------------------------------
+                0.00    0.00 1200000/1200000     compile_assign [4]
+[54]     0.0    0.00    0.00 1200000         arith_pt [54]
+-----------------------------------------------
+                0.00    0.00 1200000/1200000     compile_assign [4]
+[55]     0.0    0.00    0.00 1200000         binop_code [55]
+-----------------------------------------------
+                0.00    0.00    1000/209000      main [2]
+                0.00    0.00    1000/209000      map_global [35]
+                0.00    0.00    1000/209000      wstr [31]
+                0.00    0.00    1000/209000      mcs_fn_add_const [71]
+                0.00    0.00    1000/209000      mcs_strset_free [79]
+                0.00    0.00    1000/209000      mcs_new_function [77]
+                0.00    0.00    1000/209000      mcs_table_free [80]
+                0.00    0.00    1000/209000      mcs_parse [5]
+                0.00    0.00    1000/209000      mcs_buf_free [67]
+                0.00    0.00    2000/209000      push_tok [34]
+                0.00    0.00    2000/209000      mcs_global_slot [47]
+                0.00    0.00    2000/209000      mcs_new [76]
+                0.00    0.00    3000/209000      strset_resize [61]
+                0.00    0.00    3000/209000      free_obj [57]
+                0.00    0.00    4000/209000      hook_tick [66]
+                0.00    0.00    5000/209000      mcs_compile_image_ex [1]
+                0.00    0.00    5000/209000      mcs_buf_putn [36]
+                0.00    0.00    5000/209000      mcs_buf_putc [22]
+                0.00    0.00   16000/209000      mcs_intern [42]
+                0.00    0.00   17000/209000      mcs_free_objects [74]
+                0.00    0.00   20000/209000      mcs_fn_emit [7]
+                0.00    0.00   58000/209000      arena_alloc [33]
+                0.00    0.00   58000/209000      arena_free [62]
+[56]     0.0    0.00    0.00  209000         mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00   17000/17000       mcs_free_objects [74]
+[57]     0.0    0.00    0.00   17000         free_obj [57]
+                0.00    0.00    3000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    2000/13000       mcs_compile [3]
+                0.00    0.00   11000/13000       mcs_new [76]
+[58]     0.0    0.00    0.00   13000         mcs_intern_c [58]
+-----------------------------------------------
+                0.00    0.00    1000/3000        compile_expr <cycle 1> [9]
+                0.00    0.00    2000/3000        fold [45]
+[59]     0.0    0.00    0.00    3000         default_for [59]
+-----------------------------------------------
+                0.00    0.00    1000/2000        main [2]
+                0.00    0.00    1000/2000        mcs_new [76]
+[60]     0.0    0.00    0.00    2000         mcs_sys_realloc [60]
+-----------------------------------------------
+                0.00    0.00    2000/2000        mcs_intern [42]
+[61]     0.0    0.00    0.00    2000         strset_resize [61]
+                0.00    0.00    3000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile [3]
+[62]     0.0    0.00    0.00    1000         arena_free [62]
+                0.00    0.00   58000/209000      mcs_realloc [56]
+-----------------------------------------------
+                                1000             compile_expr <cycle 1> [9]
+[63]     0.0    0.00    0.00    1000         compile_args <cycle 1> [63]
+                                1000             compile_expr <cycle 1> [9]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile [3]
+[64]     0.0    0.00    0.00    1000         declare_local [64]
+-----------------------------------------------
+                0.00    0.00    1000/1000        compile_expr <cycle 1> [9]
+[65]     0.0    0.00    0.00    1000         emit_out_writeback [65]
+-----------------------------------------------
+                0.00    0.00    1000/1000        main [2]
+[66]     0.0    0.00    0.00    1000         hook_tick [66]
+                0.00    0.00    4000/209000      mcs_realloc [56]
+                0.00    0.00    1000/1000        mcs_free_objects [74]
+                0.00    0.00    1000/1000        mcs_lazy_free [75]
+                0.00    0.00    1000/1000        mcs_strset_free [79]
+                0.00    0.00    1000/1000        mcs_table_free [80]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile_image_ex [1]
+[67]     0.0    0.00    0.00    1000         mcs_buf_free [67]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile_image_ex [1]
+[68]     0.0    0.00    0.00    1000         mcs_buf_init [68]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile_image_ex [1]
+[69]     0.0    0.00    0.00    1000         mcs_buf_puts [69]
+-----------------------------------------------
+                0.00    0.00    1000/1000        main [2]
+[70]     0.0    0.00    0.00    1000         mcs_config_default [70]
+-----------------------------------------------
+                0.00    0.00    1000/1000        emit_invoke [30]
+[71]     0.0    0.00    0.00    1000         mcs_fn_add_const [71]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/1000        main [2]
+[72]     0.0    0.00    0.00    1000         mcs_free [72]
+-----------------------------------------------
+                0.00    0.00    1000/1000        main [2]
+[73]     0.0    0.00    0.00    1000         mcs_free_image [73]
+-----------------------------------------------
+                0.00    0.00    1000/1000        hook_tick [66]
+[74]     0.0    0.00    0.00    1000         mcs_free_objects [74]
+                0.00    0.00   17000/209000      mcs_realloc [56]
+                0.00    0.00   17000/17000       free_obj [57]
+-----------------------------------------------
+                0.00    0.00    1000/1000        hook_tick [66]
+[75]     0.0    0.00    0.00    1000         mcs_lazy_free [75]
+-----------------------------------------------
+                0.00    0.00    1000/1000        main [2]
+[76]     0.0    0.00    0.00    1000         mcs_new [76]
+                0.00    0.00   11000/1217000     mcs_intern [42]
+                0.00    0.00   11000/13000       mcs_intern_c [58]
+                0.00    0.00    2000/209000      mcs_realloc [56]
+                0.00    0.00    1000/1000        mcs_open_libs [78]
+                0.00    0.00    1000/2000        mcs_sys_realloc [60]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile [3]
+[77]     0.0    0.00    0.00    1000         mcs_new_function [77]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_new [76]
+[78]     0.0    0.00    0.00    1000         mcs_open_libs [78]
+-----------------------------------------------
+                0.00    0.00    1000/1000        hook_tick [66]
+[79]     0.0    0.00    0.00    1000         mcs_strset_free [79]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                0.00    0.00    1000/1000        hook_tick [66]
+[80]     0.0    0.00    0.00    1000         mcs_table_free [80]
+                0.00    0.00    1000/209000      mcs_realloc [56]
+-----------------------------------------------
+                                1000             parse_unary <cycle 2> [41]
+[81]     0.0    0.00    0.00    1000         parse_array_lit <cycle 2> [81]
+                0.00    0.00    1000/1204000     expect [44]
+                                1000             parse_expr <cycle 2> [48]
+-----------------------------------------------
+                0.00    0.00    1000/1000        parse_namespace_members [17]
+[82]     0.0    0.00    0.00    1000         parse_var_decls [82]
+                0.00    0.00    2000/1204000     expect [44]
+                0.00    0.00    1000/6014000     arena_alloc [33]
+                0.00    0.00    1000/1202000     parse_expr <cycle 2> [48]
+                0.00    0.00    1000/1000        tuple_relabel [84]
+-----------------------------------------------
+                0.00    0.00    1000/1000        mcs_compile [3]
+[83]     0.0    0.00    0.00    1000         pre_gvar [83]
+                0.00    0.00    1000/6014000     arena_alloc [33]
+-----------------------------------------------
+                0.00    0.00    1000/1000        parse_var_decls [82]
+[84]     0.0    0.00    0.00    1000         tuple_relabel [84]
+-----------------------------------------------
+
+ This table describes the call tree of the program, and was sorted by
+ the total amount of time spent in each function and its children.
+
+ Each entry in this table consists of several lines.  The line with the
+ index number at the left hand margin lists the current function.
+ The lines above it list the functions that called this function,
+ and the lines below it list the functions this one called.
+ This line lists:
+     index	A unique number given to each element of the table.
+		Index numbers are sorted numerically.
+		The index number is printed next to every function name so
+		it is easier to look up where the function is in the table.
+
+     % time	This is the percentage of the `total' time that was spent
+		in this function and its children.  Note that due to
+		different viewpoints, functions excluded by options, etc,
+		these numbers will NOT add up to 100%.
+
+     self	This is the total amount of time spent in this function.
+
+     children	This is the total amount of time propagated into this
+		function by its children.
+
+     called	This is the number of times the function was called.
+		If the function called itself recursively, the number
+		only includes non-recursive calls, and is followed by
+		a `+' and the number of recursive calls.
+
+     name	The name of the current function.  The index number is
+		printed after it.  If the function is a member of a
+		cycle, the cycle number is printed between the
+		function's name and the index number.
+
+
+ For the function's parents, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the function into this parent.
+
+     children	This is the amount of time that was propagated from
+		the function's children into this parent.
+
+     called	This is the number of times this parent called the
+		function `/' the total number of times the function
+		was called.  Recursive calls to the function are not
+		included in the number after the `/'.
+
+     name	This is the name of the parent.  The parent's index
+		number is printed after it.  If the parent is a
+		member of a cycle, the cycle number is printed between
+		the name and the index number.
+
+ If the parents of the function cannot be determined, the word
+ `<spontaneous>' is printed in the `name' field, and all the other
+ fields are blank.
+
+ For the function's children, the fields have the following meanings:
+
+     self	This is the amount of time that was propagated directly
+		from the child into the function.
+
+     children	This is the amount of time that was propagated from the
+		child's children to the function.
+
+     called	This is the number of times the function called
+		this child `/' the total number of times the child
+		was called.  Recursive calls by the child are not
+		listed in the number after the `/'.
+
+     name	This is the name of the child.  The child's index
+		number is printed after it.  If the child is a
+		member of a cycle, the cycle number is printed
+		between the name and the index number.
+
+ If there are any cycles (circles) in the call graph, there is an
+ entry for the cycle-as-a-whole.  This entry shows who called the
+ cycle (as parents) and the members of the cycle (as children.)
+ The `+' recursive calls entry shows the number of function calls that
+ were internal to the cycle, and the calls entry for each member shows,
+ for that member, how many times it was called from other members of
+ the cycle.
+
+
+Copyright (C) 2012-2023 Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
+
+
+Index by function name
+
+  [12] _init                  [68] mcs_buf_init           [37] parse_binary
+  [33] arena_alloc            [22] mcs_buf_putc           [38] parse_coalesce
+  [62] arena_free             [36] mcs_buf_putn           [48] parse_expr
+  [54] arith_pt               [69] mcs_buf_puts           [49] parse_modifiers
+  [55] binop_code              [3] mcs_compile            [17] parse_namespace_members
+  [63] compile_args            [1] mcs_compile_image_ex   [39] parse_primary
+   [4] compile_assign         [70] mcs_config_default     [15] parse_stmt
+   [9] compile_expr           [71] mcs_fn_add_const       [40] parse_ternary
+  [21] compile_expr_stmt       [7] mcs_fn_emit            [26] parse_type
+  [10] compile_stmt           [72] mcs_free               [41] parse_unary
+  [29] compile_var            [73] mcs_free_image         [82] parse_var_decls
+  [24] decl_type_ahead.constprop.0 [74] mcs_free_objects  [83] pre_gvar
+  [64] declare_local          [47] mcs_global_slot        [13] prepare_target
+  [59] default_for            [23] mcs_insn_len           [34] push_tok
+  [30] emit_invoke            [42] mcs_intern             [16] resolve
+  [65] emit_out_writeback     [58] mcs_intern_c           [50] resolve_upvalue
+  [52] emit_store_conv        [75] mcs_lazy_free          [27] scan_globals
+  [18] emit_u16                [6] mcs_lex                [51] skip_attributes
+  [28] emit_value             [76] mcs_new                [43] strset_find
+  [44] expect                 [77] mcs_new_function       [61] strset_resize
+  [45] fold                   [78] mcs_open_libs          [19] target_get
+  [57] free_obj                [5] mcs_parse              [20] target_set
+  [11] has_pattern            [25] mcs_prim_of            [84] tuple_relabel
+  [66] hook_tick              [56] mcs_realloc            [14] write_fn
+  [46] is_prim_kw             [79] mcs_strset_free        [31] wstr
+  [53] lex_number             [60] mcs_sys_realloc         [8] <cycle 1>
+  [35] map_global             [80] mcs_table_free         [32] <cycle 2>
+  [67] mcs_buf_free           [81] parse_array_lit

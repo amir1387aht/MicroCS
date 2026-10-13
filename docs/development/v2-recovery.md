@@ -104,3 +104,31 @@ Running full `make -j2 check` remains in `/data/backups/v2-full-check.log`.
 Next: finish full gates; idle benchmark baseline; profiling/optimization;
 remaining scoped Studio and graphics/security/roadmap implementation. Release
 blocked. Branch/base unchanged; exact fetched SHA/patch updated in local NOTES.
+
+## Checkpoint 6 — profiled keyword lookup optimization (WIP)
+
+Profiled unchanged main compiler with gprof: 1000 compile-only runs × 1200
+assignments; raw source/output/profile committed under evidence/compiler-profile.
+Short/coarse profile only; no timing promise. Full-table keyword classification
+was a source-confirmed hot-path candidate. Reordered immutable keyword table
+by first byte with 27 byte-sized boundaries; scans only a matching group.
+No token enum/API/image changes, extra dynamic memory or library dependency.
+
+Tests: exhaustive lexer C unit test checks every keyword enum exactly once,
+escaped/case/prefix/suffix/contextual and Unicode identifiers; passes. Default
+source/image/XIP suite: 85 passed, 0 failed. Added lexer-test to host/ASan targets;
+added compiler-heavy benchmark fixture and docs. Performance/RAM/flash evaluation
+and exact-head full gates must still pass before calling this an accepted win.
+
+Full make-check returned success, but its last alternate build overlapped this
+source edit by ~4 seconds (log vs source mtimes); do NOT treat that mixed-snapshot
+run as exact-head release evidence. It will be rerun in a separate frozen
+checkpoint checkout. A cancellation attempt reported infrastructure error after
+the process had exited; status confirms exit 0, no lingering gate job.
+Checkpoint-5 fetch initially differed only because text payload normalized CSV
+CRLF to LF; asserted numeric/raw content equality, normalized the intended local
+CSV and reverified tree equality. Original raw evidence preserved in /data/raw.
+Draft PR #43: https://github.com/amir1387aht/MicroCS/pull/43 ; 89 CI jobs were
+queued/running/some green on checkpoint 5; no merge/release allowed.
+Next: isolated before/after sample runs, frozen-checkout full checks/sanitizers,
+updated CI observation; all graphics/security/roadmap gates remain pending.
