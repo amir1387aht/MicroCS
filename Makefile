@@ -48,7 +48,7 @@ test: capabilities-test mcs build/test_modules build/test_flash test-config conf
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
-	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_shell.py ./mcs; else echo "SKIP shell tests (no python3)"; fi
+	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_shell.py ./mcs && python3 tests/test_readline_echo.py ./mcs; else echo "SKIP shell tests (no python3)"; fi
 	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_net.py ./mcs; else echo "SKIP network tests (no python3)"; fi
 	@if command -v python3 >/dev/null 2>&1; then python3 tests/test_net_server.py ./mcs && python3 tests/test_net_lifecycle.py ./mcs; else echo "SKIP server network tests (no python3)"; fi
 	@./mcs examples/tour.cs | cmp -s - examples/tour.out && echo "PASS examples/tour.cs" || { echo "FAIL examples/tour.cs"; exit 1; }

@@ -4,6 +4,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Bluetooth LE, Studio templates as files
 
+* **Studio console input** — machine-mode `Console.ReadLine` no longer echoes input
+  a second time; raw REPL echo is preserved. Studio forwards trailing spaces in script
+  input unchanged, with echo-on/off, multiple-prompt and runtime regressions.
+
+
 * **Cortex-M flash budget** — shared capability lookup / direct peripheral predicates;
   LTO on the 256 KB Cortex-M0 reference targets and benchmark preserves configured
   features while accommodating GCC/newlib size differences.

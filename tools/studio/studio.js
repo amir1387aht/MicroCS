@@ -2050,7 +2050,7 @@ const App = {
     $("cin").placeholder = m === "repl" ? "C# statement or expression — Enter runs, Shift+Enter new line, ↑ ↓ history" : "shell command: ls, cat <f>, run <f>, jobs, mem, df, help …";
   },
   async consoleSend() {
-    const cin = $("cin"), text = cin.value.replace(/\s+$/, "");
+    const cin = $("cin"), text = dev.running ? cin.value : cin.value.replace(/\s+$/, "");
     if (!dev.connected) return;
     cin.value = ""; this.autosize();
     if (text) { this.history = this.history.filter((h) => h !== text); this.history.push(text); if (this.history.length > 200) this.history.shift(); store.set("history", this.history); }

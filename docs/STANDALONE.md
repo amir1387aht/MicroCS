@@ -109,7 +109,10 @@ Unknown capabilities are false. It does not verify wiring or external devices.
 ## 4. Machine protocol (tools and IDEs)
 
 One command per line; every reply ends with a status line starting with EOT (0x04):
-`\x04OK` or `\x04ERR <message>`. Script output appears before the status line.
+`\x04OK` or `\x04ERR <message>`. Script output appears before the status line. Machine-mode `Console.ReadLine` input is
+not echoed by firmware; IDEs such as Studio render their local input once. Raw REPL
+terminals still receive input echo when enabled. Input is not deduplicated against script
+output, so an application printing the same text remains visible.
 
 | Command | Effect |
 |---|---|

@@ -528,23 +528,27 @@ static void test_runtime_readline(void) {
     cfg.heap = heap; cfg.heap_size = sizeof heap; cfg.ramfs_size = 16384;
     cfg.console.read = rt_con_read; cfg.console.write = rt_con_write;
     cfg.ticks = rt_ms; cfg.delay = rt_sleep;
-    cfg.echo = false;
-    outlen = 0; outbuf[0] = 0;
-    rt_script =
-        "\x01" "exec var a = Console.ReadLine(); var b = Console.ReadLine(); Console.WriteLine($\"got [{a}] [{b}]\");\n"
-        "hello\r\n"
-        "wor\x7Fld\n"
-        "exec Console.ReadLine(); Console.WriteLine(\"not reached\");\n"
-        "\x03\n"
-        "exec Console.WriteLine(\"still alive\");\n";
-    rt_pos = 0;
-    CHECK(mcs_runtime_start(&rt, &cfg) == 0);
-    while (mcs_runtime_step(&rt, 5)) {}
-    CHECK(strstr(outbuf, "got [hello] [wold]\n") != NULL);
-    CHECK(strstr(outbuf, "not reached") == NULL);
-    CHECK(strstr(outbuf, "\x04" "ERR") != NULL);
-    CHECK(strstr(outbuf, "still alive\n") != NULL);
-    mcs_runtime_stop(&rt);
+    for (int echo = 0; echo <= 1; echo++) {
+        cfg.echo = echo != 0;
+        outlen = 0; outbuf[0] = 0;
+        rt_script =
+            "\x01" "exec var a = Console.ReadLine(); var b = Console.ReadLine(); Console.WriteLine($\"got [{a}] [{b}]\");\n"
+            "hello\r\n"
+            "wor\x7Fld\n"
+            "exec Console.ReadLine(); Console.WriteLine(\"not reached\");\n"
+            "\x03\n"
+            "exec Console.WriteLine(\"still alive\");\n";
+        rt_pos = 0;
+        CHECK(mcs_runtime_start(&rt, &cfg) == 0);
+        while (mcs_runtime_step(&rt, 5)) {}
+        CHECK(strstr(outbuf, "got [hello] [wold]\n") != NULL);
+        CHECK(strstr(outbuf, "not reached") == NULL);
+        CHECK(strstr(outbuf, "\x04" "ERR") != NULL);
+        CHECK(strstr(outbuf, "still alive\n") != NULL);
+        CHECK(strstr(outbuf, "hello\r\n") == NULL); /* no input echo in machine mode */
+        CHECK(strstr(outbuf, "wor\b \bld\r\n") == NULL);
+        mcs_runtime_stop(&rt);
+    }
 }
 #endif
 
