@@ -83,3 +83,24 @@ feature/alternate-profile and doc matrix). Next: record CLEAN baseline source
 measurements using this harness, validate raw data and checkpoint evidence;
 compiler/VM profiling remains pending, as do all graphics/security/TODO gates.
 No speedup/release claim. Local patches/NOTES updated after remote push.
+
+## Checkpoint 5 — clean-source baseline raw evidence
+
+Runtime base measured in a clean detached worktree at d3def1ff534c59a6726037ccf31f61535647e857.
+Command: `python3 bench/v2/run.py --repo /data/MicroCS-v1-baseline --out /data/raw/microcs-v1-host-baseline --repetitions 25`.
+1000 checked raw samples (4 workloads × 10 phases × 25); no duplicate composite
+keys, missing/null samples or failed outputs. All 40 median summaries independently
+cross-checked with pandas groupby. Profiler warning verified=true constant is
+expected (failed runs rejected). Metadata/source hashes and small raw/provenance/
+summary/logs committed under `evidence/v1-host-baseline/`; binary/link map local.
+
+IMPORTANT: capture overlapped host gate compilation. It is preliminary evidence
+of measurement/functional correctness, not an isolated performance budget or
+speedup comparison. Re-run idle before optimizing/setting budgets. No performance
+improvement claimed. Exact harness remote checkpoint is 997db043ea62c5a8b2c444cb6e5dfb56f9175173;
+metadata local harness commit has the same verified tree but different author
+identity from GitHub MCP. Content hashes pin what actually compiled.
+Running full `make -j2 check` remains in `/data/backups/v2-full-check.log`.
+Next: finish full gates; idle benchmark baseline; profiling/optimization;
+remaining scoped Studio and graphics/security/roadmap implementation. Release
+blocked. Branch/base unchanged; exact fetched SHA/patch updated in local NOTES.
