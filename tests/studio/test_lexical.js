@@ -36,6 +36,14 @@ for (const src of ['$"{Con"', '$"{Console."', '$@"{Con"', '@$"{Con"']) {
 assert.strictEqual(Lang.contextAt('"text"', 0), 'code', 'before literal opener is code');
 assert.strictEqual(Lang.contextAt('"text"', 1), 'string', 'after literal opener is text');
 assert.strictEqual(Lang.contextAt('"text"', 5), 'string', 'before closed literal quote is text');
+for (const newline of ['\n', '\r\n', '\r']) {
+    const comment = '// Con' + newline + 'Console.';
+    assert.strictEqual(Lang.contextAt(comment, 6), 'comment', 'insertion before line ending remains comment');
+    assert.strictEqual(Lang.contextAt(comment, comment.length), 'code', 'all line ending forms end comments');
+    const literal = '"Con' + newline + 'Console.';
+    assert.strictEqual(Lang.contextAt(literal, 4), 'string', 'insertion before malformed string line ending remains text');
+    assert.strictEqual(Lang.contextAt(literal, literal.length), 'code', 'newline recovers malformed regular literal');
+}
 const full = '$@"literal {Console.WriteLine(1, Math.Max(2, 3)):000} tail";';
 assert.strictEqual(Lang.contextAt(full, full.indexOf('Console')), 'code');
 assert.strictEqual(Lang.contextAt(full, full.indexOf('literal')), 'string');

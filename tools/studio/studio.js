@@ -507,7 +507,7 @@ const KNOWN_TYPES = new Set(("Exception IOException TimeoutException NotSupporte
   "ArgumentNullException InvalidOperationException IndexOutOfRangeException KeyNotFoundException FormatException DivideByZeroException " +
   "NullReferenceException NotImplementedException OverflowException StackOverflowException MissingMemberException IDisposable IEnumerable " +
   "IComparable Object String Int32 Double Boolean Char Byte System Flags").split(" "));
-const TOKEN_SRC = /(\/\/[^\n]*)|(\/\*[\s\S]*?(?:\*\/|$))|(\$@"|@\$"|@"|\$"|")|('(?:[^'\\\n]|\\.){0,8}'?)|(\b0[xX][0-9a-fA-F_]+[uUlL]*|\b0[bB][01_]+[uUlL]*|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDmMuUlL]*|\.\d+(?:[eE][+-]?\d+)?[fFdDmM]?)|(^[ \t]*#[a-z]+[^\n]*)|(@?[A-Za-z_][A-Za-z0-9_]*)|([{}()[\]\]])|([-+*/%=<>!&|^~?:]+)/gm;
+const TOKEN_SRC = /(\/\/[^\r\n]*)|(\/\*[\s\S]*?(?:\*\/|$))|(\$@"|@\$"|@"|\$"|")|('(?:[^'\\\n]|\\.){0,8}'?)|(\b0[xX][0-9a-fA-F_]+[uUlL]*|\b0[bB][01_]+[uUlL]*|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDmMuUlL]*|\.\d+(?:[eE][+-]?\d+)?[fFdDmM]?)|(^[ \t]*#[a-z]+[^\n]*)|(@?[A-Za-z_][A-Za-z0-9_]*)|([{}()[\]\]])|([-+*/%=<>!&|^~?:]+)/gm;
 let API = window.MCS_API || {};
 const isType = (t) => !!API[t] || KNOWN_TYPES.has(t);
 const span = (cls, t) => `<span class="t-${cls}">${esc(t)}</span>`;

@@ -28,4 +28,5 @@ assert(/<span class="t-str">[^]*&lt;form method=post&gt;Off&lt;\/form&gt;/.test(
 assert(web.includes('class="t-str">&quot;on&quot;'), 'quoted interpolation expression is highlighted');
 assert.strictEqual(stringEnd('$@"unfinished {x + "value"', 0), '$@"unfinished {x + "value"'.length);
 assert.strictEqual(stringEnd('"unfinished\nnext', 0), '"unfinished'.length);
+assert(highlight('// comment\rConsole.WriteLine(42);').includes('t-num">42'), 'CR ends a line comment');
 console.log('PASS Studio strings: interpolated/verbatim, nested holes, comments, escapes, incomplete input');

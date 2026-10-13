@@ -104,14 +104,23 @@
   function lexical(src) {
     if (src === lexSource) return lexCache;
     const ranges = [], strings = [], holes = [];
+    const lineEnd = /[\r\n]/g;
     let eof = "code";
-    const mark = (start, end, kind) => { if (end > start) ranges.push({ start, end, kind }); };
+    const mark = (start, end, kind) => {
+      if (end <= start) return null;
+      const range = { start, end, kind }; ranges.push(range); return range;
+    };
     const prefixAt = i => /^(\$@"|@\$"|@"|\$"|")/.exec(src.slice(i, i + 3));
     function comment(i) {
       const line = src[i + 1] === "/";
-      const j = src.indexOf(line ? "\n" : "*/", i + 2);
+      let j;
+      if (line) {
+        lineEnd.lastIndex = i + 2;
+        const ending = lineEnd.exec(src); j = ending ? ending.index : -1;
+      } else j = src.indexOf("*/", i + 2);
       const end = j < 0 ? src.length : j + (line ? 0 : 2);
-      mark(i, end, "comment");
+      const range = mark(i, end, "comment");
+      if (range) range.lineComment = line;
       if (j < 0) eof = "comment";
       return end;
     }
@@ -141,7 +150,8 @@
         if (interp && c === "}" && src[i + 1] === "}") { i += 2; continue; }
         i++;
       }
-      mark(chunk, i, "string");
+      const tail = mark(chunk, i, "string");
+      if (tail) tail.unterminated = !closed;
       if (i === src.length) eof = closed ? "code" : "string";
       strings.push({ start, end: i, closed });
       return i;
@@ -220,7 +230,9 @@
     // Binary search keeps moving the caret independent of the document size.
     lo = 0; hi = lex.ranges.length;
     while (lo < hi) { const mid = (lo + hi) >>> 1; if (lex.ranges[mid].end <= p) lo = mid + 1; else hi = mid; }
-    const r = lex.ranges[lo];
+    const r = lex.ranges[lo], previous = lex.ranges[lo - 1];
+    if ((src[p] === "\n" || src[p] === "\r") && previous?.end === p &&
+        (previous.lineComment || previous.unterminated)) return previous.kind;
     return r && r.start <= p ? (r.kind === "delimiter" ? "code" : r.kind) : "code";
   }
   /* Same UTF-16 length and line endings; expressions inside strings stay visible

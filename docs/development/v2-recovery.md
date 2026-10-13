@@ -194,3 +194,27 @@ Completed raw gate logs under evidence/v2-frozen-gates. Local patch/remote-tree
 verification in NOTES after push. Main untouched; draft #43; no tag/merge/release.
 All remaining LVGL/TFT, security, broad core/REPL, Studio scope/import/navigation,
 board/peripheral TODOs, API/docs/example and hardware/review gates remain pending.
+
+
+## Checkpoint 9 — final Studio newline insertion regression
+
+Corrected insertion context at a line-comment or incomplete ordinary-string end
+immediately BEFORE CR/LF: assistance remains suppressed until entering code on
+the following line. Standalone CR terminates line comments too; highlighting and
+semantic masking agree. A reusable newline regex avoids repeatedly searching
+the remaining document separately for absent CR characters. Regressions cover
+CR, LF and CRLF. No C runtime change since frozen checkpoint 8936b6d.
+
+Final shared-lexer, highlighting, formatter/compiler-output, offline real-browser
+completion/signature/hover/keyboard and full fake-Web-Serial Studio suite pass.
+Final serial log is retained under evidence/v2-frozen-gates; this is host/UI
+validation, NOT a connected-board test. Frozen full check, sanitizers and fuzz
+evidence from checkpoint 8 remains applicable only to that documented snapshot.
+
+Recovery: checkpoint payload, intended staged binary patch and cumulative binary
+patch in /data/backups; exact remote SHA/tree verification recorded in NOTES.
+Draft PR #43 documents partial scope. Main unchanged; no merge/tag/release.
+Exact final-head CI still needs observation; all LVGL/TFT, security, broader
+compiler/REPL and Studio assistance, remaining roadmap and hardware/review gates
+remain unfinished. Next: implement remaining scoped workstreams with actual
+upstream/header/platform research and obtain exact-board/display/touch validation.
