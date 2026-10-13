@@ -180,6 +180,46 @@ bool mcs__net_wait(mcs_vm_t* vm, uint32_t ms) {
 /* ------------------------------------------------------------ state */
 static const mcs_class_def_t state_def = { "__NetState", sizeof(mcs__net_state_t), NULL, NULL, NULL, NULL };
 mcs__net_state_t* mcs__net_state(mcs_vm_t* vm) { return (mcs__net_state_t*)mcs_get_ext(vm, MCS_EXT_NET); }
+int mcs__net_yield(mcs_vm_t* vm) {
+    void* ud;
+    mcs_idle_fn idle = mcs_get_idle(vm, &ud);
+    if (idle) idle(vm, ud);
+    return mcs_has_exception(vm) || mcs_safepoint(vm);
+}
+void mcs__net_untrack(mcs__net_resource_t* r) {
+    if (!r->vm) return;
+    mcs__net_state_t* s = mcs__net_state(r->vm);
+    if (s) {
+        mcs__net_resource_t** p = &s->resources;
+        while (*p && *p != r) p = &(*p)->next;
+        if (*p) *p = r->next;
+    }
+    r->vm = NULL; r->next = NULL;
+}
+void mcs__net_track(mcs_vm_t* vm, mcs__net_resource_t* r, void* data, void (*close)(mcs_vm_t*, void*)) {
+    mcs__net_untrack(r);
+    mcs__net_state_t* s = mcs__net_state(vm);
+    if (!s) return;
+    r->vm = vm; r->data = data; r->close = close;
+    r->generation = ++s->resource_generation;
+    r->next = s->resources; s->resources = r;
+}
+uint32_t mcs_net_scope_begin(mcs_vm_t* vm) {
+    mcs__net_state_t* s = mcs__net_state(vm);
+    return s ? s->resource_generation : 0;
+}
+void mcs_net_scope_end(mcs_vm_t* vm, uint32_t checkpoint) {
+    mcs__net_state_t* s = mcs__net_state(vm);
+    if (!s) return;
+    for (;;) {
+        mcs__net_resource_t* r = s->resources;
+        while (r && (int32_t)(r->generation - checkpoint) <= 0) r = r->next;
+        if (!r) break;
+        void* data = r->data; void (*close)(mcs_vm_t*, void*) = r->close;
+        mcs__net_untrack(r);   /* the callback may also remove other resources */
+        close(vm, data);       /* no script callbacks / graceful network handshakes on abort */
+    }
+}
 #define ST() mcs__net_state_t* s = mcs__net_state(vm); \
     if (!s) { mcs_raise(vm, "InvalidOperationException", "network library not opened"); return mcs_null(); }
 #define NET() (s->net)

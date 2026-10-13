@@ -239,6 +239,7 @@ static int call_native(mcs_vm_t* vm, mcs_native_t* nf, mcs_value_t self, int arg
     }
     mcs_value_t* args = vm->sp - argc;
     mcs_value_t r = nf->fn(vm, self, argc, args);
+    if (vm->abort_req) return CALL_ERR;  /* native waits can be the final statement */
     if (vm->has_exc) return CALL_ERR;
     vm->sp -= argc + 1;
     PUSH(r);
@@ -1925,6 +1926,13 @@ mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t sel
         vm->handler_count = base_handlers;
     }
     vm->sp = base;
+    /* A callback can abort a nested interpreter run. Keep cancellation pending for
+     * the outer run; it must not become a catchable handler exception. */
+    if (res == MCS_ERR_ABORTED && vm->run_depth > 0) {
+        vm->abort_req = true;
+        vm->abort_hint = vm->abort_reason;
+        vm->hook_counter = 1;
+    }
     return res;
 }
 
@@ -1947,6 +1955,11 @@ static void report_uncaught(mcs_vm_t* vm) {
 }
 
 static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
+    if (vm->abort_req && vm->run_depth == 0) {   /* a directly invoked native also propagates Stop */
+        vm->abort_reason = vm->abort_hint ? vm->abort_hint : MCS_ABORT_REQUEST;
+        vm->abort_req = false; vm->abort_hint = 0;
+        r = MCS_ERR_ABORTED;
+    }
     if (r == MCS_ERR_RUNTIME && vm->has_exc) report_uncaught(vm);
     if (r == MCS_ERR_ABORTED) {
         const char* why = vm->abort_reason == MCS_ABORT_TIME ? ": time limit exceeded"

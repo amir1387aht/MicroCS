@@ -1,7 +1,7 @@
 // A small REST API: curl http://<ip>/api/notes, curl -d '{"text":"hi"}' http://<ip>/api/notes
 Wifi.Connect("MicroCS-Lab", "microcs123");
 var notes = new List<string> { "water the plants" };
-var web = new HttpServer(80);
+using var web = new HttpServer(80);
 web.Cors = true;                                // browsers on other origins may call it
 
 web.Get("/api/notes", req => notes);            // -> ["water the plants"]
@@ -29,5 +29,5 @@ web.NotFound(req => req.Send(404, "text/plain", "nothing at " + req.Path));
 
 web.Start();
 Console.WriteLine($"API on http://{Wifi.Ip}:{web.Port}/api/notes");
-var until = Environment.TickCount + 2000;       // demo: 2 s; web.Run() on a board
-while (Environment.TickCount < until) web.Poll(100);
+Console.WriteLine("Serving until Studio Stop / Ctrl-C. Other shell commands wait until stopped.");
+web.Run();

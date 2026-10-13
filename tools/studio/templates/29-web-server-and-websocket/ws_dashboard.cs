@@ -1,6 +1,6 @@
 // Push data to browsers without polling: HttpServer + WebSocket endpoint + Broadcast
 Wifi.Connect("MicroCS-Lab", "microcs123");
-var web = new HttpServer(80);
+using var web = new HttpServer(80);
 const string Page = @"<!doctype html><meta name=viewport content='width=device-width'>
 <h1>Live</h1><p id=v>...</p><button onclick=""ws.send('reset')"">Reset</button>
 <script>
@@ -18,8 +18,8 @@ web.Start();
 Console.WriteLine($"open http://{Wifi.Ip}:{web.Port}/");
 
 var next = Environment.TickCount;
-var until = Environment.TickCount + 2000;       // demo: 2 s (while (true) on a board)
-while (Environment.TickCount < until)
+// Runs until Studio Stop / Ctrl-C; other shell commands wait until it stops.
+while (true)
 {
     web.Poll(50);                               // HTTP requests + WebSocket frames
     if (Environment.TickCount - next >= 0)

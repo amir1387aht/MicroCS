@@ -187,6 +187,7 @@ static mcs_value_t call_json(mcs_vm_t* vm, const char* fn, mcs_value_t arg) {
 enum { WS_NEW = 0, WS_OPEN = 1, WS_CLOSED = 3 };
 enum { WS_OP_CONT = 0, WS_OP_TEXT = 1, WS_OP_BIN = 2, WS_OP_CLOSE = 8, WS_OP_PING = 9, WS_OP_PONG = 10 };
 typedef struct {
+    mcs__net_resource_t resource;
     mcs__conn_t c;
     uint8_t server;              /* accepted by an HttpServer: frames are not masked */
     uint8_t state;
@@ -208,6 +209,7 @@ static void ws_drop(mcs_vm_t* vm, ws_t* w) {
 }
 static void ws_fin(mcs_vm_t* vm, void* d) {
     ws_t* w = (ws_t*)d;
+    mcs__net_untrack(&w->resource);
     ws_drop(vm, w);
     if (w->handler_pin >= 0) { mcs_unpin(vm, w->handler_pin); w->handler_pin = -1; }
 }
@@ -408,7 +410,8 @@ static void ws_connect(mcs_vm_t* vm, ws_t* w, int argc, mcs_value_t* argv) {
     int n = snprintf(req, rq, "GET %s HTTP/1.1\r\nHost: %s%s%.0d\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
                      "Sec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\nUser-Agent: MicroCS/%s\r\n%s\r\n",
                      u.path, u.host, defport ? "" : ":", defport ? 0 : u.port, key, MCS_VERSION_STRING, extra);
-    w->state = WS_OPEN;                       /* lets ws_read work during the handshake */
+    w->state = WS_OPEN;
+    mcs__net_track(vm, &w->resource, w, ws_fin);                       /* lets ws_read work during the handshake */
     int wr = mcs__conn_write(vm, &w->c, (const uint8_t*)req, (size_t)n, (uint32_t)to);
     mcs_mem_realloc(vm, req, rq, 0);
     if (wr < 0) { ws_drop(vm, w); if (wr != -EINTR) mcs__sock_fail(vm, "WebSocket.Connect", -wr); return; }
@@ -434,6 +437,7 @@ static void ws_connect(mcs_vm_t* vm, ws_t* w, int argc, mcs_value_t* argv) {
     }
     snprintf(w->path, sizeof w->path, "%s", url);
     w->state = WS_OPEN;
+    mcs__net_track(vm, &w->resource, w, ws_fin);
 }
 static void ws_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     ws_t* w = (ws_t*)mcs_userdata(self);
@@ -545,14 +549,15 @@ static const mcs_reg_t ws_members[] = {
     MCS_FN("ToString", ws_tostring, 0), MCS_REG_END };
 static const mcs_class_def_t ws_def = { "WebSocket", sizeof(ws_t), ws_ctor, ws_fin, ws_members, NULL };
 /* ============================================================ DnsServer */
-typedef struct { int fd; uint8_t ip[4]; uint16_t port; uint32_t ttl, queries; char domain[64]; } dns_t;
+typedef struct {
+    mcs__net_resource_t resource; int fd; uint8_t ip[4]; uint16_t port; uint32_t ttl, queries; char domain[64]; } dns_t;
 static const mcs_class_def_t dns_def;
 static void dns_unreg(mcs_vm_t* vm, dns_t* d) {
     mcs__net_state_t* s = mcs__net_state(vm);
     if (s) for (int i = 0; i < 2; i++) if (s->dns[i] == d) s->dns[i] = NULL;
 }
 static void dns_stop(mcs_vm_t* vm, dns_t* d) { if (d->fd >= 0) close(d->fd); d->fd = -1; dns_unreg(vm, d); }
-static void dns_fin(mcs_vm_t* vm, void* p) { dns_stop(vm, (dns_t*)p); }
+static void dns_fin(mcs_vm_t* vm, void* p) { dns_t* d = (dns_t*)p; mcs__net_untrack(&d->resource); dns_stop(vm, d); }
 static void dns_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     dns_t* d = (dns_t*)mcs_userdata(self);
     d->fd = -1; d->ttl = 60; d->port = 53; strcpy(d->domain, "*");
@@ -631,6 +636,7 @@ NATIVE(dns_start) {     /* ([address[, port]]) */
     if (b < 0) { int e = errno; close(fd); return mcs__sock_fail(vm, "DnsServer.Start", e); }
     mcs__sock_prep(fd);
     d->fd = fd;
+    mcs__net_track(vm, &d->resource, d, dns_fin);
     mcs__net_state_t* s = mcs__net_state(vm);
     if (s) { for (int i = 0; i < 2; i++) if (!s->dns[i]) { s->dns[i] = d; break; } }
     return mcs_null();
@@ -846,7 +852,7 @@ static int send_file(mcs_vm_t* vm, req_t* r, const char* path0, const char* ctyp
             int n = mcs_vfs_read(&f, buf, sizeof buf);
             if (n <= 0) break;
             ok = raw_write(vm, &r->c, buf, (size_t)n);
-            if (mcs_safepoint(vm)) break;
+            if (mcs__net_yield(vm)) break;
         }
     }
     mcs_vfs_close(&f);
@@ -952,6 +958,7 @@ enum { RT_HTTP = 1, RT_WS = 2, RT_FILES = 3 };
 enum { M_GET = 1, M_POST = 2, M_PUT = 4, M_DELETE = 8, M_PATCH = 16, M_HEAD = 32, M_OPTIONS = 64, M_ANY = 0x7F };
 typedef struct { uint8_t kind, methods; int16_t h, h_open, h_close; char path[64]; char dir[64]; } route_t;
 typedef struct {
+    mcs__net_resource_t resource;
     int fd; uint16_t port; uint8_t ip[4];
     uint8_t cors, stop_req;
     int pin;                     /* pinned list: [not-found handler, route handlers ...] */
@@ -966,14 +973,29 @@ static const mcs_class_def_t srv_def;
 static void srv_close(srv_t* s) { if (s->fd >= 0) close(s->fd); s->fd = -1; }
 static void srv_fin(mcs_vm_t* vm, void* d) {
     srv_t* s = (srv_t*)d;
-    srv_close(s);
+    mcs__net_untrack(&s->resource);
+    srv_close(s); s->stop_req = 1;
     if (s->pin >= 0) mcs_unpin(vm, s->pin);
     if (s->wpin >= 0) mcs_unpin(vm, s->wpin);
     s->pin = s->wpin = -1;
 }
+/* Script-scope disposal runs before GC; pinned children are still valid here.
+ * A GC/free finalizer must not dereference children already swept by mcs_free_objects. */
+static void srv_scope_close(mcs_vm_t* vm, void* d) {
+    srv_t* s = (srv_t*)d;
+    if (s->wpin >= 0) {
+        mcs_value_t arr = mcs_pinned(vm, s->wpin);
+        for (int i = 0; i < MCS_WS_MAX_CLIENTS; i++) {
+            ws_t* w = (ws_t*)mcs_userdata_of(mcs_index(arr, (uint32_t)i), &ws_def);
+            if (w) ws_fin(vm, w);
+        }
+    }
+    srv_fin(vm, d);
+}
 static void srv_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     srv_t* s = (srv_t*)mcs_userdata(self);
     s->fd = -1; s->pin = s->wpin = -1; s->not_found = -1; s->port = 80;
+    mcs__net_track(vm, &s->resource, s, srv_scope_close);
     if (argc > 2) { mcs_raise(vm, "ArgumentException", "new HttpServer([port]) or new HttpServer(address, port)"); return; }
     mcs_int_t port = 80;
     if (argc == 2) {
@@ -1081,11 +1103,13 @@ NATIVE(sv_files) {      /* (urlPrefix, directory) */
 #endif
 NATIVE(sv_start) {
     SV();
+    if (s->pin < 0) { mcs_raise(vm, "ObjectDisposedException", "HttpServer: script scope ended; create a new server"); return mcs_null(); }
     if (s->fd >= 0) return self;
     uint16_t port = s->port;
     int fd = mcs__tcp_listen(vm, s->ip, &port, 4, "HttpServer.Start");
     if (fd < 0) return mcs_null();
     s->fd = fd; s->port = port; s->stop_req = 0;
+    mcs__net_track(vm, &s->resource, s, srv_scope_close);
     return self;
 }
 static void ws_slot_close(mcs_vm_t* vm, srv_t* s, int i, bool call) {
@@ -1110,6 +1134,8 @@ NATIVE(sv_stop) {
     for (int i = 0; i < MCS_WS_MAX_CLIENTS; i++) ws_slot_close(vm, s, i, false);
     return mcs_null();
 }
+
+NATIVE(sv_dispose) { SV(); srv_scope_close(vm, s); return mcs_null(); }
 
 /* does `path` match the route pattern? {name} segments are captured into r->pp */
 static bool path_match(const char* pat, const char* path, req_t* rq) {
@@ -1309,6 +1335,7 @@ static int ws_upgrade(mcs_vm_t* vm, srv_t* s, int ri, req_t* rq, mcs__conn_t* c)
     if (mcs_new_object(vm, "WebSocket", 0, NULL, &wv) != MCS_OK) return -1;
     ws_t* w = (ws_t*)mcs_userdata(wv);
     w->c = *c; c->fd = -1;                       /* the WebSocket owns the socket now */
+    mcs__net_track(vm, &w->resource, w, ws_fin);
     w->server = 1; w->state = WS_OPEN; w->timeout = 0;
     snprintf(w->path, sizeof w->path, "%s", rq->path);
     mcs_set_index(arr, (uint32_t)slot, wv);
@@ -1352,6 +1379,7 @@ static int srv_poll(mcs_vm_t* vm, srv_t* s, uint32_t ms) {
     uint32_t t0 = mcs_ticks(vm);
     int done = 0;
     for (;;) {
+        if (mcs__net_yield(vm)) return -1;   /* also yield for Poll(0) / continuous ready traffic */
         fd_set rs; FD_ZERO(&rs);
         int mx = -1;
         if (s->fd >= 0) { FD_SET(s->fd, &rs); mx = s->fd; }
@@ -1399,7 +1427,7 @@ static int srv_poll(mcs_vm_t* vm, srv_t* s, uint32_t ms) {
         if (s->stop_req) return done;
         el = (uint32_t)(mcs_ticks(vm) - t0);
         if (el >= ms || (done && el + MCS_NET_SLICE_MS > ms)) return done;
-        if (mcs_safepoint(vm)) return -1;
+        if (mcs__net_yield(vm)) return -1;
         if (mcs_has_exception(vm)) return -1;
         if (s->fd < 0 && !st) return done;
     }
@@ -1463,7 +1491,7 @@ static const mcs_reg_t srv_members[] = {
 #if MCS_ENABLE_FS
     MCS_FN("ServeFiles", sv_files, 2),
 #endif
-    MCS_FN("Start", sv_start, 0), MCS_FN("Stop", sv_stop, 0), MCS_FN("Dispose", sv_stop, 0),
+    MCS_FN("Start", sv_start, 0), MCS_FN("Stop", sv_stop, 0), MCS_FN("Dispose", sv_dispose, 0),
     MCS_FN("Poll", sv_poll, -1), MCS_FN("Run", sv_run, 0), MCS_FN("Broadcast", sv_broadcast, 1),
     MCS_GET("WebSockets", sv_sockets), MCS_GET("Port", sv_port), MCS_GET("Running", sv_running),
     MCS_GET("Requests", sv_requests), MCS_GET("Cors", sv_getcors), MCS_SET("Cors", sv_setcors), MCS_REG_END };

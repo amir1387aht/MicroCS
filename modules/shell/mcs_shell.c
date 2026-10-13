@@ -1,5 +1,8 @@
 /* MicroCS - standalone runtime: boot sequence and script management protocol. */
 #include "mcs_shell.h"
+#if MCS_ENABLE_NET
+#include "mcs_net.h"
+#endif
 #if MCS_ENABLE_SHELL
 #include "mcs_vfs.h"
 #if MCS_ENABLE_SCHED
@@ -74,9 +77,20 @@ int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
 
 static bool exists(mcs_shell_t* sh, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(sh->vfs, p, &st) && !st.is_dir; }
 
+static mcs_result_t run_file(mcs_shell_t* sh, const char* path) {
+#if MCS_ENABLE_NET
+    uint32_t checkpoint = mcs_net_scope_begin(sh->vm);
+#endif
+    mcs_result_t r = mcs_exec_file(sh->vm, sh->vfs, path);
+#if MCS_ENABLE_NET
+    mcs_net_scope_end(sh->vm, checkpoint);
+#endif
+    return r;
+}
+
 static mcs_result_t run_first(mcs_shell_t* sh, const char* a, const char* b) {
     const char* p = exists(sh, a) ? a : exists(sh, b) ? b : NULL;
-    return p ? mcs_exec_file(sh->vm, sh->vfs, p) : MCS_OK;
+    return p ? run_file(sh, p) : MCS_OK;
 }
 
 void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts) {
@@ -421,7 +435,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         if ((e = mcs_vfs_rename(sh->vfs, argv[1], argv[2]))) err(sh, mcs_vfs_strerror(e)); else ok(sh);
     } else if (!strcmp(c, "run")) {
         if (argc < 2) { err(sh, "usage: run <path>"); return; }
-        report(sh, mcs_exec_file(sh->vm, sh->vfs, argv[1]));
+        report(sh, run_file(sh, argv[1]));
     } else if (!strcmp(c, "mem")) {
         mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
         outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
@@ -484,7 +498,7 @@ static void repl_command(mcs_shell_t* sh, char* line) {
     else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm") || !strcmp(c, "df")) && !sh->vfs) out(sh, "error: no filesystem\n");
     else if (!strcmp(c, "df")) { if ((e = cmd_df(sh, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
     else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "cancel") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
-        if (!strcmp(c, "run")) { if (*a) mcs_exec_file(sh->vm, sh->vfs, a); else out(sh, "usage: .run <file>\n"); }
+        if (!strcmp(c, "run")) { if (*a) run_file(sh, a); else out(sh, "usage: .run <file>\n"); }
         else if (!strcmp(c, "ls")) { if ((e = mcs_vfs_list(sh->vfs, *a ? a : "/", ls_cb, sh))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
         else if (!strcmp(c, "cat")) {
             char* d; size_t n;

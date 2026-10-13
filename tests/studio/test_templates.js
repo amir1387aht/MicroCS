@@ -44,7 +44,7 @@ function run(t) {
 }
 (async () => {
   // templates that bind a server port must not overlap; run them one at a time afterwards
-  const binds = (t) => /new (HttpServer|DnsServer)\b/.test(t.text);
+  const binds = (t) => /new (HttpServer|DnsServer|TcpListener)\b/.test(t.text);
   const queue = cs.filter((t) => !binds(t));
   await Promise.all(Array.from({ length: 8 }, async () => { while (queue.length) await run(queue.shift()); }));
   for (const t of cs.filter(binds)) await run(t);

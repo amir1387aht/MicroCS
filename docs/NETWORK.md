@@ -427,6 +427,33 @@ string. Errors: `FormatException` with the offset.
 Blocking calls wait in short slices (`MCS_NET_SLICE_MS`): Ctrl-C, `Stop` in Studio and
 `--time-limit` interrupt them, and event handlers keep running while a script waits.
 
+### Serving from Studio / the device shell
+
+The web templates live under **Web server and WebSocket**. They serve until **Stop** /
+Ctrl-C, rather than exiting after two seconds. Open the exact `http://` address printed
+by the script: a listener on port 8080 needs `http://<board-ip>:8080/`; a bare IP uses
+port 80 (the templates now default to 80). Your phone must be able to reach the board
+on the same LAN; guest-network/client isolation can block it.
+
+`HttpServer.Run()` and socket waits service idle/event work and cancellation, even with
+continuous traffic or a browser stalled halfway through a request. A foreground script
+still owns the interpreter: ordinary console/file commands wait until it stops. No
+console output between requests is normal, not a signal that the board has frozen.
+
+Use `using var` / `Dispose()` for explicit ownership. The shell also closes network
+resources created or reopened during a foreground `run` (including boot scripts) on
+completion, exceptions and Stop, so rerunning on the same port does not depend on GC.
+Open WebSockets are force-closed on scope cleanup, without waiting for the peer's close
+handshake. Pre-existing interactive resources are preserved unless reopened by the run;
+interactive `exec` / REPL resources remain alive until explicitly closed or collected.
+This cleanup does not turn off Wi-Fi or cancel scheduler jobs. A disposed `HttpServer`
+cannot be restarted; `Stop()` alone remains reusable.
+
+Native embedders can opt into the same ownership boundary with
+`mcs_net_scope_begin(vm)` before execution and `mcs_net_scope_end(vm, checkpoint)` after
+it returns (also on error/abort). Ordinary `mcs_exec_*` calls do not implicitly close
+application-owned resources.
+
 ## ESP32 setup
 
 Nothing to do when you build the example firmware (`ports/esp32/example`): Wi-Fi is on by

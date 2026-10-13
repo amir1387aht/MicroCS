@@ -4,6 +4,10 @@
 #   description lines     - shown in the list and the preview
 category: Web server and WebSocket
 
+[web_server.cs] Minimal HTTP server on TCP
+A raw HTTP server on port 80; prints each request and runs until Studio Stop / Ctrl-C.
+Use the full printed URL on a phone connected to the same Wi-Fi.
+
 [web_led.cs] Web page that switches an LED
 HttpServer with routes: a page with On / Off buttons and a JSON status; open http://<board-ip>/.
 

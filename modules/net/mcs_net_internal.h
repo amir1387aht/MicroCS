@@ -17,7 +17,21 @@
 #define STR_ARG(i, var) const char* var = mcs_to_cstr(vm, argv[i]); CHECK()
 #define OPT_STR(i, var) const char* var = argc > (i) && !mcs_is_null(argv[i]) ? mcs_to_cstr(vm, argv[i]) : NULL; CHECK()
 
+typedef struct mcs__net_resource {
+    struct mcs__net_resource* next;
+    mcs_vm_t* vm;
+    void* data;
+    void (*close)(mcs_vm_t*, void*);
+    uint32_t generation;
+} mcs__net_resource_t;
+void mcs__net_track(mcs_vm_t* vm, mcs__net_resource_t* r, void* data, void (*close)(mcs_vm_t*, void*));
+void mcs__net_untrack(mcs__net_resource_t* r);
+/* Dispatch idle HAL / scheduler work as well as Stop and time limits. */
+int mcs__net_yield(mcs_vm_t* vm);
+
 typedef struct {
+    mcs__net_resource_t* resources;   /* weak intrusive links; finalizers unlink before freeing */
+    uint32_t resource_generation;
     const mcs_net_t* net;
     int self_pin, cb_pin;            /* this object, list [Wifi.OnEvent, EspNow.OnReceive] */
     int last_reason;
