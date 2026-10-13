@@ -12,8 +12,11 @@ A checked, raw-sample host harness is available in
 [`bench/v2/`](../bench/v2/README.md) (`make bench-v2-test`, `make bench-v2`).
 It records provenance, timing distributions and total requested allocator bytes,
 verifies output/status and teardown, and distinguishes source, optimized/no-opt
-image, XIP and persistent REPL modes. No v2 optimization or hardware speedup is
-claimed yet. Historical results below remain historical; this harness alone
+image, XIP and persistent REPL modes. The first profiled keyword-lookup checkpoint has a
+[scoped host comparison](development/evidence/isolated-host-comparison/README.md):
+5.6–11.8% lower compiler-heavy phase medians in one capture, unchanged requested
+RAM/image sizes, and +56 B host ELF text. It is not a complete v2, general runtime
+or hardware speedup claim. Historical results below remain historical; this harness alone
 does not satisfy the v2 performance/release matrix.
 
 ## Bytecode images

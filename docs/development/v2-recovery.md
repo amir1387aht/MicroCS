@@ -132,3 +132,31 @@ Draft PR #43: https://github.com/amir1387aht/MicroCS/pull/43 ; 89 CI jobs were
 queued/running/some green on checkpoint 5; no merge/release allowed.
 Next: isolated before/after sample runs, frozen-checkout full checks/sanitizers,
 updated CI observation; all graphics/security/roadmap gates remain pending.
+
+## Checkpoint 7 — isolated comparable host measurements
+
+Frozen remote candidate 8936b6d8a3a81d048733d7d750eb411521728273 and clean base
+main measured sequentially before starting any other local gate builds; same
+frozen harness/workloads/GCC/config. 1250 verified samples per version, 2500 total.
+50 groups per version; all median/sample-key/count/nullable checks pass via
+pandas plus independent sorted midpoint. Only mcs_lexer.c hash differs across
+core/module/header inputs. All requested peak/retained and image sizes unchanged;
+host ELF text +56 B, data/BSS unchanged. Compiler-heavy medians: compile opt
+-5.6%, noopt -11.8%, source compile+run -11.0% in THIS host capture. Opposing
+runtime movements are retained (collections image +1.36%, strings +0.70%,
+calls +0.67%); no universal speedup or MCU extrapolation. Full raw/metadata/
+summary/analysis/comparison spec and limitations remotely committed under
+`evidence/isolated-host-comparison/`. Local binary/link maps under /data/raw.
+
+Exact snapshot gates now isolated in /data/MicroCS-v2-gates (make -j2 check ->
+/data/backups/v2-frozen-check.log) and /data/MicroCS-v2-sanitizers (ASan target).
+Initial ASan attempt failed loading libasan.so.6, NOT a code test failure.
+System GCC library files exist but SONAME symlink lookup was absent; created
+user-owned /data/toolchains/sanitizer-libs links to actual GCC libasan/ubsan and
+restarted with LD_LIBRARY_PATH and UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1.
+Exact command/output in /data/backups/v2-frozen-asan-retry.log; still running at
+checkpoint. Don't waive the gate. Earlier mixed-snapshot make-check log is not
+release evidence. No graphics/security/hardware review scope completed.
+Draft PR #43 remains unmergeable by policy; observe CI on each NEW head.
+Next: finish these frozen gates, fuzz source/image, inspect CI failure/pending
+jobs, test remaining editor semantics and implement unfinished coverage.

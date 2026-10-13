@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "form": "categorical-bars",
+  "title": "Compiler-heavy workload is faster in this host capture",
+  "aside": "Median \u00b5s from 25 checked samples per mode; no MCU claim",
+  "mode": "grouped",
+  "labels": [
+    "Compile + optimize",
+    "Compile, no optimizer",
+    "Source compile + run"
+  ],
+  "axis": {
+    "zero": true
+  },
+  "colorMap": {
+    "Current main": "neutral",
+    "v2 WIP checkpoint": "blue"
+  },
+  "series": [
+    {
+      "label": "Current main",
+      "role": "base",
+      "valueKind": "number",
+      "data": [
+        573.14,
+        420.286,
+        348.093
+      ]
+    },
+    {
+      "label": "v2 WIP checkpoint",
+      "role": "subject",
+      "valueKind": "number",
+      "data": [
+        541.296,
+        370.829,
+        309.732
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "grain": "workload, phase, iteration; 25 samples per group",
+  "versions": {
+    "v1": "d3def1ff534c59a6726037ccf31f61535647e857",
+    "v2": "8936b6d8a3a81d048733d7d750eb411521728273"
+  },
+  "matching_build": "same GCC/OS/CPU, workload/expected and harness hashes; only lexer C source differs",
+  "total_samples": 2500,
+  "changed_source_files": [
+    "src/mcs_lexer.c"
+  ],
+  "host_elf_sections": {
+    "v1": {
+      "text": 752983,
+      "data": 1520,
+      "bss": 4480
+    },
+    "v2": {
+      "text": 753039,
+      "data": 1520,
+      "bss": 4480
+    }
+  },
+  "headline_noopt_reduction_percent": 11.767463108454713,
+  "host_text_delta_bytes": 56,
+  "requested_peak_and_retained_delta_all_groups": 0,
+  "image_size_delta_all_groups": 0,
+  "compiler_phases": [
+    {
+      "workload": "compiler",
+      "phase": "compile_opt",
+      "baseline_median_us": 573.14,
+      "baseline_p10_us": 555.9984000000001,
+      "baseline_p90_us": 604.3138,
+      "baseline_peak_bytes": 652322,
+      "baseline_retained_bytes": 60664,
+      "baseline_image_bytes": 12086,
+      "candidate_median_us": 541.296,
+      "candidate_p10_us": 516.0958,
+      "candidate_p90_us": 614.3538000000001,
+      "candidate_peak_bytes": 652322,
+      "candidate_retained_bytes": 60664,
+      "candidate_image_bytes": 12086,
+      "median_change_percent": -5.556059601493512,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+    },
+    {
+      "workload": "compiler",
+      "phase": "compile_noopt",
+      "baseline_median_us": 420.286,
+      "baseline_p10_us": 408.7504,
+      "baseline_p90_us": 461.4964,
+      "baseline_peak_bytes": 652322,
+      "baseline_retained_bytes": 68630,
+      "baseline_image_bytes": 13286,
+      "candidate_median_us": 370.829,
+      "candidate_p10_us": 367.4966,
+      "candidate_p90_us": 383.278,
+      "candidate_peak_bytes": 652322,
+      "candidate_retained_bytes": 68630,
+      "candidate_image_bytes": 13286,
+      "median_change_percent": -11.767463108454713,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+    },
+    {
+      "workload": "compiler",
+      "phase": "source_run",
+      "baseline_median_us": 348.093,
+      "baseline_p10_us": 345.35040000000004,
+      "baseline_p90_us": 369.2686,
+      "baseline_peak_bytes": 652322,
+      "baseline_retained_bytes": 56044,
+      "baseline_image_bytes": 0,
+      "candidate_median_us": 309.732,
+      "candidate_p10_us": 308.1134,
+      "candidate_p90_us": 317.2038,
+      "candidate_peak_bytes": 652322,
+      "candidate_retained_bytes": 56044,
+      "candidate_image_bytes": 0,
+      "median_change_percent": -11.020330773672548,
+      "peak_delta_bytes": 0,
+      "retained_delta_bytes": 0
+    }
+  ],
+  "comparison_plan": [
+    {
+      "grain": "compiler workload \u00d7 phase \u00d7 version",
+      "population": "25 fresh-VM checked samples per phase/version",
+      "unit": "host wall microseconds",
+      "finding": "Compiler-heavy workload has lower median compilation/source-run time in all three measured modes in this capture.",
+      "disposition": "chart",
+      "reason": "side-by-side native median timings distinguish optimizer/no-opt/source phases without a broad speedup claim"
+    },
+    {
+      "grain": "all 5 workloads \u00d7 10 phases",
+      "population": "identical fixtures/configurations, 25 samples per group/version",
+      "unit": "microseconds and bytes",
+      "finding": "Other runtime medians fluctuate; requested peaks/retained bytes and image sizes are unchanged, host text grows 56 B.",
+      "disposition": "table",
+      "reason": "retain every opposing/non-improving result in full comparison CSV; do not claim universal speedup"
+    },
+    {
+      "grain": "MCU boards",
+      "population": "not measured here",
+      "unit": "cycles/RAM/flash",
+      "finding": "No new hardware performance claim can be made.",
+      "disposition": "prose",
+      "reason": "explicit missing coverage, not zero or extrapolation"
+    }
+  ],
+  "limitations": [
+    "single host capture, sequential version order, 25 repetitions; no statistical causal or universal speedup guarantee",
+    "fresh VM is not cold CPU cache; tracked requested memory excludes allocator overhead and external buffers",
+    "host ELF text delta is not MCU flash; minimum-profile and cross-target CI remain required",
+    "no graphics/security/peripheral overhead or physical-hardware evidence; v2 release blocked"
+  ]
+}

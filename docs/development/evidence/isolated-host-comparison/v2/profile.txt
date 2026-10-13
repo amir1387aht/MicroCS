@@ -1,0 +1,23 @@
+## /data/raw/microcs-idle-v2/samples.jsonl
+
+- Shape: 1,250 rows x 11 columns
+- Duplicate rows: 0
+- Candidate key columns: none (no single column uniquely identifies a row)
+
+| column | type | non-null | distinct | values |
+| --- | --- | --- | --- | --- |
+| phase | text | 100% | 10 | top: vm_init (125), compile_opt (125), compile_noopt (125), source_run (125), image_opt (125) |
+| iteration | number | 100% | 25 | 0 → 24, mean 12 |
+| elapsed_us | number | 100% | 1,183 | 0.574 → 2,388, mean 207.4 |
+| requested_peak_bytes | number | 100% | 48 | 21,602 → 652,322, mean 7.221e+04 |
+| requested_retained_bytes | number | 100% | 57 | 21,602 → 68,630, mean 3.086e+04 |
+| allocator_calls | number | 100% | 25 | 8 → 311, mean 92.28 |
+| gc_peak_bytes | number | 100% | 48 | 18,970 → 649,690, mean 6.945e+04 |
+| gc_collections | number | 100% | 2 | 0 → 1, mean 0.7 |
+| image_bytes | number | 100% | 11 | 0 → 13,286, mean 1,630 |
+| verified | number | 100% | 1 | 1 → 1, mean 1 |
+| workload | text | 100% | 5 | top: calls (250), collections (250), compiler (250), dispatch (250), strings (250) |
+
+**Warnings:**
+
+- ⚠️ `verified` is constant
