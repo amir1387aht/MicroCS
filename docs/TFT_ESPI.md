@@ -131,7 +131,8 @@ palette success or replacement library is used. The opted-in real firmware
 fixture embeds `tests/tft/sprite_contract.cs` with RAM/lifetime/invalid-argument
 assertions; source/header parity and cross-link are checked. **Those assertions
 have not been executed on a board**. Host arithmetic sanitizers test only the
-shared allocation calculation, not native rendering or native GC execution.
+shared allocation calculation. A separate explicit real-library headless RAM
+route is documented below; it does not replace the actual Arduino cross-builds.
 
 ## LVGL bridge and lifetime
 
@@ -161,6 +162,27 @@ before attach; only calibrated native touch supplies the real LVGL pointer
 callback. Without TOUCH_CS, SetTouch raises NotSupportedException; script-fed
 LvGui.Input remains available. Touch uses polling and no script callback inside
 LVGL; other input types remain unimplemented.
+
+## Explicit real-library headless RAM gate
+
+`python3 tools/test_tft_headless.py --tft-root /absolute/path/TFT_eSPI --sanitize`
+compiles the actual unchanged pinned TFT_eSPI.cpp/real upstream Sprite.cpp and
+MicroCS adapter/VM. The test-only generic Arduino String/Print/program-memory
+boundary is not a replacement TFT implementation or production Linux port.
+Physical GPIO/SPI/delay/unsupported IO aborts, never returns fake success; an
+actual upstream init subprocess must abort as a harness guard self-test.
+See [test boundary details](../tests/tft/headless/README.md). The GC-stress variant
+uses `--gc-stress --build-dir build/tft-headless-stress`.
+
+RAM tests cover every16-bit RGB565 value/native8-bit quantization, actual script
+primitives/GLCD text, parent/child GC/Dispose,20 undisposed VM cycles, error/Stop,
+allocation-free probes, actual native calloc OOM and VM-native-object allocation
+panic with quota rollback/reuse. Allocator injection does not alter upstream
+source. ASan/UBSan/leak detection and VM allocation accounting are independent
+checks. This generic host RAM gate is **not** ESP32/PSRAM/MCU flash ABI, physical
+panel/readback/touch/IO acknowledgement, full font/API or production host support.
+Exact completed results belong to the recovery evidence, not an assumption that
+a test script or cross-linked firmware executed successfully.
 
 ## Validation and unfinished scope
 

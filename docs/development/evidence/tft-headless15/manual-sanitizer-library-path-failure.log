@@ -1,0 +1,7 @@
+/data/MicroCS-v2-work/build/tft-headless/test_sprite: error while loading shared libraries: libasan.so.6: cannot open shared object file: No such file or directory
+Traceback (most recent call last):
+  File "<stdin>", line 9, in <module>
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/data/MicroCS-v2-work/build/tft-headless/test_sprite']' returned non-zero exit status 127.

@@ -583,6 +583,14 @@ jobs:
             -fno-omit-frame-pointer tests/tft/test_sprite_budget.c -o /tmp/test_sprite_budget
           /tmp/test_sprite_budget
           python3 tools/gen_tft_fixture.py --check
+      - name: Actual upstream RAM lifetime and OOM tests (physical IO forbidden)
+        env:
+          ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          python3 tools/test_tft_headless.py --tft-root "$MICROCS_TFT_ROOT" --sanitize
+          python3 tools/test_tft_headless.py --tft-root "$MICROCS_TFT_ROOT" --sanitize \
+            --gc-stress --build-dir build/tft-headless-stress
       - uses: actions/upload-artifact@v4
         with:
           name: optional-tft-cross-builds-not-hardware-proof

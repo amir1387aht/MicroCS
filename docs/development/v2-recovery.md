@@ -417,3 +417,38 @@ hardware. Full sprite/API/LVGL/core/security/roadmap scope remains unfinished.
 Recovery patch `/data/backups/v2-checkpoint-14-staged.patch`, cumulative base patch
 and notes are maintained; GitHub commit containing this entry is checkpoint14.
 No merge, tag, release, provisioning or irreversible device operation.
+
+## Checkpoint 15 — real upstream sprite RAM/GC/OOM runtime evidence
+
+Made the prototype reproducible with actual unchanged pinned TFT_eSPI.cpp/
+Sprite.cpp, MicroCS adapter/fullVM and a test-only generic Arduino boundary.
+Physical GPIO/SPI/delay/unsupported IO aborts, never returns fake success; actual
+upstream init in a separate process must abort as a guard self-test. No replacement
+TFT headers/algorithms/vendor sources or production host-port claim. Typed pointer
+constants are widened for the host boundary; GLCD only, not MCU flash/PSRAM ABI.
+
+131356 checks pass in EACH normal and MCS_GC_STRESS variant under ASan/UBSan/leak
+checks, including every16bit word/native8bit quantization, embedded actual C#
+RAM/lifetime assertions,20 undisposed VM teardown cycles, error/Stop VM teardown,
+allocation-free capability probes, injected actual upstream calloc OOM and
+VM-native-object allocation panic after reservation; rollback/reuse and measured
+VM allocation balance pass. Added explicit CI gates alongside, not instead of,
+real ESP32 Arduino five-way cross-link gates. Raw logs/source/toolchain hashes in
+`evidence/tft-headless15/`. Initial missing test pin-map declaration and manual
+retry's absent sanitizer library path are preserved as diagnosed failures, not
+hidden/passed. Full script/physical/font/API/platform coverage remains pending.
+
+Full host makecheck launched on checkpoint14 completed successfully: native,
+default/config/profile/GC-stress and11alternate85-script suites. Full serial
+Studio also passed. Saved generated node_image.h6byte debug-path drift patch
+(`/data/backups/v2-sprites14-generated-node-image.patch`) and restored ONLY that
+file after gates finished. No active baseline test jobs remain. New checkpoint14
+CI was76success/16running at last check; exact final statuses require a fresh query.
+
+Remote predecessor d3198cbd279bf8ace871c3c74378d7ef5a936e55 was fetched/tree-verified;
+main remainsd3def1ff534c59a6726037ccf31f61535647e857. Recovery patch
+`/data/backups/v2-checkpoint-15-staged.patch` and cumulative patches/NOTES maintained.
+Next: foreground TFT cleanup (currently only VM teardown/explicit Dispose proven),
+then safely adapt upstream palette OOM before exposing depth4; fuller sprite,
+LVGL/assets/fonts/core/Studio/security/roadmap/hardware gates remain unfinished.
+No merge/tag/release/provisioning or irreversible device action.

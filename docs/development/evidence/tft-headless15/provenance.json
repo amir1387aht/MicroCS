@@ -1,0 +1,34 @@
+{
+  "validation": "real unchanged generic upstream native RAM + actual MicroCS VM; physical Arduino IO forbidden; NOT hardware",
+  "toolchains": {
+    "cc": "cc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+    "g++": "g++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+    "python3": "Python 3.13.14"
+  },
+  "upstream": "16e37595040eac69cd628e4bffb56fc30cad6299",
+  "checks_per_variant": 131356,
+  "variants": [
+    "ASan/UBSan/leak detection normal",
+    "ASan/UBSan/leak detection MCS_GC_STRESS=1"
+  ],
+  "source_sha256": {
+    "tools/test_tft_headless.py": "be99db892684dd474607e053875958f7992f9a8ad81e4886dd2bb58e5d5a3edc",
+    "tests/tft/headless/Arduino.h": "7b1ded92cd8a42e3f11968889082452acf82c6eed31f015d1f8e250dd8239b35",
+    "tests/tft/headless/Print.h": "4ea9bae38d28721592cfb8620ab1ad17ba5a9697f4b9b0eb24d77e7e08e8f6f6",
+    "tests/tft/headless/SPI.h": "7f57534724f22f680ebe42384b9c3c9486535ae6693ac2f57d7f7122403b6c9f",
+    "tests/tft/headless/test_sprite.cpp": "3c3397d8c5a250e6f2273e2cb587a5154b554de85016efd0d4f9c5e87b4656cc",
+    "tests/tft/sprite_contract.cs": "4dd706e4adee2fda1ec729b6657c56ab4eb85b706eff4172a0d2d35621de87d9",
+    "tests/tft/src/sprite_contract.h": "2d936f21b89589f9b9bdb952c81e9e5d281bfb5a1bc31a79252f7bdd132bc084",
+    "ports/arduino/mcs_arduino_tft.cpp": "aa4c754bd5cafcb73503c68ff84b65df9f6cf8845dc54b11c002ccc3c8eb29dd",
+    "include/mcs_config.h": "59da296da1f237d85ccdb7016db3c95141f6883696cd065e43bd183a155724db",
+    "include/mcs_tft_sprite_budget.h": "28f5886ec06f029ae08a11050691bd588f8b6f9dee667c3cc1c97f6e4a8ab933"
+  },
+  "log_sha256": {
+    "checkpoint14-full-host.log": "3a31cdcd60b480e750d6eecaadbe1191133e10ab994b7c3ff2fea2ad7379ccc7",
+    "checkpoint14-full-studio.log": "0f2b7d0256be678fe58acccc342ad23432fa127739f7c37fac98fb3c8f27e127",
+    "initial-test-boundary-failure.log": "85c85a0c0e4132e2d6767f2c8a4ef2753e374231485c0bd5fd8a03392524ec64",
+    "manual-sanitizer-library-path-failure.log": "7d1db775f079dc8fa5b7fd1b7e5d0ab64095ddb77dfba0f9172971270ddaa32b",
+    "native-gc-stress-sanitizers.log": "2a72507ef1ebe65b5275b7e90a3a1a5d6d4194c3b07ba69dd09c3ab2731453ae",
+    "native-sanitizers.log": "2a72507ef1ebe65b5275b7e90a3a1a5d6d4194c3b07ba69dd09c3ab2731453ae"
+  }
+}

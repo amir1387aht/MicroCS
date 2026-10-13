@@ -1,0 +1,16 @@
+PASS TFT sprite fixture source parity
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp: In member function ‘void TFT_eSPI::init(uint8_t)’:
+/data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp:620:28: error: ‘digitalPinToBitMask’ was not declared in this scope
+  620 |     cspinmask = (uint32_t) digitalPinToBitMask(TFT_CS);
+      |                            ^~~~~~~~~~~~~~~~~~~
+Traceback (most recent call last):
+  File "/data/MicroCS-v2-work/tools/test_tft_headless.py", line 68, in <module>
+    main()
+    ~~~~^^
+  File "/data/MicroCS-v2-work/tools/test_tft_headless.py", line 55, in main
+    subprocess.run(cxx+cppflags+strict+['-c', str(path), '-o', str(obj)], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['g++', '-O1', '-g', '-ffunction-sections', '-fdata-sections', '-I/data/MicroCS-v2-work/include', '-DMCS_USER_CONFIG=0', '-DARDUINO=1', '-DMCS_ENABLE_TFT_ESPI=1', '-DMCS_ENABLE_THREADS=0', '-DMCS_ENABLE_LVGL=0', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-std=gnu++17', '-I/data/MicroCS-v2-work/tests/tft/headless', '-I/data/deps/TFT_eSPI-upstream', '-DUSER_SETUP_LOADED=1', '-DILI9341_DRIVER=1', '-DTFT_WIDTH=240', '-DTFT_HEIGHT=320', '-DTFT_CS=5', '-DTFT_DC=2', '-DLOAD_GLCD=1', '-DDISABLE_ALL_LIBRARY_WARNINGS=1', '-c', '/data/deps/TFT_eSPI-upstream/TFT_eSPI.cpp', '-o', '/data/MicroCS-v2-work/build/tft-headless/TFT_eSPI.cpp.o']' returned non-zero exit status 1.
