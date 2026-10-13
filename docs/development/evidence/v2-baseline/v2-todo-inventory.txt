@@ -1,0 +1,35 @@
+ports/template/mcs_port_template.c:2: * MicroCS port template - copy this file, replace every TODO with your SDK's
+ports/template/mcs_port_template.c:33:static uint32_t port_ticks(void* ud) { return 0; /* TODO: millisecond counter */ }
+ports/template/mcs_port_template.c:34:static void port_delay(void* ud, uint32_t ms) { /* TODO: sleep ms (yield to the RTOS) */ }
+ports/template/mcs_port_template.c:37:    /* TODO: uart_write(CONSOLE_UART, s, n); */
+ports/template/mcs_port_template.c:41:    /* TODO: return uart_read(CONSOLE_UART, buf, n, timeout_ms); */
+ports/template/mcs_port_template.c:50:    return 0;   /* TODO */
+ports/template/mcs_port_template.c:52:static int gpio_write(void* ctx, int pin, int v) { return 0; /* TODO */ }
+ports/template/mcs_port_template.c:53:static int gpio_read(void* ctx, int pin) { return 0; /* TODO: 0 or 1 */ }
+ports/template/mcs_port_template.c:58:    return MCS_HAL_ENOTSUP;   /* TODO */
+ports/template/mcs_port_template.c:61:static int uart_config(void* ctx, int port, const mcs_uart_cfg_t* c) { return MCS_HAL_ENOTSUP; /* TODO: baud, bits, parity, stop */ }
+ports/template/mcs_port_template.c:62:static int uart_write(void* ctx, int port, const uint8_t* d, size_t n) { return (int)n; /* TODO */ }
+ports/template/mcs_port_template.c:63:static int uart_read(void* ctx, int port, uint8_t* b, size_t n, uint32_t timeout_ms) { return 0; /* TODO: bytes read */ }
+ports/template/mcs_port_template.c:64:static int uart_available(void* ctx, int port) { return 0; /* TODO: bytes buffered */ }
+ports/template/mcs_port_template.c:66:static int i2c_open(void* ctx, int bus, uint32_t hz) { return 0; /* TODO */ }
+ports/template/mcs_port_template.c:67:static int i2c_write(void* ctx, int bus, int addr, const uint8_t* d, size_t n) { return MCS_HAL_ENODEV; /* TODO */ }
+ports/template/mcs_port_template.c:68:static int i2c_read(void* ctx, int bus, int addr, uint8_t* b, size_t n) { return MCS_HAL_ENODEV; /* TODO */ }
+ports/template/mcs_port_template.c:70:static int spi_open(void* ctx, int bus, const mcs_spi_cfg_t* c) { return 0; /* TODO: c->freq_hz, c->mode */ }
+ports/template/mcs_port_template.c:72:    memcpy(rx, tx, n);   /* TODO: full duplex; tx and rx are never NULL here */
+ports/template/mcs_port_template.c:76:static int adc_read(void* ctx, int ch) { return 0; /* TODO: raw counts */ }
+ports/template/mcs_port_template.c:77:static int pwm_set16(void* ctx, int ch, uint32_t hz, uint16_t duty) { return MCS_HAL_ENOTSUP; /* TODO: duty 0..65535 */ }
+ports/template/mcs_port_template.c:81:    return MCS_HAL_ENOTSUP;   /* TODO */
+ports/template/mcs_port_template.c:85:static uint32_t micros(void* ctx) { return port_ticks(ctx) * 1000u; /* TODO: µs counter */ }
+ports/template/mcs_port_template.c:98:    /* TODO: c->mode, c->pull (MCS_PULL_*), c->speed, c->drive_ma, c->schmitt / hold / invert
+ports/template/mcs_port_template.c:103:    /* TODO: pins c->sck / mosi / miso (-1 = board default), c->bus.freq_hz / mode / bits /
+ports/template/mcs_port_template.c:111:    /* TODO: c->sda / scl, c->pullups, c->timeout_ms, c->glitch_filter, c->analog_filter, c->dma */
+ports/template/mcs_port_template.c:120:    int rc = spi_transfer(ctx, bus, tx, rx, n);   /* TODO: HAL_SPI_TransmitReceive_DMA(...) */
+ports/template/mcs_port_template.c:125:    /* TODO: memory-to-memory channel; MCS_DMA_SRC_FIXED = fill with *(uint8_t*)src */
+ports/template/mcs_port_template.c:161:    /* TODO: send n bytes MSB first on `pin`: 0 = 0.4 us high + 0.85 us low,
+ports/template/mcs_port_template.c:174:static int buzzer_tone(void* ctx, uint32_t hz, uint32_t ms) { return MCS_HAL_ENOTSUP; /* TODO: PWM on the buzzer pin */ }
+ports/template/mcs_port_template.c:214:#define FS_BASE   0x0801E000u            /* TODO: first byte of the files region (here: last 8 KB of 128 KB) */
+ports/template/mcs_port_template.c:215:#define FS_SIZE   (8u * 1024u)           /* TODO: size, a multiple of the erase unit (MCS_INTFLASH_SIZE) */
+ports/template/mcs_port_template.c:216:#define FS_BLOCK  1024u                  /* TODO: erase unit (page / sector size) */
+ports/template/mcs_port_template.c:217:#define FS_UNIT   8u                     /* TODO: program unit in bytes: 2 on F1, 8 on L4/G4, 16/32 on H7 */
+ports/template/mcs_port_template.c:224:    /* TODO: unlock, program n bytes (a multiple of FS_UNIT, 4-byte aligned buf) at
+ports/template/mcs_port_template.c:231:    /* TODO: erase the FS_BLOCK unit at FS_BASE + off (must read back as 0xFF; if your
