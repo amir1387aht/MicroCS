@@ -6,6 +6,16 @@
 > counts* in an emulator, not cycles. Real-hardware results:
 > [ESP32-S3](#real-hardware--esp32-s3).
 
+## v2 measurement work in progress
+
+A checked, raw-sample host harness is available in
+[`bench/v2/`](../bench/v2/README.md) (`make bench-v2-test`, `make bench-v2`).
+It records provenance, timing distributions and total requested allocator bytes,
+verifies output/status and teardown, and distinguishes source, optimized/no-opt
+image, XIP and persistent REPL modes. No v2 optimization or hardware speedup is
+claimed yet. Historical results below remain historical; this harness alone
+does not satisfy the v2 performance/release matrix.
+
 ## Bytecode images
 
 A precompiled image (`mcs -c`) is the fast path — it is optimized, the on-device compiler's

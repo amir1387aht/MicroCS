@@ -1,0 +1,179 @@
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude build/mcs_bytecode.o build/mcs_compiler.o build/mcs_fmt.o build/mcs_lexer.o build/mcs_lib.o build/mcs_lib_bytes.o build/mcs_lib_coll.o build/mcs_lib_json.o build/mcs_lib_str.o build/mcs_object.o build/mcs_opt.o build/mcs_parser.o build/mcs_value.o build/mcs_vm.o build/mod/ble/mcs_ble_lib.o build/mod/ble/mcs_ble_sim.o build/mod/drivers/mcs_drivers.o build/mod/drivers/mcs_drv_servo.o build/mod/drivers/mcs_drv_u8g2.o build/mod/drivers/mcs_drv_ws2812.o build/mod/fs/mcs_flash.o build/mod/fs/mcs_flashfs.o build/mod/fs/mcs_fs_lib.o build/mod/fs/mcs_vfs.o build/mod/fs/mcs_vfs_lfs.o build/mod/fs/mcs_vfs_posix.o build/mod/fs/mcs_vfs_ram.o build/mod/fs/mcs_vfs_tinyfs.o build/mod/fs/mcs_vfs_yaffs.o build/mod/hal/mcs_hal_cfg.o build/mod/hal/mcs_hal_dma.o build/mod/hal/mcs_hal_lib.o build/mod/hal/mcs_hal_sim.o build/mod/net/mcs_net_lib.o build/mod/net/mcs_net_sim.o build/mod/net/mcs_net_sock.o build/mod/net/mcs_net_srv.o build/mod/os/mcs_os.o build/mod/runtime/mcs_runtime.o build/mod/sched/mcs_sched.o build/mod/shell/mcs_shell.o build/mod/threads/mcs_threads.o tests/c/test_modules.c -o build/test_modules -lm
+cc -O2 -g -std=gnu99 -Wall -Wextra -Iinclude build/mcs_bytecode.o build/mcs_compiler.o build/mcs_fmt.o build/mcs_lexer.o build/mcs_lib.o build/mcs_lib_bytes.o build/mcs_lib_coll.o build/mcs_lib_json.o build/mcs_lib_str.o build/mcs_object.o build/mcs_opt.o build/mcs_parser.o build/mcs_value.o build/mcs_vm.o build/mod/ble/mcs_ble_lib.o build/mod/ble/mcs_ble_sim.o build/mod/drivers/mcs_drivers.o build/mod/drivers/mcs_drv_servo.o build/mod/drivers/mcs_drv_u8g2.o build/mod/drivers/mcs_drv_ws2812.o build/mod/fs/mcs_flash.o build/mod/fs/mcs_flashfs.o build/mod/fs/mcs_fs_lib.o build/mod/fs/mcs_vfs.o build/mod/fs/mcs_vfs_lfs.o build/mod/fs/mcs_vfs_posix.o build/mod/fs/mcs_vfs_ram.o build/mod/fs/mcs_vfs_tinyfs.o build/mod/fs/mcs_vfs_yaffs.o build/mod/hal/mcs_hal_cfg.o build/mod/hal/mcs_hal_dma.o build/mod/hal/mcs_hal_lib.o build/mod/hal/mcs_hal_sim.o build/mod/net/mcs_net_lib.o build/mod/net/mcs_net_sim.o build/mod/net/mcs_net_sock.o build/mod/net/mcs_net_srv.o build/mod/os/mcs_os.o build/mod/runtime/mcs_runtime.o build/mod/sched/mcs_sched.o build/mod/shell/mcs_shell.o build/mod/threads/mcs_threads.o tests/c/test_flash.c -o build/test_flash -lm
+In file included from tests/c/test_flash.c:4:
+tests/c/flash_sim.h:234:13: warning: 'sim_iflash_free' defined but not used [-Wunused-function]
+  234 | static void sim_iflash_free(sim_iflash_t* s) { free(s->mem); free(s->programmed); }
+      |             ^~~~~~~~~~~~~~~
+tests/c/flash_sim.h:225:13: warning: 'sim_iflash_init' defined but not used [-Wunused-function]
+  225 | static void sim_iflash_init(sim_iflash_t* s, uint32_t block_size, uint32_t blocks, uint32_t write_size) {
+      |             ^~~~~~~~~~~~~~~
+PASS config (header + lowram profile + -D)
+65/65 capability checks passed
+PASS config (header + lowram profile + -D)
+77/77 capability checks passed
+PASS config (header + lowram profile + -D)
+58/58 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+gen_config --check: OK
+OK config template: profile mismatch warns
+cc -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_TINYFS=1 src/mcs_bytecode.c src/mcs_compiler.c src/mcs_fmt.c src/mcs_lexer.c src/mcs_lib.c src/mcs_lib_bytes.c src/mcs_lib_coll.c src/mcs_lib_json.c src/mcs_lib_str.c src/mcs_object.c src/mcs_opt.c src/mcs_parser.c src/mcs_value.c src/mcs_vm.c modules/ble/mcs_ble_lib.c modules/ble/mcs_ble_sim.c modules/drivers/mcs_drivers.c modules/drivers/mcs_drv_servo.c modules/drivers/mcs_drv_u8g2.c modules/drivers/mcs_drv_ws2812.c modules/fs/mcs_flash.c modules/fs/mcs_flashfs.c modules/fs/mcs_fs_lib.c modules/fs/mcs_vfs.c modules/fs/mcs_vfs_lfs.c modules/fs/mcs_vfs_posix.c modules/fs/mcs_vfs_ram.c modules/fs/mcs_vfs_tinyfs.c modules/fs/mcs_vfs_yaffs.c modules/hal/mcs_hal_cfg.c modules/hal/mcs_hal_dma.c modules/hal/mcs_hal_lib.c modules/hal/mcs_hal_sim.c modules/net/mcs_net_lib.c modules/net/mcs_net_sim.c modules/net/mcs_net_sock.c modules/net/mcs_net_srv.c modules/os/mcs_os.c modules/runtime/mcs_runtime.c modules/sched/mcs_sched.c modules/shell/mcs_shell.c modules/threads/mcs_threads.c tests/c/test_tinyfs.c -lm -o build/test_tinyfs
+PASS config (MCS_USER_CONFIG=0: header skipped, build profile min)
+./build/test_tinyfs
+PASS tests/threads/t_threads.cs (POSIX threads)
+geometry 8192 B / 1024 B blocks / unit 2
+geometry 8192 B / 1024 B blocks / unit 4
+geometry 8192 B / 2048 B blocks / unit 8
+  random 8192 B/2048 B ws 8: 301 ops, 27 erases (min 6 max 7 per block), 1827 programs
+geometry 8192 B / 4096 B blocks / unit 1
+geometry 16384 B / 2048 B blocks / unit 16
+geometry 32768 B / 4096 B blocks / unit 32
+geometry 65536 B / 16384 B blocks / unit 64
+geometry 8192 B / 1024 B blocks / unit 0
+power-cut sweeps
+  power cut: 669 cut points over 678 flash operations (19 erases), 8192 B region, 1024 B blocks, unit 4
+  power cut: 632 cut points over 637 flash operations (10 erases), 8192 B region, 2048 B blocks, unit 8
+  power cut: 590 cut points over 593 flash operations (6 erases), 8192 B region, 4096 B blocks, unit 1
+  power cut: 575 cut points over 584 flash operations (23 erases), 8192 B region, 1024 B blocks, unit 32
+900 checks, 0 failed
+cc -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1 src/mcs_bytecode.c src/mcs_compiler.c src/mcs_fmt.c src/mcs_lexer.c src/mcs_lib.c src/mcs_lib_bytes.c src/mcs_lib_coll.c src/mcs_lib_json.c src/mcs_lib_str.c src/mcs_object.c src/mcs_opt.c src/mcs_parser.c src/mcs_value.c src/mcs_vm.c modules/ble/mcs_ble_lib.c modules/ble/mcs_ble_sim.c modules/drivers/mcs_drivers.c modules/drivers/mcs_drv_servo.c modules/drivers/mcs_drv_u8g2.c modules/drivers/mcs_drv_ws2812.c modules/fs/mcs_flash.c modules/fs/mcs_flashfs.c modules/fs/mcs_fs_lib.c modules/fs/mcs_vfs.c modules/fs/mcs_vfs_lfs.c modules/fs/mcs_vfs_posix.c modules/fs/mcs_vfs_ram.c modules/fs/mcs_vfs_tinyfs.c modules/fs/mcs_vfs_yaffs.c modules/hal/mcs_hal_cfg.c modules/hal/mcs_hal_dma.c modules/hal/mcs_hal_lib.c modules/hal/mcs_hal_sim.c modules/net/mcs_net_lib.c modules/net/mcs_net_sim.c modules/net/mcs_net_sock.c modules/net/mcs_net_srv.c modules/os/mcs_os.c modules/runtime/mcs_runtime.c modules/sched/mcs_sched.c modules/shell/mcs_shell.c modules/threads/mcs_threads.c ports/unix/main.c -lm -o build/mcs_ble
+20/20 thread checks passed
+PASS tests/ble/t_ble_api.cs
+PASS tests/ble/t_ble_central.cs
+PASS tests/ble/t_ble_options.cs
+PASS tests/ble/t_ble_peripheral.cs
+PASS tests/ble/t_ble_uart_security.cs
+test_threads: no OS chosen (MCS_OS_NONE), nothing to test
+PASS examples/ble/*.cs (smoke, 12 scripts)
+OK default mcs is without BLE, build/mcs_ble has it
+OK BLE -DMCS_BLE_SIM=0
+OK BLE -DMCS_ENABLE_SCHED=0
+OK BLE -DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4
+OK BLE -DMCS_PROFILE=MCS_PROFILE_MCU
+sh tests/run_tests.sh ./mcs
+PASS t01_basics.cs
+PASS t01_basics.cs (image)
+PASS t01_basics.cs (xip)
+PASS t02_oop.cs
+PASS t02_oop.cs (image)
+PASS t02_oop.cs (xip)
+PASS t03_collections.cs
+PASS t03_collections.cs (image)
+PASS t03_collections.cs (xip)
+PASS t04_exceptions.cs
+PASS t04_exceptions.cs (image)
+PASS t04_exceptions.cs (xip)
+PASS t05_functional.cs
+PASS t05_functional.cs (image)
+PASS t05_functional.cs (xip)
+PASS t06_gc_stress.cs
+PASS t06_gc_stress.cs (image)
+PASS t06_gc_stress.cs (xip)
+PASS t07_filesystem.cs
+PASS t07_filesystem.cs (image)
+PASS t07_filesystem.cs (xip)
+PASS t08_hal.cs
+PASS t08_hal.cs (image)
+PASS t08_hal.cs (xip)
+PASS t09_scheduler.cs
+PASS t09_scheduler.cs (image)
+PASS t09_scheduler.cs (xip)
+PASS t10_lang_phase2.cs
+PASS t10_lang_phase2.cs (image)
+PASS t10_lang_phase2.cs (xip)
+PASS t11_tuples_ranges.cs
+PASS t11_tuples_ranges.cs (image)
+PASS t11_tuples_ranges.cs (xip)
+PASS t12_memory_churn.cs
+PASS t12_memory_churn.cs (image)
+PASS t12_memory_churn.cs (xip)
+PASS t13_stdlib_more.cs
+PASS t13_stdlib_more.cs (image)
+PASS t13_stdlib_more.cs (xip)
+PASS t14_low_resource.cs
+PASS t14_low_resource.cs (image)
+PASS t14_low_resource.cs (xip)
+PASS t15_hal_v2.cs
+PASS t15_hal_v2.cs (image)
+PASS t15_hal_v2.cs (xip)
+PASS t16_bytes.cs
+PASS t16_bytes.cs (image)
+PASS t16_bytes.cs (xip)
+PASS t17_optimizer.cs
+PASS t17_optimizer.cs (image)
+PASS t17_optimizer.cs (xip)
+PASS t18_utils.cs
+PASS t18_utils.cs (image)
+PASS t18_utils.cs (xip)
+PASS t19_ledstrip.cs
+PASS t19_ledstrip.cs (image)
+PASS t19_ledstrip.cs (xip)
+PASS t20_sched_sleep.cs
+PASS t20_sched_sleep.cs (image)
+PASS t20_sched_sleep.cs (xip)
+PASS t21_servo.cs
+PASS t21_servo.cs (image)
+PASS t21_servo.cs (xip)
+PASS t22_hal_config.cs
+PASS t22_hal_config.cs (image)
+PASS t22_hal_config.cs (xip)
+PASS t23_dma.cs
+PASS t23_dma.cs (image)
+PASS t23_dma.cs (xip)
+PASS t24_net.cs
+PASS t24_net.cs (image)
+PASS t24_net.cs (xip)
+PASS t25_json.cs
+PASS t25_json.cs (image)
+PASS t25_json.cs (xip)
+PASS t26_robustness.cs
+PASS t26_robustness.cs (image)
+PASS t26_robustness.cs (xip)
+PASS t27_dotnet_semantics.cs
+PASS t27_dotnet_semantics.cs (image)
+PASS t27_dotnet_semantics.cs (xip)
+PASS err_limits.cs
+PASS err_member.cs
+PASS err_runtime.cs
+PASS err_syntax.cs
+----
+85 passed, 0 failed
+./build/test_modules
+189/189 checks passed
+./build/test_flash
+flash: 42/42 checks passed
+PASS boot.cs then main.cs, jobs.cfg loaded
+PASS binary upload
+PASS binary download matches (EOT, newline, Ctrl-C bytes inside)
+PASS windowed upload (flow control), 5 KB with status bytes inside
+PASS windowed upload, 16-byte window
+PASS streamed upload (no window, older hosts)
+PASS upload of exactly one window
+PASS window capped at MCS_SHELL_PUT_WINDOW
+PASS no temporary file left
+PASS exec one-liner
+PASS Ctrl-C stops a running script (ERR script aborted)
+PASS runtime responsive after stop
+PASS jobs listing
+PASS periodic job ran while idle (b'tttttttt\n')
+PASS unknown command reported
+PASS missing script reported
+PASS script exception reported
+PASS quit
+PASS upload over quota rejected
+PASS previous version intact after failed upload
+PASS no partial files (b'f       24 app.cs\n')
+PASS df reports size (b'/ ramfs 2 KB total, 0 KB used, 2 KB free\n')
+----
+all shell tests passed
+PASS Console.ReadLine echo: machine/REPL, echo on/off, CRLF, and identical application output
+PASS network tests (35 checks)
+PASS server network tests (4 groups)
+PASS network lifecycle: normal/error/abort cleanup, repeated binds, partial clients, busy traffic, idle jobs
+PASS examples/tour.cs
+PASS examples/blink.cs (smoke)
+PASS examples/sensor_logger.cs (smoke)
+PASS examples/hardware/*.cs (smoke, 17 scripts)
+PASS examples/quickstart_embed.c
+PASS examples/lowram (lowram profile, XIP image)

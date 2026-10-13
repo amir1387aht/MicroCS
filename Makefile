@@ -348,3 +348,13 @@ capabilities-test: | build
 	@node tests/studio/test_capabilities.js
 	@python3 tests/test_template_metadata.py
 .PHONY: capabilities-test
+
+# Evidence-grade host suite: raw checked samples, provenance and distributions.
+# Does not replace old historical benchmarks or claim MCU/hardware measurements.
+build/bench_v2: bench/v2/measure.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+bench-v2-test: build/bench_v2
+	python3 tests/test_bench_v2.py ./build/bench_v2
+bench-v2:
+	python3 bench/v2/run.py --cc "$(CC)" --out build/v2-evidence-$$(date -u +%Y%m%dT%H%M%SZ)
+.PHONY: bench-v2 bench-v2-test

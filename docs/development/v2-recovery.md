@@ -53,3 +53,33 @@ benchmark harness (existing best-of measurements subtract independently timed
 startup and do not verify execution errors/output).
 Release remains blocked. Local staged/cumulative patches and exact fetched
 remote SHA are recorded in `/data/backups/NOTES.md` after push.
+
+## Checkpoint 4 — checked benchmark harness and completed host/browser gates
+
+Changes: a new host raw-sample harness and runner (not a core optimization).
+Each sample checks status/output; custom allocator tracks compiler+VM requested
+peak/retained bytes and enforces full teardown. Separate init, compile opt/noopt,
+source, image/XIP opt/noopt and cold/persistent REPL phases. Runner captures
+exact source/harness/workload hashes, dirty state, build/toolchain/CPU/OS,
+host link map/size, every sample and median/p10/p90 distributions. No subtracting
+independent timings or fake hardware claims. Negative harness tests reject
+bad output/source/count/missing files/NULs. Make/CI integration and docs added.
+
+Completed gates: `make -j2 test` passed (source/image/XIP, config/profile headers,
+capabilities, TinyFS power-cut tests, POSIX/no-OS threading, BLE simulation and
+flag builds, shell/echo/network/server/lifecycle, examples/lowram); full Studio
+fake-serial suite passed before AND after formatter change; gallery tests pass;
+`make bench-v2-test` passes. Exact logs are committed under
+`evidence/v2-host-gates/`. Baseline main has no runtime/core code changes so far.
+
+The lowram test regenerated a tracked image only because its source-name path
+changed; both versions and a binary diff were saved locally, then that sole
+generated file was restored from the pre-test content. No user work discarded.
+Checkpoint-3 first push returned HTTP 502 before creating tree; retry succeeded;
+fetch verified local/remote tree equality.
+
+Running: `make -j2 check` -> `/data/backups/v2-full-check.log` (full GC-stress,
+feature/alternate-profile and doc matrix). Next: record CLEAN baseline source
+measurements using this harness, validate raw data and checkpoint evidence;
+compiler/VM profiling remains pending, as do all graphics/security/TODO gates.
+No speedup/release claim. Local patches/NOTES updated after remote push.
