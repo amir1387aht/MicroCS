@@ -45,6 +45,7 @@ static void no_sigpipe(int fd) {
 static int wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) {
     uint32_t t0 = mcs_ticks(vm);
     for (;;) {
+        if (mcs__net_yield(vm)) return -1;   /* ready sockets must not starve Stop / console */
         uint32_t left = MCS_NET_SLICE_MS;
         if (timeout_ms) {
             uint32_t el = (uint32_t)(mcs_ticks(vm) - t0);
@@ -56,7 +57,7 @@ static int wait_fd(mcs_vm_t* vm, int fd, bool wr, uint32_t timeout_ms) {
         int r = select(fd + 1, wr ? NULL : &s, wr ? &s : NULL, NULL, &tv);
         if (r > 0) return 1;
         if (r < 0 && errno != EINTR) return 1;            /* let the next call report the error */
-        if (mcs_safepoint(vm)) return -1;
+        if (mcs__net_yield(vm)) return -1;
     }
 }
 static mcs_value_t sock_fail(mcs_vm_t* vm, const char* op, int e) {
@@ -126,11 +127,12 @@ static void conn_close(conn_t* c) {
 static int conn_write(mcs_vm_t* vm, conn_t* c, const uint8_t* p, size_t n, uint32_t timeout) {
     size_t done = 0;
     while (done < n) {
+        if (mcs__net_yield(vm)) return -EINTR;
         if (c->tls) {
             int r = c->net->tls_write(c->tls, p + done, n - done);
             if (r < 0) return r == MCS_HAL_ETIMEOUT ? -ETIMEDOUT : -EIO;
             done += (size_t)r;
-            if (r == 0 && mcs_safepoint(vm)) return -EINTR;
+            if (r == 0 && mcs__net_yield(vm)) return -EINTR;
             continue;
         }
         int w = wait_fd(vm, c->fd, true, timeout);
@@ -144,6 +146,7 @@ static int conn_write(mcs_vm_t* vm, conn_t* c, const uint8_t* p, size_t n, uint3
 }
 /* bytes read (0 = closed), or -errno (-ETIMEDOUT) */
 static int conn_read(mcs_vm_t* vm, conn_t* c, uint8_t* buf, size_t n, uint32_t timeout) {
+    if (mcs__net_yield(vm)) return -EINTR;
     if (c->fd < 0 && !c->tls) return 0;
     if (c->tls) {
         uint32_t t0 = mcs_ticks(vm);
@@ -152,7 +155,7 @@ static int conn_read(mcs_vm_t* vm, conn_t* c, uint8_t* buf, size_t n, uint32_t t
             if (r >= 0) return r;
             if (r != MCS_HAL_ETIMEOUT) return -EIO;
             if (timeout && (uint32_t)(mcs_ticks(vm) - t0) >= timeout) return -ETIMEDOUT;
-            if (mcs_safepoint(vm)) return -EINTR;
+            if (mcs__net_yield(vm)) return -EINTR;
         }
     }
     for (;;) {
@@ -207,7 +210,7 @@ int mcs__conn_read(mcs_vm_t* vm, mcs__conn_t* c, uint8_t* buf, size_t n, uint32_
 int mcs__conn_open(mcs_vm_t* vm, mcs__conn_t* c, const char* host, int port, bool tls, uint32_t timeout, const char* ca, const char* op) {
     return conn_open(vm, c, host, port, tls, timeout, ca, op);
 }
-/* PC simulator: ports below 1024 need root there, so HttpServer(80) / DnsServer (53) move to
+/* PC simulator: ports below 1024 need root there, so TCP listeners / DnsServer (53) move to
  * port + 8000 (8080, 8053) with a note instead of failing. Boards never get here. */
 bool mcs__host_port(int err, uint16_t* port) {
 #if !defined(ESP_PLATFORM) && !MCS_NET_LWIP
@@ -237,6 +240,7 @@ int mcs__tcp_listen(mcs_vm_t* vm, const uint8_t ip[4], uint16_t* port, int backl
 
 /* ============================================================ TcpClient */
 typedef struct {
+    mcs__net_resource_t resource;
     conn_t c;
     uint32_t timeout;            /* ms, 0 = wait forever */
     uint16_t rpos, rlen;
@@ -244,7 +248,7 @@ typedef struct {
     uint8_t is_tls;
 } tcp_t;
 static const mcs_class_def_t tcp_def;
-static void tcp_fin(mcs_vm_t* vm, void* d) { (void)vm; conn_close(&((tcp_t*)d)->c); }
+static void tcp_fin(mcs_vm_t* vm, void* d) { (void)vm; tcp_t* t = (tcp_t*)d; mcs__net_untrack(&t->resource); conn_close(&t->c); }
 #define TC() tcp_t* t = (tcp_t*)mcs_check_userdata(vm, self, &tcp_def); if (!t) return mcs_null()
 #define OPEN(op) if (t->c.fd < 0 && !t->c.tls) { mcs_raise(vm, "InvalidOperationException", "%s: the TcpClient is not connected", op); return mcs_null(); }
 
@@ -258,7 +262,7 @@ static void tcp_connect_args(mcs_vm_t* vm, tcp_t* t, int argc, mcs_value_t* argv
     if (mcs_has_exception(vm)) return;
     conn_close(&t->c);
     t->rpos = t->rlen = 0;
-    if (conn_open(vm, &t->c, host, (int)port, tls, (uint32_t)(to < 0 ? 0 : to), ca, op) == 0) t->is_tls = tls;
+    if (conn_open(vm, &t->c, host, (int)port, tls, (uint32_t)(to < 0 ? 0 : to), ca, op) == 0) { t->is_tls = tls; mcs__net_track(vm, &t->resource, t, tcp_fin); }
 }
 static void tcp_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     tcp_t* t = (tcp_t*)mcs_userdata(self);
@@ -453,9 +457,9 @@ static const mcs_reg_t tcp_members[] = {
 static const mcs_class_def_t tcp_def = { "TcpClient", sizeof(tcp_t), tcp_ctor, tcp_fin, tcp_members, NULL };
 
 /* ============================================================ TcpListener */
-typedef struct { int fd; uint8_t ip[4]; uint16_t port; } lst_t;
+typedef struct { mcs__net_resource_t resource; int fd; uint8_t ip[4]; uint16_t port; } lst_t;
 static const mcs_class_def_t lst_def;
-static void lst_fin(mcs_vm_t* vm, void* d) { (void)vm; lst_t* l = (lst_t*)d; if (l->fd >= 0) close(l->fd); l->fd = -1; }
+static void lst_fin(mcs_vm_t* vm, void* d) { (void)vm; lst_t* l = (lst_t*)d; mcs__net_untrack(&l->resource); if (l->fd >= 0) close(l->fd); l->fd = -1; }
 #define LS() lst_t* l = (lst_t*)mcs_check_userdata(vm, self, &lst_def); if (!l) return mcs_null()
 static void lst_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     lst_t* l = (lst_t*)mcs_userdata(self);
@@ -474,21 +478,13 @@ NATIVE(lst_start) {
     LS();
     OPT_INT(0, backlog, 4);
     if (l->fd >= 0) return mcs_null();
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (fd < 0) return sock_fail(vm, "TcpListener.Start", errno);
-    int one = 1; setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
-    struct sockaddr_in a; mk_addr(&a, l->ip, l->port);
-    if (bind(fd, (struct sockaddr*)&a, sizeof a) < 0 || listen(fd, (int)(backlog < 1 ? 1 : backlog)) < 0) {
-        int e = errno; close(fd);
-        return sock_fail(vm, "TcpListener.Start", e);
-    }
-    set_nonblock(fd);
+    int fd = mcs__tcp_listen(vm, l->ip, &l->port, (int)backlog, "TcpListener.Start");
+    if (fd < 0) return mcs_null();
     l->fd = fd;
-    socklen_t al = sizeof a;
-    if (getsockname(fd, (struct sockaddr*)&a, &al) == 0) l->port = ntohs(a.sin_port);   /* port 0: the one picked */
+    mcs__net_track(vm, &l->resource, l, lst_fin);
     return mcs_null();
 }
-NATIVE(lst_stop) { LS(); if (l->fd >= 0) close(l->fd); l->fd = -1; return mcs_null(); }
+NATIVE(lst_stop) { LS(); lst_fin(vm, l); return mcs_null(); }
 NATIVE(lst_pending) {
     LS(); if (l->fd < 0) return mcs_bool(false);
     fd_set s; FD_ZERO(&s); FD_SET(l->fd, &s);
@@ -513,7 +509,9 @@ NATIVE(lst_accept) {    /* ([timeoutMs]) -> TcpClient, null on timeout (default:
         mcs_value_t o;
         if (mcs_new_object(vm, "TcpClient", 0, NULL, &o) != MCS_OK) { close(fd); return mcs_null(); }
         tcp_t* t = (tcp_t*)mcs_userdata(o);
-        t->c.fd = fd; t->c.net = mcs__net_state(vm) ? mcs__net_state(vm)->net : NULL;
+        t->c.fd = fd;
+        mcs__net_track(vm, &t->resource, t, tcp_fin);
+        t->c.net = mcs__net_state(vm) ? mcs__net_state(vm)->net : NULL;
         return o;
     }
 }
@@ -526,9 +524,9 @@ static const mcs_reg_t lst_members[] = {
 static const mcs_class_def_t lst_def = { "TcpListener", sizeof(lst_t), lst_ctor, lst_fin, lst_members, NULL };
 
 /* ============================================================ UdpClient */
-typedef struct { int fd; uint32_t timeout; struct sockaddr_in dst, from; uint8_t has_dst; } udp_t;
+typedef struct { mcs__net_resource_t resource; int fd; uint32_t timeout; struct sockaddr_in dst, from; uint8_t has_dst; } udp_t;
 static const mcs_class_def_t udp_def;
-static void udp_fin(mcs_vm_t* vm, void* d) { (void)vm; udp_t* u = (udp_t*)d; if (u->fd >= 0) close(u->fd); u->fd = -1; }
+static void udp_fin(mcs_vm_t* vm, void* d) { (void)vm; udp_t* u = (udp_t*)d; mcs__net_untrack(&u->resource); if (u->fd >= 0) close(u->fd); u->fd = -1; }
 #define UD() udp_t* u = (udp_t*)mcs_check_userdata(vm, self, &udp_def); if (!u) return mcs_null(); \
     if (u->fd < 0) { mcs_raise(vm, "ObjectDisposedException", "the UdpClient is closed"); return mcs_null(); }
 static void udp_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
@@ -545,6 +543,7 @@ static void udp_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv
     if (bind(fd, (struct sockaddr*)&a, sizeof a) < 0) { int e = errno; close(fd); sock_fail(vm, "UdpClient", e); return; }
     set_nonblock(fd);
     u->fd = fd; u->timeout = 0;
+    mcs__net_track(vm, &u->resource, u, udp_fin);
 }
 static bool udp_target(mcs_vm_t* vm, mcs_value_t h, mcs_value_t p, struct sockaddr_in* a, const char* op) {
     const char* host = mcs_to_cstr(vm, h); if (mcs_has_exception(vm)) return false;
@@ -628,8 +627,7 @@ NATIVE(udp_gettimeout) { UD(); return mcs_int((mcs_int_t)u->timeout); }
 NATIVE(udp_settimeout) { UD(); INT_ARG(0, v); if (v < 0) v = 0; u->timeout = (uint32_t)v; return mcs_null(); }
 NATIVE(udp_close) {
     udp_t* u = (udp_t*)mcs_check_userdata(vm, self, &udp_def); if (!u) return mcs_null();
-    if (u->fd >= 0) close(u->fd);
-    u->fd = -1;
+    udp_fin(vm, u);
     return mcs_null();
 }
 static const mcs_reg_t udp_members[] = {

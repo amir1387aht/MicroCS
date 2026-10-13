@@ -4,6 +4,17 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Bluetooth LE, Studio templates as files
 
+* **Web templates / foreground network lifecycle** — moved the raw HTTP example into
+  Web server and WebSocket; servers now run until Stop rather than two seconds and use
+  port 80. Raw TCP listeners share the host privileged-port fallback used by HttpServer.
+  Close sockets, listeners, DNS servers and WebSockets at foreground run exit
+  (normal, error or abort), preserving earlier interactive resources. Native server
+  loops service idle work and Stop even with busy/stalled clients; propagate cancellation
+  through native tail calls and nested route callbacks. Added shell lifecycle regressions.
+* **Studio C# highlighting** — balanced interpolated/verbatim strings (`$@"` and `@$"`),
+  including multiline HTML, nested quoted expressions, escaped braces and comments;
+  added a dedicated highlighter regression suite.
+
 * **ESP BLE menuconfig** — discoverable BLE submenu with prerequisite hints, device name,
   queue / GATT / scan / discovery limits, subscriptions, timeouts and UART buffer. The
   front-end connection limit follows NimBLE (C2 supports at most two); the BLE overlay uses

@@ -507,10 +507,53 @@ const KNOWN_TYPES = new Set(("Exception IOException TimeoutException NotSupporte
   "ArgumentNullException InvalidOperationException IndexOutOfRangeException KeyNotFoundException FormatException DivideByZeroException " +
   "NullReferenceException NotImplementedException OverflowException StackOverflowException MissingMemberException IDisposable IEnumerable " +
   "IComparable Object String Int32 Double Boolean Char Byte System Flags").split(" "));
-const TOKEN_SRC = /(\/\/[^\n]*)|(\/\*[\s\S]*?(?:\*\/|$))|(\$@"(?:[^"]|"")*"?|@\$"(?:[^"]|"")*"?|@"(?:[^"]|"")*"?|\$"(?:[^"\\\n{]|\\.|\{\{|\{(?:[^{}"\n]|"(?:[^"\\\n]|\\.)*")*\}?)*"?|"(?:[^"\\\n]|\\.)*"?)|('(?:[^'\\\n]|\\.){0,8}'?)|(\b0[xX][0-9a-fA-F_]+[uUlL]*|\b0[bB][01_]+[uUlL]*|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDmMuUlL]*|\.\d+(?:[eE][+-]?\d+)?[fFdDmM]?)|(^[ \t]*#[a-z]+[^\n]*)|(@?[A-Za-z_][A-Za-z0-9_]*)|([{}()[\]])|([-+*/%=<>!&|^~?:]+)/gm;
+const TOKEN_SRC = /(\/\/[^\n]*)|(\/\*[\s\S]*?(?:\*\/|$))|(\$@"|@\$"|@"|\$"|")|('(?:[^'\\\n]|\\.){0,8}'?)|(\b0[xX][0-9a-fA-F_]+[uUlL]*|\b0[bB][01_]+[uUlL]*|\b\d[\d_]*(?:\.\d+)?(?:[eE][+-]?\d+)?[fFdDmMuUlL]*|\.\d+(?:[eE][+-]?\d+)?[fFdDmM]?)|(^[ \t]*#[a-z]+[^\n]*)|(@?[A-Za-z_][A-Za-z0-9_]*)|([{}()[\]\]])|([-+*/%=<>!&|^~?:]+)/gm;
 let API = window.MCS_API || {};
 const isType = (t) => !!API[t] || KNOWN_TYPES.has(t);
 const span = (cls, t) => `<span class="t-${cls}">${esc(t)}</span>`;
+/* Balanced strings / interpolation cannot be tokenized with a quote-only regex:
+ * a hole in $@"...{x ? "on" : "off"}..." contains its own quotes. */
+function stringEnd(src, start, nesting = 0) {
+  const prefix = /^(\$@"|@\$"|@"|\$"|")/.exec(src.slice(start));
+  if (!prefix) return start;
+  const verbatim = prefix[0].includes("@"), interp = prefix[0].includes("$");
+  let i = start + prefix[0].length;
+  while (i < src.length) {
+    const c = src[i];
+    if (!verbatim && (c === "\n" || c === "\r")) return i;
+    if (!verbatim && c === "\\") { i += Math.min(2, src.length - i); continue; }
+    if (c === '"') {
+      if (verbatim && src[i + 1] === '"') { i += 2; continue; }
+      return i + 1;
+    }
+    if (interp && c === "{") {
+      if (src[i + 1] === "{") { i += 2; continue; }
+      if (nesting >= 32) return src.length;
+      i = holeEnd(src, i, nesting + 1).end; continue;
+    }
+    i++;
+  }
+  return i;
+}
+function holeEnd(src, start, nesting = 0) {
+  let depth = 1, i = start + 1;
+  while (i < src.length) {
+    if (src.startsWith("//", i)) { const e = src.indexOf("\n", i + 2); i = e < 0 ? src.length : e + 1; continue; }
+    if (src.startsWith("/*", i)) { const e = src.indexOf("*/", i + 2); i = e < 0 ? src.length : e + 2; continue; }
+    const e = stringEnd(src, i, nesting);
+    if (e > i) { i = e; continue; }
+    if (src[i] === "'") {
+      i++;
+      while (i < src.length && src[i] !== "'") { if (src[i] === "\\") i++; i++; }
+      if (i < src.length) i++;
+      continue;
+    }
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) return { end: i + 1, closed: true };
+    i++;
+  }
+  return { end: i, closed: false };
+}
 /* string literal: escapes and interpolation holes */
 function hlString(t) {
   const verbatim = /^(\$@|@\$|@)/.test(t), interp = t[0] === "$" || t[1] === "$";
@@ -524,14 +567,14 @@ function hlString(t) {
     }
     if (interp && c === "{") {
       if (t[i + 1] === "{") { flush(); out += span("esc", "{{"); i += 2; continue; }
-      let j = i + 1, depth = 1, q = false;
-      for (; j < t.length && depth; j++) { const d = t[j]; if (d === '"' && t[j - 1] !== "\\") q = !q; else if (!q && d === "{") depth++; else if (!q && d === "}") depth--; }
+      const hole = holeEnd(t, i);
+      const j = hole.end;
       flush();
-      const inner = t.slice(i + 1, depth ? j : j - 1);
+      const inner = t.slice(i + 1, hole.closed ? j - 1 : j);
       const fm = /(,\s*-?\d+)?(:(?:[A-Za-z]{1,2}\d*|[#0.,%]+))?$/.exec(inner);     // {value,alignment:format}
       const cut = fm && fm[0] && fm.index > 0 ? fm.index : inner.length;
       out += span("br", "{") + highlight(inner.slice(0, cut)) + (fm && fm[1] && cut < inner.length ? highlight(fm[1]) : "") +
-        (fm && fm[2] && cut < inner.length ? span("str", fm[2]) : "") + (depth ? "" : span("br", "}"));
+        (fm && fm[2] && cut < inner.length ? span("str", fm[2]) : "") + (hole.closed ? span("br", "}") : "");
       i = j; continue;
     }
     if (interp && c === "}" && t[i + 1] === "}") { flush(); out += span("esc", "}}"); i += 2; continue; }
@@ -548,7 +591,11 @@ function highlight(src) {
     const t = m[0];
     let cls = null;
     if (m[1] || m[2]) cls = "com";
-    else if (m[3]) { html += hlString(t); last = re.lastIndex; prevSig = '"'; continue; }
+    else if (m[3]) {
+      re.lastIndex = stringEnd(src, m.index);
+      html += hlString(src.slice(m.index, re.lastIndex));
+      last = re.lastIndex; prevSig = '"'; continue;
+    }
     else if (m[4]) { html += t.length > 3 && t[1] === "\\" ? span("str", "'") + span("esc", t.slice(1, -1)) + span("str", "'") : span("str", t); last = re.lastIndex; prevSig = "'"; continue; }
     else if (m[5]) cls = "num";
     else if (m[6]) cls = "pp";

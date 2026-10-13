@@ -32,9 +32,6 @@ Send a sensor reading as JSON with custom headers; read the reply.
 [https_download.cs] HTTPS and file download
 TLS with the built-in certificate bundle; stream a file straight to flash.
 
-[web_server.cs] Tiny web server
-Serve a status page and a JSON endpoint with TcpListener; open http://<board-ip>:8080/.
-
 [tcp_echo.cs] TCP client and server
 A line-based echo server and a client talking to it over TCP.
 

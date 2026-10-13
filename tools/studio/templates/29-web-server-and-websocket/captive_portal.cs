@@ -2,9 +2,9 @@
 if (Wifi.SavedSsid != "" && Wifi.Connect()) { Console.WriteLine("online as " + Wifi.Ip); return; }
 
 Wifi.StartAp("MicroCS-Setup", "");              // open hotspot, the board is 192.168.4.1
-var dns = new DnsServer(Wifi.ApIp);             // every name -> the board
+using var dns = new DnsServer(Wifi.ApIp);             // every name -> the board
 dns.Start();
-var web = new HttpServer(80);
+using var web = new HttpServer(80);
 
 string Options()
 {
@@ -27,7 +27,7 @@ web.NotFound(req => req.Redirect("http://" + Wifi.ApIp + "/"));   // phones prob
 web.Start();
 Console.WriteLine($"join 'MicroCS-Setup' and open http://{Wifi.ApIp}/");
 
-var until = Environment.TickCount + 2000;       // demo: 2 s; while (!done) on a board
-while (!done && Environment.TickCount < until) web.Poll(100);   // also answers the DnsServer
+// Wait for setup to complete or Studio Stop / Ctrl-C.
+while (!done) web.Poll(100);   // also answers the DnsServer
 web.Stop(); dns.Stop();
 if (done) { Wifi.StopAp(); Console.WriteLine(Wifi.Connect() ? "online as " + Wifi.Ip : "could not join"); }

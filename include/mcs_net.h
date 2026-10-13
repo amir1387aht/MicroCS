@@ -232,6 +232,11 @@ void mcs_net_set(const mcs_net_t* net);
 const mcs_net_t* mcs_net_get(void);
 /* Register the C# network classes on vm (mcs_hal_open_lib calls it with mcs_net_get()). */
 void mcs_net_open_lib(mcs_vm_t* vm, const mcs_net_t* net);
+/* Foreground script scope: close resources created/started after the checkpoint,
+ * even on Ctrl-C or an exception. Existing REPL/background resources are untouched.
+ * Call end only after execution returned, never while a native wait is active. */
+uint32_t mcs_net_scope_begin(mcs_vm_t* vm);
+void mcs_net_scope_end(mcs_vm_t* vm, uint32_t checkpoint);
 /* Hal.Has / Net.Has: "Wifi", "Wifi.AP", "EspNow", "Sockets", "Tls", "Ntp", "Mdns", "Ping" */
 bool mcs_net_has(const mcs_net_t* net, const char* feature);
 /* Queue a network event from any task (default: mcs_hal_post(MCS_HAL_EV_NET, ev, value)).
