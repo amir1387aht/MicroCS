@@ -110,7 +110,15 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
           pip install unicorn
-      - run: make cm-check
+      - name: Cortex-M build and emulator checks
+        run: |
+          set +e
+          make cm-check 2>&1 | tee /tmp/cm-check.log
+          result=${PIPESTATUS[0]}
+          if [ "$result" != 0 ]; then
+            python3 -c 'from pathlib import Path; s=Path("/tmp/cm-check.log").read_text()[-2800:]; print("::error title=Cortex-M failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+          fi
+          exit "$result"
       - run: make mcu-bench
 
   dotnet-parity:

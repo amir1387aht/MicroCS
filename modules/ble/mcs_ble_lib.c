@@ -1937,15 +1937,17 @@ static bool need_on(mcs_vm_t* vm, ble_state_t* s, const char* op) {
     return true;
 }
 NATIVE(ble_enable) { ST(); ON("Ble.Enable"); return mcs_null(); }
-static void ble_off(mcs_vm_t* vm, ble_state_t* s) {
-    if (!s->on) return;
+static int ble_off(mcs_vm_t* vm, ble_state_t* s) {
+    if (!s->on) return 0;
+    int rc = s->ble->enable(s->ble->ctx, 0);
+    if (rc < 0) return rc;          /* keep live front-end objects if shutdown failed */
     for (int i = 0; i < MCS_BLE_MAX_CONN; i++) if (g_conn[i].used) conn_remove(vm, s, i);
-    s->ble->enable(s->ble->ctx, 0);
     s->on = s->advertising = s->want_adv = s->scanning = 0;
     s->db_dirty = 1;               /* the stack forgot the services */
     q_clear();
+    return 0;
 }
-NATIVE(ble_disable) { ST(); ble_off(vm, s); return mcs_null(); }
+NATIVE(ble_disable) { ST(); CALL("Ble.Disable", ble_off(vm, s)); return mcs_null(); }
 NATIVE(ble_enabled) { ST(); return mcs_bool(s->on); }
 NATIVE(ble_has) { ST(); STR_ARG(0, f); return mcs_bool(mcs_ble_has(BLE(), f)); }
 NATIVE(ble_backend) { ST(); return mcs_string(vm, BLE() && BLE()->name ? BLE()->name : "none"); }
@@ -2209,7 +2211,7 @@ NATIVE(ble_reset) {
     if (s->draining || g_op.kind != OP_NONE || s->collecting) {
         mcs_raise(vm, "InvalidOperationException", "Ble.Reset must be called outside a BLE callback or operation"); return mcs_null();
     }
-    ble_off(vm, s);
+    CALL("Ble.Reset", ble_off(vm, s));
     clear_services(vm, s);
     for (int i = 0; i < R__COUNT; i++) reg_set(vm, s, i, mcs_null());
     memset(g_csub, 0, sizeof g_csub); q_clear();
@@ -2395,7 +2397,8 @@ bool mcs_ble_has(const mcs_ble_t* b, const char* f) {
     if (!strcmp(f, "Ble") || !strcmp(f, "Bluetooth")) return true;
     if (!strcmp(f, "Ble.Advertise")) return b->adv_start != NULL;
     if (!strcmp(f, "Ble.Scan")) return b->scan_start != NULL;
-    if (!strcmp(f, "Ble.Server") || !strcmp(f, "BleUart")) return b->gatts_set != NULL && b->adv_start != NULL;
+    if (!strcmp(f, "Ble.Server")) return b->gatts_set != NULL && b->adv_start != NULL;
+    if (!strcmp(f, "BleUart")) return b->gatts_set != NULL && b->gatts_notify != NULL && b->adv_start != NULL;
     if (!strcmp(f, "Ble.Central") || !strcmp(f, "Ble.Client")) return b->connect != NULL && b->discover != NULL;
     if (!strcmp(f, "Ble.Security")) return b->pair != NULL;
     if (!strcmp(f, "Ble.Bonds")) return b->bonds != NULL;

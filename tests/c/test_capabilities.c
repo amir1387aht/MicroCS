@@ -8,8 +8,8 @@
 static int failures, checks;
 #define CHECK(x) do { checks++; if (!(x)) { failures++; printf("FAIL line %d: %s\n", __LINE__, #x); } } while (0)
 #if MCS_ENABLE_BLE
-static int starts, writes;
-static int radio(void* ctx, int on) { (void)ctx; starts += on; return 0; }
+static int starts, writes, stop_fails;
+static int radio(void* ctx, int on) { (void)ctx; if (!on && stop_fails) return MCS_HAL_EBUSY; starts += on; return 0; }
 static int setting(void* ctx, int opt, int32_t value) { (void)ctx; (void)value; writes++; return opt == MCS_BLE_OPT_PASSKEY ? MCS_HAL_ENOTSUP : 0; }
 #endif
 int main(void) {
@@ -44,6 +44,11 @@ int main(void) {
     CHECK(starts == 0 && writes == 0);
     CHECK(mcs_exec_source(vm, "passkey.cs", "try { Ble.Passkey = 123456; throw new Exception(\"must fail\"); } catch (NotSupportedException e) {} if (Ble.Passkey != -1) throw new Exception(\"cached unsupported key\"); Ble.Reset();") == MCS_OK);
     CHECK(writes == 1 && starts == 1);
+    CHECK(mcs_exec_source(vm, "enable.cs", "Ble.Enable();") == MCS_OK);
+    stop_fails = 1;
+    CHECK(mcs_exec_source(vm, "stop.cs", "try { Ble.Reset(); throw new Exception(\"must fail\"); } catch (IOException e) {} if (!Ble.Enabled) throw new Exception(\"must remain on\");") == MCS_OK);
+    stop_fails = 0;
+    CHECK(mcs_exec_source(vm, "stop.cs", "Ble.Reset(); if (Ble.Enabled) throw new Exception(\"still on\");") == MCS_OK);
 #endif
     mcs_mem_stats_t before, after; mcs_mem_stats(vm, &before);
     size_t count; const char* const* names = mcs_capability_names(&count);
@@ -55,7 +60,7 @@ int main(void) {
     mcs_mem_stats(vm, &after);
     CHECK(before.bytes_in_use == after.bytes_in_use && before.objects == after.objects && before.collections == after.collections);
 #if MCS_ENABLE_BLE
-    CHECK(starts == 1 && writes == 1);
+    CHECK(starts == 2 && writes == 1);
     mcs_ble_set(NULL);
 #endif
     mcs_free(vm);

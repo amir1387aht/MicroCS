@@ -18,3 +18,10 @@ with tempfile.TemporaryDirectory() as tmp:
         else: raise AssertionError('invalid metadata accepted: '+text)
 assert len(gen.load())>=200
 print('PASS template metadata: explicit requirements, inheritance, overrides and validation')
+
+# The Arduino flattened bundle must preserve the X-macro manifest needed by HAL/shell.
+import subprocess
+with tempfile.TemporaryDirectory() as tmp:
+    subprocess.run(['python3', str(ROOT/'tools/make_arduino.py'), '--out', tmp], check=True, stdout=subprocess.DEVNULL)
+    assert (Path(tmp)/'MicroCS/src/mcs_capabilities.def').read_bytes() == (ROOT/'include/mcs_capabilities.def').read_bytes()
+print('PASS Arduino package includes capability manifest')
