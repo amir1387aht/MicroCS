@@ -78,3 +78,24 @@ Remaining design/implementation/test work includes:
 
 Do not wire this prototype into production or enable untrusted execution merely
 because the compatibility corpus is green. Whole-scope v2 release remains blocked.
+
+## Operand-mapping correction (checkpoint27)
+
+The isolated probe now checks source/destination locals for `BIN_LKS` at operands
+1/4 and `BIN_LIS` at 1/3. Constant-index bytes and signed immediate bytes are not
+local indices. This changes no production source or image execution policy.
+
+`tools/test_image_stack_arithmetic.py` generates two valid compiler inputs:
+large signed immediates and a function with 1024 distinct integer constants.
+It confirms that optimized disassembly actually contains the relevant fused
+opcodes and tests both optimized/unoptimized images through load-only analysis.
+The old research mappings falsely reject both optimized positive images; the
+corrected probe accepts all four. No image is executed.
+
+For a deliberately narrower positive-only corpus run, use
+`tools/test_image_stack_probe.py --probe PATH --trusted-only`. This option
+explicitly skips handcrafted self-tests and malformed-file fixtures; it must not
+be described as their completion. Fresh ASan/UBSan/leak checks accept the 488
+trusted corpus images / 1346 function visits and four arithmetic images.
+Initialization/type/lifetime analysis, negative initialization coverage, bounded
+embedded storage and all production-verifier/release gates are still pending.

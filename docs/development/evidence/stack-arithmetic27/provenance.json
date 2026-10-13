@@ -1,0 +1,33 @@
+{
+  "predecessor_remote": "1c919bf118609cdc95f572dbe1e64e7b9cf958de",
+  "source_sha256": {
+    "src/mcs_vm.c": "34031f6d2a0ebe7ddb0d92764b77d6f5284120d558f9f04a095c8bd76728d4be",
+    "tests/c/experimental/test_image_stack_probe.c": "31508c7c78803c4f474d3c71db8e560d16da2682e7833e282a7c1a06bb057e5e",
+    "tools/test_image_stack_probe.py": "8f7401f94d431a092e7551cc6db7937477db0b2631675ecf4ea05c0198cd263e",
+    "tools/test_image_stack_arithmetic.py": "15fe005555c8b11ed0e4b99bc064b9c72157875a4d16fe99c5d05d263f704dc1",
+    "tests/lvgl/lv_conf8_fonts.h": "35e729d27db27e1d0cc282534a7e09c317d378c5dd0a9a47f2ee3eddbca42b76",
+    "tests/lvgl/lv_conf9_fonts.h": "54988bdff888c4f9715d67e367f7222294e49b0ee7ed7fc9fd6d64fb67742eeb"
+  },
+  "node": "v24.14.1",
+  "playwright": "1.63.0",
+  "chromium": "Google Chrome for Testing 153.0.8010.12",
+  "graphics_dependencies": {
+    "lvgl-8.4.0": {
+      "sha": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
+      "working_tree": "clean"
+    },
+    "lvgl-9.4.0": {
+      "sha": "c016f72d4c125098287be5e83c0f1abed4706ee5",
+      "working_tree": "clean"
+    },
+    "TFT_eSPI-upstream": {
+      "sha": "16e37595040eac69cd628e4bffb56fc30cad6299",
+      "working_tree": "clean"
+    }
+  },
+  "visual_review": {
+    "build/studio-gallery/390-offline.png": "3435f611da8a9d7dfd4de9bbca378fcffab3de156924ab2aa33b3916ef9b4f3c",
+    "build/studio-gallery/1400-light.png": "33a037e5dd4f795b03aaed0b5eeab98c9f949981a0110f4206992e7ae07fff56"
+  },
+  "limitations": "Host-only graphics/probe/browser evidence, no MCU/hardware/security-verifier/fullscope claim. Current preinstalled browser versions differ from previous checkpoint tools."
+}

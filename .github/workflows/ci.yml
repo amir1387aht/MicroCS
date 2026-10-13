@@ -54,6 +54,7 @@ jobs:
           cmake --build build/stack-flow-research-cmake --target test_image_metadata test_image_stack_probe -j2
           ctest --test-dir build/stack-flow-research-cmake --output-on-failure
           python3 tools/test_image_stack_probe.py --probe build/stack-flow-research-cmake/test_image_stack_probe
+          python3 tools/test_image_stack_arithmetic.py --probe build/stack-flow-research-cmake/test_image_stack_probe
       - name: Fuzz (source + image, short run)
         run: |
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER

@@ -277,8 +277,10 @@ static bool verify(mcs_function_t *fn) {
             ok = local(a[1], h) && local(a[2], h) && local(a[3], h);
             break;
         case OP_BIN_LKS:
+            ok = local(a[1], h) && local(a[4], h);
+            break;
         case OP_BIN_LIS:
-            ok = local(a[1], h) && local(a[2], h);
+            ok = local(a[1], h) && local(a[3], h);
             break;
         case OP_JF_LK:
         case OP_JB_LK:

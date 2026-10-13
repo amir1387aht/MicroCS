@@ -14,6 +14,8 @@ p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--mcs', type=Path, default=ROOT / 'mcs')
 p.add_argument('--probe', type=Path, required=True)
 p.add_argument('--out', type=Path, default=ROOT / 'build/stack-flow-research')
+p.add_argument('--trusted-only', action='store_true',
+               help='Compile/load only the trusted corpus; explicitly skip handcrafted/file-error fixtures')
 a = p.parse_args()
 a.mcs = a.mcs.resolve()
 a.probe = a.probe.resolve()
@@ -41,11 +43,17 @@ if len(images) != len(records):
     raise SystemExit(f'FAIL compilation: {len(images)}/{len(records)}; see compiled-corpus.json')
 for name, cmd in [('self-test', [str(a.probe), '--self-test']),
                   ('corpus', [str(a.probe)] + [str(x) for x in images])]:
+    if a.trusted_only and name == 'self-test':
+        continue
     result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     (a.out / f'{name}.log').write_text(result.stdout + result.stderr)
     if result.returncode:
         raise SystemExit(f'FAIL research {name}, exit {result.returncode}; see {name}.log')
     print(result.stdout.strip(), flush=True)
+if a.trusted_only:
+    print(f'PASS trusted research corpus: {len(sources)} sources x2 modes, LOAD ONLY; '
+          'handcrafted/file-error fixtures SKIPPED; NO production/type/lifetime/security claim', flush=True)
+    raise SystemExit(0)
 # Bounded malformed-file/error paths, still loader-only. Never call execution.
 errors = []
 for name, payload in [('empty', b''), ('bad-magic', b'not-an-image'),

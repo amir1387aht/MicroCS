@@ -1,0 +1,3418 @@
+[
+  {
+    "source": "tests/t01_basics.cs",
+    "mode": "opt",
+    "source_sha256": "fd0dbc1b232eef3dc1cd4d000bcb3e8cbb1ba435972141fc93a7cec3c25e03b5",
+    "compile_exit": 0,
+    "image_sha256": "ca2efe0d090c4193e658819a5d586d3600be1f5b9a1bf054cb35fdd17b05c5db"
+  },
+  {
+    "source": "tests/t02_oop.cs",
+    "mode": "opt",
+    "source_sha256": "339fa1c27cd116de1e2398fd6f1dc8005b71b9b5fd280d5feb52f393e8fea395",
+    "compile_exit": 0,
+    "image_sha256": "1daf89e2e5f9880167444dbc22c3fdb484f557b00d40f5b8b9f75d6bb65fbcbf"
+  },
+  {
+    "source": "tests/t03_collections.cs",
+    "mode": "opt",
+    "source_sha256": "cca62d3c009d4baf694e2eb825cfe8c34e7f0d02124c50c57d606c944cd3f6db",
+    "compile_exit": 0,
+    "image_sha256": "f316130cdf920b3e530ee1b070926cc82b34d4f544ded5d0a8770410b377f1ae"
+  },
+  {
+    "source": "tests/t04_exceptions.cs",
+    "mode": "opt",
+    "source_sha256": "b9ce8ad1024c2d6af174a026b3e4a695799290af492b8caf77a1cc87c4731f8d",
+    "compile_exit": 0,
+    "image_sha256": "bcac520f4cad9e975247b391368eb71373f551c3505aba940cd59cbb5271b16a"
+  },
+  {
+    "source": "tests/t05_functional.cs",
+    "mode": "opt",
+    "source_sha256": "d485296fe3d3e987ff78cb631c2f35f578e666286302dab3b304bb25b7e856dd",
+    "compile_exit": 0,
+    "image_sha256": "bc00fa8d1e7d652b0d65491d0ddc4d6c12976b5f64af0921238b490ae348ee6b"
+  },
+  {
+    "source": "tests/t06_gc_stress.cs",
+    "mode": "opt",
+    "source_sha256": "a9bed02ddfadd71621556344233841be628fc5a4e7a7491a98d437891cb3479c",
+    "compile_exit": 0,
+    "image_sha256": "eaaf52ac224e09afe7513349410bc2b4af503e0e31fcac1406306ef1eb0e67d9"
+  },
+  {
+    "source": "tests/t07_filesystem.cs",
+    "mode": "opt",
+    "source_sha256": "87e3d9d2b60077387b836bbb81f2eea2c104b01339e9fa53ac5411e8cd8b4ae8",
+    "compile_exit": 0,
+    "image_sha256": "af7daec9b205f0de5a7bd16ee830eab8bb6636855ddf0fc3c16834993106dabe"
+  },
+  {
+    "source": "tests/t08_hal.cs",
+    "mode": "opt",
+    "source_sha256": "2aa45762f5011f12cca2cffe65e223efd04e8171ae037a5d2655425b07ad50a7",
+    "compile_exit": 0,
+    "image_sha256": "97779331d24bb00eeae11fc32d95879d42cd21a4f4b121261604c936ad6be4f4"
+  },
+  {
+    "source": "tests/t09_scheduler.cs",
+    "mode": "opt",
+    "source_sha256": "2b91a1989a662ee30ed64712ebe6a29e70e16d7c52c83616d05570a4de707569",
+    "compile_exit": 0,
+    "image_sha256": "4c6d788d67a95511fdbfae093ddad4a01a6283a0781f0d0732056defee810e43"
+  },
+  {
+    "source": "tests/t10_lang_phase2.cs",
+    "mode": "opt",
+    "source_sha256": "d4076197f730bd47e03410d42e47e93a9b36d469e9ca39cb4814985386219cc4",
+    "compile_exit": 0,
+    "image_sha256": "0155ca7fc2fe99cf0c5ecd08dc082d28e0d2a63fdda0120fbaf1e97c0f7608f4"
+  },
+  {
+    "source": "tests/t11_tuples_ranges.cs",
+    "mode": "opt",
+    "source_sha256": "e71a7d9bf4ba55579db182bc0a2685f5faff9a3f4f7f78e71d1fd8238e42ca6e",
+    "compile_exit": 0,
+    "image_sha256": "1350ff44366ab0c90c31fb5f90d008afa72fd373a5b37539ec8ed59bf7bc5935"
+  },
+  {
+    "source": "tests/t12_memory_churn.cs",
+    "mode": "opt",
+    "source_sha256": "a6046b8e74117a9a1775912712d94bbedb86ec5d9bd1f2eb9769410ea6a73bf2",
+    "compile_exit": 0,
+    "image_sha256": "785d9a2a67e41e4510e6754b65fc44c77639bb6a421d345a19e3f21989ea01dc"
+  },
+  {
+    "source": "tests/t13_stdlib_more.cs",
+    "mode": "opt",
+    "source_sha256": "a0e51a1ac2333aedbb5f84e8cfd28d49e0d801eb371e70cc9014dfc2230c53d9",
+    "compile_exit": 0,
+    "image_sha256": "239d7cd8c15fa4e00b156a007fdd518846e124482c7a738ee59ab8efdba5bd8b"
+  },
+  {
+    "source": "tests/t14_low_resource.cs",
+    "mode": "opt",
+    "source_sha256": "16911e71467f3e991f13f6bf4ae131cd83fbb0490b8202c30a6bb6ea20107f84",
+    "compile_exit": 0,
+    "image_sha256": "2dbbf7ccd196fa492116f0222cb290c9324c53e9be5bf7c310a1c391dc8adad6"
+  },
+  {
+    "source": "tests/t15_hal_v2.cs",
+    "mode": "opt",
+    "source_sha256": "d58826bb9ef05416aca677e9224860bec2880c2409fd2ddbc4ed2698bb1f5c17",
+    "compile_exit": 0,
+    "image_sha256": "73f60b8b6c1bbb34f2aff44be47a846550c89f81d920a3bfd3446d43db82857b"
+  },
+  {
+    "source": "tests/t16_bytes.cs",
+    "mode": "opt",
+    "source_sha256": "a29f79f649af257491315cca67ef11d10ba33d012491e0b44f31a86d616dfa70",
+    "compile_exit": 0,
+    "image_sha256": "fea8e6f802018781793130ff3cc79028b70a3d429544b00c5a9ef3797de1b74c"
+  },
+  {
+    "source": "tests/t17_optimizer.cs",
+    "mode": "opt",
+    "source_sha256": "30184a15afcf5392da27e401b5322d4cb94825495f93e2aa93192c6c5c814f62",
+    "compile_exit": 0,
+    "image_sha256": "4ca6ae4fbf0e07dcd7f70a8bc294c8f87fe42b7a7cd40a07237f436d0a4835ee"
+  },
+  {
+    "source": "tests/t18_utils.cs",
+    "mode": "opt",
+    "source_sha256": "5e7dd3090169effc29c8a1aff5bd270a2be4bb265a6b4387f52c14eb1c91b68c",
+    "compile_exit": 0,
+    "image_sha256": "a2dd5433a7e9674c4ad9cc3e4cacaf0eed2b07d00cea89a6c152ceec5692b225"
+  },
+  {
+    "source": "tests/t19_ledstrip.cs",
+    "mode": "opt",
+    "source_sha256": "b7c37393944f5d7896b70294e2fc8c67599819470dafcf1da6b4cbccce116c27",
+    "compile_exit": 0,
+    "image_sha256": "4b19c8a46d965df0331d3c65b12b7ad8b01aa6d1e786024c7e77f3beb6af9adc"
+  },
+  {
+    "source": "tests/t20_sched_sleep.cs",
+    "mode": "opt",
+    "source_sha256": "18ee01c0755c19a31fa4551ad6225955f09389ed4b18f4bb535455b60c49e3ad",
+    "compile_exit": 0,
+    "image_sha256": "36b473a69eb4b754710b27955b4a051098e81ad2f0e090d319203fa6fac51bd3"
+  },
+  {
+    "source": "tests/t21_servo.cs",
+    "mode": "opt",
+    "source_sha256": "f5c5e3d06900a8f7740fad953b766c8e087181566c129f87e68c167bfd714b82",
+    "compile_exit": 0,
+    "image_sha256": "6cbcddfb3f459185913d2c738fc42271a8c9d9548e27fe29ca4a37c327611e7a"
+  },
+  {
+    "source": "tests/t22_hal_config.cs",
+    "mode": "opt",
+    "source_sha256": "741890e9a7bc229d088d666bee819bfa0219f22d5c97290edff7d3b3cd17324a",
+    "compile_exit": 0,
+    "image_sha256": "4d3fd019c3bfdcf890c5edf2d3f1c2ed4853f2857659d8fa0382b47733983d84"
+  },
+  {
+    "source": "tests/t23_dma.cs",
+    "mode": "opt",
+    "source_sha256": "a38c8757bf31b24d5e00c5d5f584ba95571df050bfeda22dd16f34759794fb8a",
+    "compile_exit": 0,
+    "image_sha256": "fe0015feea18a65b8c1e31491da5fc84e83ef5200ac165e95b814b54c538bd97"
+  },
+  {
+    "source": "tests/t24_net.cs",
+    "mode": "opt",
+    "source_sha256": "a3849753a2b2b5ddf9314522857fe6329ad3fb7e2faf6ad9717020dc95262148",
+    "compile_exit": 0,
+    "image_sha256": "00c61c237e585ad069d652f18d3a86fc835274a2c154f84cb3c19371d9a2dac2"
+  },
+  {
+    "source": "tests/t25_json.cs",
+    "mode": "opt",
+    "source_sha256": "5bd233b3aad8d9c4c1645400d27ca29d482c940cd7d3326b8fd71067a7ffb107",
+    "compile_exit": 0,
+    "image_sha256": "4cd62cb2ae6fb9dec3e17ea8612dd713dcb40d4fc96037f4f2dbc8210e24338f"
+  },
+  {
+    "source": "tests/t26_robustness.cs",
+    "mode": "opt",
+    "source_sha256": "e650b69e0a95905a16d52dba239abdcd8e06b227cd4fa61139b6c8d5a1ca03cd",
+    "compile_exit": 0,
+    "image_sha256": "310ca595c643e428a7ec117f21e4ab2a7a759d515362842feb4cdf609ff3301a"
+  },
+  {
+    "source": "tests/t27_dotnet_semantics.cs",
+    "mode": "opt",
+    "source_sha256": "a7429a9f6e99f320708ef95290984131e08a6f552ae8be696724e33217bcac66",
+    "compile_exit": 0,
+    "image_sha256": "7b0f75188edb85837ee4a771ff44adf5e159b84081eaa758d48c60ffd68fc8c4"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/format.cs",
+    "mode": "opt",
+    "source_sha256": "fc2b762e964d00d4684f8d6d6dc5668021b854e80c0c9390634acdcfca4c2807",
+    "compile_exit": 0,
+    "image_sha256": "9c3369c63dc1431f53da3c38386b2718c768b4459601019fc859856cfe139c9c"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/hello.cs",
+    "mode": "opt",
+    "source_sha256": "32c5e97bb47b342b189cc65374081ca7083b3fade35e4cdc784a21612d1160dc",
+    "compile_exit": 0,
+    "image_sha256": "2c70096ca71d427032908e5e88a252eefeb0f7d40e5ce0de5edd4a29b04c27a0"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/input.cs",
+    "mode": "opt",
+    "source_sha256": "d53452533d69e44c350b0831280af041c0a8aca93175945d1ca758d5e291b328",
+    "compile_exit": 0,
+    "image_sha256": "89fdfab17d97f5023c805d85fe6c2a3ab7c97c70855cc19d24380e4731c4d5a9"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/loop.cs",
+    "mode": "opt",
+    "source_sha256": "f0dd1ef8c8d4b8209533e393d6dedc746cf951852e1b9a256698962233f4ed69",
+    "compile_exit": 0,
+    "image_sha256": "d69b1d1d3ef0153ba081edd3729e24e14fc5c755d5dd768460e7771ad86758d8"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/program.cs",
+    "mode": "opt",
+    "source_sha256": "c3a476b6f22edd825849b3307e38e8c011333f9110b4ecf1fabc1f8f8f00af34",
+    "compile_exit": 0,
+    "image_sha256": "901bd0602918b34d39efcb4cabcd01979dd67cb84b7f43c01d017d29d4996ca6"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/timing.cs",
+    "mode": "opt",
+    "source_sha256": "2c896679d6400199c7f0b0afdafa61b5996b963c664f670fc7f69288e82c68fc",
+    "compile_exit": 0,
+    "image_sha256": "c65b1482e64eebe2d82fd521908e00fee2eba5be3ed8481d5175fb6cd8455eb3"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/blink.cs",
+    "mode": "opt",
+    "source_sha256": "16f24960ca6f3427a04c272dc819be6394508f6b3f867746e539f34f109079fb",
+    "compile_exit": 0,
+    "image_sha256": "6221e0002a15ed119c688fc9cc72943ff7aeaba7f9897e2b63152537aa08e243"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/boot.cs",
+    "mode": "opt",
+    "source_sha256": "23360aa17b1b786e2d33ed0ff36d3b8547a43affe5fe7acb6060b9a51b604bda",
+    "compile_exit": 0,
+    "image_sha256": "5f658ed5b3b75ce250da230044582a3d2553e043083f042a46ab3d9a41616c23"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/boot_log.cs",
+    "mode": "opt",
+    "source_sha256": "d4c9a86fe8af8a044cfdba03595457c06b26e1b106197963906c4fbde6074fba",
+    "compile_exit": 0,
+    "image_sha256": "a2b9e0ed1be958befd3a9b95528e46265b408dc0b7b79824b09b578e8767889e"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main.cs",
+    "mode": "opt",
+    "source_sha256": "771f916a381180cc267f2a1cedd8465eb8bdfd8c7a0d3396859f6e124351e011",
+    "compile_exit": 0,
+    "image_sha256": "7153311f46136d58a6ff93ed0f277fd831ba23a3ce15737504d499626bcbf8f0"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_safe_mode.cs",
+    "mode": "opt",
+    "source_sha256": "d836b747c66d4e254a367807390984fc616440ac5bb0cc1b4a21c1a782a37e8e",
+    "compile_exit": 0,
+    "image_sha256": "f90968e16674203e321d662184614277b554e951e2942f1ec6cfe011b5129aa4"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_settings.cs",
+    "mode": "opt",
+    "source_sha256": "fa4751b7514c766609da062898d5ca01f0a7d7f8a61208bc367ffb490710d763",
+    "compile_exit": 0,
+    "image_sha256": "1ea08c77002672330a181fd7337f639f15a0a1e1f651ccf57613a53f1d2906f2"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_watchdog.cs",
+    "mode": "opt",
+    "source_sha256": "252050ce10926ab1ccce8b3cfd46d7669abf6dac7a8723e9e65209ea7b00a089",
+    "compile_exit": 0,
+    "image_sha256": "06b541e9189201741f99907a337c998af49d88378d826495c358fcec758ac216"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/report.cs",
+    "mode": "opt",
+    "source_sha256": "4c70bf1d504d57388bf00361c109dce7656a2d8c67fc5171397590ae534a58c8",
+    "compile_exit": 0,
+    "image_sha256": "47a1964aa869fd00695c10b699f11f0f6ec5caeedee40c3389bdb8be480b8a45"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/cancel.cs",
+    "mode": "opt",
+    "source_sha256": "17637a48b7b3f229384c7b62b6488e895965e82d97f32bf2daf84e0095a6a79b",
+    "compile_exit": 0,
+    "image_sha256": "812b65486c9fc80aa4a0e61b7f2748f1d5d775acac70544a3f453ff662c08b77"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/debounce.cs",
+    "mode": "opt",
+    "source_sha256": "741d30dcde4b411caeab12a5cee153afc763c24ef6c93ea0edd71e1a44260ae9",
+    "compile_exit": 0,
+    "image_sha256": "a7bef0835859e6f0722d6151a154317f3d715b689ffe5e60dfbe1f0ce31a3e84"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/jobs.cs",
+    "mode": "opt",
+    "source_sha256": "cb319d8b084c49962fc8a3c7f46ab5d4d3a81e34cea61099c5a887d615c0eef5",
+    "compile_exit": 0,
+    "image_sha256": "7d5aac045dcf226d4ca7510e39ceb55ebb837e7bef8399167de8e6441313d4a9"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/jobstats.cs",
+    "mode": "opt",
+    "source_sha256": "d322fa449e67b75e5a59fe3267605546bbfd3ae7b2156a47d8589e628d73e985",
+    "compile_exit": 0,
+    "image_sha256": "bb77efdd52aab03ff2335a46a8deb2c966a70d77c17ec3a8b3553cb9562a0dc5"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/logger_job.cs",
+    "mode": "opt",
+    "source_sha256": "2c78ef500d1628a7ecf8d2dd79722531e53f388ed669c9a661e00dda8d412f00",
+    "compile_exit": 0,
+    "image_sha256": "2ced10d829dc1a71d9e641f5b2db9e31b20bf26f5b258690d3d8cec1cdab5f0d"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/retry.cs",
+    "mode": "opt",
+    "source_sha256": "8c8cf9ec9d29690142642162eb519340aa8cc9f240d9339697c46bc9099c16f7",
+    "compile_exit": 0,
+    "image_sha256": "51f086814ee86d8063d2d69dc65e87286ccdde0c6c964b4d9ebdcc60a54a79b1"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/timeout.cs",
+    "mode": "opt",
+    "source_sha256": "2b9f6626e3b2be20f107e943cd3c52a97e2be839682a63b30db4744871273c20",
+    "compile_exit": 0,
+    "image_sha256": "a6e33d5d489d9da773c8bcf826a0a4db47c7c507f2046133449a3adbbfee4434"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/traffic.cs",
+    "mode": "opt",
+    "source_sha256": "35eaff7f7febfc1bf631d1fe0b0d58806537ace615242cfea95764bba038cc55",
+    "compile_exit": 0,
+    "image_sha256": "f2c8dc36bc800f713b77a35a2ab941dcc8aa7654429fd7cc3fddb822245695f9"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/wdt_job.cs",
+    "mode": "opt",
+    "source_sha256": "74fe3a1fc3663ccb00a6bb56ee7af25c315e176e7420a312f946636cd60b61d9",
+    "compile_exit": 0,
+    "image_sha256": "99dcbdd278580d04558a81ce18f4b6ba70e40bdd52f6f24c7181043ef928d4bb"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/blink.cs",
+    "mode": "opt",
+    "source_sha256": "a2b985059c1ea8bf87549952cd5ca754732f9198b681c3263ca3f0f8bca7d42e",
+    "compile_exit": 0,
+    "image_sha256": "c55694f1936c84d1d9236d27a670e7a2a64268a36aca0b2d9000560f9a64165c"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button.cs",
+    "mode": "opt",
+    "source_sha256": "59feba50d9fb8e8abf242c7e0111ba4631c57a661a037c1391ef2a4b4ded8b79",
+    "compile_exit": 0,
+    "image_sha256": "c33f46a17b271043a44b5e61b253ebadbe645dd4a27c1c004ac2b911cc5678b2"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button_config.cs",
+    "mode": "opt",
+    "source_sha256": "84b28da736b49248a4cf4b53efd105825ab6ffa1f2c043e3f856b6c3939124a2",
+    "compile_exit": 0,
+    "image_sha256": "21450035e96f507d8cc86e7ea68f3d40771b277c7eed4ab36aae8a76033a5abd"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button_poll.cs",
+    "mode": "opt",
+    "source_sha256": "6d3b67509409553c5e78621604e226571599bbb44a452a208de741812cc91043",
+    "compile_exit": 0,
+    "image_sha256": "4db5ac9e6986cde8e42bb6b697b7a58acd5fc5397f472387070df079f1cf95c3"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/chaser.cs",
+    "mode": "opt",
+    "source_sha256": "705c9a59d3f6ea64c7763995d7a6f991907d4db4c20ab7cc430d9c657e1b10a0",
+    "compile_exit": 0,
+    "image_sha256": "49ddfd2c7d216c01464504e5a713292326803ee712566b7ccd5ae4aaedc07cea"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/gpio.cs",
+    "mode": "opt",
+    "source_sha256": "0da87688dcc9cef7b19cd8c3afb9a5348930b90ca9bd1eed1e9421dd14b1b4fb",
+    "compile_exit": 0,
+    "image_sha256": "8f8caa4b773e13092f8a2069ebc1057953ccd9784e58a9f098563ba78281e9f7"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/led_config.cs",
+    "mode": "opt",
+    "source_sha256": "dde06a3415bb62dbea5a21fda01786806090b3f0ae4cadfd8f19089979c82a43",
+    "compile_exit": 0,
+    "image_sha256": "f23420bc5fd31d6f3031b56061765f258313abcba5bfa8418ba5efcb33ae1d20"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/multi_irq.cs",
+    "mode": "opt",
+    "source_sha256": "ccb51e9e39c1b172451bbc74d592afd0ad9c728d435c5cae078ba2e2a0195d2e",
+    "compile_exit": 0,
+    "image_sha256": "d15bf6d402cd9687b891843a719817c2a48e53b949f1693de87689e5d33deff3"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/open_drain.cs",
+    "mode": "opt",
+    "source_sha256": "1720d79ecf6622a7b8e50a92d5069e06c610079e010e439d91c2998867123d16",
+    "compile_exit": 0,
+    "image_sha256": "7a0b55e4a1761480311f77ae4d276a98f20cac20a96365c5007cfad52bae1470"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/pinnames.cs",
+    "mode": "opt",
+    "source_sha256": "6fd74020f85f0b83c11df4a2b86225764b0f2064c0b698ef1b52b2e3500c7de3",
+    "compile_exit": 0,
+    "image_sha256": "896e9f0fbd5512a7b5c9f1ce4032817e7fba4ccb42eb027e1a19474c003536da"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/ultrasonic.cs",
+    "mode": "opt",
+    "source_sha256": "6069d21d314f12fdf335a4efaa538e9519c167dcf2678587e078f20e862e0a94",
+    "compile_exit": 0,
+    "image_sha256": "af1f638371e15f7079b6c83222918cd9136df9fc0892210e11839d203ab4b767"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/dimmer.cs",
+    "mode": "opt",
+    "source_sha256": "854f87919c0ca460d78bc70fc6d7c6d6cc197e8e4bece8eee32ceca058a95b06",
+    "compile_exit": 0,
+    "image_sha256": "88e62cb24ed6d6e2adaaf1db422510f6c634b770a0dd69dd5de43d2779feafdb"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/fade.cs",
+    "mode": "opt",
+    "source_sha256": "adea5d7640a65f78cc2de486e18e1703c749eb9fd2f3a65f2418e76768cb2468",
+    "compile_exit": 0,
+    "image_sha256": "8b0f550daea16de2b4f0ebc86b1bcc80685d2fc164ff2669615773da8fcb51ef"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/melody.cs",
+    "mode": "opt",
+    "source_sha256": "efc36c1e1cdf77cccd7f158af2e57954193f05a402766bcdb502d815954a47e4",
+    "compile_exit": 0,
+    "image_sha256": "1ac0f11295e49a574f8ef606c6b85438c4646964262095090fea4cb3b7addd68"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/pwm_config.cs",
+    "mode": "opt",
+    "source_sha256": "2385477220f496bd986b07264e1daef06c112d754d8440a5a152f8baf9c6ca56",
+    "compile_exit": 0,
+    "image_sha256": "b13f689bd1c5fcbad99d7f07a841949478af886ebd05984fea67881d34b16e72"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/servo.cs",
+    "mode": "opt",
+    "source_sha256": "6c238f5d9dfea16f1f778f5c5fda52d8e6f3b70f474114139a22e4cca2d44af4",
+    "compile_exit": 0,
+    "image_sha256": "fce9539d7ef5c25fdf0fdc5efe6e0478714f267ab1be44b67a8b8c9fdb8dfa46"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc.cs",
+    "mode": "opt",
+    "source_sha256": "1ee5ef0d2e9cb4ad80a6796284f0891e08708dc97ee76c5c2cbd9d624f0df810",
+    "compile_exit": 0,
+    "image_sha256": "ba39cfa032ae24e95198eac2fac2e9905c5fec51f88439e6014bd5e6c362e334"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc_config.cs",
+    "mode": "opt",
+    "source_sha256": "79744282bb59631134b45beb3d22c6c2a631f8c6f38656dfc305db7d2f5a8086",
+    "compile_exit": 0,
+    "image_sha256": "bba9d9a9c339e77fc5f629e8a65c9d6c0f6d5a3940497f97b81f2989a93807c6"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc_filter.cs",
+    "mode": "opt",
+    "source_sha256": "0947bfe374f2c3ff1aabfac651fb500188e6c9efd3cb8f3697ac775949144656",
+    "compile_exit": 0,
+    "image_sha256": "b31d7e6e54a3427a5bdb249bef2a001d8c6c2994dbb8bf18fcfc8c1af47fc1c5"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/battery.cs",
+    "mode": "opt",
+    "source_sha256": "edef50a31fa23455261d6108609bfe3f6703d84c20d6c8ab8afceef4ac4945e2",
+    "compile_exit": 0,
+    "image_sha256": "d5a10c94f7d4e8f9f0888fa5c05ee277738fe5e46ac13e30664f8194ac841cba"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/dac.cs",
+    "mode": "opt",
+    "source_sha256": "2873ee2958250694916c201af37dd28251704e77ae4b9043c77b1ed3798e5d54",
+    "compile_exit": 0,
+    "image_sha256": "8ad88f8ad34907f54e661b6ed1c4a220eb69d1d3ef86b8504ac416a6eab41beb"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/gps.cs",
+    "mode": "opt",
+    "source_sha256": "d1d62295dafbdc9773c8564a1d3bf8dfc0bcf0eeff89a05b36be840ae956d55f",
+    "compile_exit": 0,
+    "image_sha256": "10d1a90589e9019e594b30bc999e108b54602d4474a51638e36e3ae353ea3be7"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart.cs",
+    "mode": "opt",
+    "source_sha256": "8081f67ea82f00f216693a53bd577880196c0826bb73c5b1292672c86e3ee1bd",
+    "compile_exit": 0,
+    "image_sha256": "2dc8bbf46043340f96164f30b93f5287e3281ad660df438e3a47c289b9c3b3d6"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_async.cs",
+    "mode": "opt",
+    "source_sha256": "bd85be808cbf1eb420c7a296862d25508df774eb7dc9728e45734fb8a5c3747d",
+    "compile_exit": 0,
+    "image_sha256": "e84f34e38037b41821df115f027b050f74589bf59292ada44e2942bca9f55136"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_config.cs",
+    "mode": "opt",
+    "source_sha256": "4f7c1a3f882a1ec800c577ddb489b1168856d14b69c742f3af58b2ece7664808",
+    "compile_exit": 0,
+    "image_sha256": "2a0df2cd4fad603b1f1256deacd49131025f8301c08a36f635ae4d1bc955e872"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_echo.cs",
+    "mode": "opt",
+    "source_sha256": "d6ac4d2287140f591a0a619cc43ef7245eac98d259bb9ec3c0226879c70cde42",
+    "compile_exit": 0,
+    "image_sha256": "ed29986018eee3b9bb44d1c2a66cf243cf581cbce09fb47a04250dff5b9d24f6"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_packet.cs",
+    "mode": "opt",
+    "source_sha256": "749d70b0432eaff174ac5d7709f886d2d9f76dfb43707c1fa62e21122a4cffb7",
+    "compile_exit": 0,
+    "image_sha256": "492f3a0b10d0a886452c1e965f92e89d0e6f4d112f5c5052d81edb7bdc238460"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/bme280.cs",
+    "mode": "opt",
+    "source_sha256": "e512ba4516491391bfeb9d55c076ffd69747301d70a0005b9e8ad30655d40757",
+    "compile_exit": 0,
+    "image_sha256": "2fa7aa7bd7ef81b27f90f2bf57af78670e6dab4c7e71c5aa5cb18528f2080a5a"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/eeprom.cs",
+    "mode": "opt",
+    "source_sha256": "00d360585e9c836b7cdffd4ba686305c3de9600e5ab6f1d4b3c2d186cabb8e9f",
+    "compile_exit": 0,
+    "image_sha256": "239786d641e53cda6c73fc782dd69d1647b2a3f53b32f21457cbcb3482e9b3c1"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_async.cs",
+    "mode": "opt",
+    "source_sha256": "6e4aeecaccb97955febb6c2d41d4919b9d5f3557c7672d07341b66c19f5ec863",
+    "compile_exit": 0,
+    "image_sha256": "2773065b144d176bb12134a0db1d9c393d5e0931cf3ef26967055c48ae2bc573"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_pins.cs",
+    "mode": "opt",
+    "source_sha256": "8e4126e3f2b4fca3d834fbfb787dc6a8b4ffbbd5b95e1a76e7bcecf061918f82",
+    "compile_exit": 0,
+    "image_sha256": "17d2e777df0120796ceadd6cbdc7e7bb830e6336fba8c59f43221a7eb4d70d46"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_reg.cs",
+    "mode": "opt",
+    "source_sha256": "4605232f62cb3310978ef178d3b46d40baeb9370451f6a4dfd4663e67d6a97e3",
+    "compile_exit": 0,
+    "image_sha256": "db133172afea24b73316aa50eb92490625e9f9775fd3862ec871ca5a60b4c1a5"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_scan.cs",
+    "mode": "opt",
+    "source_sha256": "a64bb02f2144df7dbaf627d2103c4e8c4866b12dbd0be73032cf0d8237be9050",
+    "compile_exit": 0,
+    "image_sha256": "8da10cee4e4fd641f87b23e45124b0b9ceeec517e6351b363a35b7e8e16cf7b8"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/oled.cs",
+    "mode": "opt",
+    "source_sha256": "6c16a8c55c45e31dfd3cb3f561d6b64f39844bfe0713e2ecbc5f4ec032665e79",
+    "compile_exit": 0,
+    "image_sha256": "9bf5692cfaa1da611ec782ce349d9bc3afcae0e914d61fcd908388e8ca1e4123"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/tmp102.cs",
+    "mode": "opt",
+    "source_sha256": "711e73f5db0fff219073752e255a1be6396a2990fb1c658d5ebb1f8565c50e6c",
+    "compile_exit": 0,
+    "image_sha256": "31aa86528854aae636b2c56862a0879228d3896901a396bede242e01f1120d2b"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/shift595.cs",
+    "mode": "opt",
+    "source_sha256": "f1956a51731e3e352e7a64b130b884e63615ac4ebe3cb9f88d32692402b32902",
+    "compile_exit": 0,
+    "image_sha256": "654bf258412fe320ed2377cb02ada46b332511e2d839cde39c271b06f8974130"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi.cs",
+    "mode": "opt",
+    "source_sha256": "78e537b65f688ccfe75e7aa28c253e4d1836b10042b5abeb7261fee2cd34f4c5",
+    "compile_exit": 0,
+    "image_sha256": "669de7e27a38d13fb49bc5e7a4289876d2d22111bf18c1b5059d518f6fb5590e"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_async.cs",
+    "mode": "opt",
+    "source_sha256": "0b84307130640497e0c57219fa3004b6d0ad714b86396429af7e3657e7fcc6ee",
+    "compile_exit": 0,
+    "image_sha256": "3248a98dc816137fe6d626a6b4ed525461e9c6a18b268d5e9e624dd9dd79cb4d"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_config.cs",
+    "mode": "opt",
+    "source_sha256": "60cc89aa05302eb714bf90700be34837141d7a154c932c85cbdf0b0e7badd21a",
+    "compile_exit": 0,
+    "image_sha256": "f7de10009bd96996bcf8ce088c11532032f4350650611da8b1b223cde2c308c9"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_flash.cs",
+    "mode": "opt",
+    "source_sha256": "70743d1822d056398838315c5e9f67189c90cc4a8f59564d84b2fac6835478b9",
+    "compile_exit": 0,
+    "image_sha256": "bf7bb23d88f2d9906fba3b0540fd2da59ebf5622eb6d4b7813a341d0b6ff2799"
+  },
+  {
+    "source": "tools/studio/templates/10-qspi/qspi.cs",
+    "mode": "opt",
+    "source_sha256": "e3a94841a073fd1fb8489667fc854e7980434d1e810c9752fff10959c034bce0",
+    "compile_exit": 0,
+    "image_sha256": "686857b67a3f6245d6836db826ebcd835e7cbf4b5e7e74545d923077777876b8"
+  },
+  {
+    "source": "tools/studio/templates/10-qspi/qspi_async.cs",
+    "mode": "opt",
+    "source_sha256": "f5500b1bed625794f8568519fbf2cb90cee91f1fd86737490a24d96149fcc9ff",
+    "compile_exit": 0,
+    "image_sha256": "c645fb3583ff8b87d34cc42c16899a710befffa37a5ea26cb6a6d5b6470b3b10"
+  },
+  {
+    "source": "tools/studio/templates/11-i2s-audio/i2s.cs",
+    "mode": "opt",
+    "source_sha256": "fdcf7c6907c3941d7529178d7c99336c81ebb77beda36f6283a512c4659dc859",
+    "compile_exit": 0,
+    "image_sha256": "27e8720745bcafa1f71144a00bd8e15d89e7115ebbcb10d8d27a60a55329f84a"
+  },
+  {
+    "source": "tools/studio/templates/11-i2s-audio/i2s_mic.cs",
+    "mode": "opt",
+    "source_sha256": "1ce29583d172742b4f545678f13a9f46fdb17656bd7fd6da5eb2639fba593296",
+    "compile_exit": 0,
+    "image_sha256": "642fc9901d4a2233465410ba2f0a25dadc52fd7845fa7db98173ec969af3c6aa"
+  },
+  {
+    "source": "tools/studio/templates/12-can/can.cs",
+    "mode": "opt",
+    "source_sha256": "805cb29f7230f49b673308147b36cdc64be93800201ad1c5e1b32990713e7e7e",
+    "compile_exit": 0,
+    "image_sha256": "6c185257281c6fab34c1a4115db9fafb1abad3487abddc96892de0d5ac76c7e7"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/events.cs",
+    "mode": "opt",
+    "source_sha256": "8ce11b0f154ee9519573c88c1cd9630dad4b3399021352ee230b634a0ec7f45b",
+    "compile_exit": 0,
+    "image_sha256": "57c26508378e6cf7788270971764a7e390aa16f94fcfddaf71a209660a6ddbc6"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/rtc.cs",
+    "mode": "opt",
+    "source_sha256": "4b0354926bcf8a99c505bbdb028a977e1011eaba0ab673c121dd350dff2146ea",
+    "compile_exit": 0,
+    "image_sha256": "6e1c759a8fcbe1c774395140ea006140299bf4bf194c95526a41f129186eb0d4"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/timer.cs",
+    "mode": "opt",
+    "source_sha256": "3c0d6bb81d6be41245b7eba4ea0ae201e0e421b81494d49f610e5d8a23d51193",
+    "compile_exit": 0,
+    "image_sha256": "5ad56d006a3b4f3e8369eaf1defb3a7c31bb6a94a4a723656ae95826639a60d2"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/watchdog.cs",
+    "mode": "opt",
+    "source_sha256": "08f40eb9c0dc93d3a2f2be403230e17ef4f7b8398ba905a2351d96a9c81b5c2f",
+    "compile_exit": 0,
+    "image_sha256": "7f01adc406ba32e190eefd94a7c254f5d1ae5461b9b5374c397328b83d4ef824"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/board_caps.cs",
+    "mode": "opt",
+    "source_sha256": "30893aa95cb110d7645908994b7b74742ec8f8876c837286c474d6dc3c007103",
+    "compile_exit": 0,
+    "image_sha256": "1bd97c2a837e59fc1cf692f7bef76d0078dbab394a181a9709d09facd834414c"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/board_options.cs",
+    "mode": "opt",
+    "source_sha256": "739245d57605529f7fb77eaf5710c779676e76a6d2c7c120c0933205be77523c",
+    "compile_exit": 0,
+    "image_sha256": "0b69758175b7e368fbe3f838d4d8ae3f0e8e9d9e859520e46c3789a857149145"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/errors.cs",
+    "mode": "opt",
+    "source_sha256": "5a5132648cb53f64256fe7d2919489e323a70e177a275ff12c9df60e8581c36d",
+    "compile_exit": 0,
+    "image_sha256": "a3425529ef7a9139c617f1b8c04fa2ed3a05dfefd0d5ed6f748610044194862a"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/info.cs",
+    "mode": "opt",
+    "source_sha256": "f363afedbf0bb16733506d969d89b1a71c62e5ec2790992d66b1221179c1dab5",
+    "compile_exit": 0,
+    "image_sha256": "630fa8341a477c1e411e468de357ba662e94fcc891d389ed9de8c94cbf5b9451"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/memory.cs",
+    "mode": "opt",
+    "source_sha256": "4726906defc0d7efb254a77d76f0b741a2dc4e0adc46c4fec2553b01e54557c3",
+    "compile_exit": 0,
+    "image_sha256": "8d818edc9ad6beef33ffc3fe04e0054de68318a4add58c0b74947ecc608d1d66"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/portable.cs",
+    "mode": "opt",
+    "source_sha256": "8f1c6fa3784e583d2c31d843b12c6709120a8835a26c75ae3cbeba74b0de5c87",
+    "compile_exit": 0,
+    "image_sha256": "35ff10167f240249572ac5c801a075f43a81101dfe6139655b118d0ff690498e"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/reset.cs",
+    "mode": "opt",
+    "source_sha256": "1b4f76fc183ddbe5439c119b6593279f80d237b9d38ed13bf9c5974c10a4b239",
+    "compile_exit": 0,
+    "image_sha256": "8ca508de3940ec647a956b504fc2a1d2c92087250ba0f5adff2a37fca5a6bc50"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_buffer.cs",
+    "mode": "opt",
+    "source_sha256": "a4e67457dfff4c19f802f23b0f1856f72b05b4d10d90fed73db4e35c74e16aff",
+    "compile_exit": 0,
+    "image_sha256": "9f6b93f68e30ed887f59f1fa9bd46e40f6f19add6044b309c8ac8cf6fc0093a3"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_double_buffer.cs",
+    "mode": "opt",
+    "source_sha256": "5a71350dfd94cc34e3d2a83632ebe40fcc4cf0f9edbd82b61f94e59d7ba0d003",
+    "compile_exit": 0,
+    "image_sha256": "94d18c0b63a168a16f86c081f85965efba7570d5610d66b520724f7dc3b2b4df"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_memory.cs",
+    "mode": "opt",
+    "source_sha256": "8ab69fb05d6b4926b8ed57df8bb46318ad906af6ff21b4975d6bd58317d9c46d",
+    "compile_exit": 0,
+    "image_sha256": "723196b4c9d91ed256094f285b177df943bdff5a9f443078ea886a22cba59835"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/binary.cs",
+    "mode": "opt",
+    "source_sha256": "de2365297eb1ea77277b9bde5de3a2f1e6c3e479b2f61e5f9d36bf1f8f09c5a8",
+    "compile_exit": 0,
+    "image_sha256": "e2a736da78be216535d489b84180a353c7fd5476e8947655aed7cf3cb8fd3cb4"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/csv.cs",
+    "mode": "opt",
+    "source_sha256": "8f52b62360ba4d9e2515383734e692f263c4bfa3c7b4562da9a029be513df4cd",
+    "compile_exit": 0,
+    "image_sha256": "ba07474171d7550f6cdf8924cc61dae6a83321ae37e714e23c8866f1daa210e7"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/fileops.cs",
+    "mode": "opt",
+    "source_sha256": "bbe89fdfb23033cea17d19c5c20dcbb8e9f6ab499cc8f03d671a6fd5c317b720",
+    "compile_exit": 0,
+    "image_sha256": "7870836753311f09058e79169543764e495d0dee2e5d9c2712e096d94b51324a"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/files.cs",
+    "mode": "opt",
+    "source_sha256": "4d23df8e965f347959c71d2ad606049bfbb22a7c1b8a14d24598dce95076240e",
+    "compile_exit": 0,
+    "image_sha256": "0bdff4f5a1e1930c4fabc4ca239094ff93602efe3cc32681091ab893d3b3d5b6"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/folders.cs",
+    "mode": "opt",
+    "source_sha256": "06899feef2c6aa097a0ff5ea89f9de901829b8084b4c530d8e0fe00e68a3c98a",
+    "compile_exit": 0,
+    "image_sha256": "1311fd9e3020769052f25b0b1e82b64d618390c98375312d1cd0d57554e260bc"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/kv.cs",
+    "mode": "opt",
+    "source_sha256": "57f175d03a33d427036146a5f32d31a3fe075150c0c4f3d87451801b0e000644",
+    "compile_exit": 0,
+    "image_sha256": "534e1219e51bd44bfcd694b04132cb6c37173d422e9cff9cbfefe4988b1ae993"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/classes.cs",
+    "mode": "opt",
+    "source_sha256": "c8959d50d3cecbd16d08da2714b405db99417bca07342e490382680050bf632c",
+    "compile_exit": 0,
+    "image_sha256": "d5f61d3775aaaf7ceb310e122333223ff77535b72a6a90113fc14be44a6de9e5"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/collections.cs",
+    "mode": "opt",
+    "source_sha256": "e8f09c1f28c30550d7cc62d490cc490b324bee38760b0226b2acc2c6ba7d5e50",
+    "compile_exit": 0,
+    "image_sha256": "542acf279c7a919f1756991590c74e4034a8b6605e7864aab99aa1b34763a828"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/driver.cs",
+    "mode": "opt",
+    "source_sha256": "dc18d2685e6f3bae8551831e00341324af9aef500b3ad761705a6935468dee6e",
+    "compile_exit": 0,
+    "image_sha256": "77d947633fe3a29ab4b47eb2a3ff4221838e711ff1962ae530a21fe06b59200d"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/enums.cs",
+    "mode": "opt",
+    "source_sha256": "eb7e332f5dcef9122ba9cdc2d342e409231c5530b54321a27a8d8a48cb79b6a4",
+    "compile_exit": 0,
+    "image_sha256": "ec3b5d20b6fd87956768356ac4a255d2907863e4bdd15bc9ec183d00a8be9b7f"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/events_cs.cs",
+    "mode": "opt",
+    "source_sha256": "3bda82d98f7c877b0039f400a6f83d04c16813d6a9a7d3b72098c3120612a96c",
+    "compile_exit": 0,
+    "image_sha256": "ecb43c1c5113617137bd2d95d23a1ebef6d817558fb31c6be4e83b25a4a03aa7"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/exceptions.cs",
+    "mode": "opt",
+    "source_sha256": "f5b2203160a3f153e20fedae29f51a8869557efeed83c0ba1e8ef87548151d91",
+    "compile_exit": 0,
+    "image_sha256": "dc80b1f07cf62bae90a00c290ea092452707777ea76b3b00edc06410b5c5f1fc"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/generics.cs",
+    "mode": "opt",
+    "source_sha256": "8846a35588aae29b241f071126d17cb83ddab36f290f0121cfc58e2983562909",
+    "compile_exit": 0,
+    "image_sha256": "3962dccef4c74248807a16dc7b3583c51feae030554e7300a6ec69ec6ae10e87"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/linq.cs",
+    "mode": "opt",
+    "source_sha256": "0e5b0bcdb032927d5ec832f06df7223a8f613be19ce3896cc8f6df5cee3c7e04",
+    "compile_exit": 0,
+    "image_sha256": "7abfe59e426c177a85eb4812719d1b306b41e567f50eab271dd9097afc4e584a"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/math.cs",
+    "mode": "opt",
+    "source_sha256": "c27642c5b5604af167b6211fc3881fc8b384c4841416058c648b88747da12c6f",
+    "compile_exit": 0,
+    "image_sha256": "8d2c12b56eb1d831201f162f0bf7551db11568641a9ce9c97562e83bc3dfb44d"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/parse.cs",
+    "mode": "opt",
+    "source_sha256": "48a42b12064d9f47428259c54b66dc02b97634eecc26d948635ee35a988d0c7e",
+    "compile_exit": 0,
+    "image_sha256": "13baadd2407f99ff0ede804925d693d28f8580a91175b5cf1e800baa2d1047a4"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/patterns.cs",
+    "mode": "opt",
+    "source_sha256": "9203f47092c4903974125834c3e1654fa2589ffd18b87d3b9042fdb5022f9915",
+    "compile_exit": 0,
+    "image_sha256": "7b3d5410adf94f5ee6fb4a0b347796a361cd03dd5a89cb7157679348819b1d0e"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/strings.cs",
+    "mode": "opt",
+    "source_sha256": "3b8a74fa49c35156eae2050ea3849cc0d326c66f6c7a0a98d7ac76bbbd7855d5",
+    "compile_exit": 0,
+    "image_sha256": "9afd9b1a3e3c165fe3ed2e94f63304b60d44b2d3eaf92c5898c54f693e41007a"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/tuples.cs",
+    "mode": "opt",
+    "source_sha256": "d7a04a82975d9a81c377cf9a9bcd0e9687c26d18a060b24248d00df7dd5cbaa7",
+    "compile_exit": 0,
+    "image_sha256": "5040b752f2976573f83acd0399c9a88993ca2e413643a8d6c1b49af90eabe77b"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ads1115.cs",
+    "mode": "opt",
+    "source_sha256": "9b676dc5e7eb8fd61e5950cf388722540390704a4640549e9192c27d0e49fbed",
+    "compile_exit": 0,
+    "image_sha256": "ed78d4dd959835fffcebba99d0c1fcb43afe159e647e58d47acdf0b454254753"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/bh1750.cs",
+    "mode": "opt",
+    "source_sha256": "ef36d18395bd2efd129bc497e2251b5d5bdcbefe34ba2ce3d58432404dc88f6b",
+    "compile_exit": 0,
+    "image_sha256": "b470322c68576eb6266f750bc0c1192171516a0025722ab9c99696b23f82d1a9"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/dht22.cs",
+    "mode": "opt",
+    "source_sha256": "87cb17f7c3217ce3f3c8ca350b78d837e1c0afac2536d45f7ad34bac1123a72e",
+    "compile_exit": 0,
+    "image_sha256": "bbbf87bf95b2952101b9ef228bbc39ad5c6b19926f1decefa9bddddceda7b254"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ds3231.cs",
+    "mode": "opt",
+    "source_sha256": "b875a781687f8483abddd9f150fa0918fe70cf5603c2d139e668f9f3778b41ed",
+    "compile_exit": 0,
+    "image_sha256": "4b98023b9230931e89cf8759bce0ed4da1e24dd7d428b0186a5df8c91f1e7fa8"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/humidity.cs",
+    "mode": "opt",
+    "source_sha256": "907b2b711ae0c5dde8602d7c8ca2fe330a3ef1dae36bb30134c85c0cdfa3cb1d",
+    "compile_exit": 0,
+    "image_sha256": "2b5229eecdc370aeea0057825c5b9b8a7c84fb9b3e48e2ed3bff2b1ee8e4e659"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ina219.cs",
+    "mode": "opt",
+    "source_sha256": "b0875891de231221dcfd196629df7659ed8731e23804cae95cb99b0dfdd0fdcf",
+    "compile_exit": 0,
+    "image_sha256": "f8c6cab16458843d47841a764a6269e772ffb5c6a6896c578ad3b0cce3387af2"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/joystick.cs",
+    "mode": "opt",
+    "source_sha256": "cd3094dcd7b20ec974ff279f8cc0f990ecb0ce7b56d126a5cdff26b1271a4dc0",
+    "compile_exit": 0,
+    "image_sha256": "71df233692deff53f2ec6b1bb16d3e09f32cdbd559d5f2ba4a112e0079f6bec1"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/mpu6050.cs",
+    "mode": "opt",
+    "source_sha256": "638072e197e68956515f75958e7e11f5373015a66bffb834a1751aa392c901d4",
+    "compile_exit": 0,
+    "image_sha256": "0d6b9730c242611705cad257a9b1929dc255fb975f55f4b9facc8acfdb237533"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/lcd1602.cs",
+    "mode": "opt",
+    "source_sha256": "b563f183fb7abf34f669d1abf8b4d754ea47323cd7490889714c924b7e487c08",
+    "compile_exit": 0,
+    "image_sha256": "0c71e941fde90e973c76c7ba9678c44edbe524d2a9f112eabd21e33af3acddc8"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/ledstrip.cs",
+    "mode": "opt",
+    "source_sha256": "79ed08e1400f71dbd5eb0fc2de826982cbe75b90d6b3c5b503a9a77b17d472cf",
+    "compile_exit": 0,
+    "image_sha256": "808e37f6eee776cd3cf26a79a628b8bf8953cddd54e500b028619fecbdc632a1"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/max7219.cs",
+    "mode": "opt",
+    "source_sha256": "d193a54f43a94bdc8a944bd0a76390da8a6788fcc0def6b654bafc1627a92762",
+    "compile_exit": 0,
+    "image_sha256": "7bf1389df980190962d056cbd04dfd1bc3256380dd075062a63ce72d4b95c2d6"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/oled_text.cs",
+    "mode": "opt",
+    "source_sha256": "229bceeee53497e73daa45f9231da3fff0d826d7fe0bdeeaee8be13ac87bb16b",
+    "compile_exit": 0,
+    "image_sha256": "804eebaca814a23e4f85c79012674fbe23aa26724cfa3d9318ef3f045071920b"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/tm1637.cs",
+    "mode": "opt",
+    "source_sha256": "994dbc39e60b1072bf943c34b302c5fb156ad6a32e9c42aed88fb61dd5809dcc",
+    "compile_exit": 0,
+    "image_sha256": "b187323924bbebf1f2deb49030ce8423707dcd661099d350de642d4fdc59b80a"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/ws2812_spi.cs",
+    "mode": "opt",
+    "source_sha256": "d76520ff89d1c93680d0832d18ec5bdb550b23788e633cd3ae140dc2159ea546",
+    "compile_exit": 0,
+    "image_sha256": "8d2e1229be934a0ff56b2849fe88607a8a210b99e67a7539eabe9964dcc2f90d"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_animation.cs",
+    "mode": "opt",
+    "source_sha256": "b2ddfe7b684b77038269036043fe7a9c718cb919f93448bda3a7f8cbc7214879",
+    "compile_exit": 0,
+    "image_sha256": "ac646fcaedc46af0d4cef2c8b4b3b862d6766d2017b13ea3d2f2bbcc2356912f"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_bitmaps.cs",
+    "mode": "opt",
+    "source_sha256": "c76b7b47343618edcf858daacde413cbbb4003cb3bf4c262b66dcece59ad44ff",
+    "compile_exit": 0,
+    "image_sha256": "eb66393f6c3e773c92a1423639d5b72e6950dd234440c01336cd9cabe50416dd"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_buffer.cs",
+    "mode": "opt",
+    "source_sha256": "ab30d4b0c05321f93af9d268ad06ccb48731d00b1e33530f898e87d5d9ced302",
+    "compile_exit": 0,
+    "image_sha256": "81529f54d371685c6e2488b76e4dd8c06bd35a9c0f0053845416db53fe9e4ae2"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_clock.cs",
+    "mode": "opt",
+    "source_sha256": "1d6e4f9dbb4010eedc19df469fc7cb6af0682b57ea13c4b8f5b94c825da1b021",
+    "compile_exit": 0,
+    "image_sha256": "5c67fb29da9eb85cd69327c45c15b46e23527e050c37f37592f6ff84d404a2c2"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_custom_menu.cs",
+    "mode": "opt",
+    "source_sha256": "9d33f1bcfdd77135e9f3abdb76ae52ee66ccd858653e2bde16f078d9695a9f72",
+    "compile_exit": 0,
+    "image_sha256": "98e7442fdcc19449ac3d1db665643ec77ff393e25ae0bbf8e861eecca2e37ec8"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_dashboard.cs",
+    "mode": "opt",
+    "source_sha256": "909d23f13a3f0e02ea3c00d7bec9a71b8e2595adaa90e96e49af558ca7f06e1e",
+    "compile_exit": 0,
+    "image_sha256": "c24d02cf7ef4f3facf7acaaaf6a74dec179657c5ffb6bde337d5ac7d90983873"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_font_files.cs",
+    "mode": "opt",
+    "source_sha256": "3437f239b01e83bd6eeac8d302be880f7452cb548eb9cb576b4ce3570f157149",
+    "compile_exit": 0,
+    "image_sha256": "5b0095165833f682d2110a314b5c50a8823aeab67b66c25a3fd73cef54181fbb"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_hello.cs",
+    "mode": "opt",
+    "source_sha256": "fe30a0c8aa1e18cff935f512e083e2946271e32a8516a2fdf2cc3e5fe9eccfc3",
+    "compile_exit": 0,
+    "image_sha256": "3916c492737d66bb9e09a53b15294936afa61d8512cde57cf5774bc09a3f5fd9"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_log.cs",
+    "mode": "opt",
+    "source_sha256": "aeef00cdfef1ab333488bc008dd41ab50444d5e0cf7262c0d0d08c7175b7f6c9",
+    "compile_exit": 0,
+    "image_sha256": "20451130933b318ec9aa123413bbc9675dee08d0dfef2b8e267ea57887da8240"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_menu.cs",
+    "mode": "opt",
+    "source_sha256": "45a1ecf854e0d0231b0d44b6abf2a6fb456b471c6c4f1d4299c4cd3af454aeaf",
+    "compile_exit": 0,
+    "image_sha256": "2b9d719334a80d283f5b94c781bf3517d1fada4789aef4dd3119ce3c5a65b513"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_page_mode.cs",
+    "mode": "opt",
+    "source_sha256": "f439f373cf14b4a2618800375e10930c4cec641a945999b08fcba760cbad7949",
+    "compile_exit": 0,
+    "image_sha256": "c90478ab05aa35ba15af400b6650fb0180941c9b6ac93c7d217427fc2a1356f1"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_print.cs",
+    "mode": "opt",
+    "source_sha256": "32eea66a745fe1a961cd24bb8122f829dc7e2e13df87d042fd57f94f3a6688a7",
+    "compile_exit": 0,
+    "image_sha256": "f2d2db3b3b512d9b3b8839cbf346dbd0bf2d3a5fb70410517b8d90dcfa7babb8"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_settings.cs",
+    "mode": "opt",
+    "source_sha256": "2d6b63295be4b43ff41be5d8bc0d06d210d6880bd34754c041b058d6715a179b",
+    "compile_exit": 0,
+    "image_sha256": "44571dccbf8b201b487ff5fc0e89074a75e669d513523bce4cef186fe3837212"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_shapes.cs",
+    "mode": "opt",
+    "source_sha256": "7226c8da5b097098f4f4219a4cec29013fef32f3c46c5d5b3c5ba38ada748205",
+    "compile_exit": 0,
+    "image_sha256": "81ea6b34d808f5b504b10b660f6d2a109e4705400617718a8a3e3b3e37fc19b7"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_text.cs",
+    "mode": "opt",
+    "source_sha256": "a912b00112f776c688012f76471db65c8f18f688bf149478bcf55e41f2ed28e9",
+    "compile_exit": 0,
+    "image_sha256": "ff95fbf880f070d0b940fedea644305f4cee9ee7b3e2f05879270ed2bc7b70a0"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_two_displays.cs",
+    "mode": "opt",
+    "source_sha256": "ea5e35d5abcbff1bee282ad1fa3d6f4012608d7c25cf6740793534fe915f9f7d",
+    "compile_exit": 0,
+    "image_sha256": "b20023bb196910c797b11e500e607062c577f226b110a8f20644869180c14c39"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_ui_text.cs",
+    "mode": "opt",
+    "source_sha256": "ad2621cb039d2cd7b61eaf8507ac3e8089fea0a49de11c42e82d50d61ca2dad8",
+    "compile_exit": 0,
+    "image_sha256": "e9b1e586f6eab1d679805376d36c67367ec42f237e9edeb845bcf291321f3e5b"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_wiring.cs",
+    "mode": "opt",
+    "source_sha256": "e39cc22e60451a00db2f043bbdb0efd72ddbe7dc396c5575a7e41a467b8a5271",
+    "compile_exit": 0,
+    "image_sha256": "2bab18f4d876def4d6b3fd4e6095539125dc459929c0ccfecee74c9ca44dc333"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/u8x8_status.cs",
+    "mode": "opt",
+    "source_sha256": "e7a9f03ab490cbce03a850f6ce5c0ad8bd68903a50f4bde5684b90de17f0ab9d",
+    "compile_exit": 0,
+    "image_sha256": "153a64ebf2b47d610ea54def6389c104c123f10bb0dbe127396ae142af1ef5cb"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/u8x8_text.cs",
+    "mode": "opt",
+    "source_sha256": "dec10f5f2768da0775ddaa00b906f5be4ba6ac8e9d19b252a187da4f2db7e322",
+    "compile_exit": 0,
+    "image_sha256": "8626fed4b260b53046946a0cef4eb2aa58ef4d8c0abce77d7f577645159eb717"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/motor.cs",
+    "mode": "opt",
+    "source_sha256": "7a986069c103499028401750017e97d62bd0ae572abcfe8d1bcf0cf6924f25d3",
+    "compile_exit": 0,
+    "image_sha256": "54216bc2cae488ce2f5b9e163287ecb4bc2f640c3d989a9fa392adb206afef35"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/pan_tilt.cs",
+    "mode": "opt",
+    "source_sha256": "739d2cb71c84f749bc0767f0749228cfae0f1bce7d74bb083483163597b665e3",
+    "compile_exit": 0,
+    "image_sha256": "31b9263deffe43eb9a10f7303cc7c056deae40cdba288d7c34ffb5ee4487be0e"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/relay.cs",
+    "mode": "opt",
+    "source_sha256": "3170561b49de369e95982945a0983ddc7fec1bfae6fc19c93a870e81e871d218",
+    "compile_exit": 0,
+    "image_sha256": "27fb159e0bf1be86db9c4d7e67196c10e4f49e5af8edd642e830db891b5e42a0"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/servo_smooth.cs",
+    "mode": "opt",
+    "source_sha256": "569c37b273df3fa237e5dd3a491571587604ec1046c69e9736795a8f211f7660",
+    "compile_exit": 0,
+    "image_sha256": "777a1a08e9fc3df5872a52db2be9ce35dc20b46a430319c956d40d0fde581420"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/stepper.cs",
+    "mode": "opt",
+    "source_sha256": "28c3982239199dd91aaaccd985933aa647e0c07b6dd570e35e37725e530f11b1",
+    "compile_exit": 0,
+    "image_sha256": "b3255b29d7fd16f019db1a0ef6de4dc930f2755bb762b4c11107fb03372283cd"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/uln2003.cs",
+    "mode": "opt",
+    "source_sha256": "77da0d1a70c0ac018a840f0df2616c43877b7927a37fdc850e9f07c560c8130e",
+    "compile_exit": 0,
+    "image_sha256": "4a51bf4e714303092f48f2930bf2eed2ea828c762c47cd36dedb527cfaa961f2"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/button_events.cs",
+    "mode": "opt",
+    "source_sha256": "096f80b8710da467dedaf11c8509bad33bccea3abfd4f8263595a55156216804",
+    "compile_exit": 0,
+    "image_sha256": "e6666882790031cbfe4ee8a335265c7f9d97cb32b4e00127b1ac08cb65f20b5d"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/encoder.cs",
+    "mode": "opt",
+    "source_sha256": "75471f4413003cfed8b291597792aa3f6bf98fae6ef82a56f62893f1dc5c816d",
+    "compile_exit": 0,
+    "image_sha256": "de8cbcfbd58cc178b97e09bacd60bb191fb19580218f73bc862bdacaee412a20"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/keypad.cs",
+    "mode": "opt",
+    "source_sha256": "3001f5b63dc6c0467eeef5b8a18b0dacd9dc351975696ba97e7b710c7b2ce08f",
+    "compile_exit": 0,
+    "image_sha256": "b76a72f04167e75c097449aee30693d7dfe83175ca89d212cad4fbfe96885997"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/touch.cs",
+    "mode": "opt",
+    "source_sha256": "5cfbe8ad2ea2d32654cdf9c254fd75a38ebf8a40dcc23aa0ba5acbdf2d0ababf",
+    "compile_exit": 0,
+    "image_sha256": "66a41a20278cbf4a001117af89c61b186b8adeb44db8c74a4d453f84a6ff455d"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/filters.cs",
+    "mode": "opt",
+    "source_sha256": "07ba925a17ae6b7799141320dba41288ec2110df7876015960493dc7985d0a06",
+    "compile_exit": 0,
+    "image_sha256": "501b5ac2a425db8ce7864dc10ebf9cf5f8cedf21b0820016f8b99ba902cee6b7"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/kalman.cs",
+    "mode": "opt",
+    "source_sha256": "b375f46df5645198632d6faa13d4e21618688bac80ccb111a2ac9671a5f38238",
+    "compile_exit": 0,
+    "image_sha256": "a68e1d203334e8bbaadfc665d2c6364a93246a54efb37bd87632ea8f1b3a85ac"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/pid.cs",
+    "mode": "opt",
+    "source_sha256": "4974dae1e866c5fcb6449e4c863cecf179fd4a58e60f9ab1c12c702fcbb34080",
+    "compile_exit": 0,
+    "image_sha256": "322111741764fcea778e96ef3d715409b3cc98a341fd2b9841ff5aafa5ed2e22"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/thermostat.cs",
+    "mode": "opt",
+    "source_sha256": "d59b1d79600d2a94d9d454907332976bce1c6ea059845615d9b0ccd538de4a9e",
+    "compile_exit": 0,
+    "image_sha256": "cd7afd938939545f6a6d586df954cab0806981f952326832696f8c9422c2fe92"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/base64.cs",
+    "mode": "opt",
+    "source_sha256": "761a9426b9e630cbdbc0cd0da2e5ab9fae0f108e3344d371a0e776eee74549f7",
+    "compile_exit": 0,
+    "image_sha256": "434034f4c144c2451fc9728d3a43eea116d9a90265623b84cbb3297eaf47a258"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/commands.cs",
+    "mode": "opt",
+    "source_sha256": "10c1cae840d6769c7e5c90a8ff42f5909364c7e26591588c1598eb3a3933e51f",
+    "compile_exit": 0,
+    "image_sha256": "2e3532720fa733126f2e9b299331fd6f08b1eaba0408dd491b1add81ae0568c3"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/crc.cs",
+    "mode": "opt",
+    "source_sha256": "cea4219e4cb56a3bc6dc3d83a829cfa76557daa0327eb609777a01cde0634514",
+    "compile_exit": 0,
+    "image_sha256": "ebd0fc2449a4e4de7d499e58bebc6273302135d877434ca084b950a93e569aaa"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/json_out.cs",
+    "mode": "opt",
+    "source_sha256": "5df0872de01a425b9afd0d5a8c9062d223ad7bd60e287c1a3a0cb0cfe9ba16b6",
+    "compile_exit": 0,
+    "image_sha256": "59bc2358b6197430e1ce75d4f172ae8e6e619eb1289fdbe22eac42f0929217f8"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/modbus.cs",
+    "mode": "opt",
+    "source_sha256": "6717e38d3c54f5b77946ff8249d9a3e4e2b32af02e117d6c0800ab32f1473a56",
+    "compile_exit": 0,
+    "image_sha256": "f47bd0204ae0fb088b73e35c4697d8911aaf103e189a9aef58fcebb0c1c0f939"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/nmea.cs",
+    "mode": "opt",
+    "source_sha256": "c9436b483fa079942c7dfaa33546415a4dd841fa519cd2e7fab741223398cd4b",
+    "compile_exit": 0,
+    "image_sha256": "52fa8721edd03aeb7691834de3fbecd9c156f2b73472ae92d76fa7547b68e313"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/ringbuffer.cs",
+    "mode": "opt",
+    "source_sha256": "b8d9dd77b04c81246e2d95baae42bd09264b16c4919298bf39e46347813f074e",
+    "compile_exit": 0,
+    "image_sha256": "6bd50d99ce1fd15bab578bfd398f11227b3ad707f2564fabdcf7dc9ae2842ecc"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_adc.cs",
+    "mode": "opt",
+    "source_sha256": "e8697e7fd49a9fd43357774295f148a587f517f6a3c11cf7d5a5760833866a09",
+    "compile_exit": 0,
+    "image_sha256": "46a24f5cd9d12b4c016bf42cd71b4ee0903d2b021d8c998bd6d9ab70341d8888"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_sine.cs",
+    "mode": "opt",
+    "source_sha256": "daa2919524aef55eadeb74767ff4ab157fab8ba483780bc5e9f7b82bc6fd85c0",
+    "compile_exit": 0,
+    "image_sha256": "2895b1606e9151968bde3a884b43a0da06b976ae5d3ca2389ff5691b1108950b"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_step.cs",
+    "mode": "opt",
+    "source_sha256": "e65387e621917cb499311a98d5b1b01b1a540d9038e79bb198496396f500a635",
+    "compile_exit": 0,
+    "image_sha256": "1021d6797e43291131e16476a1c2ecd3939089e5f0630c20b1fb60c08e5dee62"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/dice.cs",
+    "mode": "opt",
+    "source_sha256": "e481e894dc41d731cc5de51135250ba7dc2f572b131792ec25fafcd641d4dd4a",
+    "compile_exit": 0,
+    "image_sha256": "d26dc474bc20a91ee74aadb9f98d60d249deed540d0fd2435f575e606f97b472"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/guess.cs",
+    "mode": "opt",
+    "source_sha256": "5dff3bc713e0404fbfd32f8c1182448850127146e07b4a41dc1762a07192f92c",
+    "compile_exit": 0,
+    "image_sha256": "d0c5dc284fd030a339fa9f1a2f28c0dbb33396f16102a878b1dc5e3e602c4cf1"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/hangman.cs",
+    "mode": "opt",
+    "source_sha256": "95bdb3f83d9250a138f4e9086ad2293c93b346a5dbc413bb670bf4cc587e2032",
+    "compile_exit": 0,
+    "image_sha256": "bf7d8e09b468894816ae7acecccddf4e914abf342a3deda9005ecf58b3fe615c"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/life.cs",
+    "mode": "opt",
+    "source_sha256": "604f58245173a39b9bd1caf04323b28448d9b3ea3cef54f460f1dbb7e22e6ab3",
+    "compile_exit": 0,
+    "image_sha256": "97d9ad261af0edb955ace43125ffd6a66e05d0c7f6c114b4cccca61abafe5843"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/morse.cs",
+    "mode": "opt",
+    "source_sha256": "63d5e05c46656bf7328cd8fbc80de3b1e0d09ef78986579f208eb4c8218ac844",
+    "compile_exit": 0,
+    "image_sha256": "cd648a8d2e817adf240f499a86ab2f084e1937d8a0b53aeb3f1638371a11697c"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/reaction.cs",
+    "mode": "opt",
+    "source_sha256": "236b4f0c5e5c9aafd57d433766fa1bee08aa53f65667259468cabde303ef7187",
+    "compile_exit": 0,
+    "image_sha256": "4c878e7732225336d8beb7f7bea04dcfbacc91d5eec3f49d4d07b89cc717633a"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/rps.cs",
+    "mode": "opt",
+    "source_sha256": "f9dc8acc0dddd0f73b8e630aa83da58b86c4919fb73dee9645540cc24de630b4",
+    "compile_exit": 0,
+    "image_sha256": "ff309705e9c37dc967b9133e814d0e768dfaeca9a9fc5ccb05bfec9e74bc0112"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/tictactoe.cs",
+    "mode": "opt",
+    "source_sha256": "9d4707051b6f63c1a0f5d645ac4ef818c8234510707f29a9ad1d714ffefa462e",
+    "compile_exit": 0,
+    "image_sha256": "1f111f510fc3f87daa49d153c6abc1062067cdb19694dc6b5377081f1fe8e366"
+  },
+  {
+    "source": "tools/studio/templates/27-benchmarks/bench_cpu.cs",
+    "mode": "opt",
+    "source_sha256": "8a42696d15c42cbe92f66cd491b922eb1bd086535ddca60e804afc3d491aa99f",
+    "compile_exit": 0,
+    "image_sha256": "c6077f7b7eda10ac9351b67e800fdf2f5cf0a5a1bbded1046e8f595ab6c6556d"
+  },
+  {
+    "source": "tools/studio/templates/27-benchmarks/bench_gpio.cs",
+    "mode": "opt",
+    "source_sha256": "b474dfeb6ce6d38fcd141726e8d055d80142dc3d71f073560d16913a1b1beefb",
+    "compile_exit": 0,
+    "image_sha256": "28338e17cc8a8888260c73ec92347d51f34e7affc69f9c9a752753664b5d9ac2"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/http_get.cs",
+    "mode": "opt",
+    "source_sha256": "c92551e846b2b234bed5132562fd3b667a8d3c15e28982418c42dc917a3da13d",
+    "compile_exit": 0,
+    "image_sha256": "132fdec8930308b03b419da9dd22a6d1d905a9e946cc80ebf81e94b617fc02dc"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/http_post.cs",
+    "mode": "opt",
+    "source_sha256": "26a5980fbdfa5e2f4488cfa079a6e6689661f085cecd49c78b13f792ac19f85f",
+    "compile_exit": 0,
+    "image_sha256": "7cd78addc7f7fbd12bf1cb12bea5102383ebc7ac325990eb8aecc10d2116bc84"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/https_download.cs",
+    "mode": "opt",
+    "source_sha256": "77e3c325d6099fd00516ba4b497cd6dfa0b729a5c1c2d9ef99a5d4caa4f4ef88",
+    "compile_exit": 0,
+    "image_sha256": "b6ab5f8619fdab106e6005ce64d56ad70608675e4c35c2fffd3ff467969a7b7a"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/mdns_ping.cs",
+    "mode": "opt",
+    "source_sha256": "794033bccd3380ffc33fe0e8ff7031548f44a25dcf1a5d699ab2f149315b958c",
+    "compile_exit": 0,
+    "image_sha256": "a6ea49d915ee0542cec2151ba0b208a4f29f59ae37d7534ccac56fb66e4178bd"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/mqtt_publish.cs",
+    "mode": "opt",
+    "source_sha256": "5fcb3bd8ccff85a030fc4d61a16efc3850309d278f4f221667129401596f831e",
+    "compile_exit": 0,
+    "image_sha256": "d4ab5c1e59c26ffa48445476b26674fbffcb3f208e86fc6f39023e1e27ee2c31"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/ntp_clock.cs",
+    "mode": "opt",
+    "source_sha256": "41fbadb0bfdd0d584d69d6af64cad39381847b637c761456f71fcb458aecf096",
+    "compile_exit": 0,
+    "image_sha256": "7c15009362c232ca86f6544aaa2fd4b11b5394e85f29bfb8cf717272c6865520"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/tcp_echo.cs",
+    "mode": "opt",
+    "source_sha256": "a5e82cf3fe47d99b3b0416655491f12177bde9f632a741fe1cbda6a829efd074",
+    "compile_exit": 0,
+    "image_sha256": "5f9a519b6913803e8674951be369e62da5a996458fcd8487c24bfe08efa4f63f"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/udp.cs",
+    "mode": "opt",
+    "source_sha256": "4ad8bad598f798976d69c4545d8fec8b24bc3d7ecec4329f40ceba8af62f2379",
+    "compile_exit": 0,
+    "image_sha256": "649df4e323b7cf178b06f4c5f28732bf0e5b24cdd96ee7e790acea919ff0e396"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_ap.cs",
+    "mode": "opt",
+    "source_sha256": "ae7a69b54c223de591c6c85baa1b0fe4a1d4a0a18b0f4663dd3dd659c81c1f1b",
+    "compile_exit": 0,
+    "image_sha256": "c26168426cc4f5b419a7097933691871822d587b8aac16bdc73add063f1f7bce"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_connect.cs",
+    "mode": "opt",
+    "source_sha256": "e14da4b6654accb88514184a608b9a24a59c6f99357745678ae5356c6ac45bcc",
+    "compile_exit": 0,
+    "image_sha256": "6b9ae26c364064a0bb081f86312936e2d931ee0f61b6640f235344d0e0aee736"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_events.cs",
+    "mode": "opt",
+    "source_sha256": "0277d8b59f5fc91098fb06177e9de30cd0c8c1d93df4e2a78846c751b904f571",
+    "compile_exit": 0,
+    "image_sha256": "86a10eafe90ec8f24dbedf52ac097d564772cb18b71f557774c926fce909f057"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_options.cs",
+    "mode": "opt",
+    "source_sha256": "2a5d415953373627011b740a17d445001464dd93657b3a9b22cc45ca7223bd0e",
+    "compile_exit": 0,
+    "image_sha256": "0f9986cc66ccb8e63573dfe9e50ef5479233637987b63122bd9dad714a698487"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_saved.cs",
+    "mode": "opt",
+    "source_sha256": "9358ee7a592a72db80756f214a63afb183043f5438420c68716cc7c58b5ec75f",
+    "compile_exit": 0,
+    "image_sha256": "7f47b60e55a16217d508d15e7c94fcac45a62369f48ec315975bd4a9da57fcd1"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_scan.cs",
+    "mode": "opt",
+    "source_sha256": "b675e374939c54fab76f0e2de57efa811652a11c44e236baea4bf162478c7064",
+    "compile_exit": 0,
+    "image_sha256": "c3cac9a6b89c4f6b95f7691c12aef9a12ac1d825fff4ca6a13ff4b3aa816783d"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/captive_portal.cs",
+    "mode": "opt",
+    "source_sha256": "4b31bfa0ab3fde78cd131f2c655a13a4a720080596e25e4f3ca684e2f1c4b4f0",
+    "compile_exit": 0,
+    "image_sha256": "928994ec7c34a731ca3c43ccb00703b7486919a7440577e98c2eeca7ed93f6ff"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_api.cs",
+    "mode": "opt",
+    "source_sha256": "e2496fccb906cdd652bb1d14d3be89dba933b57ed207e94cd29e27c026e2dbd0",
+    "compile_exit": 0,
+    "image_sha256": "a291a7153a248f0ec868aebf61c6a8633a4d9a0063d2aaf313f741516bb70fd3"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_files.cs",
+    "mode": "opt",
+    "source_sha256": "8c749f79d34a06c13e89d7608b46ac3d30648b2d03f09199bcecff53be46aee9",
+    "compile_exit": 0,
+    "image_sha256": "a50188bf66a1ebc0eb19767fae6c8e2d97833f1d981cfe39afd026335e4e7d5e"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_led.cs",
+    "mode": "opt",
+    "source_sha256": "db0108532bad2f1f4a165e7de6d7b66eada5ccb1e98698d7c98ede548dc2292f",
+    "compile_exit": 0,
+    "image_sha256": "2360e8fc6a413ff104b7d5470b3a331e1e5cafe029e2a91a57ac25de12fe078d"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_server.cs",
+    "mode": "opt",
+    "source_sha256": "634a32fac4d4bd98ac60ac6769909befda63bd9fd5537fc291c7bc9314a55b4e",
+    "compile_exit": 0,
+    "image_sha256": "469f6b4b433a6a3fd0267bd6e55386eab89dab77a6a55a46476bf6b892377b81"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/wifi_provision.cs",
+    "mode": "opt",
+    "source_sha256": "50fa783fa88aa9c74baf5d9e336bee0d970286fc13b2830ec7b24dddd354c197",
+    "compile_exit": 0,
+    "image_sha256": "3f4fd3a7bc4e3b485feccb63b40382fda803f9a5557081d096f6d2c6846a00f8"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/ws_client.cs",
+    "mode": "opt",
+    "source_sha256": "7f60d722d5bf6af28de51c5576bdf941bcc6fdcaaed8f784833da0a0d292b28f",
+    "compile_exit": 0,
+    "image_sha256": "fccf649a72b1e51ac6b5dc288eab6683427ab0e818a83243e427f552b7ecfcfb"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/ws_dashboard.cs",
+    "mode": "opt",
+    "source_sha256": "8c9238ad68d5a49265274f52fe8e9ff830038c1ac66c9e207a9115cda2236661",
+    "compile_exit": 0,
+    "image_sha256": "dea05c15767ce13c9fb62f5adf75ed8332138654b7fdc05df2d2a4d37eb3deb2"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow.cs",
+    "mode": "opt",
+    "source_sha256": "866213f69a75e24c7f4762810b31d78feb56943e9f4daa62f1e077809db586dd",
+    "compile_exit": 0,
+    "image_sha256": "411df593c9286e61a92e9eb6eb3e215ba05d9b774f86457d936ecd1fc19549f1"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow_broadcast.cs",
+    "mode": "opt",
+    "source_sha256": "96ae0b79edad7ba5f5e215e3c1cff6d756abf33b2dc06851a36d635203083517",
+    "compile_exit": 0,
+    "image_sha256": "071a75ea80e4e4836eb5cd0edb40ec95ab26a7c4a7265c666e17bc47d3d973a2"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow_secure.cs",
+    "mode": "opt",
+    "source_sha256": "1c4fd6e32c76c7f11e40b077386d2514b3df2e5258ae10ce09cabd310e6592ee",
+    "compile_exit": 0,
+    "image_sha256": "5a0a7a8770aa3a8531ed1be47821035c41af6701636805493984eeff680bca7f"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/beacon.cs",
+    "mode": "opt",
+    "source_sha256": "4ddeb7568268aa83a89538c0e04611bc9f4876dce3f85f597cf150d4d3284370",
+    "compile_exit": 0,
+    "image_sha256": "fa6cbec73a1c668aee2a8b35ba237cb15a24f3d1b216ed45b0349a25e0c70458"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/bond_management.cs",
+    "mode": "opt",
+    "source_sha256": "9ec5a96cf933a691e4b1b659d5b130b997968b1f78b29c6e6befd68135bf6d5e",
+    "compile_exit": 0,
+    "image_sha256": "4118302f3ebe0a45877a3fc0e74c0f447feab8086a8855a7fc7b222865c1e149"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/central_client.cs",
+    "mode": "opt",
+    "source_sha256": "f889e031b995f6018afb341210ecb6e332378e3e6794b9ac4670e3ae74bb059c",
+    "compile_exit": 0,
+    "image_sha256": "ceff549a91640235cf9c833e4fe8f26f1ea3e063c3cfc6233f4fec16bd13a9e7"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/connection_options.cs",
+    "mode": "opt",
+    "source_sha256": "f22aa94e306792deb00cee539f6c1d11060e938afe86e6e5880172cce95e9bed",
+    "compile_exit": 0,
+    "image_sha256": "9c562d1f86ed2810b3b7a41ca8ffefe70938c67518a21a7fab8205aa2df1fc97"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/device_info.cs",
+    "mode": "opt",
+    "source_sha256": "f4196be6af2da640b155b0fcb85b8bcbfb9ea27701035ec4c3f1117da45ecb21",
+    "compile_exit": 0,
+    "image_sha256": "b7923553a8a8632c95aef02bd71e5d36a794011dc3e6fc4c6f5a93a855f6adb2"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/diagnostics.cs",
+    "mode": "opt",
+    "source_sha256": "20dce9e0e1f3e0f2cac6f590f4671d93a182e91cb4bd6a48d8c70eb716dd29ae",
+    "compile_exit": 0,
+    "image_sha256": "494bbdc0410bbc34a000d3c9e9ade6d31facfd818e2b3b25e620f94cd3e93188"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/gatt_explorer.cs",
+    "mode": "opt",
+    "source_sha256": "572f16b317962bc810e078440595c12abf5f4922d26f3ade9c326b8167d502ca",
+    "compile_exit": 0,
+    "image_sha256": "ea27d8cf8a2fc6d2ae5d93eba21d97f3d442ee0eddbf202d9c1fb4e17fb92417"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/heart_rate.cs",
+    "mode": "opt",
+    "source_sha256": "1354d843da23138532eca83c1bf95880dc0ae78c79a7ed69fe3348575b95d968",
+    "compile_exit": 0,
+    "image_sha256": "84eccd9b8909ce8f3318e3e76920645a28bcb1e4d4102b4fa19348b828eed009"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/led_service.cs",
+    "mode": "opt",
+    "source_sha256": "95313aa0654c2eeec5cb3dbea36f02f03107f792c56ee6d66e1e213f104691e3",
+    "compile_exit": 0,
+    "image_sha256": "e90a2b9831cb095da8fe75421f5578d1ad73567cfa864de548a7eab917901b14"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/manufacturer_data.cs",
+    "mode": "opt",
+    "source_sha256": "6b1829094a237142adabbfaa2824d7808f25fb913b7a3d0445c78026d66a411e",
+    "compile_exit": 0,
+    "image_sha256": "c486ca5bc178cee7ec49ee1a23c5a7804ea70185d7c4eb4a15c09abd5380d6c8"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/pairing.cs",
+    "mode": "opt",
+    "source_sha256": "afbc4b4ccc9e4a028fedc173f7af9d3fb28b3e843a9a64befb0eff1e4cb91efa",
+    "compile_exit": 0,
+    "image_sha256": "80db6f715c6470b370cf50e49725090db6020fd34228ed73d1b0bfe27159f023"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/scan_parameters.cs",
+    "mode": "opt",
+    "source_sha256": "eed87b4e7857fd182b6950d7928eb0499b7d1f220c7e9aa7432159c0d03463e2",
+    "compile_exit": 0,
+    "image_sha256": "3c3c39adc7512d0fb96f1247fa4f092260e40f787495d79055dfb5d19035b42d"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/scanner.cs",
+    "mode": "opt",
+    "source_sha256": "ae25b9d3f48c7f072150902f406d926bc45ae5c9f80005d2733a56905c48e29f",
+    "compile_exit": 0,
+    "image_sha256": "31adbe1f963376c7323ebe31baa0a1e60336d554b91607e5c974e8d97259d68a"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/uart_echo.cs",
+    "mode": "opt",
+    "source_sha256": "a933ba6f3e864d353eeeb61ec63872edcb092562c351df5d0a6d606063ebce7a",
+    "compile_exit": 0,
+    "image_sha256": "aa849cc50d60c8a719f78c180703db7517208d607c327ca6964981b06b364e7e"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_button.cs",
+    "mode": "opt",
+    "source_sha256": "784f8ecea8323afcbbd7e8abf9d326a93e43f7714c67997194f9596f71b0392b",
+    "compile_exit": 0,
+    "image_sha256": "da984f97bd251058507ee4342b0a3edc09b1ab20a85959020595abd08ec6e110"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_fonts.cs",
+    "mode": "opt",
+    "source_sha256": "2f004d27bd03801590eca838f4f3019076a892ec6c4dd92e902258f59d7bd424",
+    "compile_exit": 0,
+    "image_sha256": "09b422c663a9c71b0d7e0d29a2baa8d2d5f52224b2654ae65c769de168041235"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_label.cs",
+    "mode": "opt",
+    "source_sha256": "d50a6e3dd73e33d7dd9ce9cf8b12aae5b91612a0cf5716f71062f273ef651a60",
+    "compile_exit": 0,
+    "image_sha256": "86b30acab21a563517f9d325ebad766785c67ab9e6d284d032b71089952164b7"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_copy.cs",
+    "mode": "opt",
+    "source_sha256": "e28645da8380d6e77aaa6bc7f5b4b38d1e1bb993b42772be8ae10aefb70a0a09",
+    "compile_exit": 0,
+    "image_sha256": "4472151b0815acfedd77b8b1e91e779de98acf8a1185bc520b3423355ed8deb1"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_draw.cs",
+    "mode": "opt",
+    "source_sha256": "6d240875312715607b8444d23fb3262ae6fce880f48be8ff5b7cd914602315dd",
+    "compile_exit": 0,
+    "image_sha256": "f8d668d595fcb49aab500dc2cfee956bdeed5ab71d0339fd249af2381c80d57d"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_image.cs",
+    "mode": "opt",
+    "source_sha256": "837f9fe14ce8599e1b1bf6f95102292830a607864e9e6fcb7b1ed732a51b0412",
+    "compile_exit": 0,
+    "image_sha256": "cf5fdd818c8371f28eec8080d2ef7165413ab90e0a7a4b26a4aeadbabf518c74"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_lvgl.cs",
+    "mode": "opt",
+    "source_sha256": "1caec4cec384a034894f3646e4c85de3dca1b65de0e09c6b794f7714e27f214c",
+    "compile_exit": 0,
+    "image_sha256": "de436c758087b9f05ccf9c80e16f2362c4d79f64bd2637f604165462127ff20f"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_packed.cs",
+    "mode": "opt",
+    "source_sha256": "74e62d76b74ee1ac788beffe1ba502978d05e647ea21412184d79a7ad08a15e3",
+    "compile_exit": 0,
+    "image_sha256": "1f6f9d05f1eec2508916c015a94aaf36499f08a7790ed44de1dab34ac3bacbe0"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_sprite.cs",
+    "mode": "opt",
+    "source_sha256": "2c800b7defc7c44e06de92561eeba68e2963372716d0276b6bd6b040a981284c",
+    "compile_exit": 0,
+    "image_sha256": "5a982e3b397d84bb698759e154661cf8af61aeb92a76bfb1ddb868185a9bc85d"
+  },
+  {
+    "source": "tests/t01_basics.cs",
+    "mode": "noopt",
+    "source_sha256": "fd0dbc1b232eef3dc1cd4d000bcb3e8cbb1ba435972141fc93a7cec3c25e03b5",
+    "compile_exit": 0,
+    "image_sha256": "3988f4e3f369363b1435b64d8b34a3889bee79ca6bb5a075a5df9b39339b93d0"
+  },
+  {
+    "source": "tests/t02_oop.cs",
+    "mode": "noopt",
+    "source_sha256": "339fa1c27cd116de1e2398fd6f1dc8005b71b9b5fd280d5feb52f393e8fea395",
+    "compile_exit": 0,
+    "image_sha256": "bb702cfcb94a2b00f3c44e0e0467d4c3b20e4e535e3256ead4f209bb6920d6de"
+  },
+  {
+    "source": "tests/t03_collections.cs",
+    "mode": "noopt",
+    "source_sha256": "cca62d3c009d4baf694e2eb825cfe8c34e7f0d02124c50c57d606c944cd3f6db",
+    "compile_exit": 0,
+    "image_sha256": "6f9a2a3f09622c4c0853aee094f55daf37cb8bd7fc0ab5fbad692deab952dd80"
+  },
+  {
+    "source": "tests/t04_exceptions.cs",
+    "mode": "noopt",
+    "source_sha256": "b9ce8ad1024c2d6af174a026b3e4a695799290af492b8caf77a1cc87c4731f8d",
+    "compile_exit": 0,
+    "image_sha256": "708bc988f89b1d86aa834d63af85848234ce7089be9c17979beb029652dd2271"
+  },
+  {
+    "source": "tests/t05_functional.cs",
+    "mode": "noopt",
+    "source_sha256": "d485296fe3d3e987ff78cb631c2f35f578e666286302dab3b304bb25b7e856dd",
+    "compile_exit": 0,
+    "image_sha256": "54d3072f4a3d70eed46b82ce666ade28d3b539af6beb7688df5719ce87c87630"
+  },
+  {
+    "source": "tests/t06_gc_stress.cs",
+    "mode": "noopt",
+    "source_sha256": "a9bed02ddfadd71621556344233841be628fc5a4e7a7491a98d437891cb3479c",
+    "compile_exit": 0,
+    "image_sha256": "d0b3e0b4a3da9a8caf2ad0625a956d7525b7d9a38af2881d0582605a90a57ab6"
+  },
+  {
+    "source": "tests/t07_filesystem.cs",
+    "mode": "noopt",
+    "source_sha256": "87e3d9d2b60077387b836bbb81f2eea2c104b01339e9fa53ac5411e8cd8b4ae8",
+    "compile_exit": 0,
+    "image_sha256": "ae1ed23bb7dcfbd33337c1ab5909afd47a83932203122f8fe04915469a3bc19f"
+  },
+  {
+    "source": "tests/t08_hal.cs",
+    "mode": "noopt",
+    "source_sha256": "2aa45762f5011f12cca2cffe65e223efd04e8171ae037a5d2655425b07ad50a7",
+    "compile_exit": 0,
+    "image_sha256": "217d07a6736feb0f4c706d20a151faba60040cd939264b79d931a50c9d287ad3"
+  },
+  {
+    "source": "tests/t09_scheduler.cs",
+    "mode": "noopt",
+    "source_sha256": "2b91a1989a662ee30ed64712ebe6a29e70e16d7c52c83616d05570a4de707569",
+    "compile_exit": 0,
+    "image_sha256": "3245acec96aaaeecbad2dab5e0179e16f7cc41b1aaebf864c87f509c7d34d636"
+  },
+  {
+    "source": "tests/t10_lang_phase2.cs",
+    "mode": "noopt",
+    "source_sha256": "d4076197f730bd47e03410d42e47e93a9b36d469e9ca39cb4814985386219cc4",
+    "compile_exit": 0,
+    "image_sha256": "73d684fd85850b2d027595b637c16ef54f116083cbf3f760c5ee7cb216ca9626"
+  },
+  {
+    "source": "tests/t11_tuples_ranges.cs",
+    "mode": "noopt",
+    "source_sha256": "e71a7d9bf4ba55579db182bc0a2685f5faff9a3f4f7f78e71d1fd8238e42ca6e",
+    "compile_exit": 0,
+    "image_sha256": "e765af277b32d02692cda009cd86bd9425d9519ba57f94f7720dbb3d56fd4100"
+  },
+  {
+    "source": "tests/t12_memory_churn.cs",
+    "mode": "noopt",
+    "source_sha256": "a6046b8e74117a9a1775912712d94bbedb86ec5d9bd1f2eb9769410ea6a73bf2",
+    "compile_exit": 0,
+    "image_sha256": "b956cd589e00696c3b5f9bc451f15739ad6273d68d0909500d9cb0f1b47d2f79"
+  },
+  {
+    "source": "tests/t13_stdlib_more.cs",
+    "mode": "noopt",
+    "source_sha256": "a0e51a1ac2333aedbb5f84e8cfd28d49e0d801eb371e70cc9014dfc2230c53d9",
+    "compile_exit": 0,
+    "image_sha256": "0ff1a51865f95c0ce00802a753682183dd522091b145f04aa6387abf4c201375"
+  },
+  {
+    "source": "tests/t14_low_resource.cs",
+    "mode": "noopt",
+    "source_sha256": "16911e71467f3e991f13f6bf4ae131cd83fbb0490b8202c30a6bb6ea20107f84",
+    "compile_exit": 0,
+    "image_sha256": "1100e6184b457466974d86cf47f38b11b26d780f216608e510e2f283e004b6d5"
+  },
+  {
+    "source": "tests/t15_hal_v2.cs",
+    "mode": "noopt",
+    "source_sha256": "d58826bb9ef05416aca677e9224860bec2880c2409fd2ddbc4ed2698bb1f5c17",
+    "compile_exit": 0,
+    "image_sha256": "0711d05f361bf0aef25cca6133354b8a8ecacf9755aec1249c27100c0c5b82d3"
+  },
+  {
+    "source": "tests/t16_bytes.cs",
+    "mode": "noopt",
+    "source_sha256": "a29f79f649af257491315cca67ef11d10ba33d012491e0b44f31a86d616dfa70",
+    "compile_exit": 0,
+    "image_sha256": "abba456afa4d003737709588df311ed57f2e3fdd28a3c02a1b7f91bbc323e6aa"
+  },
+  {
+    "source": "tests/t17_optimizer.cs",
+    "mode": "noopt",
+    "source_sha256": "30184a15afcf5392da27e401b5322d4cb94825495f93e2aa93192c6c5c814f62",
+    "compile_exit": 0,
+    "image_sha256": "2c2d6c70a8ac4a1bc43d1e6dabeecce7518b286ccde692800ad27981e3592fa8"
+  },
+  {
+    "source": "tests/t18_utils.cs",
+    "mode": "noopt",
+    "source_sha256": "5e7dd3090169effc29c8a1aff5bd270a2be4bb265a6b4387f52c14eb1c91b68c",
+    "compile_exit": 0,
+    "image_sha256": "d0504a760f0e8cf9fc2f83aa78cfc3ffbf01274b027fec9025fc66f892c91c7d"
+  },
+  {
+    "source": "tests/t19_ledstrip.cs",
+    "mode": "noopt",
+    "source_sha256": "b7c37393944f5d7896b70294e2fc8c67599819470dafcf1da6b4cbccce116c27",
+    "compile_exit": 0,
+    "image_sha256": "91cadc148ac9493f9d77fa96ef0ff4226c9ff56576e5a72c37abe7e2221e2613"
+  },
+  {
+    "source": "tests/t20_sched_sleep.cs",
+    "mode": "noopt",
+    "source_sha256": "18ee01c0755c19a31fa4551ad6225955f09389ed4b18f4bb535455b60c49e3ad",
+    "compile_exit": 0,
+    "image_sha256": "a6205cf55b905c8632e5cb35fdeded55355f5646bde8d89aca358e8786769743"
+  },
+  {
+    "source": "tests/t21_servo.cs",
+    "mode": "noopt",
+    "source_sha256": "f5c5e3d06900a8f7740fad953b766c8e087181566c129f87e68c167bfd714b82",
+    "compile_exit": 0,
+    "image_sha256": "c423750c403571b1c92debfbc3b8ccdc96cab903c80ba3a739a31a86f5c2b306"
+  },
+  {
+    "source": "tests/t22_hal_config.cs",
+    "mode": "noopt",
+    "source_sha256": "741890e9a7bc229d088d666bee819bfa0219f22d5c97290edff7d3b3cd17324a",
+    "compile_exit": 0,
+    "image_sha256": "189cc1b35f0dcad5d68d21a0dfb44ece7f87abaafa042a4d7277e9ea115d7e23"
+  },
+  {
+    "source": "tests/t23_dma.cs",
+    "mode": "noopt",
+    "source_sha256": "a38c8757bf31b24d5e00c5d5f584ba95571df050bfeda22dd16f34759794fb8a",
+    "compile_exit": 0,
+    "image_sha256": "e0a139d727ded605c304f541ecacd6748cc8cd49933b6ca909c68abe7bae63be"
+  },
+  {
+    "source": "tests/t24_net.cs",
+    "mode": "noopt",
+    "source_sha256": "a3849753a2b2b5ddf9314522857fe6329ad3fb7e2faf6ad9717020dc95262148",
+    "compile_exit": 0,
+    "image_sha256": "dc4090f74c93643023f1b82675ec253fb27d2f71fc4357bc62716e88473164ba"
+  },
+  {
+    "source": "tests/t25_json.cs",
+    "mode": "noopt",
+    "source_sha256": "5bd233b3aad8d9c4c1645400d27ca29d482c940cd7d3326b8fd71067a7ffb107",
+    "compile_exit": 0,
+    "image_sha256": "c0944292b5c7faf5d28934606b9d4f4a04012520fa390804b6e4ca26b14aafda"
+  },
+  {
+    "source": "tests/t26_robustness.cs",
+    "mode": "noopt",
+    "source_sha256": "e650b69e0a95905a16d52dba239abdcd8e06b227cd4fa61139b6c8d5a1ca03cd",
+    "compile_exit": 0,
+    "image_sha256": "fcfadc4c5ac520def87255017c4104d90dd9861c8417d7d4a1217b5437a1f39b"
+  },
+  {
+    "source": "tests/t27_dotnet_semantics.cs",
+    "mode": "noopt",
+    "source_sha256": "a7429a9f6e99f320708ef95290984131e08a6f552ae8be696724e33217bcac66",
+    "compile_exit": 0,
+    "image_sha256": "2988be73801834b1d2d9201e2e7646a269047397eb06536334a760aeb7839177"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/format.cs",
+    "mode": "noopt",
+    "source_sha256": "fc2b762e964d00d4684f8d6d6dc5668021b854e80c0c9390634acdcfca4c2807",
+    "compile_exit": 0,
+    "image_sha256": "cdd483ab6bbaf4be537a90108b4c743a4b1953b4367f65014dc5cc1b9d1fd726"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/hello.cs",
+    "mode": "noopt",
+    "source_sha256": "32c5e97bb47b342b189cc65374081ca7083b3fade35e4cdc784a21612d1160dc",
+    "compile_exit": 0,
+    "image_sha256": "2c70096ca71d427032908e5e88a252eefeb0f7d40e5ce0de5edd4a29b04c27a0"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/input.cs",
+    "mode": "noopt",
+    "source_sha256": "d53452533d69e44c350b0831280af041c0a8aca93175945d1ca758d5e291b328",
+    "compile_exit": 0,
+    "image_sha256": "89fdfab17d97f5023c805d85fe6c2a3ab7c97c70855cc19d24380e4731c4d5a9"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/loop.cs",
+    "mode": "noopt",
+    "source_sha256": "f0dd1ef8c8d4b8209533e393d6dedc746cf951852e1b9a256698962233f4ed69",
+    "compile_exit": 0,
+    "image_sha256": "62feb0715e36e5b1fef1a37d2a5ee6114a983665956aaeae878e83e0cf0c4c20"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/program.cs",
+    "mode": "noopt",
+    "source_sha256": "c3a476b6f22edd825849b3307e38e8c011333f9110b4ecf1fabc1f8f8f00af34",
+    "compile_exit": 0,
+    "image_sha256": "901bd0602918b34d39efcb4cabcd01979dd67cb84b7f43c01d017d29d4996ca6"
+  },
+  {
+    "source": "tools/studio/templates/01-getting-started/timing.cs",
+    "mode": "noopt",
+    "source_sha256": "2c896679d6400199c7f0b0afdafa61b5996b963c664f670fc7f69288e82c68fc",
+    "compile_exit": 0,
+    "image_sha256": "8162324222ead12067b7bf5aea1f781d35933c626a402a6c7285518a7ca1792d"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/blink.cs",
+    "mode": "noopt",
+    "source_sha256": "16f24960ca6f3427a04c272dc819be6394508f6b3f867746e539f34f109079fb",
+    "compile_exit": 0,
+    "image_sha256": "6221e0002a15ed119c688fc9cc72943ff7aeaba7f9897e2b63152537aa08e243"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/boot.cs",
+    "mode": "noopt",
+    "source_sha256": "23360aa17b1b786e2d33ed0ff36d3b8547a43affe5fe7acb6060b9a51b604bda",
+    "compile_exit": 0,
+    "image_sha256": "30dee8b60e08a0881d81adb82cbbb1c36b9b2af493075d2b221da95180c5b6b6"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/boot_log.cs",
+    "mode": "noopt",
+    "source_sha256": "d4c9a86fe8af8a044cfdba03595457c06b26e1b106197963906c4fbde6074fba",
+    "compile_exit": 0,
+    "image_sha256": "e96839865c5463d1b1d64f8e2b810b3a881ff3321bd6a0f334057e60dffc79ae"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main.cs",
+    "mode": "noopt",
+    "source_sha256": "771f916a381180cc267f2a1cedd8465eb8bdfd8c7a0d3396859f6e124351e011",
+    "compile_exit": 0,
+    "image_sha256": "65edd2eaf19e9d0866b2a4601425120dc693071b9f5492fbbb46ae16ba811f5f"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_safe_mode.cs",
+    "mode": "noopt",
+    "source_sha256": "d836b747c66d4e254a367807390984fc616440ac5bb0cc1b4a21c1a782a37e8e",
+    "compile_exit": 0,
+    "image_sha256": "f90968e16674203e321d662184614277b554e951e2942f1ec6cfe011b5129aa4"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_settings.cs",
+    "mode": "noopt",
+    "source_sha256": "fa4751b7514c766609da062898d5ca01f0a7d7f8a61208bc367ffb490710d763",
+    "compile_exit": 0,
+    "image_sha256": "52878decf24ba2dddfe9673514cfb4123261e14117a56e85c27f8f8b4e9687f6"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/main_watchdog.cs",
+    "mode": "noopt",
+    "source_sha256": "252050ce10926ab1ccce8b3cfd46d7669abf6dac7a8723e9e65209ea7b00a089",
+    "compile_exit": 0,
+    "image_sha256": "89da9b15a0c8c9d03a4675738cc857187b7e867ec1c861e6fc967bb0b1b0e415"
+  },
+  {
+    "source": "tools/studio/templates/02-boot-and-startup/report.cs",
+    "mode": "noopt",
+    "source_sha256": "4c70bf1d504d57388bf00361c109dce7656a2d8c67fc5171397590ae534a58c8",
+    "compile_exit": 0,
+    "image_sha256": "9a7c2bfccaf249dd2c386a4b9e3a354658f6210d03cf636c1a79679c08dd432e"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/cancel.cs",
+    "mode": "noopt",
+    "source_sha256": "17637a48b7b3f229384c7b62b6488e895965e82d97f32bf2daf84e0095a6a79b",
+    "compile_exit": 0,
+    "image_sha256": "812b65486c9fc80aa4a0e61b7f2748f1d5d775acac70544a3f453ff662c08b77"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/debounce.cs",
+    "mode": "noopt",
+    "source_sha256": "741d30dcde4b411caeab12a5cee153afc763c24ef6c93ea0edd71e1a44260ae9",
+    "compile_exit": 0,
+    "image_sha256": "d879fb64678994dc84567bbd98f3d212f1f5ed305b3fad340b1a3611b81e8018"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/jobs.cs",
+    "mode": "noopt",
+    "source_sha256": "cb319d8b084c49962fc8a3c7f46ab5d4d3a81e34cea61099c5a887d615c0eef5",
+    "compile_exit": 0,
+    "image_sha256": "7d5aac045dcf226d4ca7510e39ceb55ebb837e7bef8399167de8e6441313d4a9"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/jobstats.cs",
+    "mode": "noopt",
+    "source_sha256": "d322fa449e67b75e5a59fe3267605546bbfd3ae7b2156a47d8589e628d73e985",
+    "compile_exit": 0,
+    "image_sha256": "37ca4babb2208e592ed5d80a1aaa55e70a1c03a68c119fe37f3db97853e330e0"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/logger_job.cs",
+    "mode": "noopt",
+    "source_sha256": "2c78ef500d1628a7ecf8d2dd79722531e53f388ed669c9a661e00dda8d412f00",
+    "compile_exit": 0,
+    "image_sha256": "04080deeb4b2f9cb6d744f6b6b34189d78235d1e0c52eac2061cf7b35efe10b1"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/retry.cs",
+    "mode": "noopt",
+    "source_sha256": "8c8cf9ec9d29690142642162eb519340aa8cc9f240d9339697c46bc9099c16f7",
+    "compile_exit": 0,
+    "image_sha256": "ba42cc7286b9ed5661f53e9b5bcfe7280f2202a0cf04f6b86b7b08735eae9e53"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/timeout.cs",
+    "mode": "noopt",
+    "source_sha256": "2b9f6626e3b2be20f107e943cd3c52a97e2be839682a63b30db4744871273c20",
+    "compile_exit": 0,
+    "image_sha256": "a6e33d5d489d9da773c8bcf826a0a4db47c7c507f2046133449a3adbbfee4434"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/traffic.cs",
+    "mode": "noopt",
+    "source_sha256": "35eaff7f7febfc1bf631d1fe0b0d58806537ace615242cfea95764bba038cc55",
+    "compile_exit": 0,
+    "image_sha256": "f2c8dc36bc800f713b77a35a2ab941dcc8aa7654429fd7cc3fddb822245695f9"
+  },
+  {
+    "source": "tools/studio/templates/03-scheduler/wdt_job.cs",
+    "mode": "noopt",
+    "source_sha256": "74fe3a1fc3663ccb00a6bb56ee7af25c315e176e7420a312f946636cd60b61d9",
+    "compile_exit": 0,
+    "image_sha256": "99dcbdd278580d04558a81ce18f4b6ba70e40bdd52f6f24c7181043ef928d4bb"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/blink.cs",
+    "mode": "noopt",
+    "source_sha256": "a2b985059c1ea8bf87549952cd5ca754732f9198b681c3263ca3f0f8bca7d42e",
+    "compile_exit": 0,
+    "image_sha256": "d70d5fc66d65c197ee33d6a0a68eb2d3b4e4ef1c5256e080b6c1bfa2e3362136"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button.cs",
+    "mode": "noopt",
+    "source_sha256": "59feba50d9fb8e8abf242c7e0111ba4631c57a661a037c1391ef2a4b4ded8b79",
+    "compile_exit": 0,
+    "image_sha256": "b05c768e9f18badec76d7c23f7b7abf28f0d39bc31e6c6b32264cbe01fbd96c6"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button_config.cs",
+    "mode": "noopt",
+    "source_sha256": "84b28da736b49248a4cf4b53efd105825ab6ffa1f2c043e3f856b6c3939124a2",
+    "compile_exit": 0,
+    "image_sha256": "21450035e96f507d8cc86e7ea68f3d40771b277c7eed4ab36aae8a76033a5abd"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/button_poll.cs",
+    "mode": "noopt",
+    "source_sha256": "6d3b67509409553c5e78621604e226571599bbb44a452a208de741812cc91043",
+    "compile_exit": 0,
+    "image_sha256": "edbf9c62b705fff666d0e7f6cfb05c0e2872be74d825de83943acb718dd643d8"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/chaser.cs",
+    "mode": "noopt",
+    "source_sha256": "705c9a59d3f6ea64c7763995d7a6f991907d4db4c20ab7cc430d9c657e1b10a0",
+    "compile_exit": 0,
+    "image_sha256": "1aac40889eafeb17d117830ca89626eebd928f2953d001667a1e13f32baba3fd"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/gpio.cs",
+    "mode": "noopt",
+    "source_sha256": "0da87688dcc9cef7b19cd8c3afb9a5348930b90ca9bd1eed1e9421dd14b1b4fb",
+    "compile_exit": 0,
+    "image_sha256": "8f8caa4b773e13092f8a2069ebc1057953ccd9784e58a9f098563ba78281e9f7"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/led_config.cs",
+    "mode": "noopt",
+    "source_sha256": "dde06a3415bb62dbea5a21fda01786806090b3f0ae4cadfd8f19089979c82a43",
+    "compile_exit": 0,
+    "image_sha256": "943f538cac1875827b73a8a25eaa9d4765d7e0c3b1b7a3df0efbe459d4001c69"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/multi_irq.cs",
+    "mode": "noopt",
+    "source_sha256": "ccb51e9e39c1b172451bbc74d592afd0ad9c728d435c5cae078ba2e2a0195d2e",
+    "compile_exit": 0,
+    "image_sha256": "d15bf6d402cd9687b891843a719817c2a48e53b949f1693de87689e5d33deff3"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/open_drain.cs",
+    "mode": "noopt",
+    "source_sha256": "1720d79ecf6622a7b8e50a92d5069e06c610079e010e439d91c2998867123d16",
+    "compile_exit": 0,
+    "image_sha256": "7a0b55e4a1761480311f77ae4d276a98f20cac20a96365c5007cfad52bae1470"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/pinnames.cs",
+    "mode": "noopt",
+    "source_sha256": "6fd74020f85f0b83c11df4a2b86225764b0f2064c0b698ef1b52b2e3500c7de3",
+    "compile_exit": 0,
+    "image_sha256": "6cc13238cb248fd8b0e106d40e9fe93f81c1953db6e24167a95531df6e3a4a47"
+  },
+  {
+    "source": "tools/studio/templates/04-gpio/ultrasonic.cs",
+    "mode": "noopt",
+    "source_sha256": "6069d21d314f12fdf335a4efaa538e9519c167dcf2678587e078f20e862e0a94",
+    "compile_exit": 0,
+    "image_sha256": "171a1a7286b066fca7a171059620f2c4f997db78f320bef538308416d94dc651"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/dimmer.cs",
+    "mode": "noopt",
+    "source_sha256": "854f87919c0ca460d78bc70fc6d7c6d6cc197e8e4bece8eee32ceca058a95b06",
+    "compile_exit": 0,
+    "image_sha256": "8390e2d178aecb3714aa817c21ff8760effb4a801cf8d0372f55f2ad5293a251"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/fade.cs",
+    "mode": "noopt",
+    "source_sha256": "adea5d7640a65f78cc2de486e18e1703c749eb9fd2f3a65f2418e76768cb2468",
+    "compile_exit": 0,
+    "image_sha256": "6c0377ffdf2baac1d66db057ee9a775e50c77d64286e4b275b2b5ea6bd517fec"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/melody.cs",
+    "mode": "noopt",
+    "source_sha256": "efc36c1e1cdf77cccd7f158af2e57954193f05a402766bcdb502d815954a47e4",
+    "compile_exit": 0,
+    "image_sha256": "1ac0f11295e49a574f8ef606c6b85438c4646964262095090fea4cb3b7addd68"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/pwm_config.cs",
+    "mode": "noopt",
+    "source_sha256": "2385477220f496bd986b07264e1daef06c112d754d8440a5a152f8baf9c6ca56",
+    "compile_exit": 0,
+    "image_sha256": "0360c3868d77ba86eb296c8576b317f3155ef91bc72374b4c53ad0b56e25e351"
+  },
+  {
+    "source": "tools/studio/templates/05-pwm/servo.cs",
+    "mode": "noopt",
+    "source_sha256": "6c238f5d9dfea16f1f778f5c5fda52d8e6f3b70f474114139a22e4cca2d44af4",
+    "compile_exit": 0,
+    "image_sha256": "2c5f6acc8a505030446207028dca1e94ea805b8a4422678830f07c11de7b2d0a"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc.cs",
+    "mode": "noopt",
+    "source_sha256": "1ee5ef0d2e9cb4ad80a6796284f0891e08708dc97ee76c5c2cbd9d624f0df810",
+    "compile_exit": 0,
+    "image_sha256": "5701d0b116e066e11337b7e331a3a14d86f16176b9af1daefa3c4352a53f9c35"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc_config.cs",
+    "mode": "noopt",
+    "source_sha256": "79744282bb59631134b45beb3d22c6c2a631f8c6f38656dfc305db7d2f5a8086",
+    "compile_exit": 0,
+    "image_sha256": "418160ea7532f59914485c40853fc1ecb43d550c441aa7d36e1853978d5efcba"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/adc_filter.cs",
+    "mode": "noopt",
+    "source_sha256": "0947bfe374f2c3ff1aabfac651fb500188e6c9efd3cb8f3697ac775949144656",
+    "compile_exit": 0,
+    "image_sha256": "5b1eeeecc6ba6e2f378208c3605c7398a137ec7da30278c18a9a5e50c796286b"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/battery.cs",
+    "mode": "noopt",
+    "source_sha256": "edef50a31fa23455261d6108609bfe3f6703d84c20d6c8ab8afceef4ac4945e2",
+    "compile_exit": 0,
+    "image_sha256": "f7c6789e576945b209f93e1b37b49736f59e66fab27f398c50b050aa746eee2d"
+  },
+  {
+    "source": "tools/studio/templates/06-adc-and-dac/dac.cs",
+    "mode": "noopt",
+    "source_sha256": "2873ee2958250694916c201af37dd28251704e77ae4b9043c77b1ed3798e5d54",
+    "compile_exit": 0,
+    "image_sha256": "5e22ed3f551a27b3acafbc6c0cede821a3a6f8572690ba66f32367eeeff28e1f"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/gps.cs",
+    "mode": "noopt",
+    "source_sha256": "d1d62295dafbdc9773c8564a1d3bf8dfc0bcf0eeff89a05b36be840ae956d55f",
+    "compile_exit": 0,
+    "image_sha256": "29cb96f4d92a7ec832f8e4ec255a3cf8227f835c75454ea96cf94e5aba1a4784"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart.cs",
+    "mode": "noopt",
+    "source_sha256": "8081f67ea82f00f216693a53bd577880196c0826bb73c5b1292672c86e3ee1bd",
+    "compile_exit": 0,
+    "image_sha256": "2dc8bbf46043340f96164f30b93f5287e3281ad660df438e3a47c289b9c3b3d6"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_async.cs",
+    "mode": "noopt",
+    "source_sha256": "bd85be808cbf1eb420c7a296862d25508df774eb7dc9728e45734fb8a5c3747d",
+    "compile_exit": 0,
+    "image_sha256": "76db1f920df8dd7c3788d2611f615ba5c421082dc2eee10c47123081ce358ae3"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_config.cs",
+    "mode": "noopt",
+    "source_sha256": "4f7c1a3f882a1ec800c577ddb489b1168856d14b69c742f3af58b2ece7664808",
+    "compile_exit": 0,
+    "image_sha256": "2a0df2cd4fad603b1f1256deacd49131025f8301c08a36f635ae4d1bc955e872"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_echo.cs",
+    "mode": "noopt",
+    "source_sha256": "d6ac4d2287140f591a0a619cc43ef7245eac98d259bb9ec3c0226879c70cde42",
+    "compile_exit": 0,
+    "image_sha256": "ed29986018eee3b9bb44d1c2a66cf243cf581cbce09fb47a04250dff5b9d24f6"
+  },
+  {
+    "source": "tools/studio/templates/07-uart/uart_packet.cs",
+    "mode": "noopt",
+    "source_sha256": "749d70b0432eaff174ac5d7709f886d2d9f76dfb43707c1fa62e21122a4cffb7",
+    "compile_exit": 0,
+    "image_sha256": "5f47fe5e026e05ad489fd3378b08597921d7e77c1573aa9a730a657dc0894f4a"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/bme280.cs",
+    "mode": "noopt",
+    "source_sha256": "e512ba4516491391bfeb9d55c076ffd69747301d70a0005b9e8ad30655d40757",
+    "compile_exit": 0,
+    "image_sha256": "c219c78b61f748c6ea308d4b8f979e262aab8c02d1797ba6cd20c18ccdf7e978"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/eeprom.cs",
+    "mode": "noopt",
+    "source_sha256": "00d360585e9c836b7cdffd4ba686305c3de9600e5ab6f1d4b3c2d186cabb8e9f",
+    "compile_exit": 0,
+    "image_sha256": "239786d641e53cda6c73fc782dd69d1647b2a3f53b32f21457cbcb3482e9b3c1"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_async.cs",
+    "mode": "noopt",
+    "source_sha256": "6e4aeecaccb97955febb6c2d41d4919b9d5f3557c7672d07341b66c19f5ec863",
+    "compile_exit": 0,
+    "image_sha256": "c6c26237007815641e030902f3087e23473b19763d11cb216bc2f62f574cc341"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_pins.cs",
+    "mode": "noopt",
+    "source_sha256": "8e4126e3f2b4fca3d834fbfb787dc6a8b4ffbbd5b95e1a76e7bcecf061918f82",
+    "compile_exit": 0,
+    "image_sha256": "17d2e777df0120796ceadd6cbdc7e7bb830e6336fba8c59f43221a7eb4d70d46"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_reg.cs",
+    "mode": "noopt",
+    "source_sha256": "4605232f62cb3310978ef178d3b46d40baeb9370451f6a4dfd4663e67d6a97e3",
+    "compile_exit": 0,
+    "image_sha256": "db133172afea24b73316aa50eb92490625e9f9775fd3862ec871ca5a60b4c1a5"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/i2c_scan.cs",
+    "mode": "noopt",
+    "source_sha256": "a64bb02f2144df7dbaf627d2103c4e8c4866b12dbd0be73032cf0d8237be9050",
+    "compile_exit": 0,
+    "image_sha256": "8da10cee4e4fd641f87b23e45124b0b9ceeec517e6351b363a35b7e8e16cf7b8"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/oled.cs",
+    "mode": "noopt",
+    "source_sha256": "6c16a8c55c45e31dfd3cb3f561d6b64f39844bfe0713e2ecbc5f4ec032665e79",
+    "compile_exit": 0,
+    "image_sha256": "1d57a3dc527e9605a6a4666af1d5db8bbcee1210d99661d1dbc1f103fef1b6f3"
+  },
+  {
+    "source": "tools/studio/templates/08-i2c/tmp102.cs",
+    "mode": "noopt",
+    "source_sha256": "711e73f5db0fff219073752e255a1be6396a2990fb1c658d5ebb1f8565c50e6c",
+    "compile_exit": 0,
+    "image_sha256": "1e762a30ff900220ce59cf3212a37bee32dff24fab9d7bbe1f9128e2ae016aea"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/shift595.cs",
+    "mode": "noopt",
+    "source_sha256": "f1956a51731e3e352e7a64b130b884e63615ac4ebe3cb9f88d32692402b32902",
+    "compile_exit": 0,
+    "image_sha256": "1cc8f1436eeab3a96a227d7fcb3f25d0622ae759971eda0366d845b5fef78ea0"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi.cs",
+    "mode": "noopt",
+    "source_sha256": "78e537b65f688ccfe75e7aa28c253e4d1836b10042b5abeb7261fee2cd34f4c5",
+    "compile_exit": 0,
+    "image_sha256": "669de7e27a38d13fb49bc5e7a4289876d2d22111bf18c1b5059d518f6fb5590e"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_async.cs",
+    "mode": "noopt",
+    "source_sha256": "0b84307130640497e0c57219fa3004b6d0ad714b86396429af7e3657e7fcc6ee",
+    "compile_exit": 0,
+    "image_sha256": "b8b836837c27312ccb3e272c49a5543203377f0c043be1dc4842c201f5ba9be8"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_config.cs",
+    "mode": "noopt",
+    "source_sha256": "60cc89aa05302eb714bf90700be34837141d7a154c932c85cbdf0b0e7badd21a",
+    "compile_exit": 0,
+    "image_sha256": "f7de10009bd96996bcf8ce088c11532032f4350650611da8b1b223cde2c308c9"
+  },
+  {
+    "source": "tools/studio/templates/09-spi/spi_flash.cs",
+    "mode": "noopt",
+    "source_sha256": "70743d1822d056398838315c5e9f67189c90cc4a8f59564d84b2fac6835478b9",
+    "compile_exit": 0,
+    "image_sha256": "bf35d00c68ad9e1b540cc2b144253ba848f5446c63c995b95a3d104326ed8a23"
+  },
+  {
+    "source": "tools/studio/templates/10-qspi/qspi.cs",
+    "mode": "noopt",
+    "source_sha256": "e3a94841a073fd1fb8489667fc854e7980434d1e810c9752fff10959c034bce0",
+    "compile_exit": 0,
+    "image_sha256": "686857b67a3f6245d6836db826ebcd835e7cbf4b5e7e74545d923077777876b8"
+  },
+  {
+    "source": "tools/studio/templates/10-qspi/qspi_async.cs",
+    "mode": "noopt",
+    "source_sha256": "f5500b1bed625794f8568519fbf2cb90cee91f1fd86737490a24d96149fcc9ff",
+    "compile_exit": 0,
+    "image_sha256": "c645fb3583ff8b87d34cc42c16899a710befffa37a5ea26cb6a6d5b6470b3b10"
+  },
+  {
+    "source": "tools/studio/templates/11-i2s-audio/i2s.cs",
+    "mode": "noopt",
+    "source_sha256": "fdcf7c6907c3941d7529178d7c99336c81ebb77beda36f6283a512c4659dc859",
+    "compile_exit": 0,
+    "image_sha256": "6e53bc367ea09bd1f0a0cff677e5b9aac0e02997cc5a1aee79f6635a278c526b"
+  },
+  {
+    "source": "tools/studio/templates/11-i2s-audio/i2s_mic.cs",
+    "mode": "noopt",
+    "source_sha256": "1ce29583d172742b4f545678f13a9f46fdb17656bd7fd6da5eb2639fba593296",
+    "compile_exit": 0,
+    "image_sha256": "dbe96357e8785c302ba3562a72cc7b79c7864e4a8d462d2da7cbeaaef35b4593"
+  },
+  {
+    "source": "tools/studio/templates/12-can/can.cs",
+    "mode": "noopt",
+    "source_sha256": "805cb29f7230f49b673308147b36cdc64be93800201ad1c5e1b32990713e7e7e",
+    "compile_exit": 0,
+    "image_sha256": "de6717b17781ea5621678082200854610a7a6766d8545b1f889de6afa578e3be"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/events.cs",
+    "mode": "noopt",
+    "source_sha256": "8ce11b0f154ee9519573c88c1cd9630dad4b3399021352ee230b634a0ec7f45b",
+    "compile_exit": 0,
+    "image_sha256": "c88906d826094c000a7b6c89b9e0816d8127ae1033af366b14926b2815e7cab4"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/rtc.cs",
+    "mode": "noopt",
+    "source_sha256": "4b0354926bcf8a99c505bbdb028a977e1011eaba0ab673c121dd350dff2146ea",
+    "compile_exit": 0,
+    "image_sha256": "2d2f6297d4e6dc43dffb5d5d7d8408bb66adf068e1f24d07d00ca9513d1e91bb"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/timer.cs",
+    "mode": "noopt",
+    "source_sha256": "3c0d6bb81d6be41245b7eba4ea0ae201e0e421b81494d49f610e5d8a23d51193",
+    "compile_exit": 0,
+    "image_sha256": "5ad56d006a3b4f3e8369eaf1defb3a7c31bb6a94a4a723656ae95826639a60d2"
+  },
+  {
+    "source": "tools/studio/templates/13-timers-and-events/watchdog.cs",
+    "mode": "noopt",
+    "source_sha256": "08f40eb9c0dc93d3a2f2be403230e17ef4f7b8398ba905a2351d96a9c81b5c2f",
+    "compile_exit": 0,
+    "image_sha256": "2cdd9f3eebaac92c9ccc6d4be19a889b1f8a3e677d297a8e3024767ca64f1c8b"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/board_caps.cs",
+    "mode": "noopt",
+    "source_sha256": "30893aa95cb110d7645908994b7b74742ec8f8876c837286c474d6dc3c007103",
+    "compile_exit": 0,
+    "image_sha256": "52cd0f646c3a2d150dbc3edc3ae32e00502f5b98cb7d9b11c94c9c1f5d6b726b"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/board_options.cs",
+    "mode": "noopt",
+    "source_sha256": "739245d57605529f7fb77eaf5710c779676e76a6d2c7c120c0933205be77523c",
+    "compile_exit": 0,
+    "image_sha256": "9e94f791b5cad41c5adbc9189ff6c4dd8cc345b611ead96e2843ceff11725455"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/errors.cs",
+    "mode": "noopt",
+    "source_sha256": "5a5132648cb53f64256fe7d2919489e323a70e177a275ff12c9df60e8581c36d",
+    "compile_exit": 0,
+    "image_sha256": "9ecd9063be245a31e783e906db286aafa3dceeea7ef402a32e91545eb01ac87f"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/info.cs",
+    "mode": "noopt",
+    "source_sha256": "f363afedbf0bb16733506d969d89b1a71c62e5ec2790992d66b1221179c1dab5",
+    "compile_exit": 0,
+    "image_sha256": "857da32734577ac1a0e7b1a1cdadb5e58d584db928828d99468420051297251d"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/memory.cs",
+    "mode": "noopt",
+    "source_sha256": "4726906defc0d7efb254a77d76f0b741a2dc4e0adc46c4fec2553b01e54557c3",
+    "compile_exit": 0,
+    "image_sha256": "e36fe7fa6be79d08d8aaf7fbd24779a5a8a6d1ba9cdaa098c583cf20db97945f"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/portable.cs",
+    "mode": "noopt",
+    "source_sha256": "8f1c6fa3784e583d2c31d843b12c6709120a8835a26c75ae3cbeba74b0de5c87",
+    "compile_exit": 0,
+    "image_sha256": "35ff10167f240249572ac5c801a075f43a81101dfe6139655b118d0ff690498e"
+  },
+  {
+    "source": "tools/studio/templates/14-board-and-system/reset.cs",
+    "mode": "noopt",
+    "source_sha256": "1b4f76fc183ddbe5439c119b6593279f80d237b9d38ed13bf9c5974c10a4b239",
+    "compile_exit": 0,
+    "image_sha256": "4a0dae60b7a960ed73c2f2fde05ffa17832c595c3e74e2e0a628f08806a75097"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_buffer.cs",
+    "mode": "noopt",
+    "source_sha256": "a4e67457dfff4c19f802f23b0f1856f72b05b4d10d90fed73db4e35c74e16aff",
+    "compile_exit": 0,
+    "image_sha256": "9f6b93f68e30ed887f59f1fa9bd46e40f6f19add6044b309c8ac8cf6fc0093a3"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_double_buffer.cs",
+    "mode": "noopt",
+    "source_sha256": "5a71350dfd94cc34e3d2a83632ebe40fcc4cf0f9edbd82b61f94e59d7ba0d003",
+    "compile_exit": 0,
+    "image_sha256": "386f421cb189a8d55db7b9fc53c6f48c3e660097218dde9f2347bd1e0dbb60ec"
+  },
+  {
+    "source": "tools/studio/templates/15-dma/dma_memory.cs",
+    "mode": "noopt",
+    "source_sha256": "8ab69fb05d6b4926b8ed57df8bb46318ad906af6ff21b4975d6bd58317d9c46d",
+    "compile_exit": 0,
+    "image_sha256": "6650e479e469f9f6a5e8b176b747a9be2a6dc094e866f3aed5ffec9f1a7af8d8"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/binary.cs",
+    "mode": "noopt",
+    "source_sha256": "de2365297eb1ea77277b9bde5de3a2f1e6c3e479b2f61e5f9d36bf1f8f09c5a8",
+    "compile_exit": 0,
+    "image_sha256": "e2a736da78be216535d489b84180a353c7fd5476e8947655aed7cf3cb8fd3cb4"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/csv.cs",
+    "mode": "noopt",
+    "source_sha256": "8f52b62360ba4d9e2515383734e692f263c4bfa3c7b4562da9a029be513df4cd",
+    "compile_exit": 0,
+    "image_sha256": "094c2c91b4a8154a9b7237291df2b29654f1f63269ea684bdc337cbb447c03a9"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/fileops.cs",
+    "mode": "noopt",
+    "source_sha256": "bbe89fdfb23033cea17d19c5c20dcbb8e9f6ab499cc8f03d671a6fd5c317b720",
+    "compile_exit": 0,
+    "image_sha256": "7870836753311f09058e79169543764e495d0dee2e5d9c2712e096d94b51324a"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/files.cs",
+    "mode": "noopt",
+    "source_sha256": "4d23df8e965f347959c71d2ad606049bfbb22a7c1b8a14d24598dce95076240e",
+    "compile_exit": 0,
+    "image_sha256": "ce14dc0b22653877fb94bbd0e24f5296f54475fe1c07b4b89a7a3b1d12299444"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/folders.cs",
+    "mode": "noopt",
+    "source_sha256": "06899feef2c6aa097a0ff5ea89f9de901829b8084b4c530d8e0fe00e68a3c98a",
+    "compile_exit": 0,
+    "image_sha256": "70524d484a7b0928f8cc29a5ad440572c63c1f892936ab6363de837adf7b8e99"
+  },
+  {
+    "source": "tools/studio/templates/16-files-and-storage/kv.cs",
+    "mode": "noopt",
+    "source_sha256": "57f175d03a33d427036146a5f32d31a3fe075150c0c4f3d87451801b0e000644",
+    "compile_exit": 0,
+    "image_sha256": "d4b4442a472cb228fef228ddff5791eba62ae3c42dacea87f23475158ea811eb"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/classes.cs",
+    "mode": "noopt",
+    "source_sha256": "c8959d50d3cecbd16d08da2714b405db99417bca07342e490382680050bf632c",
+    "compile_exit": 0,
+    "image_sha256": "97aabe6d56ef742d7c23f24e67e23c27489087006835b5bea383295e1a5e45d9"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/collections.cs",
+    "mode": "noopt",
+    "source_sha256": "e8f09c1f28c30550d7cc62d490cc490b324bee38760b0226b2acc2c6ba7d5e50",
+    "compile_exit": 0,
+    "image_sha256": "542acf279c7a919f1756991590c74e4034a8b6605e7864aab99aa1b34763a828"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/driver.cs",
+    "mode": "noopt",
+    "source_sha256": "dc18d2685e6f3bae8551831e00341324af9aef500b3ad761705a6935468dee6e",
+    "compile_exit": 0,
+    "image_sha256": "dbf3ec0ee31a32dcf4018696ea4263305ec95ea0300a3a1253bf99ab46a00ce2"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/enums.cs",
+    "mode": "noopt",
+    "source_sha256": "eb7e332f5dcef9122ba9cdc2d342e409231c5530b54321a27a8d8a48cb79b6a4",
+    "compile_exit": 0,
+    "image_sha256": "558f1f647e96b71095cb533a55e40c0474e3a93caa1d255b17c51f3f4b10deb0"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/events_cs.cs",
+    "mode": "noopt",
+    "source_sha256": "3bda82d98f7c877b0039f400a6f83d04c16813d6a9a7d3b72098c3120612a96c",
+    "compile_exit": 0,
+    "image_sha256": "5ec7f7b173b810e68d02f17be718765231b6ba81f5ac21779af26dfa733ca7c2"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/exceptions.cs",
+    "mode": "noopt",
+    "source_sha256": "f5b2203160a3f153e20fedae29f51a8869557efeed83c0ba1e8ef87548151d91",
+    "compile_exit": 0,
+    "image_sha256": "a6d592cff13cec07900b130ef7428d1381c5fdda3e4d682f62d9a17956d29ab5"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/generics.cs",
+    "mode": "noopt",
+    "source_sha256": "8846a35588aae29b241f071126d17cb83ddab36f290f0121cfc58e2983562909",
+    "compile_exit": 0,
+    "image_sha256": "0817ec7da63eac1a9c9ee79b999d67cab5c08878cc0f9318a108921dc17e370f"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/linq.cs",
+    "mode": "noopt",
+    "source_sha256": "0e5b0bcdb032927d5ec832f06df7223a8f613be19ce3896cc8f6df5cee3c7e04",
+    "compile_exit": 0,
+    "image_sha256": "691bfbe2e6c61f1506720bcac55d225e254f2bada15e60b7a2d35bdb828cbe97"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/math.cs",
+    "mode": "noopt",
+    "source_sha256": "c27642c5b5604af167b6211fc3881fc8b384c4841416058c648b88747da12c6f",
+    "compile_exit": 0,
+    "image_sha256": "0ae5c1424be0a80a1157e72db206bb34bf83c4782fd5353a399444c7c3a2eecf"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/parse.cs",
+    "mode": "noopt",
+    "source_sha256": "48a42b12064d9f47428259c54b66dc02b97634eecc26d948635ee35a988d0c7e",
+    "compile_exit": 0,
+    "image_sha256": "2f0f723be979e5b14c1c0fe2a518c00fa6ecce43d143b4895ff7360d811db70f"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/patterns.cs",
+    "mode": "noopt",
+    "source_sha256": "9203f47092c4903974125834c3e1654fa2589ffd18b87d3b9042fdb5022f9915",
+    "compile_exit": 0,
+    "image_sha256": "15f2f423550c3627c5e7b02219cdc6a6c98467dc24a97d1acdb64641f242c4be"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/strings.cs",
+    "mode": "noopt",
+    "source_sha256": "3b8a74fa49c35156eae2050ea3849cc0d326c66f6c7a0a98d7ac76bbbd7855d5",
+    "compile_exit": 0,
+    "image_sha256": "166f8b445e4e0e7e90c8f54bbfdccc7d4867c5e481d0a7b94e94dfa8266c81d9"
+  },
+  {
+    "source": "tools/studio/templates/17-c-language/tuples.cs",
+    "mode": "noopt",
+    "source_sha256": "d7a04a82975d9a81c377cf9a9bcd0e9687c26d18a060b24248d00df7dd5cbaa7",
+    "compile_exit": 0,
+    "image_sha256": "5040b752f2976573f83acd0399c9a88993ca2e413643a8d6c1b49af90eabe77b"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ads1115.cs",
+    "mode": "noopt",
+    "source_sha256": "9b676dc5e7eb8fd61e5950cf388722540390704a4640549e9192c27d0e49fbed",
+    "compile_exit": 0,
+    "image_sha256": "140ec2e679c6fcee2ef96805c71cb7aeba43ec113d11115e2593ae3b956b5804"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/bh1750.cs",
+    "mode": "noopt",
+    "source_sha256": "ef36d18395bd2efd129bc497e2251b5d5bdcbefe34ba2ce3d58432404dc88f6b",
+    "compile_exit": 0,
+    "image_sha256": "607a1506026f7ae01bb023a5aeee0f46a70a7b7fa6a42920f768913593d13f79"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/dht22.cs",
+    "mode": "noopt",
+    "source_sha256": "87cb17f7c3217ce3f3c8ca350b78d837e1c0afac2536d45f7ad34bac1123a72e",
+    "compile_exit": 0,
+    "image_sha256": "2bb9a48d1efa559b16aa27c1d1a7bcd765bbcda25ab784d556c42bd92b9bf1a0"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ds3231.cs",
+    "mode": "noopt",
+    "source_sha256": "b875a781687f8483abddd9f150fa0918fe70cf5603c2d139e668f9f3778b41ed",
+    "compile_exit": 0,
+    "image_sha256": "380681d33ff8312ca5c150b248d5f30b4b055147c06f8a079827fb8b0c36f9a0"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/humidity.cs",
+    "mode": "noopt",
+    "source_sha256": "907b2b711ae0c5dde8602d7c8ca2fe330a3ef1dae36bb30134c85c0cdfa3cb1d",
+    "compile_exit": 0,
+    "image_sha256": "4993b61f4a15f7ea8a31f53642b04759ff3c44b06b697b30b970a90ef33e78cf"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/ina219.cs",
+    "mode": "noopt",
+    "source_sha256": "b0875891de231221dcfd196629df7659ed8731e23804cae95cb99b0dfdd0fdcf",
+    "compile_exit": 0,
+    "image_sha256": "c037a5264d60c0a504f6968b721191380b6ac26466ad14bd209c44439cc19cbc"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/joystick.cs",
+    "mode": "noopt",
+    "source_sha256": "cd3094dcd7b20ec974ff279f8cc0f990ecb0ce7b56d126a5cdff26b1271a4dc0",
+    "compile_exit": 0,
+    "image_sha256": "8b023fef4160d548329c2ca41460fad0a6eb502fa0867604c287c3e9c72a5375"
+  },
+  {
+    "source": "tools/studio/templates/18-sensors/mpu6050.cs",
+    "mode": "noopt",
+    "source_sha256": "638072e197e68956515f75958e7e11f5373015a66bffb834a1751aa392c901d4",
+    "compile_exit": 0,
+    "image_sha256": "d84b833361fed100bb1fd4790587419fb4f91476ebcd320c9f1bdabcb8ead981"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/lcd1602.cs",
+    "mode": "noopt",
+    "source_sha256": "b563f183fb7abf34f669d1abf8b4d754ea47323cd7490889714c924b7e487c08",
+    "compile_exit": 0,
+    "image_sha256": "a973a191b23edaf7c52348ba7580e6862f9f085d4c07bc0f0a2d731a84b4ff9f"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/ledstrip.cs",
+    "mode": "noopt",
+    "source_sha256": "79ed08e1400f71dbd5eb0fc2de826982cbe75b90d6b3c5b503a9a77b17d472cf",
+    "compile_exit": 0,
+    "image_sha256": "8ba8f2103f71f86fc8abcec213956677582c3a3d1790c49726ec911046263d06"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/max7219.cs",
+    "mode": "noopt",
+    "source_sha256": "d193a54f43a94bdc8a944bd0a76390da8a6788fcc0def6b654bafc1627a92762",
+    "compile_exit": 0,
+    "image_sha256": "76b6f5746d8983e5361ff36f01f5cd535eff1ac698d12af83f236a15c5318742"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/oled_text.cs",
+    "mode": "noopt",
+    "source_sha256": "229bceeee53497e73daa45f9231da3fff0d826d7fe0bdeeaee8be13ac87bb16b",
+    "compile_exit": 0,
+    "image_sha256": "804eebaca814a23e4f85c79012674fbe23aa26724cfa3d9318ef3f045071920b"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/tm1637.cs",
+    "mode": "noopt",
+    "source_sha256": "994dbc39e60b1072bf943c34b302c5fb156ad6a32e9c42aed88fb61dd5809dcc",
+    "compile_exit": 0,
+    "image_sha256": "2bb7e7a6730995f0ad5babc4d44e31f098471b18450ef61d36794fc5b26c2510"
+  },
+  {
+    "source": "tools/studio/templates/19-displays/ws2812_spi.cs",
+    "mode": "noopt",
+    "source_sha256": "d76520ff89d1c93680d0832d18ec5bdb550b23788e633cd3ae140dc2159ea546",
+    "compile_exit": 0,
+    "image_sha256": "da14400c56c7ffd7ad57f199d4f301956cfa022ef9bfc73227855f0d874ff707"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_animation.cs",
+    "mode": "noopt",
+    "source_sha256": "b2ddfe7b684b77038269036043fe7a9c718cb919f93448bda3a7f8cbc7214879",
+    "compile_exit": 0,
+    "image_sha256": "97aa1c34bc16ebafad58bf28f222129cf46215a4cc470c709946e33e42509813"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_bitmaps.cs",
+    "mode": "noopt",
+    "source_sha256": "c76b7b47343618edcf858daacde413cbbb4003cb3bf4c262b66dcece59ad44ff",
+    "compile_exit": 0,
+    "image_sha256": "5d11e810e2cd76d26800aba6be2262f76b7eb672b0dd6d743279f5f17e0a021e"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_buffer.cs",
+    "mode": "noopt",
+    "source_sha256": "ab30d4b0c05321f93af9d268ad06ccb48731d00b1e33530f898e87d5d9ced302",
+    "compile_exit": 0,
+    "image_sha256": "81529f54d371685c6e2488b76e4dd8c06bd35a9c0f0053845416db53fe9e4ae2"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_clock.cs",
+    "mode": "noopt",
+    "source_sha256": "1d6e4f9dbb4010eedc19df469fc7cb6af0682b57ea13c4b8f5b94c825da1b021",
+    "compile_exit": 0,
+    "image_sha256": "7c29192308934729f927cb1a7221ac2b378745d6ed2eb5cd47429751ccc887eb"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_custom_menu.cs",
+    "mode": "noopt",
+    "source_sha256": "9d33f1bcfdd77135e9f3abdb76ae52ee66ccd858653e2bde16f078d9695a9f72",
+    "compile_exit": 0,
+    "image_sha256": "bd692e9f08def79ab52d0dd558cd132727db374e58b3ec0ff2e6627788a3f804"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_dashboard.cs",
+    "mode": "noopt",
+    "source_sha256": "909d23f13a3f0e02ea3c00d7bec9a71b8e2595adaa90e96e49af558ca7f06e1e",
+    "compile_exit": 0,
+    "image_sha256": "d92d28008871d4dc6e2a5651e0f27eeda9eb0dbdb4bfe1041cbbdb34ef17a6ff"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_font_files.cs",
+    "mode": "noopt",
+    "source_sha256": "3437f239b01e83bd6eeac8d302be880f7452cb548eb9cb576b4ce3570f157149",
+    "compile_exit": 0,
+    "image_sha256": "bf35e523ccd06d80f66244ced94955218e80357c52975ecebd8c99b2fc452283"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_hello.cs",
+    "mode": "noopt",
+    "source_sha256": "fe30a0c8aa1e18cff935f512e083e2946271e32a8516a2fdf2cc3e5fe9eccfc3",
+    "compile_exit": 0,
+    "image_sha256": "3916c492737d66bb9e09a53b15294936afa61d8512cde57cf5774bc09a3f5fd9"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_log.cs",
+    "mode": "noopt",
+    "source_sha256": "aeef00cdfef1ab333488bc008dd41ab50444d5e0cf7262c0d0d08c7175b7f6c9",
+    "compile_exit": 0,
+    "image_sha256": "f482b3c3d074fc30243153920abd39f3579013dc175420cfc21a9509a815164a"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_menu.cs",
+    "mode": "noopt",
+    "source_sha256": "45a1ecf854e0d0231b0d44b6abf2a6fb456b471c6c4f1d4299c4cd3af454aeaf",
+    "compile_exit": 0,
+    "image_sha256": "67714b852d3c4436a45588dd22667a8d76fd8949a90770ce657645dea366bc6d"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_page_mode.cs",
+    "mode": "noopt",
+    "source_sha256": "f439f373cf14b4a2618800375e10930c4cec641a945999b08fcba760cbad7949",
+    "compile_exit": 0,
+    "image_sha256": "7956443cbe88d15cf3c01cf2329ba5ba1b2d9b6b2058a033b2e8ffc7d45dc998"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_print.cs",
+    "mode": "noopt",
+    "source_sha256": "32eea66a745fe1a961cd24bb8122f829dc7e2e13df87d042fd57f94f3a6688a7",
+    "compile_exit": 0,
+    "image_sha256": "d04465d72ee480c3e75b21f1bd9eb841d89d23da5f9e9254b490941ea513bd1d"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_settings.cs",
+    "mode": "noopt",
+    "source_sha256": "2d6b63295be4b43ff41be5d8bc0d06d210d6880bd34754c041b058d6715a179b",
+    "compile_exit": 0,
+    "image_sha256": "f88e1bfd65258fdbfa7b3d5752cacc13610cbe7a169b65ad334fb111404b531d"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_shapes.cs",
+    "mode": "noopt",
+    "source_sha256": "7226c8da5b097098f4f4219a4cec29013fef32f3c46c5d5b3c5ba38ada748205",
+    "compile_exit": 0,
+    "image_sha256": "6f6e6885cf1ab70d9d1e75b7c3adf102015d8d61114be7735d13164ff25f7e0f"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_text.cs",
+    "mode": "noopt",
+    "source_sha256": "a912b00112f776c688012f76471db65c8f18f688bf149478bcf55e41f2ed28e9",
+    "compile_exit": 0,
+    "image_sha256": "d7dc1eab3ce1bda04175eac3dd03d208cbc23d2bf99c67f1813fc33f1cbd767e"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_two_displays.cs",
+    "mode": "noopt",
+    "source_sha256": "ea5e35d5abcbff1bee282ad1fa3d6f4012608d7c25cf6740793534fe915f9f7d",
+    "compile_exit": 0,
+    "image_sha256": "4509ba8af35f6626bf511ce1afed2077cbb9149990196a06eb2540d784f7b632"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_ui_text.cs",
+    "mode": "noopt",
+    "source_sha256": "ad2621cb039d2cd7b61eaf8507ac3e8089fea0a49de11c42e82d50d61ca2dad8",
+    "compile_exit": 0,
+    "image_sha256": "e9b1e586f6eab1d679805376d36c67367ec42f237e9edeb845bcf291321f3e5b"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/oled_wiring.cs",
+    "mode": "noopt",
+    "source_sha256": "e39cc22e60451a00db2f043bbdb0efd72ddbe7dc396c5575a7e41a467b8a5271",
+    "compile_exit": 0,
+    "image_sha256": "2bab18f4d876def4d6b3fd4e6095539125dc459929c0ccfecee74c9ca44dc333"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/u8x8_status.cs",
+    "mode": "noopt",
+    "source_sha256": "e7a9f03ab490cbce03a850f6ce5c0ad8bd68903a50f4bde5684b90de17f0ab9d",
+    "compile_exit": 0,
+    "image_sha256": "ecb792e69655e5f6fbe1391e6fc9c8cdfefede164afbe1d0d6c75674a2e5e6c2"
+  },
+  {
+    "source": "tools/studio/templates/20-u8g2-displays/u8x8_text.cs",
+    "mode": "noopt",
+    "source_sha256": "dec10f5f2768da0775ddaa00b906f5be4ba6ac8e9d19b252a187da4f2db7e322",
+    "compile_exit": 0,
+    "image_sha256": "432eebaa3d3066fcd8776bf827a629a323b43f4ec7a4abffc487dc08e326623f"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/motor.cs",
+    "mode": "noopt",
+    "source_sha256": "7a986069c103499028401750017e97d62bd0ae572abcfe8d1bcf0cf6924f25d3",
+    "compile_exit": 0,
+    "image_sha256": "1604109eca7a00c307fb6bf0b209512574209bb14e81365b8fd1978c3f90472c"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/pan_tilt.cs",
+    "mode": "noopt",
+    "source_sha256": "739d2cb71c84f749bc0767f0749228cfae0f1bce7d74bb083483163597b665e3",
+    "compile_exit": 0,
+    "image_sha256": "46dd4487a0d916fd1f8a8900623648839983ff0a5bbd041a88acdd667c87ece5"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/relay.cs",
+    "mode": "noopt",
+    "source_sha256": "3170561b49de369e95982945a0983ddc7fec1bfae6fc19c93a870e81e871d218",
+    "compile_exit": 0,
+    "image_sha256": "09977d612f907bccc3bdf1b917148e27dbfc38758bbc641846be6010d3f4851f"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/servo_smooth.cs",
+    "mode": "noopt",
+    "source_sha256": "569c37b273df3fa237e5dd3a491571587604ec1046c69e9736795a8f211f7660",
+    "compile_exit": 0,
+    "image_sha256": "777a1a08e9fc3df5872a52db2be9ce35dc20b46a430319c956d40d0fde581420"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/stepper.cs",
+    "mode": "noopt",
+    "source_sha256": "28c3982239199dd91aaaccd985933aa647e0c07b6dd570e35e37725e530f11b1",
+    "compile_exit": 0,
+    "image_sha256": "dc9882c8a821dbaf22898c79b94496ddb61ba8bd6e6d8b6af9c4dfbd30e301a7"
+  },
+  {
+    "source": "tools/studio/templates/21-motors-and-actuators/uln2003.cs",
+    "mode": "noopt",
+    "source_sha256": "77da0d1a70c0ac018a840f0df2616c43877b7927a37fdc850e9f07c560c8130e",
+    "compile_exit": 0,
+    "image_sha256": "247ddb6bab1edcb3987c49ad8b95f0ec9b21f9ac46edfa1336365eb8710b55fd"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/button_events.cs",
+    "mode": "noopt",
+    "source_sha256": "096f80b8710da467dedaf11c8509bad33bccea3abfd4f8263595a55156216804",
+    "compile_exit": 0,
+    "image_sha256": "f35cef8ee31b214068b03f13ba7604a7fc352acad6cd37687138c446edf527fc"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/encoder.cs",
+    "mode": "noopt",
+    "source_sha256": "75471f4413003cfed8b291597792aa3f6bf98fae6ef82a56f62893f1dc5c816d",
+    "compile_exit": 0,
+    "image_sha256": "8bcae816c83d95dc57735c6bf6302db25ed42e66db51b9ffb245069d80e473bb"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/keypad.cs",
+    "mode": "noopt",
+    "source_sha256": "3001f5b63dc6c0467eeef5b8a18b0dacd9dc351975696ba97e7b710c7b2ce08f",
+    "compile_exit": 0,
+    "image_sha256": "16367d2a7745e11f5f283da8143d8ecf099ceb26f392e044dc0bba451c84e002"
+  },
+  {
+    "source": "tools/studio/templates/22-input-devices/touch.cs",
+    "mode": "noopt",
+    "source_sha256": "5cfbe8ad2ea2d32654cdf9c254fd75a38ebf8a40dcc23aa0ba5acbdf2d0ababf",
+    "compile_exit": 0,
+    "image_sha256": "bb5be9f514d31788f52455ff54d5ca69635ce05f4b7f0afd5a9b1d058377e141"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/filters.cs",
+    "mode": "noopt",
+    "source_sha256": "07ba925a17ae6b7799141320dba41288ec2110df7876015960493dc7985d0a06",
+    "compile_exit": 0,
+    "image_sha256": "ff1393605ad9a94dae2aec1a8abbf04b3a8c35344fc8c22fde2eb82ecc984a2a"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/kalman.cs",
+    "mode": "noopt",
+    "source_sha256": "b375f46df5645198632d6faa13d4e21618688bac80ccb111a2ac9671a5f38238",
+    "compile_exit": 0,
+    "image_sha256": "19a27f0aeb5ef895442af3d68f905591cb9fa8cd1e6730c3fce7128b6d67c8e3"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/pid.cs",
+    "mode": "noopt",
+    "source_sha256": "4974dae1e866c5fcb6449e4c863cecf179fd4a58e60f9ab1c12c702fcbb34080",
+    "compile_exit": 0,
+    "image_sha256": "69312ac7411e428e27e0eacfb21e00bd8eb3ace0f9ad818a4cb20f4d52f217e1"
+  },
+  {
+    "source": "tools/studio/templates/23-control-and-filters/thermostat.cs",
+    "mode": "noopt",
+    "source_sha256": "d59b1d79600d2a94d9d454907332976bce1c6ea059845615d9b0ccd538de4a9e",
+    "compile_exit": 0,
+    "image_sha256": "7d027c746ac979d728ff1ce3b6b19ab0f3deafc056a1ae78f63170980d7de003"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/base64.cs",
+    "mode": "noopt",
+    "source_sha256": "761a9426b9e630cbdbc0cd0da2e5ab9fae0f108e3344d371a0e776eee74549f7",
+    "compile_exit": 0,
+    "image_sha256": "84271e4a35017ce1235a88cdaa802913945d6255b6250c2a923f5ee7cb851560"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/commands.cs",
+    "mode": "noopt",
+    "source_sha256": "10c1cae840d6769c7e5c90a8ff42f5909364c7e26591588c1598eb3a3933e51f",
+    "compile_exit": 0,
+    "image_sha256": "f21da3fa7b3433932ca05bfbefe8871d8010d1f6a88513d958e70dc9ae89568a"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/crc.cs",
+    "mode": "noopt",
+    "source_sha256": "cea4219e4cb56a3bc6dc3d83a829cfa76557daa0327eb609777a01cde0634514",
+    "compile_exit": 0,
+    "image_sha256": "844065b245d5e3493ffcee41d6bd219d1616a2db132293d9dd3e2502051957f4"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/json_out.cs",
+    "mode": "noopt",
+    "source_sha256": "5df0872de01a425b9afd0d5a8c9062d223ad7bd60e287c1a3a0cb0cfe9ba16b6",
+    "compile_exit": 0,
+    "image_sha256": "50171d2a626548fb52ab6b349a16c50ea0bd273bc389331194bc98bcc628d94e"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/modbus.cs",
+    "mode": "noopt",
+    "source_sha256": "6717e38d3c54f5b77946ff8249d9a3e4e2b32af02e117d6c0800ab32f1473a56",
+    "compile_exit": 0,
+    "image_sha256": "f0ee7ecae425c482130a5805db0786ff1803afa8ae5b65e4556eb007267078cc"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/nmea.cs",
+    "mode": "noopt",
+    "source_sha256": "c9436b483fa079942c7dfaa33546415a4dd841fa519cd2e7fab741223398cd4b",
+    "compile_exit": 0,
+    "image_sha256": "ddbb2f73a8a4b4ac0206c6f4f82bb9fb3cb1bd878cbc3e4beba834123c37d240"
+  },
+  {
+    "source": "tools/studio/templates/24-protocols-and-data/ringbuffer.cs",
+    "mode": "noopt",
+    "source_sha256": "b8d9dd77b04c81246e2d95baae42bd09264b16c4919298bf39e46347813f074e",
+    "compile_exit": 0,
+    "image_sha256": "322deb9be929681c708811916c236543d8aa630ebee6e53a13f6947248a272c9"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_adc.cs",
+    "mode": "noopt",
+    "source_sha256": "e8697e7fd49a9fd43357774295f148a587f517f6a3c11cf7d5a5760833866a09",
+    "compile_exit": 0,
+    "image_sha256": "13781ea5b9b3183e7b90ed97032b68b106ad2bfa807416f01d367a2706f00a7a"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_sine.cs",
+    "mode": "noopt",
+    "source_sha256": "daa2919524aef55eadeb74767ff4ab157fab8ba483780bc5e9f7b82bc6fd85c0",
+    "compile_exit": 0,
+    "image_sha256": "1e6d0ec4fc6f18bb335ff2cece987bbbe11d2ab3ea971e0fb3352ec2ed7f048f"
+  },
+  {
+    "source": "tools/studio/templates/25-serial-plotter/plot_step.cs",
+    "mode": "noopt",
+    "source_sha256": "e65387e621917cb499311a98d5b1b01b1a540d9038e79bb198496396f500a635",
+    "compile_exit": 0,
+    "image_sha256": "505b8a8a76b6573ff7903509a4ef58bb94249323a47dbbfd531aecfa34936b8a"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/dice.cs",
+    "mode": "noopt",
+    "source_sha256": "e481e894dc41d731cc5de51135250ba7dc2f572b131792ec25fafcd641d4dd4a",
+    "compile_exit": 0,
+    "image_sha256": "6ad0fba4b5982a5d3b611937011cc1e8c9f766f6b276067434ff3d37292c8e55"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/guess.cs",
+    "mode": "noopt",
+    "source_sha256": "5dff3bc713e0404fbfd32f8c1182448850127146e07b4a41dc1762a07192f92c",
+    "compile_exit": 0,
+    "image_sha256": "9e4cc6fabad5f88da8c3a727e98af744df5e3601ab5a49f2e9de6e15a865d72c"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/hangman.cs",
+    "mode": "noopt",
+    "source_sha256": "95bdb3f83d9250a138f4e9086ad2293c93b346a5dbc413bb670bf4cc587e2032",
+    "compile_exit": 0,
+    "image_sha256": "68d6134dc6adc450b922f2a8fc226fd41e50e3c3f3e3944e2b7737b8ed604528"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/life.cs",
+    "mode": "noopt",
+    "source_sha256": "604f58245173a39b9bd1caf04323b28448d9b3ea3cef54f460f1dbb7e22e6ab3",
+    "compile_exit": 0,
+    "image_sha256": "1eb7d3e4b585833657730c6009474a646e2db52b5114d35d32876d52e832a586"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/morse.cs",
+    "mode": "noopt",
+    "source_sha256": "63d5e05c46656bf7328cd8fbc80de3b1e0d09ef78986579f208eb4c8218ac844",
+    "compile_exit": 0,
+    "image_sha256": "75d2fe0bfbcc493dde7ae6dd36fd6facd68bb38a5d8cb6b5b15cd37f0c7047c2"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/reaction.cs",
+    "mode": "noopt",
+    "source_sha256": "236b4f0c5e5c9aafd57d433766fa1bee08aa53f65667259468cabde303ef7187",
+    "compile_exit": 0,
+    "image_sha256": "987bde038bb8f36984dad69d995c02d9bc475dc0df672e4b7e6abcf6c78273ea"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/rps.cs",
+    "mode": "noopt",
+    "source_sha256": "f9dc8acc0dddd0f73b8e630aa83da58b86c4919fb73dee9645540cc24de630b4",
+    "compile_exit": 0,
+    "image_sha256": "0d7449dd04dc888957544a9016c53da291d575292ad7d1c17c674e05e679de1e"
+  },
+  {
+    "source": "tools/studio/templates/26-fun-and-games/tictactoe.cs",
+    "mode": "noopt",
+    "source_sha256": "9d4707051b6f63c1a0f5d645ac4ef818c8234510707f29a9ad1d714ffefa462e",
+    "compile_exit": 0,
+    "image_sha256": "4e33ffeac6e8e2f5f4b641c7d12ccfbfb7647136380e0f86716fd48c789bd7f3"
+  },
+  {
+    "source": "tools/studio/templates/27-benchmarks/bench_cpu.cs",
+    "mode": "noopt",
+    "source_sha256": "8a42696d15c42cbe92f66cd491b922eb1bd086535ddca60e804afc3d491aa99f",
+    "compile_exit": 0,
+    "image_sha256": "bb42f264f0290dba064a8a0fc388ca893db9268b6f9860b4e84a470314d1e5f4"
+  },
+  {
+    "source": "tools/studio/templates/27-benchmarks/bench_gpio.cs",
+    "mode": "noopt",
+    "source_sha256": "b474dfeb6ce6d38fcd141726e8d055d80142dc3d71f073560d16913a1b1beefb",
+    "compile_exit": 0,
+    "image_sha256": "28338e17cc8a8888260c73ec92347d51f34e7affc69f9c9a752753664b5d9ac2"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/http_get.cs",
+    "mode": "noopt",
+    "source_sha256": "c92551e846b2b234bed5132562fd3b667a8d3c15e28982418c42dc917a3da13d",
+    "compile_exit": 0,
+    "image_sha256": "c4d77a6204d7678dafcf4f53ee8348309062ad91c09c1e6ab90ff3b06bef6cf4"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/http_post.cs",
+    "mode": "noopt",
+    "source_sha256": "26a5980fbdfa5e2f4488cfa079a6e6689661f085cecd49c78b13f792ac19f85f",
+    "compile_exit": 0,
+    "image_sha256": "5beae2a49268eee619bf6feac76465362c303f47de9c1f5029af6426ff07c91e"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/https_download.cs",
+    "mode": "noopt",
+    "source_sha256": "77e3c325d6099fd00516ba4b497cd6dfa0b729a5c1c2d9ef99a5d4caa4f4ef88",
+    "compile_exit": 0,
+    "image_sha256": "e73dcdcd6ec97aa0455849d113efd3790accff577f0937145462d1968b8930f5"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/mdns_ping.cs",
+    "mode": "noopt",
+    "source_sha256": "794033bccd3380ffc33fe0e8ff7031548f44a25dcf1a5d699ab2f149315b958c",
+    "compile_exit": 0,
+    "image_sha256": "5f2baf2419d8057341a9a4e502c1459706e01e7a2037330460dde3126256f08f"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/mqtt_publish.cs",
+    "mode": "noopt",
+    "source_sha256": "5fcb3bd8ccff85a030fc4d61a16efc3850309d278f4f221667129401596f831e",
+    "compile_exit": 0,
+    "image_sha256": "35bce294d4dbddf99800476b53031e11cc3e4159c83f976ecb027d32266ac504"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/ntp_clock.cs",
+    "mode": "noopt",
+    "source_sha256": "41fbadb0bfdd0d584d69d6af64cad39381847b637c761456f71fcb458aecf096",
+    "compile_exit": 0,
+    "image_sha256": "dc63c287b87fbcb2f053159f2621df59c3ce3153fb783ec04b97e6d45a1290c5"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/tcp_echo.cs",
+    "mode": "noopt",
+    "source_sha256": "a5e82cf3fe47d99b3b0416655491f12177bde9f632a741fe1cbda6a829efd074",
+    "compile_exit": 0,
+    "image_sha256": "2d8666a6280baa25c03a8a83108aa6142dc5a6991a5d705219fe526aad15dced"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/udp.cs",
+    "mode": "noopt",
+    "source_sha256": "4ad8bad598f798976d69c4545d8fec8b24bc3d7ecec4329f40ceba8af62f2379",
+    "compile_exit": 0,
+    "image_sha256": "649df4e323b7cf178b06f4c5f28732bf0e5b24cdd96ee7e790acea919ff0e396"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_ap.cs",
+    "mode": "noopt",
+    "source_sha256": "ae7a69b54c223de591c6c85baa1b0fe4a1d4a0a18b0f4663dd3dd659c81c1f1b",
+    "compile_exit": 0,
+    "image_sha256": "5e7e9fc5e4c48f7eed9eb9182a316aa2ba3c1ced2d1bfc2b3aea80e9560e1a07"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_connect.cs",
+    "mode": "noopt",
+    "source_sha256": "e14da4b6654accb88514184a608b9a24a59c6f99357745678ae5356c6ac45bcc",
+    "compile_exit": 0,
+    "image_sha256": "6b9ae26c364064a0bb081f86312936e2d931ee0f61b6640f235344d0e0aee736"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_events.cs",
+    "mode": "noopt",
+    "source_sha256": "0277d8b59f5fc91098fb06177e9de30cd0c8c1d93df4e2a78846c751b904f571",
+    "compile_exit": 0,
+    "image_sha256": "410f36f5d29725414eb0ff1c4ca4ec1e5a1ebc62b6f3fee83d90f2e567e756ff"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_options.cs",
+    "mode": "noopt",
+    "source_sha256": "2a5d415953373627011b740a17d445001464dd93657b3a9b22cc45ca7223bd0e",
+    "compile_exit": 0,
+    "image_sha256": "0f9986cc66ccb8e63573dfe9e50ef5479233637987b63122bd9dad714a698487"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_saved.cs",
+    "mode": "noopt",
+    "source_sha256": "9358ee7a592a72db80756f214a63afb183043f5438420c68716cc7c58b5ec75f",
+    "compile_exit": 0,
+    "image_sha256": "de91015476de4a076b577f9e037ded195d4579c4b2bb7bee314fc2aed070bb2e"
+  },
+  {
+    "source": "tools/studio/templates/28-wifi-and-networking/wifi_scan.cs",
+    "mode": "noopt",
+    "source_sha256": "b675e374939c54fab76f0e2de57efa811652a11c44e236baea4bf162478c7064",
+    "compile_exit": 0,
+    "image_sha256": "4da5c084954f607c4050a15eae63b4701c123c3f980d5916825e3576cc1e003e"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/captive_portal.cs",
+    "mode": "noopt",
+    "source_sha256": "4b31bfa0ab3fde78cd131f2c655a13a4a720080596e25e4f3ca684e2f1c4b4f0",
+    "compile_exit": 0,
+    "image_sha256": "f1d2487135560cde31e4a1d32f06c3d5cc7f8b8bc19d1c648f90f24124143dc6"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_api.cs",
+    "mode": "noopt",
+    "source_sha256": "e2496fccb906cdd652bb1d14d3be89dba933b57ed207e94cd29e27c026e2dbd0",
+    "compile_exit": 0,
+    "image_sha256": "be48df12a4cd90b5e2577ce07d2f7737fcebd670bee63e89ac1ce7e6ec44341e"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_files.cs",
+    "mode": "noopt",
+    "source_sha256": "8c749f79d34a06c13e89d7608b46ac3d30648b2d03f09199bcecff53be46aee9",
+    "compile_exit": 0,
+    "image_sha256": "cc979cac0c89ddb9cef83f823c423e20614c882eacc0f7e3ed69ae6dff904070"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_led.cs",
+    "mode": "noopt",
+    "source_sha256": "db0108532bad2f1f4a165e7de6d7b66eada5ccb1e98698d7c98ede548dc2292f",
+    "compile_exit": 0,
+    "image_sha256": "24efb68385eaf56e72e834a249697bbccef80d23ff00ca1c971983490ee0af8f"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/web_server.cs",
+    "mode": "noopt",
+    "source_sha256": "634a32fac4d4bd98ac60ac6769909befda63bd9fd5537fc291c7bc9314a55b4e",
+    "compile_exit": 0,
+    "image_sha256": "0c50642f167384d923ba0e19afa4a79f661609f59eef8e7cc9863d5c9fd749b9"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/wifi_provision.cs",
+    "mode": "noopt",
+    "source_sha256": "50fa783fa88aa9c74baf5d9e336bee0d970286fc13b2830ec7b24dddd354c197",
+    "compile_exit": 0,
+    "image_sha256": "3f4fd3a7bc4e3b485feccb63b40382fda803f9a5557081d096f6d2c6846a00f8"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/ws_client.cs",
+    "mode": "noopt",
+    "source_sha256": "7f60d722d5bf6af28de51c5576bdf941bcc6fdcaaed8f784833da0a0d292b28f",
+    "compile_exit": 0,
+    "image_sha256": "40725978b1f2a0cd5bbbd463fc853d3e4d9c8aaad2e7f29a717251f68b6e4d34"
+  },
+  {
+    "source": "tools/studio/templates/29-web-server-and-websocket/ws_dashboard.cs",
+    "mode": "noopt",
+    "source_sha256": "8c9238ad68d5a49265274f52fe8e9ff830038c1ac66c9e207a9115cda2236661",
+    "compile_exit": 0,
+    "image_sha256": "6323da2d858ad9b43f4a97e963eb81b61f7287def38857edde0f85f8a3951ad8"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow.cs",
+    "mode": "noopt",
+    "source_sha256": "866213f69a75e24c7f4762810b31d78feb56943e9f4daa62f1e077809db586dd",
+    "compile_exit": 0,
+    "image_sha256": "7e7c5f3537fb9501b336aaeac44d7263ee77ee9a4689f8b4bee996e0a0ab4cf0"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow_broadcast.cs",
+    "mode": "noopt",
+    "source_sha256": "96ae0b79edad7ba5f5e215e3c1cff6d756abf33b2dc06851a36d635203083517",
+    "compile_exit": 0,
+    "image_sha256": "20568970e72f15fcccb5f21b417dca73bd3214d79aea14d561c49950284383df"
+  },
+  {
+    "source": "tools/studio/templates/30-esp-now/espnow_secure.cs",
+    "mode": "noopt",
+    "source_sha256": "1c4fd6e32c76c7f11e40b077386d2514b3df2e5258ae10ce09cabd310e6592ee",
+    "compile_exit": 0,
+    "image_sha256": "defc9dfa96b536c22b45c2c5f708c4a78ea6733f55c12c984c3577db6b342fd2"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/beacon.cs",
+    "mode": "noopt",
+    "source_sha256": "4ddeb7568268aa83a89538c0e04611bc9f4876dce3f85f597cf150d4d3284370",
+    "compile_exit": 0,
+    "image_sha256": "fa6cbec73a1c668aee2a8b35ba237cb15a24f3d1b216ed45b0349a25e0c70458"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/bond_management.cs",
+    "mode": "noopt",
+    "source_sha256": "9ec5a96cf933a691e4b1b659d5b130b997968b1f78b29c6e6befd68135bf6d5e",
+    "compile_exit": 0,
+    "image_sha256": "60e6033ec4b29334f3e3cd977f1d45f54b3360b905ee0118c825ad290164c415"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/central_client.cs",
+    "mode": "noopt",
+    "source_sha256": "f889e031b995f6018afb341210ecb6e332378e3e6794b9ac4670e3ae74bb059c",
+    "compile_exit": 0,
+    "image_sha256": "25c68e9f97ae25266e14d72c4f4c74da9aa8e6e3f355c2e17c2307584003621a"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/connection_options.cs",
+    "mode": "noopt",
+    "source_sha256": "f22aa94e306792deb00cee539f6c1d11060e938afe86e6e5880172cce95e9bed",
+    "compile_exit": 0,
+    "image_sha256": "cd17c18e807850fc16dc0a5270fcec77836eddc3910f3cb154057da45e98dfa4"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/device_info.cs",
+    "mode": "noopt",
+    "source_sha256": "f4196be6af2da640b155b0fcb85b8bcbfb9ea27701035ec4c3f1117da45ecb21",
+    "compile_exit": 0,
+    "image_sha256": "17955abb13ac35b4a2bdbc6ea9e32ed31925c3d857cca1fdb671713a3b524b6c"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/diagnostics.cs",
+    "mode": "noopt",
+    "source_sha256": "20dce9e0e1f3e0f2cac6f590f4671d93a182e91cb4bd6a48d8c70eb716dd29ae",
+    "compile_exit": 0,
+    "image_sha256": "516ec83f428a43c3a525638456f6569eab48e3ee2e9158813f7026df8baf9803"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/gatt_explorer.cs",
+    "mode": "noopt",
+    "source_sha256": "572f16b317962bc810e078440595c12abf5f4922d26f3ade9c326b8167d502ca",
+    "compile_exit": 0,
+    "image_sha256": "7822061f735df4a125bddfe438678a703378aaa2a9012525b07291304ec01be1"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/heart_rate.cs",
+    "mode": "noopt",
+    "source_sha256": "1354d843da23138532eca83c1bf95880dc0ae78c79a7ed69fe3348575b95d968",
+    "compile_exit": 0,
+    "image_sha256": "17bbd18ab201b4b2d9274c7f440e5ffa00b2a413cfa1bb9e7eb7578473c2a4ab"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/led_service.cs",
+    "mode": "noopt",
+    "source_sha256": "95313aa0654c2eeec5cb3dbea36f02f03107f792c56ee6d66e1e213f104691e3",
+    "compile_exit": 0,
+    "image_sha256": "838a7c90060435cb21f6c211740beaaaa2e40e3ea3ba9bc3cfeeb21bb085288c"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/manufacturer_data.cs",
+    "mode": "noopt",
+    "source_sha256": "6b1829094a237142adabbfaa2824d7808f25fb913b7a3d0445c78026d66a411e",
+    "compile_exit": 0,
+    "image_sha256": "3660a4af23d49590c33281a000cfcde17cd440c5903f5e4a0a7e97ba98ee609c"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/pairing.cs",
+    "mode": "noopt",
+    "source_sha256": "afbc4b4ccc9e4a028fedc173f7af9d3fb28b3e843a9a64befb0eff1e4cb91efa",
+    "compile_exit": 0,
+    "image_sha256": "ce31ed05ab58b6d2e9ae5eb23e7c187aad834aceefc2270cdd75ec09128646a2"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/scan_parameters.cs",
+    "mode": "noopt",
+    "source_sha256": "eed87b4e7857fd182b6950d7928eb0499b7d1f220c7e9aa7432159c0d03463e2",
+    "compile_exit": 0,
+    "image_sha256": "34e4383637d7f27758cec6477d8bdf187ec27cf3d3583cbedfc39eb9a4b13d23"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/scanner.cs",
+    "mode": "noopt",
+    "source_sha256": "ae25b9d3f48c7f072150902f406d926bc45ae5c9f80005d2733a56905c48e29f",
+    "compile_exit": 0,
+    "image_sha256": "7e1df59de7e440c5228dab0f63fd817cefa48966246634ccfdd8ac8a6ea88ff4"
+  },
+  {
+    "source": "tools/studio/templates/31-bluetooth-le/uart_echo.cs",
+    "mode": "noopt",
+    "source_sha256": "a933ba6f3e864d353eeeb61ec63872edcb092562c351df5d0a6d606063ebce7a",
+    "compile_exit": 0,
+    "image_sha256": "392af99e0958354920c00b39f2928c57ba94b0c624d744ad3a49db92682b2ed8"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_button.cs",
+    "mode": "noopt",
+    "source_sha256": "784f8ecea8323afcbbd7e8abf9d326a93e43f7714c67997194f9596f71b0392b",
+    "compile_exit": 0,
+    "image_sha256": "a3704294d97cd78a2a6d0242463cec96baca003656855803635c9f7f98064b94"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_fonts.cs",
+    "mode": "noopt",
+    "source_sha256": "2f004d27bd03801590eca838f4f3019076a892ec6c4dd92e902258f59d7bd424",
+    "compile_exit": 0,
+    "image_sha256": "0f42d4c2bed64df5ef704d01517697cb349b44a4df0893854b7d24c71d2817f6"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/lvgl_label.cs",
+    "mode": "noopt",
+    "source_sha256": "d50a6e3dd73e33d7dd9ce9cf8b12aae5b91612a0cf5716f71062f273ef651a60",
+    "compile_exit": 0,
+    "image_sha256": "07d702ca9953739381c28afe13cca98a6a5c38bd62950ccaaad14a2ab46667cf"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_copy.cs",
+    "mode": "noopt",
+    "source_sha256": "e28645da8380d6e77aaa6bc7f5b4b38d1e1bb993b42772be8ae10aefb70a0a09",
+    "compile_exit": 0,
+    "image_sha256": "5adec77baa079f07c5576ac2bf7a5cf703b3bcd7d6aea2d8c1c5e7d4a2b9b7e3"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_draw.cs",
+    "mode": "noopt",
+    "source_sha256": "6d240875312715607b8444d23fb3262ae6fce880f48be8ff5b7cd914602315dd",
+    "compile_exit": 0,
+    "image_sha256": "fca2ce2852c0b5f71f51889ccef73055eab58bf16527c4c171b1a8889dd30627"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_image.cs",
+    "mode": "noopt",
+    "source_sha256": "837f9fe14ce8599e1b1bf6f95102292830a607864e9e6fcb7b1ed732a51b0412",
+    "compile_exit": 0,
+    "image_sha256": "98c3efb65eef9bebf1945e30eff5b7c2d5e17640330c4ceb7bcdbe4e1b2a8595"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_lvgl.cs",
+    "mode": "noopt",
+    "source_sha256": "1caec4cec384a034894f3646e4c85de3dca1b65de0e09c6b794f7714e27f214c",
+    "compile_exit": 0,
+    "image_sha256": "0179090c98eb2044d8b976ca2e5036e88853f9d4b93a0dcc418c5891cbf2ebe4"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_packed.cs",
+    "mode": "noopt",
+    "source_sha256": "74e62d76b74ee1ac788beffe1ba502978d05e647ea21412184d79a7ad08a15e3",
+    "compile_exit": 0,
+    "image_sha256": "74f9a5a0fa554997880adc7b511374b901b8c223b3201e749008e76384b68ad9"
+  },
+  {
+    "source": "tools/studio/templates/32-optional-gui/tft_sprite.cs",
+    "mode": "noopt",
+    "source_sha256": "2c800b7defc7c44e06de92561eeba68e2963372716d0276b6bd6b040a981284c",
+    "compile_exit": 0,
+    "image_sha256": "0d2631d51d76c7dc737462b8ae4d82cd680f296714e7e16d81eb112e3e90f20d"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "case": "signed-immediates",
+    "exit": 1,
+    "output": "EXPERIMENTAL LOAD-ONLY probe: 0/1 images accepted, 2 functions visited, 1 flow rejections; NO execution/type/lifetime/security proof\nstack-flow rejection fn=Calc pc=2\nimage: build/stack-arithmetic-research/signed-immediates-opt.mcsb\n",
+    "scope": "Old research mappings, trusted compiler output LOAD ONLY; no image execution"
+  },
+  {
+    "case": "large-constant-pool",
+    "exit": 1,
+    "output": "EXPERIMENTAL LOAD-ONLY probe: 0/1 images accepted, 2 functions visited, 1 flow rejections; NO execution/type/lifetime/security proof\nstack-flow rejection fn=Calc pc=3074\nimage: build/stack-arithmetic-research/large-constant-pool-opt.mcsb\n",
+    "scope": "Old research mappings, trusted compiler output LOAD ONLY; no image execution"
+  }
+]

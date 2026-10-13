@@ -1,0 +1,32 @@
+-- The C compiler identification is GNU 11.5.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.7s)
+-- Generating done (0.0s)
+-- Build files have been written to: /vercel/sandbox/data/MicroCS-v2-next/build/research27
+[  5%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[ 11%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_compiler.c.o
+[ 17%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_fmt.c.o
+[ 23%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lexer.c.o
+[ 29%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lib.c.o
+[ 35%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lib_bytes.c.o
+[ 41%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lib_coll.c.o
+[ 47%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lib_json.c.o
+[ 52%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_lib_str.c.o
+[ 58%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_object.c.o
+[ 64%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_opt.c.o
+[ 70%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_parser.c.o
+[ 76%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_value.c.o
+[ 82%] Building C object microcs-build/CMakeFiles/microcs.dir/src/mcs_vm.c.o
+[ 88%] Linking C static library libmicrocs.a
+[ 88%] Built target microcs
+[ 94%] Building C object CMakeFiles/test_image_stack_probe.dir/vercel/sandbox/data/MicroCS-v2-next/tests/c/experimental/test_image_stack_probe.c.o
+[100%] Linking C executable test_image_stack_probe
+[100%] Built target test_image_stack_probe
+PASS 4 trusted compiler images, optimized/noopt; signed immediates and 1024 constants; LOAD ONLY
+No image execution, initialization/type/lifetime/security proof or production integration
+EXPERIMENTAL LOAD-ONLY probe: 488/488 images accepted, 1346 functions visited, 0 flow rejections; NO execution/type/lifetime/security proof
+PASS trusted research corpus: 244 sources x2 modes, LOAD ONLY; handcrafted/file-error fixtures SKIPPED; NO production/type/lifetime/security claim

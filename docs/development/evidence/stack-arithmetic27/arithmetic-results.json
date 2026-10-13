@@ -1,0 +1,68 @@
+[
+  {
+    "case": "signed-immediates",
+    "noopt": false,
+    "source_sha256": "010f1f18d8f80b14d161da6194001c65b7d51bb72e8ad5823e3ae8164a1144fa",
+    "image_sha256": "499fc1b39561b39dd34c4e87801acf00e5efb5ef8c8253d1c4e785adafe8e76c",
+    "compile_command": [
+      "/vercel/sandbox/data/MicroCS-v2-next/mcs",
+      "-c",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/signed-immediates.cs",
+      "-o",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/signed-immediates-opt.mcsb"
+    ],
+    "probe_exit": 0,
+    "probe_output": "EXPERIMENTAL LOAD-ONLY probe: 1/1 images accepted, 2 functions visited, 0 flow rejections; NO execution/type/lifetime/security proof\n",
+    "expected_fused_opcode": "BIN_LIS"
+  },
+  {
+    "case": "signed-immediates",
+    "noopt": true,
+    "source_sha256": "010f1f18d8f80b14d161da6194001c65b7d51bb72e8ad5823e3ae8164a1144fa",
+    "image_sha256": "4d5f9cd5f7e09268b81a86ca40b8ae100119194ee5d52569e12554a410f5eb20",
+    "compile_command": [
+      "/vercel/sandbox/data/MicroCS-v2-next/mcs",
+      "-O0",
+      "-c",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/signed-immediates.cs",
+      "-o",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/signed-immediates-noopt.mcsb"
+    ],
+    "probe_exit": 0,
+    "probe_output": "EXPERIMENTAL LOAD-ONLY probe: 1/1 images accepted, 2 functions visited, 0 flow rejections; NO execution/type/lifetime/security proof\n",
+    "expected_fused_opcode": null
+  },
+  {
+    "case": "large-constant-pool",
+    "noopt": false,
+    "source_sha256": "12e6c96aa7a9002d7b67efcfd92796c617b29b99e33a7f8b9fb17b20ea52b3f2",
+    "image_sha256": "148866b26df0a45e301003ece47796d73698c224150c44f3daea6be87a6a4bdf",
+    "compile_command": [
+      "/vercel/sandbox/data/MicroCS-v2-next/mcs",
+      "-c",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/large-constant-pool.cs",
+      "-o",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/large-constant-pool-opt.mcsb"
+    ],
+    "probe_exit": 0,
+    "probe_output": "EXPERIMENTAL LOAD-ONLY probe: 1/1 images accepted, 2 functions visited, 0 flow rejections; NO execution/type/lifetime/security proof\n",
+    "expected_fused_opcode": "BIN_LKS"
+  },
+  {
+    "case": "large-constant-pool",
+    "noopt": true,
+    "source_sha256": "12e6c96aa7a9002d7b67efcfd92796c617b29b99e33a7f8b9fb17b20ea52b3f2",
+    "image_sha256": "1dae56d7199e2aef0853769ebbb8ecebb8b2a57777a4cec78789748d2b504e46",
+    "compile_command": [
+      "/vercel/sandbox/data/MicroCS-v2-next/mcs",
+      "-O0",
+      "-c",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/large-constant-pool.cs",
+      "-o",
+      "/vercel/sandbox/data/MicroCS-v2-next/build/stack-arithmetic-research/large-constant-pool-noopt.mcsb"
+    ],
+    "probe_exit": 0,
+    "probe_output": "EXPERIMENTAL LOAD-ONLY probe: 1/1 images accepted, 2 functions visited, 0 flow rejections; NO execution/type/lifetime/security proof\n",
+    "expected_fused_opcode": null
+  }
+]

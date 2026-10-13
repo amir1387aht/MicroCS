@@ -853,3 +853,40 @@ and cumulative binary patches. Complete remaining gates, checked benchmark
 comparison, API/native/OOM/boundary coverage, crosslinks, fullverifier and every
 original fullscope workstream. Hardware/reviewer gaps remain release blockers.
 No merge/tag/release/provisioning/security-lock/device operations.
+
+## Checkpoint27 — isolated probe operand correction + completed graphics/Studio
+
+Predecessor26 REMOTE1c919bf118609cdc95f572dbe1e64e7b9cf958de; fetched and
+verified local/remote tree9164db936bd37a6cc437eb20ebc0b493a0b2ee6b equal.
+Production runtime/source/header files UNCHANGED versus26. Isolated HOST-ONLY
+probe fixes BIN_LKS local operands1/4 and BIN_LIS1/3. New arithmetic generator
+proves relevant fused opcodes actually occur in optimized disassembly and uses
+large signed immediates/1024constant function. Old research probe falsely
+rejects BOTH benign optimized compilerimages (sanitized LOAD ONLY); corrected
+probe accepts all4 opt/noopt images. Fresh sanitized positive corpus488/488,
+1346functions also passes; --trusted-only explicitly skips handcrafted selftests
+and malformed-file checks. Those skipped checks/negative initialization are
+NOT complete. No bytecode execution, type/initialization/lifetime/MCU-budget
+proof or production integration. CI adds arithmetic positive compatibility.
+
+Both actual pinned LVGL8/9allfonts now EACH887 native sanitizer checks +all5
+basic/pointer/constructors/widgets/fonts goldens pass. Exact clean externalpins
+and explicit8build-local decoder fix retained. Initial command failure with
+nonexistent golden filenames preserved; corrected command uses actual repo
+files, no changed assertions. ActualTFT26 evidence remains valid since production
+unchanged. FullStudio corrected browser/serial/node/template suite passed;
+gallery/editor scopes and dark/light geometries included. Visually inspected
+phone390offline dark and desktop1400light screenshots: useful list/preview and
+footer, no overlap. Initial missing-CHROME launch failure preserved. Fresh
+preinstalled tools: Playwright1.63.0/Chrome153.0.8010.12, not earlier1.58.2;
+actualNode/version/source/config/dependency hashes recorded in evidence.
+
+Evidence development/evidence/stack-arithmetic27/ includes raw completed logs,
+trusted corpus hashes, arithmetic/baseline results, build recipe and provenance.
+Fullmakecheck cmd_3f9f49b4cf70440fab027d681bc2 STILL RUNNING (featureflag builds
+observed passing; no whole-check claim). Its only generated tracked change is
+examples/lowram/node_image.h; preserve until successful exit, then verify/restore
+ONLY that generated path. Checked benchmark comparison/crosslinks/exactnewCI
+and broaderstack/OOM/API/handler coverage remain pending, alongside original
+fullscope. No merge/release/provisioning; hardware/reviewer release blockers
+not waived. Save staged/cumulativepatches, push/fetch/treeverify then continue.
