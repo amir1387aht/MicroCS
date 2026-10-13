@@ -1,0 +1,70 @@
+status: exited
+exit_code: 0
+
+stdout:
+remote ae58878427d84c7ce1c06f07a2ccfe9f961f863b; verified matching trees, unchanged main
+OK -DMCS_INT64=1
+OK -DMCS_ENABLE_FS=0
+OK -DMCS_ENABLE_HAL_DMA=0
+OK -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+2641/2641 image metadata checks passed; baseline accepted malformed loads=0 (never executed); allocation size-hint mismatches=0
+fuzz: 400 iterations, 0 findings
+fuzz: 400 iterations, 0 findings
+      }
+      if (!dev.connected && this.autoReconnect) {
+        this.autoReconnect = false;
+        this.setConn("off", "Not connected");
+        term.line("— the device did not come back: press Connect —", "warn");
+      }
+    } finally { this.reconnecting = false; }
+  },
+  async afterConnect() {
+    try {
+      await dev.op(() => dev.machine());
+      const r = await dev.op(() => dev.cmd("info"));
+      const rawInfo = new TextDecoder().decode(r.out).trim().split("\n")[0] || "MicroCS";
+      this.info = rawInfo.replace(/ features=.*/, "");
+      this.capabilities = legacyCapabilities(rawInfo);
+      try {
+        const report = await dev.op(() => dev.cmd("caps"));
+        const caps = report.status === "OK" ? parseCapabilities(new TextDecoder().decode(report.out)) : null;
+        if (caps) { this.capabilities = caps; this.capabilitiesKnown = true; }
+      } catch { /* old firmware keeps working; never infer hardware from a feature bit */ }
+      if (!this.capabilitiesKnown) term.line("— capability report unavailable; peripheral templates are hidden. Update firmware to enable board-aware templates —", "warn");
+      if ($("galleryBg").classList.contains("show")) this.galRender();
+      this.setConn("on", this.info);
+      term.line(`${this.info} — ready`, "ok");
+      this.reopened = false;
+    } catch (e) {
+      /* the stream broke on a framing error (baud change while booting) and nothing usable came
+  async disconnect() {
+    this.autoReconnect = false;
+    await dev.close();
+    term.line("— disconnected —", "sys");
+    this.setConn("off", "Not connected");
+    this.enable(false);
+  },
+  setConn(state, text) {
+    $("connDot").className = "dot" + (state === "on" ? " on" : state === "busy" ? " busy" : "");
+    $("connText").textContent = text;
+    $("sbConn").textContent = state === "on" ? "Connected · " + text : state === "busy" ? text : "Offline";
+    document.querySelector("footer").classList.toggle("off", state === "off");
+    const b = $("btnConnect");
+    b.classList.toggle("primary", state !== "on");
+    b.querySelector("span").textContent = state === "on" ? "Disconnect" : state === "busy" && this.autoReconnect ? "Cancel" : "Connect";
+  },
+  enable(on) {
+    for (const id of ["btnNewFile", "btnNewDir", "btnUpload", "btnRefresh", "btnReset", "btnCtrlC", "cin"]) $(id).disabled = !on;
+    this.updateButtons();
+    if ($("galleryBg").classList.contains("show")) this.galRender();
+    if (!on) { this.entries = []; this.renderFiles(); $("stText").textContent = "—"; $("stBar").style.width = "0"; $("memInfo").textContent = ""; }
+  },
+  updateButtons() {
+
+
+stderr:

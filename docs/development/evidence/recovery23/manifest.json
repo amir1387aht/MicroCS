@@ -1,0 +1,25 @@
+{
+  "status": "recovered exact remote checkpoint22; reset occurred before completed raw gates23 evidence push",
+  "remote": "ae58878427d84c7ce1c06f07a2ccfe9f961f863b",
+  "restored_checkout": "/data/MicroCS-v2-recovered",
+  "preserved_checkouts": [
+    "/data/MicroCS",
+    "/data/MicroCS-v2-work"
+  ],
+  "post_reset_verified": {
+    "default_metadata": 2641,
+    "host_source_image_xip": 85,
+    "pinned_tools_and_dependencies_restored": true
+  },
+  "observed_before_reset": "Fullmakecheck EXIT0, all11 alternate85/85; nine realmetadata configs2641x8/min2113; sanhost85+400source/400loadonlyimagefuzz; unchangedStudioretryALLPASS+gallery/editor. Full local rawlogs were lost; surviving normalized toolresults retained, NOT reconstructed rawlogs.",
+  "next": "continue loader debug-record/arithmetic and full verifier/remainingfullscope; rerun appropriate gates with fresh rawlogs",
+  "files": {
+    "observed-before-reset-fullgate.log": "42fcb0211f0acedaeffb5d406e1ecfb2c55017177c63f4327e3789b8a6cc9966",
+    "observed-before-reset-matrix.log": "74370c36e576a5137267ed3950d0ec791d95c43f8ab21f900e2743193b974641",
+    "observed-before-reset-fuzz-progress.log": "d82052b8f0988f0de5550797dd5cc7a3765ebee0d1c3fe750180761b989fd481",
+    "post-reset-environment.txt": "12dbdcf8440261aed9d3aafad11d04e3608327d8fac4ca00f4e0d94ac958bc51",
+    "post-reset-quick22.log": "1cbbed0154a83dde411914b1481c6fb688781b78edaf4e73947b98fcc8274038",
+    "post-reset-tools-install.log": "46484d8edd379f6b3c12b35ea251aa84114590200d7f78fe3b3e7a3781ec0749",
+    "checkpoint22-ci.json": "8361b2e9334c406ab0161dfd9766edb5a62ff9a2eb7cef459d5f8604241354b3"
+  }
+}

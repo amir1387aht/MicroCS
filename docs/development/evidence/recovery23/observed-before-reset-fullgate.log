@@ -1,0 +1,42 @@
+status: exited
+exit_code: 0
+exec_session_id: cmd_228365d6ab2a489a8dfd89c50617
+stdout_offset: 1859
+stderr_offset: 0
+timed_out: false
+truncated: false
+
+stdout:
+OK -DMCS_OS=MCS_OS_POSIX -pthread
+OK -DMCS_OS=MCS_OS_AUTO
+OK -DMCS_OS=MCS_OS_POSIX -pthread -DMCS_PROFILE=MCS_PROFILE_MCU
+OK ports/template (drivers, flash filesystem skeleton)
+== alternate configurations (full script suite)
+OK -DMCS_COMPACT_VALUES=1 (85 passed, 0 failed)
+OK -DMCS_ENABLE_XIP=0 (85 passed, 0 failed)
+OK -DMCS_TABLE_MIN_CAP=16 (85 passed, 0 failed)
+OK -DMCS_COMPUTED_GOTO=0 -DMCS_FIELD_CACHE=0 (85 passed, 0 failed)
+OK -DMCS_GC_INITIAL=4096 -DMCS_POOL_ALIGN=16 (85 passed, 0 failed)
+OK -DMCS_LAZY_CLASSES=0 (85 passed, 0 failed)
+OK -DMCS_LAZY_REGS=0 (85 passed, 0 failed)
+OK -DMCS_TINY_PRINTF=1 (85 passed, 0 failed)
+OK -DMCS_ENABLE_SUPEROPS=0 (85 passed, 0 failed)
+OK -DMCS_OPTIMIZE_SOURCE=1 (85 passed, 0 failed)
+OK -DMCS_COMPUTED_GOTO=0 -DMCS_OPTIMIZE_SOURCE=1 (85 passed, 0 failed)
+
+EXIT 0
+PROVED ONLY compact debug filename prefix difference: 1601->1595 bytes; b'../../examples/lowram/node.cs'->b'examples/lowram/node.cs'; encoded length 60->48; all other bytes identical. Fullgate EXIT0 before restoration.
+Verified complete broad gate and all nine real sanitizer variants
+?? docs/development/evidence/image-metadata22/completed-gates23.json
+?? docs/development/evidence/image-metadata22/v2-image22-final-nine-artifacts.log
+?? docs/development/evidence/image-metadata22/v2-image22-full-check.log
+?? docs/development/evidence/image-metadata22/v2-image22-fuzz-image.log
+?? docs/development/evidence/image-metadata22/v2-image22-fuzz-source.log
+?? docs/development/evidence/image-metadata22/v2-image22-generated-node-image-proof.txt
+?? docs/development/evidence/image-metadata22/v2-image22-generated-node-image.patch
+?? docs/development/evidence/image-metadata22/v2-image22-san-host85.log
+?? docs/development/evidence/image-metadata22/v2-image22-sanitizer-matrix.log
+?? docs/development/evidence/image-metadata22/v2-image22-studio-retry.log
+
+
+stderr:

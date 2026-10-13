@@ -707,3 +707,31 @@ Evidence: development/evidence/image-metadata22/. Staged/cumulativepatches and
 /data/backups/NOTES.md maintained. Continue fullgates, Studio diagnosis, then
 stack/control-flow/type safety and every remaining fullscope requirement.
 No merge/tag/release/provisioning/irreversible security/device operations.
+
+## Checkpoint23 — recovery after workspace snapshot rollback
+
+Remote22 ae58878427d84c7ce1c06f07a2ccfe9f961f863b safe; exacthead CI now92/92
+success. Prior computer fullmakecheck EXIT0 (all11 alternate85/85), final nine
+REAL metadata sanitizer artifacts2641x8/min2113, sanitizedhost85,400source+
+400load/disasmimage fuzz0findings, unchangedStudioretryALLPASSED and gallery/editor
+passes were observed, but before their full rawlogs could be committed, the
+computer reverted to an older snapshot on user continuation. Do NOT imply those
+lost rawlogs were restored. Surviving normalized toolresults saved remotely in
+evidence/recovery23/, alongside honest fresh provenance. Existing remotely
+committed22 logs/manifests and previous checkpoints remain intact.
+
+First23 preparation command encountered missing files in stale checkout; no
+commit or remote push occurred from that failed attempt. Empty23 payload was
+NOT pushed. Preserved existing /data/MicroCS and /data/MicroCS-v2-work; saved
+own stale-journal delta to /data/backups/post-reset-owned-journal.patch. Fresh
+clone /data/MicroCS-v2-recovered at exact remote22 is the ONLY active checkout.
+Fresh make -j2 mcs image-metadata-test:2641/2641; source/image/XIP85/85 pass.
+GCC11.5/Node24/Python3.13 still present. Restored pinned CMake3.31.6 and
+clangformat18.1.8 (both now /data/toolchains/cmake-python), PlatformIO6.1.18,
+Playwright-core1.58.2 and exact clean upstream LVGL8/LVGL9/TFT commits. PIO
+framework/toolchain caches still need restoration for later crossbuilds.
+All recoveryjobs exited. No code changed versus22, fullscope/release remains
+blocked; exactheadCIgreen is not whole-task completion or security verification.
+Continue debug-record arithmetic and full stack/type/controlflow safety plus
+remaining LVGL/TFT/Studio/core/security/roadmap. Keep fresh logs remotely after
+each step. No merge/tag/release/provisioning/irreversible device operations.
