@@ -496,3 +496,33 @@ jobs:
         with:
           name: stm32-firmware-${{ matrix.board }}
           path: build/fw/stm32/microcs-${{ matrix.board }}.*
+
+  lvgl:
+    name: Optional LVGL ${{ matrix.major }} real headless (release OFF)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { major: 8, version: '8.4.0', sha: '4495f428630cc1741bd8bfd977f080e8460e8e8d' }
+          - { major: 9, version: '9.4.0', sha: 'c016f72d4c125098287be5e83c0f1abed4706ee5' }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Explicit pinned dependency (not vendored or fetched by default builds)
+        run: |
+          git clone --depth 1 --branch v${{ matrix.version }} https://github.com/lvgl/lvgl.git /tmp/lvgl
+          test "$(git -C /tmp/lvgl rev-parse HEAD)" = '${{ matrix.sha }}'
+      - name: Real render, pointer, teardown and unchanged language suite
+        run: |
+          make lvgl-test LVGL_MAJOR=${{ matrix.major }} LVGL_DIR=/tmp/lvgl LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}.h"
+          sh tests/run_tests.sh build/lvgl${{ matrix.major }}/mcs
+      - name: Disabled widget and color/stride/alignment variant
+        run: |
+          cmake -S . -B build/lvgl-disabled -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR=${{ matrix.major }} \
+            -DMICROCS_LVGL_ROOT=/tmp/lvgl -DMICROCS_LVGL_CONFIG="$PWD/tests/lvgl/lv_conf${{ matrix.major }}_disabled.h" -DMICROCS_CONFIG=NONE
+          cmake --build build/lvgl-disabled --target mcs -j2
+          build/lvgl-disabled/mcs tests/lvgl/disabled.cs > build/lvgl-disabled/result.txt
+          cmp build/lvgl-disabled/result.txt tests/lvgl/disabled.out
+      - name: Missing/config/version failures and default OFF contract
+        run: python3 tests/lvgl/test_build_contract.py --cmake cmake --root /tmp/lvgl --major ${{ matrix.major }}

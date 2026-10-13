@@ -63,6 +63,20 @@ build/test_modules: tests/c/test_modules.c $(OBJ)
 build/test_flash: tests/c/test_flash.c tests/c/flash_sim.h $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_flash.c -o $@ $(LDLIBS)
 
+# Optional real LVGL (no download): native CMake build, default graphics OFF.
+# make lvgl-test LVGL_MAJOR=8 LVGL_DIR=/path/lvgl LVGL_CONFIG=/path/lv_conf.h
+CMAKE ?= cmake
+LVGL_BUILD ?= build/lvgl$(LVGL_MAJOR)
+mcs-lvgl:
+	$(CMAKE) -S . -B "$(LVGL_BUILD)" -DMICROCS_LVGL=ON -DMICROCS_LVGL_MAJOR="$(LVGL_MAJOR)" \
+	  -DMICROCS_LVGL_ROOT="$(LVGL_DIR)" -DMICROCS_LVGL_CONFIG="$(LVGL_CONFIG)" -DMICROCS_CONFIG=NONE
+	$(CMAKE) --build "$(LVGL_BUILD)" --target mcs test_lvgl -j2
+lvgl-test: mcs-lvgl
+	"$(LVGL_BUILD)/test_lvgl"
+	@for t in basic pointer; do "$(LVGL_BUILD)/mcs" tests/lvgl/$$t.cs > "$(LVGL_BUILD)/$$t.out" 2>&1 && \
+	  cmp "$(LVGL_BUILD)/$$t.out" tests/lvgl/$$t.out || exit 1; done
+.PHONY: mcs-lvgl lvgl-test
+
 # Optional u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8 on olikraus' u8g2 library, which is not
 # bundled. `make fetch-u8g2` downloads u8g2 2.37.1 into build/third_party, or point U8G2_DIR at a
 # clone / the Arduino library. The default `mcs` stays without it (like the release builds).

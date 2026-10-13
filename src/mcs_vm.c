@@ -1,5 +1,8 @@
 /* MicroCS virtual machine: dispatch loop, calls, members, exceptions, API. */
 #include "mcs_internal.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -2335,6 +2338,9 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->s_count = mcs_intern_c(vm, "Count");
     vm->s_equals = mcs_intern_c(vm, "Equals");
     mcs_open_libs(vm, cfg.stdlib);
+#if MCS_ENABLE_LVGL
+    mcs_lvgl_open_lib(vm);
+#endif
     vm->gc_pause--;
     vm->panic = NULL;
     return vm;

@@ -377,6 +377,17 @@
 #define MCS_ENABLE_SERVO 0
 #endif
 
+/* Optional LVGL 8.4/9.4 GUI module. Upstream is not bundled or downloaded. */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL 0          /* explicit external headers/library/config required; docs/LVGL.md */
+#endif
+#ifndef MCS_LVGL_OBJECTS
+#define MCS_LVGL_OBJECTS 128       /* bounded live GUI object handles */
+#endif
+#ifndef MCS_LVGL_EVENTS
+#define MCS_LVGL_EVENTS 32         /* bounded event queue; overflow counted explicitly */
+#endif
+
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
  * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by
  * default; the build looks for it (or downloads it) when this is 1. docs/U8G2.md.

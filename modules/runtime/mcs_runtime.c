@@ -1,5 +1,8 @@
 /* MicroCS - complete firmware runtime: VM + filesystem + HAL + scheduler + REPL/shell. */
 #include "mcs_runtime.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+#endif
 #if MCS_ENABLE_RUNTIME
 #include <string.h>
 #include "mcs_threads.h"
@@ -59,6 +62,9 @@ static int rt_readline(void* ud, char* buf, size_t cap) {
 static int rt_hook(mcs_vm_t* vm, void* ud) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
     if (rt->cfg.idle) rt->cfg.idle(rt->cfg.ud);
+#if MCS_ENABLE_LVGL
+    if (mcs_lvgl_poll(vm) < 0) return 1;
+#endif
     return rt_has_input(rt) ? mcs_shell_poll_break(vm) : 0;
 }
 

@@ -12,6 +12,9 @@ FILES = sorted(glob.glob(os.path.join(ROOT, "src", "*.c")) + glob.glob(os.path.j
 
 # table name -> (section, C# type, "instance" | "static", note)
 MAP = {
+    "lv_gui_members": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "instance", "`MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md))"),
+    "lv_gui_statics": ("Optional LVGL GUI (modules/lvgl)", "LvGui", "static", "real pinned upstream version"),
+    "lv_object_members": ("Optional LVGL GUI (modules/lvgl)", "LvObject", "instance", "generation-checked handles; config-disabled operations raise"),
     "console_fns": ("Core", "Console", "static", ""),
     "convert_fns": ("Core", "Convert", "static", ""),
     "math_fns": ("Core", "Math", "static", "`MCS_STDLIB_MATH`"),
@@ -128,7 +131,7 @@ MAP = {
     "sched_fns": ("Scheduler (modules/sched)", "Scheduler", "static", "`mcs_sched_open_lib`"),
 }
 HIDDEN = {"rt_fns", "gpio_props"}
-ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Network (modules/net)", "Bluetooth (modules/ble)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
+ORDER = ["Core", "Strings", "Collections", "Filesystem (modules/fs)", "Hardware (modules/hal)", "Drivers (modules/drivers)", "Displays (modules/drivers, optional U8g2)", "Optional LVGL GUI (modules/lvgl)", "Network (modules/net)", "Bluetooth (modules/ble)", "Threads (modules/threads)", "Scheduler (modules/sched)"]
 ENTRY = re.compile(r'MCS_(FN|GET|SET)\(\s*"([^"]+)"\s*,\s*\w+\s*(?:,\s*(-?\d+))?\s*\)')
 
 def strip_comments(s):

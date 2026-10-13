@@ -218,3 +218,48 @@ Exact final-head CI still needs observation; all LVGL/TFT, security, broader
 compiler/REPL and Studio assistance, remaining roadmap and hardware/review gates
 remain unfinished. Next: implement remaining scoped workstreams with actual
 upstream/header/platform research and obtain exact-board/display/touch validation.
+
+
+## Checkpoint 10 — real LVGL 8.4/9.4 first rendering/lifetime integration
+
+Continued implementation after the premature partial handoff. No scope deferred
+as complete. Real pinned upstream sources cloned outside repository:
+8.4.0 4495f428630cc1741bd8bfd977f080e8460e8e8d;
+9.4.0 c016f72d4c125098287be5e83c0f1abed4706ee5.
+CMake 3.31.6 installed locally under /data/toolchains/cmake-python, GCC 11.5.0.
+Dependency source/target/prebuilt selection is explicit; major/version/config
+checked; no silent download/vendor source/config rewrite. Graphics OFF remains
+dependency-free; conditional VM extension slot adds no off-mode VM storage.
+
+Implemented actual native RGB565 partial display rendering, stride/alignment,
+pointer driver/hit testing, bounded interaction event queue, generation-safe
+object handles and repeated dispose/GC/VM teardown. 56 common scalar style
+setters generated from real headers; versioned declaration-candidate inventory
+explicitly marks unbound APIs. Config-gated constructors do NOT imply complete
+widget API coverage. Text/value/range and common object subset functional.
+Idle/hook polling services GUI without executing script callbacks from LVGL;
+backend failures are reported, no fake flush success. Synchronous sink only.
+Shell file scopes dispose new GUI after all results. Docs expose restrictions.
+
+Passed BOTH real versions: 662 native rendering/color/lifetime checks each,
+basic/pointer scripts expected output, 85 existing language tests each. Both
+disabled-slider variants pass; v9 variant additionally uses color-depth 32,
+8-byte stride and 64-byte alignment with true RGB565 pixel checks. Seven build
+contract cases per version pass, including missing headers/config/library/
+target, major mismatch, modules-off and dependency-free graphics-off. Normal
+graphics-off make build and 85 language tests pass; generators/config parity
+and CI YAML syntax pass. Raw logs under evidence/lvgl-first-render/.
+
+Found/fixed real upstream differences: v8 stringifies unquoted LV_CONF_PATH;
+v9 expects quoted; upstream cache option policies needed scoped CMP0077/0126.
+v8 custom allocator without GC has NO lv_deinit: reject that config explicitly
+instead of leaving unresettable global state. Host test v8 arena is 256 KiB,
+not a claimed embedded footprint. Capability macro normally tests feature name;
+LVGL explicitly maps to LvGui without constructing library resources.
+Initial failure logs preserved locally; no waived tests.
+
+Next: sanitized graphics runs, forced VM OOM/exception/Stop scope tests, all
+constructors/styles functional coverage, remaining typed APIs/assets/input/
+thread/async drivers and vendor build routes; implement real TFT_eSPI bridge.
+LVGL wrapper remains WIP/incomplete; security/broader compiler/Studio/roadmap
+and hardware/review gates remain unfinished. All release/merge actions blocked.

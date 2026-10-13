@@ -1,0 +1,9 @@
+#include "lv_conf9.h"
+#undef LV_USE_SLIDER
+#define LV_USE_SLIDER 0
+#undef LV_COLOR_DEPTH
+#define LV_COLOR_DEPTH 32
+#undef LV_DRAW_BUF_STRIDE_ALIGN
+#define LV_DRAW_BUF_STRIDE_ALIGN 8
+#undef LV_DRAW_BUF_ALIGN
+#define LV_DRAW_BUF_ALIGN 64

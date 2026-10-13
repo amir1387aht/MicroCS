@@ -12,6 +12,9 @@
  * Built with -DMCS_OS=MCS_OS_POSIX (make OS=posix) scripts can also start OS threads
  * (Thread.Start / Thread.Run / Channel, docs/THREADS.md). */
 #include "mcs.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+#endif
 #include "mcs_vfs.h"
 #include "mcs_hal.h"
 #include "mcs_sched.h"
@@ -46,6 +49,9 @@ static void on_sigint(int sig) { (void)sig; g_interrupted = 1; if (g_vm) mcs_req
 
 static int hook(mcs_vm_t* vm, void* ud) {
     (void)ud;
+#if MCS_ENABLE_LVGL
+    if (mcs_lvgl_poll(vm) < 0) return 1;
+#endif
 #if MCS_ENABLE_SHELL
     if (g_shell && mcs_shell_poll_break(vm)) return 1;
 #else

@@ -1,0 +1,18 @@
+{
+  "status": "partial real implementation, not production/complete wrapper",
+  "dependencies": {
+    "8.4.0": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
+    "9.4.0": "c016f72d4c125098287be5e83c0f1abed4706ee5"
+  },
+  "toolchain": {
+    "cmake": "3.31.6",
+    "gcc": "11.5.0"
+  },
+  "build_contract_cases_per_version": 7,
+  "native_checks_per_version": 662,
+  "language_tests_per_version": 85,
+  "physical_hardware": "unavailable",
+  "security_review": "not performed",
+  "sanitized_lvgl_runs": "next checkpoint",
+  "full_api_coverage": "unfinished"
+}

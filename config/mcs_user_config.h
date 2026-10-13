@@ -239,6 +239,17 @@
 /* u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8, needs olikraus' u8g2 library (the build finds
  * or downloads it). Displays and fonts compiled in - names: `python3 tools/u8g2.py displays`,
  * `python3 tools/u8g2.py fonts`; other fonts load from MCS_U8G2_FONT_DIR at run time. */
+/* Optional LVGL; OFF by default, real upstream not bundled. docs/LVGL.md. */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL 0          /* explicit external headers/library/config required; docs/LVGL.md */
+#endif
+#ifndef MCS_LVGL_OBJECTS
+#define MCS_LVGL_OBJECTS 128       /* bounded live GUI object handles */
+#endif
+#ifndef MCS_LVGL_EVENTS
+#define MCS_LVGL_EVENTS 32         /* bounded event queue; overflow counted explicitly */
+#endif
+
 #ifndef MCS_ENABLE_U8G2
 #define MCS_ENABLE_U8G2           0    /* "u8g2" driver: C# U8g2 / U8x8 (needs the u8g2 library) */
 #endif

@@ -10,7 +10,7 @@ in [LANGUAGE.md](LANGUAGE.md#deliberate-microcs-behaviour-differs-from-net). Lib
 be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` flags of
 `include/mcs_config.h` (set them in your `mcs_user_config.h`, see [CONFIGURATION.md](CONFIGURATION.md)).
 
-**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Network (modules/net)](#network-modulesnet) · [Bluetooth (modules/ble)](#bluetooth-modulesble) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
+**Contents:** [Core](#core) · [Strings](#strings) · [Collections](#collections) · [Filesystem (modules/fs)](#filesystem-modulesfs) · [Hardware (modules/hal)](#hardware-moduleshal) · [Drivers (modules/drivers)](#drivers-modulesdrivers) · [Displays (modules/drivers, optional U8g2)](#displays-modulesdrivers-optional-u8g2) · [Optional LVGL GUI (modules/lvgl)](#optional-lvgl-gui-moduleslvgl) · [Network (modules/net)](#network-modulesnet) · [Bluetooth (modules/ble)](#bluetooth-modulesble) · [Threads (modules/threads)](#threads-modulesthreads) · [Scheduler (modules/sched)](#scheduler-modulessched)
 
 ## Core
 
@@ -126,6 +126,14 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **U8x8** | instance | `BusClock` `I2CAddress` `Display` `Bus` `Rows` `Cols` `Font` `CursorX` `CursorY` `LogRedrawOnNewline` `LogLineHeightOffset` `FontWidth` `FontHeight` | `Begin(…)` `InitDisplay()` `ClearDisplay()` `Clear()` `SetPowerSave(·)` `Sleep()` `Wake()` `SetContrast(·)` `SetFlipMode(·)` `RefreshDisplay()` `SetBusClock(·)` `SetI2CAddress(·)` `SetFont(·)` `SetCursor(·, ·)` `Home()` `Print(·)` `Println(…)` `UserInterfaceSelectionList(·, ·, ·)` `UserInterfaceMessage(·, ·, ·, ·)` `UserInterfaceInputValue(·, ·, ·, ·, ·, ·, ·)` `GetMenuEvent()` `SetMenuInput(·)` `LogBegin(…)` `Log(·)` `LogLine(…)` `DrawLog(·, ·)` `Dispose()` `ClearLine(·)` `FillDisplay()` `DrawGlyph(·, ·, ·)` `Draw1x2Glyph(·, ·, ·)` `Draw2x2Glyph(·, ·, ·)` `DrawString(·, ·, ·)` `DrawUTF8(·, ·, ·)` `Draw1x2String(·, ·, ·)` `Draw1x2UTF8(·, ·, ·)` `Draw2x2String(·, ·, ·)` `Draw2x2UTF8(·, ·, ·)` `DrawTile(·, ·, ·, ·)` `SetInverseFont(·)` `GetUTF8Len(·)` | `new U8x8(display)` — 8×8 text without a frame buffer |
 | **U8x8** | static | `Displays` `Fonts` | `I2C(…)` `SoftI2C(…)` `SPI(…)` `SoftSPI(…)` `Soft3WireSPI(…)` `Parallel8080(…)` `Parallel6800(…)` `KS0108(…)` |  |
 
+## Optional LVGL GUI (modules/lvgl)
+
+| Type | Kind | Properties | Methods | Notes |
+|---|---|---|---|---|
+| **LvGui** | instance | `Screen` `DroppedEvents` `FlushCount` `Backend` | `Pump(·)` `PollEvent()` `Input(·, ·, ·)` `Dispose()` | `MCS_ENABLE_LVGL`; WIP real 8.4/9.4 subset, not full API coverage ([LVGL.md](LVGL.md)) |
+| **LvGui** | static | `Version` | — | real pinned upstream version |
+| **LvObject** | instance | `Kind` `Text` `Value` `Width` `Height` `Parent` `ChildCount` | `Create(·)` `Delete()` `Clean()` `SetRange(·, ·)` `SetSize(·, ·)` `SetPos(·, ·)` `SetStyle(…)` `Child(·)` `AddState(·)` `ClearState(·)` `SendEvent(·)` | generation-checked handles; config-disabled operations raise |
+
 ## Network (modules/net)
 
 | Type | Kind | Properties | Methods | Notes |
@@ -194,4 +202,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1319 members in 109 tables._
+_1346 members in 112 tables._
