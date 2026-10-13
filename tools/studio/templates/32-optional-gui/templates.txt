@@ -10,9 +10,9 @@ requires: Compiler, LVGL
 Use script-fed pointer input for a real LVGL hit test and bounded event polling. The native input driver may replace script input in hardware firmware.
 
 [tft_draw.cs] TFT_eSPI drawing and text
-requires: Compiler, TFT_eSPI
+requires: Compiler, TFT
 Draw RGB565 primitives and compiled font text. Needs a reviewed firmware TFT setup and actual hardware; no universal pinout is assumed.
 
 [tft_lvgl.cs] TFT_eSPI + LVGL bridge
-requires: Compiler, TFT_eSPI, LVGL
+requires: Compiler, TFT, LVGL
 Attach the synchronous TFT backend before constructing a GUI. Dispose the GUI before detaching and disposing its display; no DMA or hardware presence guarantee.

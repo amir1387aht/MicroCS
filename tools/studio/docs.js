@@ -1733,7 +1733,7 @@ new(string message, Exception inner) | Wrapping another exception
 @DateTime | (not available - use RTC.Now, Unix seconds)
 
 @Tft | Optional real Arduino TFT_eSPI WIP subset; explicit firmware setup/dependency; RGB565 colors; not proof of hardware
-Tft(): Tft | One native driver; no hardware initialization before Begin
+new() | One native driver; no hardware initialization before Begin
 Version: string | Actual TFT_ESPI_VERSION header value; manifest/tag may differ
 .Begin(): void | Idempotent real hardware initialization; no per-transfer acknowledgement is exposed upstream
 .Dispose(): void | Idempotent native cleanup; rejects while an attached LvGui is live

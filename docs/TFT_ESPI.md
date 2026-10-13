@@ -74,7 +74,7 @@ Coordinates are -32767..32767, rectangle dimensions 1..4096, circle radius
 Text is consumed synchronously, <=4096 bytes without embedded NUL. Negative or
 out-of-range arguments raise; operations on disposed/unbegun objects raise.
 The native TFT object is destroyed before its VM-accounted allocation is freed.
-Capability `TFT_eSPI` means this linked class is available, **not** that a physical
+Capability `TFT` means this linked class is available, **not** that a physical
 display exists. Capability queries never initialize the display.
 
 ## LVGL bridge and lifetime

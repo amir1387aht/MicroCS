@@ -27,7 +27,8 @@ fs.mkdirSync(OUT, { recursive: true });
         for (const [src, member] of [
             ['var display = new Tft(); display.', 'AttachLVGL'],
             ['var gui = new LvGui(160,80); gui.', 'Pump'],
-            ['Tft.', 'Version']
+            ['Tft.', 'Version'],
+            ['new Tf', 'Tft']
         ]) {
             assert((await suggest(src)).includes(member), 'optional graphics help: ' + src);
         }
@@ -47,6 +48,26 @@ fs.mkdirSync(OUT, { recursive: true });
         });
         assert(cleared, 'explicit parameter help cannot leak a stale popup into literal text');
         assert(await page.evaluate(() => !!ed.describe('$"{Console.WriteLine}', { a: 11, word: 'WriteLine' })), 'hover documents interpolation member');
+        const suggestAt = async source => page.evaluate(source => {
+            const p = source.indexOf('/*caret*/');
+            ed.ta.value = source.replace('/*caret*/', ''); ed.ta.setSelectionRange(p, p);
+            ed.refresh(true); ed.hideComplete(); ed.suggest(true);
+            return ed.box.style.display === 'block' ? ed.items.map(i => i.label) : [];
+        }, source);
+        let visible = await suggestAt('void A(int first) { string leaked="x"; } void B(int second) { /*caret*/ }');
+        assert(visible.includes('second') && !visible.includes('first') && !visible.includes('leaked'), 'sibling method locals/parameters must not leak');
+        visible = await suggestAt('var item = new List<int>(); { string item="x"; } item./*caret*/');
+        assert(visible.includes('Add') && !visible.includes('Substring'), 'closed shadow resolves outer list');
+        visible = await suggestAt('var item = new List<int>(); { string item="x"; item./*caret*/ }');
+        assert(visible.includes('Substring') && !visible.includes('Add'), 'inner shadow resolves string');
+        visible = await suggestAt('void Outer() { void Local() {} } void Other() { /*caret*/ }');
+        assert(!visible.includes('Local'), 'nested function must not leak into sibling');
+        const leakedSignature = await page.evaluate(() => {
+            const source='void Outer() { void Local(int n) {} } void Other() { Local(/*caret*/ }';
+            const p=source.indexOf('/*caret*/'); ed.ta.value=source.replace('/*caret*/','');
+            ed.ta.setSelectionRange(p,p); ed.sigUpdate(true); return ed.sig?.name || null;
+        });
+        assert.strictEqual(leakedSignature,null,'out-of-scope function parameter help must not leak');
         // Exercise real keyboard input too: auto-paired quotes/braces must not
         // suppress assistance when the caret is still inside an expression.
         for (const [typed, label] of [['$"{Con', 'Console'], ['$"{Console.', 'WriteLine'], ['$@"{Con', 'Console'], ['@$"{Console.', 'WriteLine']]) {
@@ -57,6 +78,6 @@ fs.mkdirSync(OUT, { recursive: true });
         await suggest('$@"status\n{Console.');
         await page.screenshot({ path: OUT + '/interpolation-completion.png' });
         assert.deepStrictEqual(errors, [], 'no page errors');
-        console.log('PASS real Studio completion/signatures/hover in nested, multiline and incomplete interpolations; text suppression');
+        console.log('PASS real Studio scoped locals/shadows/functions and interpolation completion/signatures/hover; text suppression');
     } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

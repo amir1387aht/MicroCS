@@ -126,3 +126,29 @@ u8g2 build: `make fetch-u8g2 mcs-u8g2 && node tests/studio/test_templates.js bui
 `tests/studio/test_studio.js` tests the page in a headless browser.
 
 Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-browser-microcs-studio).
+
+### Scoped semantic lookup (WIP)
+
+Cached structural scopes and declaration intervals now keep block locals,
+method/constructor/lambda parameters, for/foreach/catch variables and nested
+functions in their own scope. A closed shadow no longer overrides an outer
+variable's inferred type. Class fields are resolved through the enclosing class,
+not leaked into other classes' locals. Incomplete bodies keep valid ancestor
+scope available. Native assistance includes the real optional LVGL/TFT subset;
+constructor signatures are represented as constructors, not fake static factories.
+Parameter splitting ignores commas/brackets/whitespace inside literal defaults.
+
+This remains a tolerant lightweight source model, not a complete C# compiler or
+project semantic engine. Complex patterns, all declaration variants, project
+imports/namespaces, diagnostics and navigation still need dedicated work. Unknown
+types are not a promise of unsupported .NET APIs. `tests/studio/test_scope.js`
+contains direct visibility/type/default regressions; real editor popup/signature
+and full serial integration tests cover the same implementation. Exact Node
+host cache-latency samples are recorded with their fixture; do not interpret them
+as browser/MCU results or a universal speedup.
+
+The optional TFT capability is `TFT` (class `Tft`). Capability protocol v1 names
+must match `[A-Za-z][A-Za-z0-9.]*`; every native name is now tested against that
+existing client grammar. Introducing an underscore-containing capability would
+invalidate the entire report for older Studio clients, not merely hide the new
+optional feature. No protocol version change is needed for the legal new name.

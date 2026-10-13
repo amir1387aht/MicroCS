@@ -1,5 +1,5 @@
 // Real synchronous backend; native RGB565, no retained buffer and no DMA.
-if (!Hal.Has("TFT_eSPI") || !Hal.Has("LVGL"))
+if (!Hal.Has("TFT") || !Hal.Has("LVGL"))
 {
     Console.WriteLine("This firmware needs both optional TFT_eSPI and LVGL capabilities.");
     return;

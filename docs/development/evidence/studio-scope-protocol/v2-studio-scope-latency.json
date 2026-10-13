@@ -1,0 +1,30 @@
+{
+  "kind": "checked Node host source-model latency; NOT browser or MCU timing",
+  "node": "v24.14.1",
+  "arch": "x64",
+  "platform": "linux",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.50GHz",
+  "functions": 401,
+  "source_bytes": 35608,
+  "fixture_sha256": "9344ad4dc9c1edd685866f814e18b56ef7e0659dd091de1b74da698f8e071d25",
+  "cold_parse_ms": [
+    37.925059,
+    29.646303000000003,
+    20.822004000000007,
+    14.99685100000002,
+    20.463554999999985,
+    38.592449999999985,
+    17.259163
+  ],
+  "warm_locals_plus_type_ms": [
+    0.03436009999999996,
+    0.03213166000000001,
+    0.03370609999999999,
+    0.032693110000000164,
+    0.07444701000000009,
+    0.03229485000000011,
+    0.03691952000000015
+  ],
+  "workload": "seven distinct edits; one cold symbol model + 100 cached locals/type lookups per edit",
+  "scope": "single-document WIP lookup; no project parser or universal latency claim"
+}

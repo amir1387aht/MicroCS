@@ -1050,7 +1050,7 @@ class Editor {
         for (const c of ["List<int>", "List<string>", "Dictionary<string, int>", "Dictionary<string, string>", "HashSet<int>", "Queue<string>", "Stack<int>", "byte[]", "int[]", "string[]"]) add({ label: c, kind: "c", detail: "type" });
       } else {
         for (const [name, type] of Lang.locals(v, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, v, p) || "var"), local: true });
-        for (const name of Object.keys(sy.funcs)) add({ label: name, kind: "m", detail: sy.funcs[name][0].ret, mems: sy.funcs[name], owner: "" });
+        for (const [name, funcs] of Object.entries(Lang.functionsAt(v, p))) add({ label: name, kind: "m", detail: funcs[0].ret, mems: funcs, owner: "" });
         for (const name of Object.keys(sy.user)) add({ label: name, kind: "c", detail: sy.user[name].kind, cls: name });
         for (const name of Object.keys(sy.enums)) add({ label: name, kind: "e", detail: "enum" });
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });

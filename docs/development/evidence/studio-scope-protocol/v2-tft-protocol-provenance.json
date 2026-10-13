@@ -1,0 +1,83 @@
+{
+  "validation": "cross-compile-and-link ONLY; NOT hardware execution",
+  "platform": "espressif32@6.10.0",
+  "board": "esp32dev",
+  "ram_note": "PIO static section usage, excludes runtime VM/upstream heap/stack",
+  "log_sha256": "99b6589b0475ada36cba14530cb279493eb6940ef94f16269d02b68214b37aed",
+  "dependencies": {
+    "TFT_eSPI": "16e37595040eac69cd628e4bffb56fc30cad6299",
+    "LVGL8": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
+    "LVGL9": "c016f72d4c125098287be5e83c0f1abed4706ee5"
+  },
+  "environments": {
+    "tft-standalone": {
+      "static_ram_bytes": 21928,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 512597,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "6b77dcce280311eaa69f4d449042b9b9698abc1983b9a5ab3f5e195ffa38c31b",
+      "elf_file_bytes": 9359696,
+      "bin_sha256": "5bf568d67e55565c01f947c951fe53c172a3529dc06cdba7b109ed6a2b7e5e82",
+      "bin_file_bytes": 512960
+    },
+    "tft-lvgl8": {
+      "static_ram_bytes": 90048,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 743437,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "1935bb99930c7ae853944243630f4f20468383a575a7e8e7420f78446d105615",
+      "elf_file_bytes": 12775740,
+      "bin_sha256": "f84b49db09ed755456d062ccec405819de0ee1ae879b6bee9dded9e3d4c81438",
+      "bin_file_bytes": 743808
+    },
+    "tft-lvgl9": {
+      "static_ram_bytes": 22512,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 809609,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "73b1837c9aa81d42f804d35c4fe4e432afeb33af76cb2979c83b1e571e3127c3",
+      "elf_file_bytes": 13469232,
+      "bin_sha256": "b1432b510abda874710a3a66c5424ca727cfcd3540f08f858699a12d1eef374e",
+      "bin_file_bytes": 809968
+    },
+    "tft-touch-lvgl9": {
+      "static_ram_bytes": 22512,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 811413,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "07ed7947c9ee5d82b179569ad2c9ff0c1b541a92b232af74615699b2ed1b6010",
+      "elf_file_bytes": 13485684,
+      "bin_sha256": "5288640212422c6315b1deae4b4e7f6cc4f3df550bc92a05db2d5b41142341de",
+      "bin_file_bytes": 811776
+    },
+    "graphics-off": {
+      "static_ram_bytes": 21828,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 491661,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "1329e02ea6d97f96c68c7cd08a49ae07cfb8005ccd70fe10d0a87897324608de",
+      "elf_file_bytes": 8809376,
+      "bin_sha256": "c52a5de0f9085f37ad096f944781c272ee773c9e15953bbf81937365aeb58af5",
+      "bin_file_bytes": 492032
+    }
+  },
+  "integration_source_sha256": {
+    "include/mcs.h": "abbea2f78f9909ee09062d6255b6371af75337ddb90452a662e7786ef69831b3",
+    "include/mcs_config.h": "64f6fceb28b51e352e8bac751dbf5a5272498812d4647b86a70674445d3e4e31",
+    "include/mcs_capabilities.def": "5b768cf730ef1dbb234739fe3f1f4758a7c663b0e5d4e516e9706257c08fe341",
+    "src/mcs_vm.c": "f52c51fd8ea55af84ff7d021acd415de299014bd6efe5ca3f55fb7e74eb1500f",
+    "ports/arduino/mcs_arduino_tft.cpp": "9bb05e73de74d83687fe1f0a435dedcb881800b14e9b86e214fd9cec17b021a7",
+    "tools/pio_build.py": "169b1d874110052c01c75b5e6b6c4280984e05600da7002ad3eb50179d151556",
+    "library.json": "68a614fd3b4799225fe55e66b2a6a37cd25e4a8b1c0d4062a066f3836cf8b0f5",
+    "tests/tft/platformio.ini": "b8abe74b07e50b494fcd81ebf6528ecf1d99a747edf11ace36c774447a14ed55",
+    "tests/tft/src/main.cpp": "aeedbec654639ed9e11fabc8681c70853bacb235b091cf19dba845c242f6d1d1",
+    "tests/tft/configs/lvgl8/lv_conf.h": "16c1a5d3ccd33100e680780ee16ac1eaf832f67fdc382a0e821783480caab938",
+    "tests/tft/configs/lvgl9/lv_conf.h": "832f7104379c8c9bcade85e7cff66bb344470f412246755ea276b4180da05722",
+    "modules/tft/mcs_display_rgb565.c": "f4d5a5ebdb0b72130f72d89d517fdf5e46167641d7d2ed27fd6a91e2f71eaeb8",
+    "include/mcs_display_rgb565.h": "cfddc15d5d151029e5db19d3b2f696f9a393b38df0b4671c39b9ebfa2105b4db",
+    "modules/lvgl/mcs_lvgl.c": "2dfd637978663ccee339d807f4b3d6ab1850088a8c97693f54cfb79d698eb2df",
+    "modules/lvgl/mcs_lvgl_calls.inc": "5b42e14c8d3e4d303f95a22a2adbd7b0bf52fd7a1e17c6499837c3e0534ec037",
+    "modules/lvgl/mcs_lvgl_styles.inc": "4443848be40f96cd48faf65a926ab196fc84db55773dadba86abd1549604630f",
+    "modules/lvgl/mcs_lvgl_widgets.inc": "1c65fc3850828a87db93f7558358763b96829e3273f8df10aae38f44f019a550"
+  }
+}

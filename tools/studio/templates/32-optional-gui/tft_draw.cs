@@ -1,5 +1,5 @@
 // Review the firmware's TFT_eSPI controller/pins/voltage before using hardware.
-if (!Hal.Has("TFT_eSPI"))
+if (!Hal.Has("TFT"))
 {
     Console.WriteLine("This firmware lacks TFT_eSPI. Enable the optional Arduino driver and reviewed TFT setup.");
     return;

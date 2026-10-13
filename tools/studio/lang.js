@@ -17,15 +17,19 @@
   const classes = Object.create(null);
   function parseParams(s) {
     s = s.trim(); if (!s) return [];
-    const out = []; let depth = 0, cur = "";
-    for (const ch of s) {
-      if (ch === "<" || ch === "(") depth++; else if (ch === ">" || ch === ")") depth--;
-      if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+    // Split only syntactic commas; literal/comment payloads retain exact defaults.
+    const masked = /["']|\/[*\/]/.test(s) ? blank(s, true) : s;
+    const out = []; let depth = 0, start = 0;
+    for (let i = 0; i < masked.length; i++) {
+      const ch = masked[i];
+      if ("<([{".includes(ch)) depth++;
+      else if (">)]}".includes(ch)) depth--;
+      if (ch === "," && depth === 0) { out.push(s.slice(start, i)); start = i + 1; }
     }
-    out.push(cur);
+    out.push(s.slice(start));
     return out.map((p) => {
       p = p.trim();
-      const m = /^(.*?)\s*=\s*(.+)$/.exec(p); let def = null;
+      const m = /^([\s\S]*?)\s*=\s*([\s\S]+)$/.exec(p); let def = null;
       if (m) { p = m[1]; def = m[2]; }
       const k = p.lastIndexOf(" ");
       return { type: k > 0 ? p.slice(0, k).trim() : "object", name: k > 0 ? p.slice(k + 1) : p, def };
@@ -62,7 +66,6 @@
       (tbl[mem.name] || (tbl[mem.name] = [])).push(mem);
     }
   }
-  parseDocs(window.MCS_DOCS_SRC);
 
   /* ---------------------------------------------------------------- types */
   /* "List<int>" -> { base: "List", args: ["int"] }   "byte[]" -> { base: "Array_i", args: ["byte"] } */
@@ -251,9 +254,153 @@
   }
   const TYPE_RE = String.raw`(?:[A-Za-z_][\w.]*(?:\s*<[^<>;(){}=]*(?:<[^<>;(){}=]*>[^<>;(){}=]*)*>)?(?:\[[,\s]*\])*\??|\([^()]*\))`;
   let cacheSrc = null, cache = null;
+  /* Cached lexical declaration intervals, not a promise of a full C# parser.
+   * Strings/comments use the same offset-preserving lexer; incomplete delimiters
+   * keep ancestor scopes live to EOF. Unknown inference stays unknown. */
+  function scopeModel(src, b, user) {
+    const structural = blank(src, true), pairs = new Map(), stack = [];
+    const scopes = [{ start: 0, end: src.length, open: -1, parent: null }];
+    const brace = [scopes[0]];
+    for (let i = 0; i < structural.length; i++) {
+      const ch = structural[i];
+      if ('([{'.includes(ch)) {
+        stack.push({ ch, at: i });
+        if (ch === '{') {
+          const s = { start: i + 1, end: src.length, open: i, parent: brace[brace.length - 1] };
+          scopes.push(s); brace.push(s);
+        }
+      } else if (')]}'.includes(ch)) {
+        const expected = { ')': '(', ']': '[', '}': '{' }[ch];
+        if (stack.length && stack[stack.length - 1].ch === expected) {
+          const open = stack.pop(); pairs.set(open.at, i);
+        }
+        if (ch === '}' && brace.length > 1) brace.pop().end = i;
+      }
+    }
+    const containing = p => {
+      let lo = 0, hi = scopes.length;
+      while (lo < hi) { const mid = (lo + hi) >>> 1; if (scopes[mid].start <= p) lo = mid + 1; else hi = mid; }
+      let found = scopes[Math.max(0, lo - 1)];
+      while (found.parent && p > found.end) found = found.parent;
+      return found;
+    };
+    const skip = p => { while (p < structural.length && /\s/.test(structural[p])) p++; return p; };
+    const statementEnd = (p, depth = 0) => {
+      p = skip(p);
+      if (depth > 32) return src.length;
+      if (structural[p] === '{') return pairs.get(p) ?? src.length;
+      const control = /^(?:if|for|foreach|while|using|lock)\b/.exec(structural.slice(p));
+      if (control) {
+        const open = skip(p + control[0].length);
+        if (structural[open] === '(' && pairs.has(open)) {
+          const end = statementEnd(pairs.get(open) + 1, depth + 1);
+          const next = skip(end + 1);
+          return /^else\b/.test(structural.slice(next)) ? statementEnd(next + 4, depth + 1) : end;
+        }
+      }
+      for (let i = p; i < structural.length; i++) {
+        if (structural[i] === ';') return i;
+        if (structural[i] === '}') return i - 1;
+        if ('([{'.includes(structural[i]) && pairs.has(i)) i = pairs.get(i);
+      }
+      return src.length;
+    };
+    const callable = [], controls = [], declarations = [];
+    const forbidden = /^(return|new|else|case|throw|in|is|as|await|yield|using|static|readonly|const|public|private|protected|internal|out|ref|params|this|namespace|class|struct|record|interface|enum|goto)$/;
+    const reservedName = name => KEYW.has(name) && !/^(get|set|value|when|where|init)$/.test(name);
+    const validType = t => !forbidden.test(t) && (!KEYW.has(t) || /^(void|int|bool|string|double|float|long|byte|char|object|short|uint|ushort|ulong|sbyte|var)$/.test(t));
+    const registerCallable = (open, close, tail, paramText) => {
+      tail = skip(tail);
+      if (structural[tail] !== '{' && structural.slice(tail, tail + 2) !== '=>') return;
+      const body = structural[tail] === '{' ? tail : skip(tail + 2);
+      const region = { start: open, end: statementEnd(body), open, close };
+      callable.push(region);
+      const params = parseParams(paramText);
+      for (const p of params) if (p.name && /^[A-Za-z_]\w*$/.test(p.name)) {
+        const relative = paramText.search(new RegExp(String.raw`\b${esc(p.name)}\b`));
+        declarations.push({ name: p.name, t: p.type ? p.type.replace(/^(?:(?:ref|out|in|params|this)\s+)+/, "") : null, at: open + 1 + Math.max(0, relative),
+          visible: open, end: region.end, kind: 'parameter' });
+      }
+    };
+    const functionRe = new RegExp(String.raw`\b(${TYPE_RE})\s+([A-Za-z_]\w*)\s*\(`, 'g');
+    let m;
+    while ((m = functionRe.exec(structural))) {
+      if (!validType(m[1]) || reservedName(m[2])) continue;
+      const open = functionRe.lastIndex - 1, close = pairs.get(open);
+      if (close != null) registerCallable(open, close, close + 1, src.slice(open + 1, close));
+    }
+    for (const c of Object.values(user)) {
+      const re = new RegExp(String.raw`\b${esc(c.name)}\s*\(`, 'g');
+      while ((m = re.exec(structural))) {
+        const open = re.lastIndex - 1, close = pairs.get(open);
+        if (close == null) continue;
+        let tail = skip(close + 1);
+        const base = /^:\s*(?:base|this)\s*\(/.exec(structural.slice(tail));
+        if (base) { const call = tail + base[0].length - 1; tail = (pairs.get(call) ?? src.length) + 1; }
+        registerCallable(open, close, tail, src.slice(open + 1, close));
+      }
+    }
+    const controlRe = /\b(for|foreach|catch|using)\s*\(/g;
+    while ((m = controlRe.exec(structural))) {
+      const open = controlRe.lastIndex - 1, close = pairs.get(open);
+      if (close != null) {
+        let body = skip(close + 1);
+        const filter = /^when\s*\(/.exec(structural.slice(body));
+        if (m[1] === 'catch' && filter) {
+          const filterOpen = body + filter[0].length - 1;
+          body = (pairs.get(filterOpen) ?? src.length) + 1;
+        }
+        controls.push({ start: open, close, end: statementEnd(body), kind: m[1] });
+      }
+    }
+    // Typed parenthesized lambda parameters; implicit ones retain unknown type.
+    const lambdaRe = /\(([^()]*)\)\s*=>/g;
+    while ((m = lambdaRe.exec(structural))) {
+      const open = m.index, close = pairs.get(open);
+      if (close == null) continue;
+      const text = src.slice(open + 1, close), tail = skip(lambdaRe.lastIndex);
+      const params = text.split(',').map(x => x.trim()).filter(Boolean);
+      const region = { start: open, close, end: statementEnd(tail) };
+      callable.push(region);
+      for (const text of params) {
+        const parsed = /^[A-Za-z_]\w*$/.test(text) ? { name: text, type: null } : parseParams(text)[0];
+        if (parsed && /^[A-Za-z_]\w*$/.test(parsed.name)) declarations.push({ name: parsed.name,
+          t: parsed.type, at: open + 1, visible: open, end: region.end, kind: 'parameter' });
+      }
+    }
+    const bareLambda = /(?:[=(,:\[])\s*([A-Za-z_]\w*)\s*=>/g;
+    while ((m = bareLambda.exec(structural))) {
+      const at = m.index + m[0].indexOf(m[1]);
+      declarations.push({ name: m[1], t: null, at, visible: at,
+        end: statementEnd(bareLambda.lastIndex), kind: 'parameter' });
+    }
+    const re = new RegExp(String.raw`(?:^|[^\w.])(${TYPE_RE})\s+([A-Za-z_]\w*)\s*(?=[=;,)]|\bin\b)`, 'g');
+    while ((m = re.exec(b))) {
+      if (!validType(m[1]) || reservedName(m[2])) continue;
+      const at = m.index + m[0].lastIndexOf(m[2]);
+      if (callable.some(r => r.start < at && at < r.close)) continue;
+      const owner = containing(at);
+      if (Object.values(user).some(c => c.open >= 0 && c.open === owner.open)) continue; // class fields aren't locals
+      let end = owner.end, kind = 'local', collection = null;
+      const control = controls.filter(r => r.start < at && at < r.close).pop();
+      if (control) {
+        end = control.end;
+        if (control.kind === 'foreach') {
+          const inMatch = /\bin\b/.exec(b.slice(re.lastIndex, control.close));
+          if (inMatch) { kind = 'each'; collection = src.slice(re.lastIndex + inMatch.index + 2, control.close).trim(); }
+        }
+      }
+      declarations.push({ name: m[2], t: m[1], at, visible: at, end, kind, collection,
+        initializerAt: re.lastIndex, initializerEnd: statementEnd(re.lastIndex) });
+    }
+    declarations.sort((a, b) => a.at - b.at);
+    return { scopes, declarations, containing,
+      visible: p => declarations.filter(d => d.visible <= p && p <= d.end) };
+  }
+
   function symbols(src) {
     if (src === cacheSrc) return cache;
-    const b = blank(src);
+    const b = blank(src), strings = lexical(src).strings;
     const user = Object.create(null), funcs = Object.create(null), enums = Object.create(null);
     /* classes / structs / records / interfaces */
     const cre = /\b(class|struct|record|interface)\s+([A-Za-z_]\w*)(?:\s*<[^>{]*>)?(?:\s*\(([^)]*)\))?(?:\s*:\s*([\w<>,.\s]+?))?\s*(?=\{|;)/g;
@@ -261,7 +408,7 @@
     while ((m = cre.exec(b))) {
       const name = m[2], open = b.indexOf("{", m.index + m[0].length - 1);
       const end = open >= 0 && b[m.index + m[0].length] !== ";" ? matchBrace(b, open) : m.index + m[0].length;
-      const c = user[name] = { name, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, doc: `${m[1]} ${name} (this file)` };
+      const c = user[name] = { name, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, open: open >= 0 && open < end ? open : -1, doc: `${m[1]} ${name} (this file)` };
       if (m[3] != null) {                                  // primary constructor (record / class)
         const ps = parseParams(m[3]); c.ctors.push({ name, kind: "ctor", params: ps, ret: name, doc: "", cls: name });
         for (const p of ps) (c.i[p.name] = [{ name: p.name, kind: "p", ret: p.type, doc: "", cls: name, inst: true }]);
@@ -275,47 +422,65 @@
         if (depth === 0) {
           if (ch === "(") par++; else if (ch === ")") par = Math.max(0, par - 1);
           if (par === 0 && (ch === "{" || ch === ";" || ch === "=" && body[i + 1] !== ">" && body[i + 1] !== "=" && !/[=!<>]/.test(body[i - 1]))) {
-            memberDecl(c, stmt.trim(), name);
+            // Restore literal defaults into the masked declaration without
+            // restoring comments or changing offsets used for scope parsing.
+            const absolute = open + 1 + stmtStart, chars = stmt.split("");
+            for (const r of strings) if (r.start < open + 1 + i && r.end > absolute) {
+              for (let at = Math.max(r.start, absolute); at < Math.min(r.end, open + 1 + i); at++) chars[at - absolute] = src[at];
+            }
+            memberDecl(c, chars.join("").trim(), name);
             stmt = "";
             if (ch === "=") { while (i < body.length && body[i] !== ";" && body[i] !== "{") i++; if (body[i] === "{") { const e = matchBrace(body, i); i = e; } }
             else if (ch === "{") { depth = 1; }
             continue;
           }
           if (ch === "}") { stmt = ""; continue; }
+          if (!stmt) stmtStart = i;
           stmt += ch;
         } else {
           if (ch === "{") depth++; else if (ch === "}") { depth--; if (depth === 0) stmt = ""; }
         }
       }
-      void stmtStart;
     }
     /* enums */
     const ere = /\benum\s+([A-Za-z_]\w*)\s*(?::\s*\w+\s*)?\{([^}]*)\}/g;
     while ((m = ere.exec(b))) enums[m[1]] = m[2].split(",").map((x) => x.trim().replace(/\s*=.*$/, "")).filter((x) => /^[A-Za-z_]\w*$/.test(x));
+    const scope = scopeModel(src, b, user);
     /* top-level / local functions: Type Name(params) { or => */
     const fre = new RegExp(String.raw`(?:^|[;{}\n])\s*((?:(?:static|public|private|internal|protected|async|unsafe|override|virtual|abstract|extern|new)\s+)*)(${TYPE_RE})\s+([A-Za-z_]\w*)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*(?=\{|=>)`, "g");
     while ((m = fre.exec(b))) {
       const type = m[2], name = m[3];
       if (KEYW.has(type) && !/^(void|int|bool|string|double|float|long|byte|char|object|short|uint|var)$/.test(type) || KEYW.has(name)) continue;
       if (/^(if|while|for|foreach|switch|catch|using|lock|return|new|else)$/.test(type)) continue;
-      const inClass = Object.values(user).some((c) => m.index > c.start && m.index < c.end);
-      if (inClass) continue;
-      (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(m[4]), ret: type, doc: "local function (this file)", cls: "" });
+      const owner = scope.containing(fre.lastIndex - 1);
+      if (Object.values(user).some(c => c.open >= 0 && c.open === owner.open)) continue;
+      const paramsAt = m.index + m[0].lastIndexOf("(" + m[4] + ")") + 1;
+      (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(src.slice(paramsAt, paramsAt + m[4].length)), ret: type, doc: "local function (this file)", cls: "", scopeStart: owner.start, scopeEnd: owner.end });
     }
-    cacheSrc = src; cache = { user, funcs, enums, b };
+    cacheSrc = src; cache = { user, funcs, enums, b, scope };
     return cache;
   }
   function memberDecl(c, d, clsName) {
-    d = d.replace(/\[[^\]]*\]\s*/g, (x) => (/^\[\s*\w/.test(x) && /\]\s*$/.test(x) && !/\w\s*\[/.test(d) ? "" : x)).replace(/\s+/g, " ").trim();
+    d = d.trim();
+    // Attributes can precede a declaration; [] inside types/default strings
+    // are not attributes. Preserve all literal whitespace in displayed defaults.
+    while (/^\[[^\]]*\]\s*/.test(d)) d = d.replace(/^\[[^\]]*\]\s*/, "");
+    const quoted = lexical(d).strings.slice().sort((a, b) => a.start - b.start);
+    let normalized = "", at = 0;
+    for (const r of quoted) if (r.start >= at) {
+      normalized += d.slice(at, r.start).replace(/\s+/g, " ") + d.slice(r.start, r.end);
+      at = r.end;
+    }
+    d = (normalized + d.slice(at).replace(/\s+/g, " ")).trim();
     if (!d) return;
     const isStatic = /\b(static|const)\b/.test(d);
     const mods = /^((?:(?:static|public|private|internal|protected|readonly|const|virtual|override|abstract|async|sealed|new|extern|unsafe|volatile|event)\s+)*)/.exec(d)[1];
     const rest = d.slice(mods.length);
     let m;
-    if ((m = new RegExp(String.raw`^(${clsName})\s*\((.*)\)\s*(?::\s*(?:base|this)\s*\(.*\))?$`).exec(rest))) {
+    if ((m = new RegExp(String.raw`^(${clsName})\s*\(([\s\S]*)\)\s*(?::\s*(?:base|this)\s*\(.*\))?$`).exec(rest))) {
       c.ctors.push({ name: clsName, kind: "ctor", params: parseParams(m[2]), ret: clsName, doc: "", cls: clsName }); return;
     }
-    if ((m = new RegExp(String.raw`^(${TYPE_RE})\s+([A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\((.*)\)(?:\s*where .*)?$`).exec(rest))) {
+    if ((m = new RegExp(String.raw`^(${TYPE_RE})\s+([A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\(([\s\S]*)\)(?:\s*where .*)?$`).exec(rest))) {
       const mem = { name: m[2], kind: "m", params: parseParams(m[3]), ret: m[1], doc: `${isStatic ? "static " : ""}method of ${clsName}`, cls: clsName, inst: !isStatic };
       const t = isStatic ? c.s : c.i; (t[mem.name] || (t[mem.name] = [])).push(mem); return;
     }
@@ -325,6 +490,15 @@
         const t = isStatic ? c.s : c.i; t[nm] = [mem];
       }
     }
+  }
+
+  function functionsAt(src, pos) {
+    const all = symbols(src).funcs, out = Object.create(null);
+    for (const name of Object.keys(all)) {
+      const visible = all[name].filter(f => f.scopeStart <= pos && pos <= f.scopeEnd);
+      if (visible.length) out[name] = visible;
+    }
+    return out;
   }
 
   /* ---------------------------------------------------------------- lookup */
@@ -378,36 +552,21 @@
     if (depth > 4) return null;
     const sy = symbols(src), b = sy.b;
     const upto = pos == null ? b.length : pos;
-    const n = esc(name);
-    const res = [
-      [new RegExp(String.raw`\bforeach\s*\(\s*(${TYPE_RE}|var)\s+${n}\s+in\s+([^)]*)\)`, "g"), "each"],
-      [new RegExp(String.raw`\bout\s+(${TYPE_RE})\s+${n}\b`, "g"), "decl"],
-      [new RegExp(String.raw`(?:^|[^\w.])(${TYPE_RE})\s+${n}\s*(?=[=;,)]|\bin\b)`, "g"), "decl"],
-    ];
     let best = null;
-    for (const [re, k] of res) {
-      let m;
-      while ((m = re.exec(b))) {
-        if (m.index > upto) break;
-        const t = m[1];
-        if (/^(return|new|else|case|throw|in|is|as|await|yield|using|static|readonly|const|public|private|out|ref|params|this)$/.test(t)) continue;
-        if (!best || m.index > best.at) best = { at: m.index, t, k, m };
-      }
-    }
+    for (const d of sy.scope.visible(upto)) if (d.name === name) best = d;
     if (!best) {
       /* fields of the enclosing class */
-      for (const c of Object.values(sy.user)) if (upto > c.start && upto < c.end && (c.i[name] || c.s[name])) return (c.i[name] || c.s[name])[0].ret;
+      for (const c of Object.values(sy.user).sort((a, b) => b.start - a.start)) if (upto > c.start && upto < c.end && (c.i[name] || c.s[name])) return (c.i[name] || c.s[name])[0].ret;
       return null;
     }
-    if (best.k === "each") {
-      const coll = typeOfExpr(src.slice(best.m.index + best.m[0].indexOf(" in ") + 4, best.m.index + best.m[0].length - 1).trim(), src, best.at, depth + 1);
+    if (best.kind === "each") {
       if (best.t !== "var") return best.t;
+      const coll = typeOfExpr(best.collection, src, best.at, depth + 1);
       return coll ? elemType(coll) : null;
     }
-    if (best.t !== "var") return best.t;
-    /* var x = <expr>; */
-    const after = src.slice(best.m.index + best.m[0].length);
-    const em = /^\s*=\s*([^;]*)/.exec(after);
+    if (best.t !== "var") return best.t || null;
+    const after = src.slice(best.initializerAt, best.initializerEnd);
+    const em = /^\s*=\s*([\s\S]*)$/.exec(after);
     return em ? typeOfExpr(em[1].trim(), src, best.at, depth + 1) : null;
   }
   /* type of an expression like `new List<int>()`, `I2C.Scan(0)`, `name.Trim().Split(',')`, `"x"`, `12` */
@@ -435,7 +594,7 @@
       if (i === 0 && !startType) {
         if (p.name === "S") return null;
         if (p.call) {                                    // local function call
-          const f = symbols(src).funcs[p.name]; if (!f) return null;
+          const f = functionsAt(src, pos == null ? src.length : pos)[p.name]; if (!f) return null;
           type = f[0].ret; isStatic = false;
         } else if (/^(string|int|double|bool|char|long|float|byte)$/.test(p.name)) { type = ALIAS[p.name] || p.name; isStatic = true; }
         else {
@@ -551,20 +710,15 @@
       return [];
     }
     const sy = symbols(src);
-    if (sy.funcs[ctx.name]) return sy.funcs[ctx.name];
+    const funcs = functionsAt(src, ctx.open);
+    if (funcs[ctx.name]) return funcs[ctx.name];
     for (const c of Object.values(sy.user)) if (ctx.open > c.start && ctx.open < c.end && (c.i[ctx.name] || c.s[ctx.name])) return (c.i[ctx.name] || c.s[ctx.name]).filter((x) => x.kind === "m");
     return [];
   }
   /* identifiers declared in the file before p, with their types (for completion) */
   function locals(src, p) {
-    const sy = symbols(src), b = sy.b.slice(0, p);
-    const out = new Map();
-    const re = new RegExp(String.raw`(?:^|[^\w.])(${TYPE_RE}|var)\s+([A-Za-z_]\w*)\s*(?=[=;,)]|\bin\b)`, "g");
-    let m;
-    while ((m = re.exec(b))) {
-      if (KEYW.has(m[2]) || /^(return|new|else|case|throw|in|is|as|await|using|namespace|class|struct|enum|goto)$/.test(m[1])) continue;
-      out.set(m[2], m[1] === "var" ? null : m[1]);
-    }
+    const sy = symbols(src), out = new Map();
+    for (const d of sy.scope.visible(p)) out.set(d.name, d.t === "var" ? null : d.t);
     return out;
   }
   /* format a member as a signature string; active = parameter to bold (index) */
@@ -578,6 +732,8 @@
     return `${mem.ret || ""} ${own}.${mem.name} { get; }`.trim();
   }
 
-  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, classInfo, isClassName, membersOf, ctorsOf,
+  parseDocs(window.MCS_DOCS_SRC);
+
+  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, lexical, contextAt, blank, symbols, functionsAt, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();

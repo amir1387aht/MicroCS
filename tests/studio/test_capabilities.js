@@ -24,3 +24,12 @@ assert(TEMPLATES.find(t=>t.src.endsWith('/wifi_ap.cs')).requires.includes('Wifi.
 assert(!TEMPLATES.find(t=>t.src.endsWith('/tcp_echo.cs')).requires.includes('Wifi'));
 assert(TEMPLATES.find(t=>t.src.endsWith('/https_download.cs')).requires.includes('Tls'));
 console.log('PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata');
+
+// Firmware vocabulary must fit existing capability protocol v1 clients.
+const manifest=fs.readFileSync(path.join(__dirname,'../../include/mcs_capabilities.def'),'utf8');
+const names=[...manifest.matchAll(/^MCS_CAP\("([^"\n]+)"/gm)].map(m=>m[1]);
+assert(names.length>80 && names.every(n=>/^[A-Za-z][A-Za-z0-9.]*$/.test(n)));
+const full=parseCapabilities('capabilities=1\n'+names.map(n=>n+'=0').join('\n')+'\n');
+assert(full && full.size===names.length,'every native capability must preserve protocol parsing');
+assert(full.has('TFT') && !full.has('TFT_eSPI'));
+console.log('PASS entire native vocabulary fits existing protocol v1 grammar');

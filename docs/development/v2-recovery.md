@@ -340,3 +340,46 @@ other platforms/hardware, broader LVGL and Studio semantics, core/roadmap/securi
 still incomplete. Independently reproduced Studio sibling-method/closed-block
 local/type leakage; next increment will build cached scope-aware declarations.
 No merge, tag, release, provisioning or irreversible device actions performed.
+
+## Checkpoint 13 — scoped Studio semantics and capability protocol compatibility
+
+Reproduced/fixed siblings' locals/parameters and closed block shadow types leaking
+into completion/inference. Cached lexical structural scopes plus declaration
+visibility intervals now handle method/constructor/typed or implicit lambda
+parameters, for/foreach/catch scopes (including unbraced statements), local
+functions, enclosing fields and incomplete bodies. Expressions inside string
+interpolation still resolve the containing code scope. Ref/out/params modifiers
+are stripped for type inference, not documentation. Semicolon-only records do
+not accidentally own a later function's scope. Unknown types stay unknown.
+
+Found/fixed literal-boundary bugs: semicolons inside string initializers no longer
+truncate inference; commas/brackets/whitespace inside literal defaults do not
+split parameters or erase class-method defaults. Shared lexer powers masks;
+documentation initialization moved after lexer setup to avoid a TDZ dependency.
+Tft constructor help now uses real new() syntax, not a nonexistent static factory.
+Direct scope assertions and actual editor completion/signature/hover tests pass;
+full host-backed fake-WebSerial Studio suite passes after the protocol correction.
+Node host cache-latency samples use a recorded35KB/401-function fixture, not a
+browser/MCU/universal latency claim. Parser is still WIP: not all declaration forms,
+patterns, project/import/namespace semantics, nav or diagnostics are implemented.
+
+The full serial suite exposed a regression introduced at checkpoint12: capability
+name TFT_eSPI contains an underscore, invalid in protocol v1's existing strict
+Studio parser. Whole reports fell back to compiler-only legacy capabilities and
+hid supported templates. Renamed wire capability to legal TFT; internal compile
+flag remains MCS_ENABLE_TFT_ESPI and class remains Tft. Entire manifest vocabulary
+now tested against existing client grammar, including no allocations from probes.
+No incompatible protocol parser/version change or weakened fallback was used.
+All five actual embedded variants rebuilt and linked after correction; fresh
+artifact/source/pin hashes include the capability manifest. Earlier raw evidence
+remains historical, with the defect/follow-up explicitly noted instead of hidden.
+
+Full host make check completed successfully on checkpoint12 C source: all native,
+profile/config/default/GC-stress and11alternate85-script suites passed. Its only
+unintended tracked output was examples/lowram/node_image.h's six-byte debug source
+path prefix difference (../../examples vs examples); saved its diff and restored
+only that generated file. Current capability-fix native/config/packaging gates
+and software tests separately passed; exact final release still needs all gates.
+No broad security/hardware/full-v2 completion claimed. No merge/tag/release.
+
+Remote CI on checkpoint12:91success/1failure (full Studio browser job), consistent with the newly reproduced protocol vocabulary defect. This was fixed, all local serial/editor/vocabulary and rebuilt embedded gates pass; new checkpoint13 CI must complete independently. No failed CI result was called green.

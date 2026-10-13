@@ -20,7 +20,7 @@ int main(void) {
     CHECK(mcs_global_exists(vm, "DefinedNull"));
     CHECK(!mcs_capability_has(vm, "Imaginary"));
 #if !MCS_ENABLE_TFT_ESPI
-    CHECK(!mcs_capability_has(vm, "TFT_eSPI"));
+    CHECK(!mcs_capability_has(vm, "TFT"));
     CHECK(!mcs_global_exists(vm, "Tft"));
 #endif
     CHECK(!mcs_capability_has(NULL, "GPIO"));

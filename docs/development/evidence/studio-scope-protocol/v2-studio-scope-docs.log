@@ -1,0 +1,4 @@
+python3 tools/wiki_sync.py --check
+wiki: 47 pages, links OK
+python3 tools/studio/gen_templates.py --check
+gen_templates --check: OK (213 templates)
