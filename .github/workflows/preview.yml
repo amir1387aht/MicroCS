@@ -28,6 +28,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Preview policy and package regression tests
         run: python3 tests/test_preview_package.py
       - name: Build default host (optional graphics OFF) and validate
@@ -63,7 +65,7 @@ jobs:
           CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_preview_package_browser.js
       - uses: actions/upload-artifact@v4
         with:
-          name: microcs-v2-preview-${{ github.sha }}
+          name: microcs-v2-preview-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/preview/MicroCS-*/*
           if-no-files-found: error
           retention-days: 30

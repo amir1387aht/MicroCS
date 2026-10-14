@@ -1136,3 +1136,29 @@ legacyfixture. Localpatches/NOTES+evidence/preview33. Next afterpush: fresh cano
 REMOTEworktree, actualpackage/extractedhost+offlineStudio smoke, attach candidate
 artifacts and preserveevidence. ExactnewCI/review still required before actual
 publicprerelease; unfinished optionalfeatures do not prevent scopedpreview.
+
+## Checkpoint34 — actual canonical preview packages and extracted smoke
+
+33REMOTE12b0e87b510d09fbea5587824a10ba2257191d35, TREEfa915af9f32cfa0465124e0998193a4872a1aa99,
+local a392baedf82605687f8824a14dd9ea5fc1796caf verifiedequal, mainunchanged.
+Fresh detached canonicalworktree /data/MicroCS-preview-12b0e87b built realdefault
+Linux64hostMicroCS2.0.0-preview.1. Clean packagecreatedLinuxhost/offlineStudio/
+sourcearchives plusmanifest/SHA256SUMS; allfourchecksums verified. Actualcommit/
+tree/runtime/environment/compileron/TFT0/LVGL0 metadata; not fake downloadlinks.
+
+Extracted ownhost actualversion/42/Unicode runtime output, sourceheaderidentity
+andrequiredofflinemodules verified. ExtractedStudioactual218templates/import/
+plaintextdownload/CRLFpayload/compactlayout tested, zeropageerrors/networkfetches.
+All build/package/extracted/checksum processes EXIT0. ActualPNG inspected/stored
+rasterSVG notdrawing, logs+33manifest/digests in evidence/preview-artifacts34.
+No new C/runtime/wholematrix claim. Localgeneratedcandidate33~5.3MiB, no tag/public
+release. Archives canbe regenerated from final34HEAD; don'tlabel33manifest as34.
+
+Readonly previewworkflow nowcheckouts exactPRheadSHA andartifactnames sameSHA,
+notephemeralmergeSHA; checkoutcredentialsnotpersisted. Thisis workflow/evidence/
+journalonly, production/build/packageblobshashesunchanged33. New34canonicalbundle
+andextractedsmoke tofollowafterpush; backuplogs/manifest/outerZIP fordelivery.
+Sample33CI93total/onequeued; NOallgreenclaim. New34CI independentstillrequired,
+plus reviewed scoped notes/publicationapproval. User-approvedpreview neednotwait
+forfullroadmap; fullstable/security/graphics/hardware promises still not made.
+Main unchanged, PRpreviewcandidate scoped; no merge/tag/release/provisioning.
