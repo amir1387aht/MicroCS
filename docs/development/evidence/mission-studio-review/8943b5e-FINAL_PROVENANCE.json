@@ -1,0 +1,11 @@
+{
+  "candidate": "8943b5e437eb6e4512819e2b8da86649fa9647c0",
+  "tree": "5d1cca026634831d8ed93d5eeb9b97b626e45591",
+  "owner_can": "865ce88522cb1a76c34053449f27e5ab4f4ff85f",
+  "owner_tft": "b7c5650bc0e537b53472b9438344e0f70f193932",
+  "decision": "APPROVE bounded slices for local disposable integration tests only",
+  "source_test_sha256": {
+    "tests/can_fd/reviewer_payload_oracle.c": "1de6ffef5f9f7c29bc821635993122b8711f3420c3288bf0a23e8b7b175c9d3f",
+    "tests/can_fd/reviewer_payload_oracle.py": "c73692c4dfe13d32353dbba8853af710f73a8ccb8a5a9da17bafba73d5b97137"
+  }
+}

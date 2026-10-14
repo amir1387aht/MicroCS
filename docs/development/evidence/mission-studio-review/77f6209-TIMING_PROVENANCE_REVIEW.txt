@@ -1,0 +1,1 @@
+PASS commit/module hashes and identical fixture/output/selection metadata. Owner timings only, not independently reproduced. No speedup, idle-host, paint, serial-deadline, larger-file or whole-Studio latency claim.

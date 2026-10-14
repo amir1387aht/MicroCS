@@ -1,5 +1,6 @@
 /* MicroCS Studio - completion snippets: type the label and pick it from the completion list.
- * text: what is inserted; $0 marks where the caret ends up. Labels must be unique
+ * text: unique ${1:default} fields are visited numerically; $0 is the final caret.
+ * Legacy $0-only snippets remain supported. Labels must be unique
  * (tests/studio/test_templates.js checks). The templates live in tools/studio/templates/. */
 const SNIPPETS = [
   { label: "wifi", detail: "Wifi.Connect + print the IP", text: "if (Wifi.Connect(\"$0\", \"password\"))\n    Console.WriteLine(\"ip \" + Wifi.Ip);\nelse\n    Console.WriteLine(\"Wi-Fi: \" + Wifi.StatusName);" },
@@ -30,25 +31,25 @@ const SNIPPETS = [
   { label: "spiasync", detail: "SPI.WriteAsync + Wait (DMA)", text: "var t = SPI.WriteAsync(0, $0);\n// other work while the transfer runs\nt.Wait();" },
   { label: "cw", detail: "Console.WriteLine", text: "Console.WriteLine($0);" },
   { label: "cwi", detail: "Console.WriteLine($\"...\")", text: "Console.WriteLine($\"$0\");" },
-  { label: "for", detail: "for loop", text: "for (int i = 0; i < $0; i++)\n{\n    \n}" },
-  { label: "forr", detail: "reverse for loop", text: "for (int i = $0 - 1; i >= 0; i--)\n{\n    \n}" },
-  { label: "foreach", detail: "foreach loop", text: "foreach (var item in $0)\n{\n    \n}" },
-  { label: "while", detail: "while loop", text: "while ($0)\n{\n    \n}" },
+  { label: "for", detail: "for loop", text: "for (int i = 0; i < ${1:3}; i++)\n{\n    ${2:Console.WriteLine(i);}\n}\n$0" },
+  { label: "forr", detail: "reverse for loop", text: "for (int i = ${1:3} - 1; i >= 0; i--)\n{\n    ${2:Console.WriteLine(i);}\n}\n$0" },
+  { label: "foreach", detail: "foreach loop", text: "foreach (var item in ${1:new int[] {1, 2, 3\\}})\n{\n    ${2:Console.WriteLine(item);}\n}\n$0" },
+  { label: "while", detail: "while loop", text: "while (${1:false})\n{\n    ${2:Console.WriteLine(\"loop\");}\n}\n$0" },
   { label: "loop", detail: "main loop with Thread.Sleep", text: "while (true)\n{\n    $0\n    Thread.Sleep(100);\n}" },
   { label: "do", detail: "do / while", text: "do\n{\n    $0\n} while ();" },
-  { label: "if", detail: "if statement", text: "if ($0)\n{\n    \n}" },
-  { label: "ife", detail: "if / else", text: "if ($0)\n{\n    \n}\nelse\n{\n    \n}" },
+  { label: "if", detail: "if statement", text: "if (${1:true})\n{\n    ${2:Console.WriteLine(\"yes\");}\n}\n$0" },
+  { label: "ife", detail: "if / else", text: "if (${1:true})\n{\n    ${2:Console.WriteLine(\"yes\");}\n}\nelse\n{\n    ${3:Console.WriteLine(\"no\");}\n}\n$0" },
   { label: "switch", detail: "switch statement", text: "switch ($0)\n{\n    case 0:\n        break;\n    default:\n        break;\n}" },
-  { label: "try", detail: "try / catch", text: "try\n{\n    $0\n}\ncatch (Exception e)\n{\n    Console.WriteLine(e.Message);\n}" },
-  { label: "tryf", detail: "try / catch / finally", text: "try\n{\n    $0\n}\ncatch (Exception e)\n{\n    Console.WriteLine(e.Message);\n}\nfinally\n{\n    \n}" },
+  { label: "try", detail: "try / catch", text: "try\n{\n    ${1:Console.WriteLine(\"try\");}\n}\ncatch (Exception e)\n{\n    ${2:Console.WriteLine(e.Message);}\n}\n$0" },
+  { label: "tryf", detail: "try / catch / finally", text: "try\n{\n    ${1:Console.WriteLine(\"try\");}\n}\ncatch (Exception e)\n{\n    ${2:Console.WriteLine(e.Message);}\n}\nfinally\n{\n    ${3:Console.WriteLine(\"finally\");}\n}\n$0" },
   { label: "tryio", detail: "catch hardware errors", text: "try\n{\n    $0\n}\ncatch (IOException e) { Console.WriteLine($\"I/O error: {e.Message}\"); }\ncatch (TimeoutException) { Console.WriteLine(\"timeout\"); }" },
-  { label: "class", detail: "class", text: "class $0\n{\n    \n}" },
+  { label: "class", detail: "class", text: "class ${1:Example}\n{\n    ${2:public int Value { get; set; \\}}\n}\n$0" },
   { label: "ctor", detail: "constructor", text: "public $0()\n{\n    \n}" },
   { label: "prop", detail: "auto property", text: "public int $0 { get; set; }" },
   { label: "propg", detail: "read-only property", text: "public int $0 => 0;" },
   { label: "interface", detail: "interface", text: "interface I$0\n{\n    \n}" },
   { label: "enum", detail: "enum", text: "enum $0 { A, B, C }" },
-  { label: "func", detail: "local function", text: "int $0(int x)\n{\n    return x;\n}" },
+  { label: "func", detail: "local function", text: "int ${1:Compute}(int x)\n{\n    return ${2:x + 1};\n}\n$0" },
   { label: "lambda", detail: "Action lambda", text: "Action $0 = () =>\n{\n    \n};" },
   { label: "pin", detail: "new Pin output", text: "var led = new Pin($0, GPIO.Output);" },
   { label: "pinin", detail: "new Pin input with pull-up", text: "var button = new Pin($0, GPIO.InputPullUp);" },
@@ -80,3 +81,162 @@ const SNIPPETS = [
   { label: "usingb", detail: "using block (calls Dispose)", text: "using (var $0 = )\n{\n    \n}" },
   { label: "cmd", detail: "read commands from the console", text: "for (;;)\n{\n    string line = Console.ReadLine();\n    if (line == null) break;\n    $0\n}" },
 ];
+
+/* The small snippet grammar is deliberately not an LSP/mirror language. The
+ * existing offline script owns both its catalog and its pure UTF-16 model. */
+const SnippetText = (() => {
+  const MAX_TEMPLATE = 16 * 1024,
+    MAX_OUTPUT = 32 * 1024;
+  const MAX_FIELDS = 32,
+    MAX_DOCUMENT = 1024 * 1024;
+  function parse(template, indent = "") {
+    if (
+      typeof template !== "string" ||
+      template.length > MAX_TEMPLATE ||
+      indent.length > 256 ||
+      !/^[ \t]*$/.test(indent)
+    )
+      throw new Error("Snippet template or indentation exceeds its bound.");
+    const source = template.replace(/\r\n|\r/g, "\n"),
+      fields = [],
+      ids = new Set();
+    let text = "",
+      final = null,
+      finalOrder = -1,
+      order = 0;
+    const append = (value) => {
+      text += value.replace(/\n/g, "\n" + indent);
+      if (text.length > MAX_OUTPUT)
+        throw new Error("Expanded snippet exceeds its bound.");
+    };
+    for (let i = 0; i < source.length;) {
+      if (source.startsWith("$0", i)) {
+        if (final !== null || /\d/.test(source[i + 2] || ""))
+          throw new Error("Snippet needs a unique final $0 marker.");
+        final = text.length;
+        finalOrder = order++;
+        i += 2;
+      } else if (source.startsWith("${", i)) {
+        const header = /^\$\{([1-9]\d*):/.exec(source.slice(i));
+        if (!header)
+          throw new Error("Invalid snippet field; use ${1:default}.");
+        const id = Number(header[1]);
+        if (id > MAX_FIELDS || ids.has(id) || fields.length >= MAX_FIELDS)
+          throw new Error(
+            "Snippet fields must be unique numbers from 1 to 32.",
+          );
+        ids.add(id);
+        i += header[0].length;
+        let value = "",
+          closed = false;
+        while (i < source.length) {
+          const ch = source[i++];
+          if (ch === "}") {
+            closed = true;
+            break;
+          }
+          if (ch === "\\" && /[}\\]/.test(source[i] || ""))
+            value += source[i++];
+          else {
+            if (ch === "$" && (source[i] === "{" || /\d/.test(source[i] || "")))
+              throw new Error(
+                "Nested or mirrored snippet fields are not supported.",
+              );
+            value += ch;
+          }
+        }
+        if (!closed) throw new Error("Unclosed snippet field.");
+        const a = text.length;
+        append(value);
+        fields.push({ id, a, b: text.length, order: order++ });
+      } else {
+        if (source[i] === "$" && /\d/.test(source[i + 1] || ""))
+          throw new Error("Numbered fields need a default: ${1:default}.");
+        append(source[i++]);
+      }
+    }
+    if (fields.length && final === null)
+      throw new Error("Numbered snippets require a final $0 marker.");
+    return {
+      text,
+      fields: fields.sort((a, b) => a.id - b.id),
+      final: final === null ? text.length : final,
+      finalOrder,
+    };
+  }
+  class Session {
+    constructor(parsed, start, view) {
+      if (
+        !Number.isInteger(start) ||
+        start < 0 ||
+        !parsed.fields.length ||
+        view.length > MAX_DOCUMENT ||
+        view.slice(start, start + parsed.text.length) !== parsed.text
+      )
+        throw new Error(
+          "Snippet navigation is unavailable for this document or insertion.",
+        );
+      this.fields = parsed.fields.map((field) => ({
+        ...field,
+        a: field.a + start,
+        b: field.b + start,
+      }));
+      this.final = parsed.final + start;
+      this.finalOrder = parsed.finalOrder;
+      this.view = view;
+      this.active = 0;
+    }
+    field() {
+      return this.fields[this.active];
+    }
+    contains(a, b) {
+      const field = this.field();
+      return a >= field.a && b >= a && b <= field.b;
+    }
+    update(next) {
+      if (next === this.view) return true;
+      if (next.length > MAX_DOCUMENT) return false;
+      const field = this.field(),
+        delta = next.length - this.view.length,
+        end = field.b + delta;
+      // Accept only a change contained in the active field. Repeated characters
+      // cannot make a guessed minimal diff drift into surrounding source.
+      if (
+        end < field.a ||
+        next.slice(0, field.a) !== this.view.slice(0, field.a) ||
+        next.slice(end) !== this.view.slice(field.b)
+      )
+        return false;
+      for (const other of this.fields)
+        if (other.order > field.order) {
+          other.a += delta;
+          other.b += delta;
+        }
+      if (
+        this.final > field.b ||
+        (this.final === field.b && this.finalOrder > field.order)
+      )
+        this.final += delta;
+      field.b = end;
+      this.view = next;
+      return true;
+    }
+    move(backward = false) {
+      if (backward) this.active = Math.max(0, this.active - 1);
+      else if (++this.active === this.fields.length) {
+        this.active--;
+        return { done: true, a: this.final, b: this.final };
+      }
+      const field = this.field();
+      return { done: false, a: field.a, b: field.b };
+    }
+  }
+  return Object.freeze({
+    parse,
+    Session,
+    MAX_TEMPLATE,
+    MAX_OUTPUT,
+    MAX_FIELDS,
+    MAX_DOCUMENT,
+  });
+})();

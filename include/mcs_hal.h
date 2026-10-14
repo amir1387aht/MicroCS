@@ -3,7 +3,9 @@
  *
  * A board describes itself with one mcs_hal_t: a table of C function pointers.
  * A NULL entry means "not available"; the matching C# class is then not
- * registered and Hal.Has("SPI") returns false. Ports fill in only what the
+ * registered and Hal.Has("SPI") returns false. CANFD is an exception: its
+ * value/introspection API remains registered and unavailable operations throw.
+ * Ports fill in only what the
  * hardware has; the core never calls vendor SDKs directly - ports in ports/
  * (ESP-IDF, STM32Cube, Pico SDK, Zephyr, Arduino) do, through the vendor's own
  * headers.
@@ -107,7 +109,7 @@ typedef struct {
     uint8_t reserved[2];
 } mcs_qspi_cmd_t;
 
-/* Classic CAN / TWAI frame (CAN FD payloads are not supported yet) */
+/* Classic CAN / TWAI frame. Its layout and operations remain unchanged. */
 typedef struct {
     uint32_t id;
     uint8_t extended;      /* 29-bit identifier */
@@ -115,6 +117,45 @@ typedef struct {
     uint8_t len;           /* 0..8 */
     uint8_t data[8];
 } mcs_can_frame_t;
+
+/* CAN FD is a separate append-only interface, never a widened classic frame.
+ * len is the canonical wire length: 0..8, 12, 16, 20, 24, 32, 48 or 64.
+ * No RTR/error-frame bits. ESI is supplied by the receiving backend, not TX.
+ * reserved must be zero. See docs/CAN_FD.md for padding and ownership. */
+#define MCS_CAN_FD_BRS 1u
+#define MCS_CAN_FD_ESI 2u
+#define MCS_CAN_FD_SUPPORTED 1
+#define MCS_CAN_FD_SUPPORTS_BRS 2
+#define MCS_CAN_FD_MAX_DATA 64u
+typedef struct {
+    uint32_t id;
+    uint8_t extended;
+    uint8_t flags;         /* MCS_CAN_FD_BRS | MCS_CAN_FD_ESI */
+    uint8_t len;
+    uint8_t reserved;
+    uint8_t data[MCS_CAN_FD_MAX_DATA];
+} mcs_can_fd_frame_t;
+
+/* Invalid input returns 255, never truncates. len_to_dlc rounds up; a caller
+ * using a noncanonical application length must zero-pad to dlc_to_len. */
+static inline uint8_t mcs_can_fd_dlc_to_len(unsigned dlc) {
+    static const uint8_t lengths[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64};
+    return dlc < 16 ? lengths[dlc] : 255;
+}
+static inline uint8_t mcs_can_fd_len_to_dlc(unsigned len) {
+    if (len > MCS_CAN_FD_MAX_DATA) return 255;
+    for (unsigned dlc = 0; dlc < 16; dlc++)
+        if (len <= mcs_can_fd_dlc_to_len(dlc)) return (uint8_t)dlc;
+    return 255;
+}
+static inline bool mcs_can_fd_frame_valid(const mcs_can_fd_frame_t* f, bool transmit) {
+    return f && f->extended <= 1 && !f->reserved &&
+           f->id <= (f->extended ? 0x1FFFFFFFu : 0x7FFu) &&
+           !(f->flags & ~(MCS_CAN_FD_BRS | MCS_CAN_FD_ESI)) &&
+           !(transmit && (f->flags & MCS_CAN_FD_ESI)) &&
+           f->len <= MCS_CAN_FD_MAX_DATA &&
+           mcs_can_fd_dlc_to_len(mcs_can_fd_len_to_dlc(f->len)) == f->len;
+}
 
 /* ---------------- v3: peripheral configuration ----------------
  * Every field has a "board default" value: 0 for numbers and tri-states,
@@ -252,6 +293,7 @@ enum { MCS_HAL_EV_GPIO = 1,      /* source = pin,   value = level        */
        MCS_HAL_EV_CAN = 4,       /* source = bus,   value = frames ready */
        MCS_HAL_EV_DMA = 5,       /* source = transfer id, value = bytes or MCS_HAL_E* */
        MCS_HAL_EV_NET = 6,       /* source = MCS_NET_EV_*, value = event data (mcs_net.h) */
+       MCS_HAL_EV_CAN_FD = 8,    /* FD bus; 7 remains reserved for BLE */
        MCS_HAL_EV_USER = 16 };   /* MCS_HAL_EV_USER + n: your own events, Hal.OnEvent(n, ...) */
 typedef struct {
     uint8_t type;
@@ -381,7 +423,27 @@ typedef struct mcs_hal {
     int (*uart_write_async)(void* ctx, int port, const uint8_t* data, size_t n, int id);
     int (*uart_read_async)(void* ctx, int port, uint8_t* buf, size_t n, int id);   /* completes when n bytes arrived */
     int (*qspi_command_async)(void* ctx, int bus, const mcs_qspi_cmd_t* cmd, const uint8_t* tx, uint8_t* rx, size_t n, int id);
+
+    /* CAN FD (all five callbacks required). caps is a side-effect-free per-bus
+     * query: MCS_CAN_FD_SUPPORTED plus optional MCS_CAN_FD_SUPPORTS_BRS, or a
+     * negative error. Missing callbacks mean unsupported, not classic fallback.
+     * open acquires EXCLUSIVE ownership or returns EBUSY; failure acquires
+     * nothing. nominal/data are positive bit/s, data >= nominal. Send/receive
+     * synchronously copy frame bytes and honor timeout_ms, never retain pointers.
+     * close releases only the caller's successful open, discards queued FD
+     * frames, and must not throw/call the VM. VM-owned opens close at teardown.
+     * Existing source initializers work; old binary table sizes are NOT an ABI.
+     */
+    int (*can_fd_caps)(void* ctx, int bus);
+    int (*can_fd_open)(void* ctx, int bus, uint32_t nominal_bitrate, uint32_t data_bitrate);
+    int (*can_fd_send)(void* ctx, int bus, const mcs_can_fd_frame_t* frame, uint32_t timeout_ms);
+    int (*can_fd_recv)(void* ctx, int bus, mcs_can_fd_frame_t* frame, uint32_t timeout_ms);
+    int (*can_fd_close)(void* ctx, int bus);
 } mcs_hal_t;
+static inline bool mcs_hal_can_fd_available(const mcs_hal_t* h) {
+    return h && h->can_fd_caps && h->can_fd_open && h->can_fd_send &&
+           h->can_fd_recv && h->can_fd_close;
+}
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
  * object classes Pin / I2cDevice / SpiDevice / CanFrame. The HAL struct must
@@ -455,6 +517,13 @@ int mcs_hal_parse_pin(const char* name);
 #ifndef MCS_HAL_SIM_FLASH
 #define MCS_HAL_SIM_FLASH 4096
 #endif
+/* Pure software bus 0. Set to 0 to omit its FD queue/callbacks entirely. */
+#ifndef MCS_HAL_SIM_CAN_FD_QUEUE
+#define MCS_HAL_SIM_CAN_FD_QUEUE 8
+#endif
+#if MCS_HAL_SIM_CAN_FD_QUEUE < 0 || MCS_HAL_SIM_CAN_FD_QUEUE > 255
+#error "MCS_HAL_SIM_CAN_FD_QUEUE must be 0..255"
+#endif
 typedef struct {
     uint8_t mode[64], out[64], inputs[64], irq[64];
     uint8_t uart_buf[4][256];
@@ -503,6 +572,11 @@ typedef struct {
     uint8_t* uart_rx_buf;           /* pending UART.ReadAsync */
     uint32_t uart_rx_len, uart_rx_got;
     int uart_rx_port, uart_rx_id;
+#if MCS_HAL_SIM_CAN_FD_QUEUE > 0
+    mcs_can_fd_frame_t can_fd_q[MCS_HAL_SIM_CAN_FD_QUEUE];
+    uint8_t can_fd_head, can_fd_count, can_fd_opened;
+    uint32_t can_fd_nominal_bitrate, can_fd_data_bitrate;
+#endif
 } mcs_hal_sim_t;
 void mcs_hal_sim_init(mcs_hal_t* hal, mcs_hal_sim_t* sim);
 

@@ -633,15 +633,21 @@ class Editor {
     this.items = []; this.sel = 0; this.ctx = null;
     this.onChange = () => {}; this.onCursor = () => {};
     this.eolHistory = new SourceText.EolHistory();
+    this.snippet = null;
     const ta = this.ta;
     ta.addEventListener("beforeinput", (e) => {
+      if (e.isComposing || /^history(Undo|Redo)$/.test(e.inputType) ||
+          this.snippet && !this.snippet.contains(ta.selectionStart, ta.selectionEnd)) this.cancelSnippet();
       if (/^history(Undo|Redo)$/.test(e.inputType)) this.eolHistory.clear();
     });
     ta.addEventListener("input", (e) => {
+      if (e.isComposing || /^history(Undo|Redo)$/.test(e.inputType)) this.cancelSnippet();
+      this.observeSnippet();
       this.eolHistory.clear();
       this.refresh(false, e.inputType); this.onChange();
       const ch = e.data || "";
-      if (e.inputType === "insertText" && /[\w.]/.test(ch)) this.suggest(false);
+      if (this.snippet) this.hideComplete();
+      else if (e.inputType === "insertText" && /[\w.]/.test(ch)) this.suggest(false);
       else if (e.inputType === "insertText" && ch === " " && /\b(new|using)\s$/.test(ta.value.slice(Math.max(0, ta.selectionStart - 7), ta.selectionStart))) this.suggest(true);
       else this.hideComplete();
       if (/^insert(Text|ReplacementText)?$/.test(e.inputType) && /^[(,]/.test(ch)) this.sigUpdate(true);
@@ -653,7 +659,11 @@ class Editor {
     });
     ta.addEventListener("scroll", () => this.syncScroll());
     ta.addEventListener("keydown", (e) => this.key(e));
-    ta.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== ta) { this.hideComplete(); this.sigHide(); } }, 150));
+    ta.addEventListener("compositionstart", () => this.cancelSnippet());
+    ta.addEventListener("blur", () => {
+      this.cancelSnippet();
+      setTimeout(() => { if (document.activeElement !== ta) { this.hideComplete(); this.sigHide(); } }, 150);
+    });
     for (const ev of ["click", "keyup", "select"]) ta.addEventListener(ev, () => this.cursorMoved());
     ta.addEventListener("click", () => { if (this.sig) this.sigUpdate(false); });
     ta.addEventListener("keyup", (e) => { if (this.sig && /^Arrow(Left|Right)$|^Home$|^End$/.test(e.key)) this.sigUpdate(false); });
@@ -680,6 +690,7 @@ class Editor {
     s.remove();
   }
   open(tab) {
+    this.cancelSnippet();
     if (this.tab && this.tab !== tab) this.stash();
     this.tab = tab;
     this.hideComplete(); this.sigHide(); this.hoverHide();
@@ -704,6 +715,15 @@ class Editor {
     this.tab.scroll = [this.ta.scrollTop, this.ta.scrollLeft];
   }
   get value() { return this.ta.value; }
+  cancelSnippet() {
+    const active = !!this.snippet;
+    this.snippet = null;
+    if (active) this.hideComplete();
+  }
+  observeSnippet() {
+    if (this.snippet && (this.ta.readOnly || this.snippet.tabId !== this.tab?.id ||
+        !this.snippet.update(this.ta.value))) this.cancelSnippet();
+  }
   // Bounded canonical snapshots restore mixed EOLs for native undo/redo.
   // The browser owns text undo; this side cache never intercepts keystrokes.
   rememberSource(raw) {
@@ -731,6 +751,7 @@ class Editor {
   }
   rawSlice(a, b) { this.syncSource(); return SourceText.slice(this.tab.text, a, b); }
   refresh(force, inputType) {
+    this.observeSnippet();
     this.syncSource(inputType);
     if (this.raf && !force) return;
     const draw = () => {
@@ -769,6 +790,8 @@ class Editor {
     return { row, col, p };
   }
   cursorMoved() {
+    this.observeSnippet();
+    if (this.snippet && !this.snippet.contains(this.ta.selectionStart, this.ta.selectionEnd)) this.cancelSnippet();
     const { row, col } = this.caret();
     this.curRow = row;
     this.placeLine(this.cur, row);
@@ -844,6 +867,7 @@ class Editor {
     const ta = this.ta;
     this.syncSource();
     if (selStart != null) ta.setSelectionRange(selStart, selEnd);
+    if (this.snippet && !this.snippet.contains(ta.selectionStart, ta.selectionEnd)) this.cancelSnippet();
     const before = this.tab.text, selection = [ta.selectionStart, ta.selectionEnd];
     const canonical = SourceText.edits(before, [{ a: selection[0], b: selection[1], text }], exact);
     const plain = SourceText.display(text);
@@ -851,6 +875,7 @@ class Editor {
       // Do not pollute native text undo with an indistinguishable replacement.
       const afterSelection = [selection[0] + plain.length, selection[0] + plain.length];
       if (canonical !== before) {
+        this.cancelSnippet();
         if (!this.eolHistory.record(before, canonical, selection, afterSelection))
           toast("EOL-only edit exceeds the bounded raw history; it cannot be undone with Ctrl/Cmd+Alt+Z.", "warn", 6000);
         this.tab.text = canonical;
@@ -875,6 +900,23 @@ class Editor {
   key(e) {
     const ta = this.ta, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
     const mod = e.ctrlKey || e.metaKey;
+    if (e.isComposing || e.keyCode === 229) { this.cancelSnippet(); return; }
+    this.observeSnippet();
+    if (this.snippet && (mod && /^(z|y)$/i.test(e.key) ||
+        !this.snippet.contains(s, en))) this.cancelSnippet();
+    if (this.snippet && !mod && !e.altKey) {
+      if (e.key === "Tab") {
+        e.preventDefault(); this.hideComplete(); this.sigHide();
+        const next = this.snippet.move(e.shiftKey);
+        if (next.done) this.cancelSnippet();
+        ta.setSelectionRange(next.a, next.b); this.cursorMoved(); return;
+      }
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault(); this.cancelSnippet(); this.hideComplete(); this.sigHide();
+        // Commit the inserted text, not an implicit newline or rollback.
+        ta.setSelectionRange(en, en); this.cursorMoved(); return;
+      }
+    }
     if (mod && e.altKey && e.key.toLowerCase() === "z") {
       if (e.isComposing || ta.readOnly || !this.tab) return;
       e.preventDefault();
@@ -1148,11 +1190,11 @@ class Editor {
       if (lp.length > 1 && l.includes(lp)) return 3;
       return 9;
     };
-    let list = items.map((it) => ({ it, sc: score(it) })).filter((x) => x.sc < 9 && x.it.label !== prefix);
+    let list = items.map((it) => ({ it, sc: score(it) })).filter((x) => x.sc < 9 && (x.it.label !== prefix || x.it.kind === "s"));
     const order = { l: 0, p: 1, m: 1, f: 1, e: 2, s: 3, c: 4, n: 4, k: 5, w: 6 };
     list.sort((a, b) => a.sc - b.sc || (member ? 0 : order[a.it.kind] - order[b.it.kind]) || (member ? a.it.label.localeCompare(b.it.label) : a.it.label.length - b.it.label.length || a.it.label.localeCompare(b.it.label)));
     list = list.slice(0, member ? 400 : 80).map((x) => x.it);
-    if (!list.length || (!explicit && !member && list.length === 1 && list[0].label.toLowerCase() === lp)) return this.hideComplete();
+    if (!list.length || (!explicit && !member && list.length === 1 && list[0].label.toLowerCase() === lp && list[0].kind !== "s")) return this.hideComplete();
     const prevLabel = this.box.style.display === "block" ? this.items[this.sel]?.label : null;
     this.items = list; this.ctx = { start: p - prefix.length, end: p, using: !!um };
     this.sel = 0;
@@ -1185,7 +1227,13 @@ class Editor {
     }
     if (it.kind === "l") return `<code>(local) ${typeHtml(it.detail)} <span class="t-loc">${esc(it.label)}</span></code>`;
     if (it.kind === "n") return `<code><span class="t-kw">namespace</span> ${esc(it.label)}</code><p>MicroCS has one global namespace: <i>using</i> lines are accepted and ignored, every class is always available.</p>`;
-    if (it.kind === "s") return `<code>${esc(it.label)} - snippet</code><p>${esc(it.detail || "")}</p><pre>${esc((it.text || "").replace("$0", "").slice(0, 300))}</pre>`;
+    if (it.kind === "s") {
+      try {
+        const parsed = SnippetText.parse(it.text || "");
+        const help = parsed.fields.length ? ` · ${parsed.fields.length} fields: Tab/Shift+Tab navigate; Enter/Escape exit` : "";
+        return `<code>${esc(it.label)} - snippet</code><p>${esc((it.detail || "") + help)}</p><pre>${esc(parsed.text.slice(0, 300))}</pre>`;
+      } catch (e) { return `<code>${esc(it.label)} - invalid snippet</code><p>${esc(e.message)}</p>`; }
+    }
     if (it.kind === "k") return `<code><span class="t-kw">${esc(it.label)}</span></code><p>C# keyword</p>`;
     return "";
   }
@@ -1217,14 +1265,33 @@ class Editor {
   accept() {
     const it = this.items[this.sel], c = this.ctx;
     this.hideComplete();
-    if (!it || !c) return;
+    if (!it || !c || this.ta.readOnly || !this.tab) return;
+    // A popup can outlive a mouse/arrow caret move. Never replace a stale
+    // prefix through an unrelated current caret or selected source range.
+    if (!Number.isInteger(c.start) || !Number.isInteger(c.end) ||
+        c.start < 0 || c.start > c.end || c.end > this.ta.value.length ||
+        c.end !== this.ta.selectionStart || c.end !== this.ta.selectionEnd) {
+      this.cancelSnippet(); return;
+    }
     if (it.text) {
       const v = this.ta.value, ls = v.lastIndexOf("\n", c.start - 1) + 1, ind = /^[ \t]*/.exec(v.slice(ls, c.start))[0];
-      const text = it.text.replace(/\n/g, "\n" + ind), k = text.indexOf("$0");
-      this.insert(text.replace("$0", ""), c.start, this.ta.selectionStart);
-      const pos = c.start + (k < 0 ? text.length : k);
-      this.ta.setSelectionRange(pos, pos);
-    } else this.insert(it.label, c.start, this.ta.selectionStart);
+      let parsed;
+      try { parsed = SnippetText.parse(it.text, ind); }
+      catch (e) { toast("Snippet was not inserted: " + e.message, "err"); return; }
+      this.cancelSnippet(); this.sigHide();
+      this.insert(parsed.text, c.start, c.end);
+      let a = c.start + parsed.final, b = a;
+      if (parsed.fields.length) {
+        try {
+          this.snippet = new SnippetText.Session(parsed, c.start, this.ta.value);
+          this.snippet.tabId = this.tab.id;
+          ({ a, b } = this.snippet.field());
+        } catch (e) {
+          toast("Snippet defaults inserted; field navigation is unavailable beyond the bounded document size.", "warn", 6000);
+        }
+      }
+      this.ta.setSelectionRange(a, b);
+    } else this.insert(it.label, c.start, c.end);
     this.cursorMoved();
     if (this.sig) this.sigUpdate(false);
   }
@@ -1956,6 +2023,7 @@ const App = {
     return t;
   },
   activate(id) {
+    ed.cancelSnippet();
     if (this.tab()) ed.stash();
     this.active = id;
     const t = this.tab();

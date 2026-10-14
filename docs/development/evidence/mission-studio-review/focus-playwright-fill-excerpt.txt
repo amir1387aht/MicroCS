@@ -1,0 +1,27 @@
+async _fill(progress2, value2, options, box) {
+        progress2.log(`  fill("${value2}")`);
+        return await this._retryAction(progress2, "fill", async (progress3) => {
+          await this.instrumentation.onBeforeInputAction(progress3, this, void 0, box);
+          if (!options.force)
+            progress3.log("  waiting for element to be visible, enabled and editable");
+          const result2 = await progress3.race(this.evaluateInUtility(async ([injected, node, { value: value3, force }]) => {
+            if (!force) {
+              const checkResult = await injected.checkElementStates(node, ["visible", "enabled", "editable"]);
+              if (checkResult)
+                return checkResult;
+            }
+            return injected.fill(node, value3);
+          }, { value: value2, force: options.force }));
+          if (result2 === "needsinput") {
+            if (value2)
+              await this._page.keyboard.insertText(progress3, value2);
+            else
+              await this._page.keyboard.press(progress3, "Delete");
+            return "done";
+          } else {
+            return result2;
+          }
+        }, options);
+      }
+      async selectText(progress2, options) {
+        const result2 = await this._retr

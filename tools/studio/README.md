@@ -351,3 +351,70 @@ Regression commands (browser is offline, no device required):
 node tests/studio/test_source.js
 CHROME=$(command -v chromium) node tests/studio/test_source_eol_history_browser.js
 ```
+
+## Editable multi-field snippets (Phase 5 bounded implementation)
+
+Completion snippets now support **unique numbered fields** in addition to the
+legacy `$0` caret marker. Type a label (or prefix), then choose its snippet
+from completion with Enter or Tab;
+its first field is selected. Type or paste to replace/edit that field. **Tab**
+selects the next numbered field, **Shift+Tab** goes back (and stays at the first
+field rather than indenting), and Tab after the last field exits at `$0`.
+While a field session is active, Tab navigation takes priority over a completion
+popup or indentation. **Enter or Escape commits the text and exits**; Enter does
+not insert a newline until pressed again after exiting. Snippet actions do not
+save a source file, run, upload or download code; ordinary local draft persistence
+is unchanged. The completion documentation shows the field
+count and keyboard instructions before insertion.
+If a snippet popup outlives a caret move or a noncollapsed selection, its stale
+acceptance is discarded without replacing unrelated source.
+The shared acceptance guard applies the same integer/range/selection checks to
+ordinary completion, without changing valid acceptance or ranking. Cancelling
+a field session closes any completion popup associated with that session.
+
+The `for`, `forr`, `foreach`, `while`, `if`, `ife`, `try`, `tryf`, `func` and
+`class` snippets have useful compiling defaults and multiple editable fields.
+All 77 existing labels remain; `$0`-only snippets retain their original caret
+behavior. These defaults are examples, not a claim of complete language/IDE or
+peripheral support. Existing lexical context filtering remains in effect.
+
+Catalog grammar is `${1:default}` through `${32:default}`, visited in numeric
+order regardless of their textual order, with one final `$0`. Empty defaults
+are allowed. Inside defaults, `\}` emits a closing brace and `\\` emits a
+backslash; other backslashes remain literal. For example,
+`${1:new int[] {1, 2\}}$0` emits `new int[] {1, 2}`. Ordinary dollar text and C#
+interpolation such as `$"{value}"` outside markers remain literal source.
+Duplicate field numbers, multiple final markers, missing final markers in
+numbered snippets, nesting, bare `$1` markers, choices and transformations are
+rejected **before source mutation** with a visible error. There are no linked
+or mirrored fields; repeating a number is an error, not a silent partial edit.
+
+A session tracks only changes wholly contained in its active field, in textarea
+UTF-16/LF-view coordinates. Native undo/redo (including menu-style requests),
+explicit raw EOL-history shortcuts, tab reopening, focus leaving the editor,
+read-only mode, IME composition, or selection/editing outside the active field
+cancels navigation. Cancellation never rolls text back or restores stale field
+offsets. Ordinary textarea editing and undo remain browser-owned afterward.
+Source remains canonical raw CRLF/CR/LF; untouched multiline literal bytes are
+preserved, new structural lines follow existing source EOL policy, and exact
+clipboard paste retains its raw literal contents and endings.
+
+The parser accepts at most 16 Ki UTF-16 units of template text, 32 fields,
+256 indentation units and 32 Ki units of expanded text. Navigation stores at
+most one normalized document snapshot of 1 Mi units plus the bounded field list.
+Over-budget/malformed templates are not inserted. In larger documents, valid
+snippet defaults are still inserted exactly, but navigation is declined with a
+visible warning; no stale or guessed offsets are retained.
+
+Tests: `test_snippets.js` validates grammar/session/catalog bounds; with `./mcs`
+it checks trusted default and filled snippets through source/copy/XIP execution.
+`test_snippets_browser.js` exercises actual keyboard completion, editable fields,
+cancellation, raw endings, Unicode and compilation of keyboard-filled source.
+Its separately labeled benchmark mode records fixed fixture hashes, browser/
+source provenance and cold/warm raw acceptance samples. Only legacy acceptance
+is comparable to the old editor; field navigation is new functionality, not a
+claimed baseline speedup. New active-field input and navigation samples measure
+synchronous handlers, not queued paint completion or serial interrupt deadlines.
+Measurements are scoped to their exact fixture on a shared host; larger-file
+responsiveness remains unmeasured. No cloud dependency or source exfiltration
+is added.
