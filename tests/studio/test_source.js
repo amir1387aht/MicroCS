@@ -120,6 +120,57 @@ for (const newline of ["\n", "\r\n", "\r"])
       "native input retains payload",
     );
   }
+// The explicit byte-only history never guesses from an LF view.
+const H = S.EolHistory;
+const states = ["x\r\nβ\r🚀\n", "x\nβ\n🚀\n", "x\rβ\r🚀\r"];
+const h = new H();
+equal(h.record(states[0], states[1], [0, 9], [9, 9]), true, "record EOL-only");
+equal(h.record(states[1], states[2], [1, 3], [3, 3]), true, "same view chain");
+equal(h.step(states[2]), {raw: states[1], selection: [1, 3]}, "undo exact LF");
+equal(h.step(states[1]), {raw: states[0], selection: [0, 9]}, "undo exact mixed EOL");
+equal(h.step(states[0]), null, "old boundary cannot guess");
+equal(h.step(states[0], true), {raw: states[1], selection: [9, 9]}, "redo exact selection");
+equal(h.record(states[1], states[1], [0, 0], [0, 0]), true, "no-op keeps redo");
+equal(h.step(states[1], true).raw, states[2], "redo survives no-op");
+h.step(states[2]);
+h.record(states[1], states[0], [0, 0], [0, 0]);
+equal(h.step(states[0], true), null, "branch removes abandoned redo");
+equal(h.step("foreign"), null, "foreign raw invalidates even at same display");
+equal(h.items.length, 0, "invalid history cleared");
+h.record(states[0], states[1], [0, 0], [0, 0]);
+equal(h.record(states[1], "text changed", [0, 0], [0, 0]), false, "text edit is not EOL history");
+equal(h.items.length, 0, "text edit invalidates");
+const boundedHistory = new H(2, 100);
+for (const [a, b] of [["x\n", "x\r"], ["x\r", "x\r\n"], ["x\r\n", "x\n"]])
+  boundedHistory.record(a, b, [0, 0], [0, 0]);
+equal(boundedHistory.items.length, 2, "count eviction");
+equal(boundedHistory.units, 10, "UTF16 units account before and after");
+equal(boundedHistory.step("x\n").raw, "x\r\n", "recent entry retained");
+equal(boundedHistory.step("x\r\n").raw, "x\r", "oldest retained boundary");
+equal(boundedHistory.step("x\r"), null, "evicted boundary not reconstructed");
+const units = new H(128, 10);
+units.record("🚀\r\n", "🚀\n", [0, 0], [0, 0]);
+units.record("🚀\n", "🚀\r", [0, 0], [0, 0]);
+equal(units.items.length, 1, "surrogate units trigger budget eviction");
+equal(units.units, 6, "surrogates count as two UTF16 units");
+equal(units.record("🚀\r".repeat(3), "🚀\n".repeat(3), [0, 0], [0, 0]), false, "oversized fallback explicitly unrecorded");
+equal(units.units, 0, "oversized edit clears unavailable chain");
+const defaults = new H();
+equal([defaults.limit, defaults.budget], [128, 2 * 1024 * 1024], "documented default bounds");
+let current = "x\n";
+for (let i = 0; i < 129; i++) {
+  const next = current === "x\n" ? "x\r" : "x\n";
+  defaults.record(current, next, [0, 0], [0, 0]); current = next;
+}
+equal(defaults.items.length, 128, "default 129th entry evicts only oldest entry");
+for (let i = 0; i < 128; i++) current = defaults.step(current).raw;
+equal(defaults.step(current), null, "default count stops safely at retained boundary");
+const big = "🚀".repeat(262144) + "\r\n";
+equal(new H().record(big, S.display(big), [0, 0], [0, 0]), true, "large entry below default budget retained");
+const huge = big + big;
+const oversized = new H();
+equal(oversized.record(huge, S.display(huge), [0, 0], [0, 0]), false, "default UTF16 budget rejects oversized entry");
+equal(oversized.step(S.display(huge)), null, "default oversized fallback unavailable");
 console.log(
   `PASS ${checks} canonical source/display/edit/substitution assertions`,
 );

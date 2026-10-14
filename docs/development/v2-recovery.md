@@ -1162,3 +1162,8 @@ Sample33CI93total/onequeued; NOallgreenclaim. New34CI independentstillrequired,
 plus reviewed scoped notes/publicationapproval. User-approvedpreview neednotwait
 forfullroadmap; fullstable/security/graphics/hardware promises still not made.
 Main unchanged, PRpreviewcandidate scoped; no merge/tag/release/provisioning.
+
+
+## Original-mission resumption checkpoint
+
+Preserved reviewed local b4f670a2a778b92322bf868cba300f9b767df893 (tree cd227a96f8a8852e8eefe9ba3df8f2bb4ecbfb68) plus its truthful local review/result evidence and original eight-phase status. All28 local command groups and trusted package smoke passed on b4; added documentation is not new exact-head runtime/remote-CI evidence. No main/preview update, merge, tag or release. New substantive tasks: Studio snippet fields, real CANFD common-HAL/VM/simulator, and native TFT scrolling; not yet claimed complete. See v2-original-mission-status.md. Remote WIP branch intended: wip/v2-original-mission; remote SHA/tree verification recorded in next handoff, never inferred from local author SHA. Source/lane backups retained under /data/backups/v2-parallel-* and immutable review snapshot.

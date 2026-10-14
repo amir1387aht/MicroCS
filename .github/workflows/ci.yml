@@ -112,6 +112,8 @@ jobs:
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_browser.js ./mcs
       - name: Portable project schema, source text and actual source/image execution
         run: node tests/studio/test_project_file.js ./mcs && node tests/studio/test_source.js
+      - name: Explicit bounded EOL-only source history (offline Chromium)
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_source_eol_history_browser.js
       - name: Portable download/reopen, canonical editing and real host execution
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project_file_browser.js ./mcs
       - name: Adaptive editor area and accessible pointer/touch/keyboard panels

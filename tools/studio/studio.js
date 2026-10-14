@@ -632,8 +632,13 @@ class Editor {
     this.box = $("complete"); this.tab = null; this.lines = 0; this.errLine = 0;
     this.items = []; this.sel = 0; this.ctx = null;
     this.onChange = () => {}; this.onCursor = () => {};
+    this.eolHistory = new SourceText.EolHistory();
     const ta = this.ta;
+    ta.addEventListener("beforeinput", (e) => {
+      if (/^history(Undo|Redo)$/.test(e.inputType)) this.eolHistory.clear();
+    });
     ta.addEventListener("input", (e) => {
+      this.eolHistory.clear();
       this.refresh(false, e.inputType); this.onChange();
       const ch = e.data || "";
       if (e.inputType === "insertText" && /[\w.]/.test(ch)) this.suggest(false);
@@ -680,6 +685,7 @@ class Editor {
     this.hideComplete(); this.sigHide(); this.hoverHide();
     this.setError(0);
     this.sourceHistory = []; this.sourceHistoryBytes = 0;
+    this.eolHistory.clear();
     this.ta.value = SourceText.display(tab.text);
     this.ta.readOnly = !!tab.readOnly;
     this.refresh(true);
@@ -714,6 +720,7 @@ class Editor {
     if (!this.tab) return;
     const raw = this.tab.text, next = this.ta.value;
     if (SourceText.display(raw) === next) return;
+    this.eolHistory.clear();
     this.rememberSource(raw);
     let historic = null;
     if (/^history(Undo|Redo)$/.test(inputType || "")) for (let i = this.sourceHistory.length - 1; i >= 0; i--) {
@@ -837,11 +844,24 @@ class Editor {
     const ta = this.ta;
     this.syncSource();
     if (selStart != null) ta.setSelectionRange(selStart, selEnd);
-    const canonical = SourceText.edits(this.tab.text, [{ a: ta.selectionStart, b: ta.selectionEnd, text }], exact);
+    const before = this.tab.text, selection = [ta.selectionStart, ta.selectionEnd];
+    const canonical = SourceText.edits(before, [{ a: selection[0], b: selection[1], text }], exact);
+    const plain = SourceText.display(text);
+    if (SourceText.display(canonical) === ta.value) {
+      // Do not pollute native text undo with an indistinguishable replacement.
+      const afterSelection = [selection[0] + plain.length, selection[0] + plain.length];
+      if (canonical !== before) {
+        if (!this.eolHistory.record(before, canonical, selection, afterSelection))
+          toast("EOL-only edit exceeds the bounded raw history; it cannot be undone with Ctrl/Cmd+Alt+Z.", "warn", 6000);
+        this.tab.text = canonical;
+      }
+      ta.setSelectionRange(...afterSelection);
+      this.refresh(); if (canonical !== before) this.onChange(); return;
+    }
+    this.eolHistory.clear();
     this.rememberSource(this.tab.text);
     // execCommand dispatches input synchronously: its intermediate LF result
     // is replaced by the known canonical edit once the browser updates undo.
-    const plain = SourceText.display(text);
     if (!document.execCommand("insertText", false, plain)) ta.setRangeText(plain, ta.selectionStart, ta.selectionEnd, "end");
     if (ta.value === SourceText.display(canonical)) this.tab.text = canonical;
     this.rememberSource(this.tab.text); this.refresh(); this.onChange();
@@ -855,6 +875,22 @@ class Editor {
   key(e) {
     const ta = this.ta, v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
     const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.altKey && e.key.toLowerCase() === "z") {
+      if (e.isComposing || ta.readOnly || !this.tab) return;
+      e.preventDefault();
+      this.syncSource();
+      const state = this.eolHistory.step(this.tab.text, e.shiftKey);
+      if (state) {
+        this.tab.text = state.raw;
+        ta.setSelectionRange(...state.selection);
+        this.hideComplete(); this.sigHide(); this.hoverHide();
+        this.refresh(); this.onChange();
+      } else toast("No recent EOL-only " + (e.shiftKey ? "redo" : "undo") + " is available.");
+      return;
+    }
+    // Some browsers send no beforeinput when native history is empty.
+    // A native shortcut is still an explicit departure from raw-only history.
+    if (mod && !e.altKey && /^(z|y)$/i.test(e.key) && !e.isComposing) this.eolHistory.clear();
     if (this.box.style.display === "block") {
       if (e.key === "ArrowDown") { e.preventDefault(); this.sel = (this.sel + 1) % this.items.length; this.drawBox(); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); this.sel = (this.sel - 1 + this.items.length) % this.items.length; this.drawBox(); return; }
