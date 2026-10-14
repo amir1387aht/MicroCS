@@ -1,0 +1,54 @@
+{
+  "test_commit": "35e758f733e5de0219fef7d668538cedbac89058",
+  "tree": "838897f95202348cea554597b4dea8fbbd2eb8b7",
+  "runtime_core": "unmodified b4f670a2a778b92322bf868cba300f9b767df893",
+  "worktree_status": "clean",
+  "results": {
+    "default": {
+      "exit": 1,
+      "classification": "EXPECTED FAIL on unfixed baseline",
+      "checks_passed": 1751,
+      "checks_total": 2320,
+      "unhit_sentinels": 4
+    },
+    "gc-stress": {
+      "exit": 1,
+      "classification": "EXPECTED FAIL on unfixed baseline",
+      "checks_passed": 1751,
+      "checks_total": 2320,
+      "unhit_sentinels": 4
+    },
+    "eager-classes": {
+      "exit": 0,
+      "classification": "PASS eager semantic controls only",
+      "checks_passed": 260,
+      "checks_total": 260,
+      "unhit_sentinels": 4
+    },
+    "eager-regs": {
+      "exit": 1,
+      "classification": "EXPECTED FAIL on unfixed baseline",
+      "checks_passed": 1045,
+      "checks_total": 1226,
+      "unhit_sentinels": 4
+    },
+    "eager-both": {
+      "exit": 0,
+      "classification": "PASS eager semantic controls only",
+      "checks_passed": 260,
+      "checks_total": 260,
+      "unhit_sentinels": 4
+    }
+  },
+  "injection": "sustained denial from selected reached allocation index until C restore; not single-shot",
+  "limits": [
+    "finite trusted-source registration operations only",
+    "mixed module eager-regs preparation measures0 first-use allocations; no equivalent mixed pending coverage",
+    "eager controls are semantic only",
+    "harness cleanup after physical-zero assertions cannot prove recovery"
+  ],
+  "core_fix_status": "awaiting parent exact checkpoint; unchanged tests must pass there before approval",
+  "backup": "/data/backups/v2-mission-lazy-module-tests/35e758f733e5de0219fef7d668538cedbac89058",
+  "remote_checkpoint": "parent owned, not yet claimed",
+  "handoff": "HANDOFF-35e758f.md"
+}

@@ -1,0 +1,11 @@
+BUILD default
+default exit 1 1751/2320 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+BUILD gc-stress
+gc-stress exit 1 1751/2320 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+BUILD eager-classes
+eager-classes exit 0 260/260 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+BUILD eager-regs
+eager-regs exit 1 1045/1226 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+BUILD eager-both
+eager-both exit 0 260/260 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+{"default": {"build": 0, "run": 1}, "gc-stress": {"build": 0, "run": 1}, "eager-classes": {"build": 0, "run": 0}, "eager-regs": {"build": 0, "run": 1}, "eager-both": {"build": 0, "run": 0}}
