@@ -29,6 +29,7 @@ SECTIONS = [
         ("README.md", "MicroCS"),
         ("docs/README.md", "Documentation"),
         ("docs/GETTING_STARTED.md", "Getting-Started"),
+        ("docs/V2_PREVIEW.md", "v2-Preview"),
     ]),
     ("Step-by-step guides", [
         ("docs/guides/README.md", "Guides"),
@@ -218,9 +219,12 @@ def version():
     return m.group(1) if m else None
 
 
-STALE = [re.compile(r"MicroCS[- ](\d+\.\d+\.\d+)\.zip"), re.compile(r"MicroCS (\d+\.\d+\.\d+) C# REPL"),
-         re.compile(r"microcs-(\d+\.\d+\.\d+)-[a-z0-9_]+\.(?:bin|uf2|hex)"),
-         re.compile(r"badge/version-(\d+\.\d+\.\d+)-")]
+DOC_VERSION = r"(\d+\.\d+\.\d+(?:-preview\.[1-9][0-9]*)?)"
+STALE = [re.compile(r"MicroCS[- ]" + DOC_VERSION + r"\.zip"),
+         re.compile(r"MicroCS " + DOC_VERSION + r" C# REPL"),
+         re.compile(r"microcs-" + DOC_VERSION + r"-[a-z0-9_]+\.(?:bin|uf2|hex)"),
+         re.compile(r"badge/version-(\d+\.\d+\.\d+(?:--?preview\.[1-9][0-9]*)?)-")]
+
 
 
 def main():
@@ -239,7 +243,7 @@ def main():
         if src != "CHANGELOG.md" and ver:
             for rx in STALE:
                 for m in rx.finditer(text):
-                    if m.group(1) != ver:
+                    if m.group(1).replace("--", "-") != ver:
                         errors.append("%s: says %s, the version is %s" % (src, m.group(0), ver))
         result[name + ".md"] = body.rstrip("\n") + "\n"
     result["Home.md"] = home(plist)

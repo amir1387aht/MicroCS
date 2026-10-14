@@ -1099,3 +1099,40 @@ assistivetech/history/sameviewEOL-only undo/import/fullsemantics and entireorigi
 scope/security/verifier/graphics/roadmap/hardware/review releasegates STILL pending.
 Localbinarypatches/NOTES prepared; push/fetch/treeverify thenrecordREMOTE32SHA.
 Main unchanged, PR DRAFT/OPEN/UNMERGED. No merge/tag/release/provisioning/hostileimages.
+
+## Checkpoint33 — user-scoped publishable v2 preview path (not full stable v2)
+
+User explicitly permits publication of a truthful subset before all roadmap
+features finish. Immediate target2.0.0-preview.1 Linuxhost/offlineStudio/source;
+NO readyflashfirmware/security/completegraphics/roadmap promise. Original stable
+fullscope gates retained separately, not used to block every limited prerelease.
+Predecessor32REMOTE3ddadb5180743c1b4a3a3f47c6261310ca0581c8 TREEae499242...verified;
+main unchanged d3def1ff... . No tag/merge/release/provisioning authorization exercised.
+
+Runtime/header/library2.0.0-preview.1, CMake numeric2.0.0; no APIfunction/opcode/
+imageformat/algorithm changes. New clean tracked-source package tool creates
+matchedversion Linux64/offlineStudio/source archives, manifest/sourcecommit/tree/
+epoch/environment and SHA256SUMS; checks actualhostversion/compiler/TFT=0/LVGL=0,
+all requiredoffline modules, metadataalignment and noexistingoutputoverwrite.
+Unit8 tests pass. Separate readonly Preview Actions workflow builds/smokes/uploads
+candidates only. Stable workflow rejects non-main andpreviewlabels BEFORE stable
+assets operations. Scope/notes/docs updated with explicittrustedonly/noauth/sandbox
+anddeferredfeatures, no phoneSerial/physicalboard/fullABIattestation claim.
+
+Wholefinalmakecheck completedEXIT0 inclALL11altconfig EACH85, native/config/GC/
+profile/network/port/examples. CMake actualhost85+shell EXIT0 (no registeredCTest,
+no CTestpassclaim). Full existing Studio realserial/editor/plotter/reconnect exact
+newversion, project28/portable46/completion/59editor90status24modal/gallery,
+source80/portable56/project53/scope69/lexer/highlight/formatter/caps/metadata/
+217C#218total77snippets,8packageunit,48wiki allEXIT0 onfrozenruntimehashes.
+
+Initialwholedoc gate failed7 stale1.14labels; nextgate failed HTTP hardcodedbody
+length33/43/35 vs longpreview42/52/44; initialStudio2fails usedv1prefix. Preserved,
+corrected exactversion/fixturelengths andrerun, NOassertion removed. Canonical
+runtimehash unchangedthrough retries. CMakePythonwrapper failedmodule lookup;
+knownnative3.31.6binary used, realbuild/tests pass. Generatedlowram image1601->1595
+ONLYdebugpath/length plusgeneratorcomment bytechecked afterwholeEXIT0; restored
+legacyfixture. Localpatches/NOTES+evidence/preview33. Next afterpush: fresh canonical
+REMOTEworktree, actualpackage/extractedhost+offlineStudio smoke, attach candidate
+artifacts and preserveevidence. ExactnewCI/review still required before actual
+publicprerelease; unfinished optionalfeatures do not prevent scopedpreview.

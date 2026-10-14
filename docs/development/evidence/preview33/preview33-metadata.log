@@ -1,0 +1,3 @@
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies

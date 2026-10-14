@@ -1,6 +1,6 @@
 # MicroCS v2 implementation and release gates
 
-Status: work in progress. No v2 release is authorized by this checklist until **all** gates below have evidence. Existing README roadmap items remain unfinished; no checkmark is implied by a symbol or stub.
+Status: full/stable v2 remains work in progress. **All full/stable gates below** still require evidence. The user has narrowed the immediate target to a publishable, truthfully scoped development preview before every roadmap feature is complete; its separate [preview publication gates](../V2_PREVIEW.md) do not authorize a stable/latest release or waive claimed safety/validation. Existing roadmap items remain unfinished; no checkmark is implied by a symbol or stub.
 
 ## Recovery and compatibility contract
 
@@ -32,7 +32,19 @@ Status: work in progress. No v2 release is authorized by this checklist until **
 | Debugger / VS Code | functional source mapping/protocol/extension, access policy, UI tests/docs | pending |
 | ROM-resident metadata | equivalent semantics, pointer/alignment portable; flash/RAM profiles | pending |
 | Documentation / benchmarks | measured reproducible distributions/raw data/assets, complete setup/API/support/migration/security docs, all examples compiled/run, generated docs current | pending; don't replace old claims with unmeasured v2 claims |
-| CI / release | entire required matrix green on exact head; reconcile main; finished scope; squash PR; main checks; verified release artifacts, optional graphics off | BLOCKED by unfinished scope and validation |
+| CI / stable release | entire required matrix green on exact head; reconcile main; finished scope; squash PR; main checks; verified release artifacts, optional graphics off | BLOCKED by unfinished scope and validation |
+
+## Scoped preview target (user-approved narrowing)
+
+The first `2.0.0-preview.1` candidate includes Linux x86-64 host, offline Studio
+and complete source archives. No prebuilt firmware or complete optional graphics/
+security/roadmap promise. Canonical runtime/package version, clean commit/tree
+provenance, checksums, safe stable-release separation, extracted-host/Studio smoke,
+exact-head required CI and reviewed scope notes are the preview gates. Unfinished
+features may be deferred explicitly; failed tests or undisclosed security claims
+may not. Publication/tagging remains a separate approval, as a prerelease only.
+See [scope and publication policy](../V2_PREVIEW.md). Full stable-v2 gates above
+remain the long-term goal, not a reason to prevent an honestly scoped preview.
 
 ## Baseline evidence and environment
 

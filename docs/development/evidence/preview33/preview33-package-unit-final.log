@@ -1,0 +1,12 @@
+test_clean_and_tracked_only (__main__.PreviewTests.test_clean_and_tracked_only) ... ok
+test_dirty_rejected (__main__.PreviewTests.test_dirty_rejected) ... ok
+test_invalid_host_rejected_before_output (__main__.PreviewTests.test_invalid_host_rejected_before_output) ... ok
+test_preview_policy (__main__.PreviewTests.test_preview_policy) ... ok
+test_repeatable_archives (__main__.PreviewTests.test_repeatable_archives) ... ok
+test_runtime_label_and_modules (__main__.PreviewTests.test_runtime_label_and_modules) ... ok
+test_stable_policy (__main__.PreviewTests.test_stable_policy) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.536s
+
+OK

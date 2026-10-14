@@ -34,6 +34,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v=$(sed -n 's/^#define MCS_VERSION_STRING "\(.*\)"/\1/p' include/mcs.h)
+          # Never replace stable assets from a feature branch or prerelease build.
+          test "$GITHUB_REF" = refs/heads/main || { echo "Stable releases require main; use Preview artifacts instead." >&2; exit 1; }
+          python3 tools/release_policy.py stable --version "$v" --ref "$GITHUB_REF"
           echo "version=$v" >> $GITHUB_OUTPUT
           # a manual run rebuilds and refreshes the files of an existing release (e.g. after adding a board)
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then echo "new=true" >> $GITHUB_OUTPUT; echo "manual run: (re)building v$v"

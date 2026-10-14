@@ -1,0 +1,90 @@
+PASS connected, info read: MicroCS 2.0.0-preview.1
+PASS connect leaves DTR/RTS alone (no reset on connect)
+PASS file list ["lib","data.bin","hello.cs"]
+PASS storage: 21.2 GB free of 31.9 GB
+PASS mem: VM heap: 24 KB in use · peak 24 KB
+PASS REPL keeps state, echo filtered
+PASS multi-line REPL input
+PASS opened hello.cs in editor
+PASS auto-close paren
+PASS overtype closing paren
+PASS tab marked dirty
+PASS save + run streams output
+PASS saved to device fs
+PASS tab clean after save
+PASS REPL state survives file ops
+PASS completion popup
+PASS member completion: MGetDrivesDriveInfo[]
+PASS 176 templates in the gallery
+PASS boot and scheduler categories
+PASS search finds jobs.cfg, preview + file name
+PASS save dialog suggests /files.cs
+PASS template ran (DriveInfo)
+PASS files.cs saved, log.txt written by script
+PASS unsupported radio categories hidden
+PASS every visible template has all requirements
+PASS GPIO does not imply interrupt support
+PASS gallery explains capability filtering
+PASS legacy firmware never guesses peripheral support
+PASS compile error reported: ✗ failed after 19 ms
+PASS error line highlighted
+PASS search ranks name hits first, highlighted: Blink an LED
+PASS multi-word search: HTTP POST JSON
+PASS tags Wi-Fi + GitHub source link
+PASS no-match message
+PASS Escape clears the search first
+PASS arrow keys move the selection
+PASS PageDown
+PASS Recent category after adding templates
+PASS Recent lists the last ones first: Hello world,Files and free space
+PASS a name no open tab uses: hello-2.cs
+PASS save asks before replacing /files.cs
+PASS Run stops jobs left by the previous run
+PASS only one active job after three runs: "3 active every 60000 ms runs=0 <delegate>\n"
+PASS stop enabled while running
+PASS script stopped
+PASS tab close button closes the tab
+PASS Console.ReadLine reads the console line
+PASS input shown once plus genuine application output (echo=1)
+PASS Console.ReadLine preserves trailing spaces
+PASS second input displayed once
+PASS Stop ends a script waiting in ReadLine
+PASS device free again after stop
+PASS Refresh re-reads the open file
+PASS upload larger than free space refused: not enough space on the device: huge.bin needs 4.9 KB, 100 B free. Delete some files first.
+PASS waiting for the device after it vanished: Waiting for the device…
+PASS reconnected after the device came back: MicroCS 2.0.0-preview.1
+PASS Reset button: board answers again
+PASS double-click adds the template
+PASS upload 7 KB
+PASS binary file shown as hex
+PASS navigated into /lib
+PASS rename
+PASS recursive delete
+PASS shell command
+PASS shell error shown
+PASS mkdir
+PASS reset pulses RTS
+PASS still connected after reset
+PASS download mode detected, board reset, connected
+PASS survives a framing error on the port
+PASS booting board: boot log shown, waits, connects without a reset
+PASS using completion: {}System.Collectionsnamespace,{}System.Collections.Genericnamespace
+PASS completion doc panel shows the signature: void GPIO.Write(pin pin, bool value) void GPIO.Write(pin pin
+PASS parameter info on "(": ▲1 of 2▼ void GPIO.Write(pin pin, bool value) Drives the pin: true / 1 = high, false / 0 =
+PASS active parameter follows ","
+PASS arrow keys switch overloads
+PASS parameter info closes after ")"
+PASS members of an inferred type: MReadRegisterint,MReadRegistersbyte[]
+PASS return type chained (byte[] members): MAdd,MAggregatebyte  (+1),MAllbool ";\nvar dev = new I2cDevice(0, 0x48);\nvar regs = dev.ReadRegisters(0x10, 2);\nregs."
+PASS members of a class in this file: MEqualsbool,MGetHashCodeint,MGetTypeType
+PASS parameter info for user methods
+PASS hover text for a member
+PASS Ctrl+H opens find/replace
+PASS match count: 1 of 3
+PASS replace all
+PASS format document
+PASS Alt+Up moves the line
+PASS plotter parses named and plain values: ["temp","hum","v1","v2"]0
+PASS 4 unsaved drafts kept
+ALL PASSED

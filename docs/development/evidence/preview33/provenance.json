@@ -1,0 +1,206 @@
+{
+  "predecessor_remote": "3ddadb5180743c1b4a3a3f47c6261310ca0581c8",
+  "predecessor_tree": "ae499242f13bef96fa8d8211d0f4d55e6c392869",
+  "main": "d3def1ff534c59a6726037ccf31f61535647e857",
+  "runtime_version": "MicroCS 2.0.0-preview.1",
+  "recorded_utc": "2026-10-14T02:41:35.038939+00:00",
+  "node": "v24.14.1",
+  "cmake": "3.31.6 native /data/toolchains/format-cmake/cmake/data/bin/cmake",
+  "GCC": "11.5.0",
+  "packaging_environment": "NAME=\"Amazon Linux\"\nVERSION=\"2023\"\nID=\"amzn\"\nID_LIKE=\"fedora\"\nVERSION_ID=\"2023\"\nPLATFORM_ID=\"platform:al2023\"\nPRETTY_NAME=\"Amazon Linux 2023.12.20260817\"\nANSI_COLOR=\"0;33\"\nCPE_NAME=\"cpe:2.3:o:amazon:amazon_linux:2023\"\nHOME_URL=\"https://aws.amazon.com/linux/amazon-linux-2023/\"\nDOCUMENTATION_URL=\"https://docs.aws.amazon.com/linux/\"\nSUPPORT_URL=\"https://aws.amazon.com/premiumsupport/\"\nBUG_REPORT_URL=\"https://github.com/amazonlinux/amazon-linux-2023\"\nVENDOR_NAME=\"AWS\"\nVENDOR_URL=\"https://aws.amazon.com/\"\nSUPPORT_END=\"2029-06-30\"\n",
+  "logs": {
+    "preview33-package-unit-initial.log": {
+      "bytes": 683,
+      "sha256": "a925bed3f60e5b83b805cd2ca6a578f9b3f86d9731c169bc8fbe69d0f52ebd92"
+    },
+    "preview33-host-build.log": {
+      "bytes": 5602,
+      "sha256": "87667c792fe9ae37a820b5ee142f1389fb73b7083f9f98922e68ed596c91856f"
+    },
+    "preview33-package-unit-final.log": {
+      "bytes": 683,
+      "sha256": "0ed7db5c65370fca06015a2149617ec6c331efe97a961639546b63b92e3a2d18"
+    },
+    "preview33-wiki-final.log": {
+      "bytes": 25,
+      "sha256": "cc1170627d94f648e5b1ea5a50dc995eed8bdfcad2cbe8c4d48301da7de1a007"
+    },
+    "preview33-host85.log": {
+      "bytes": 2208,
+      "sha256": "75f9072d29a4850340adaa80e5917086b371b0ebaaac9a69536164c91509db1f"
+    },
+    "preview33-full-check.log": {
+      "bytes": 11112,
+      "sha256": "2f8429608aa09bc66ad6c69220d7b7e8ad5165a4ce7364248c16aeda88f37eef"
+    },
+    "preview33-wiki-fixed.log": {
+      "bytes": 25,
+      "sha256": "cc1170627d94f648e5b1ea5a50dc995eed8bdfcad2cbe8c4d48301da7de1a007"
+    },
+    "preview33-generated-final.log": {
+      "bytes": 42,
+      "sha256": "f1bfc1b29a434ff76cdf28d0296be0ef7a40c630448ca9d01f4c8fc400e438a2"
+    },
+    "preview33-wiki.log": {
+      "bytes": 25,
+      "sha256": "cc1170627d94f648e5b1ea5a50dc995eed8bdfcad2cbe8c4d48301da7de1a007"
+    },
+    "preview33-full-check-fixed.log": {
+      "bytes": 9832,
+      "sha256": "9d075c127ffdc07b4f917de123256e257ec2c324004aa047d46d33fdb9a077b9"
+    },
+    "preview33-default-caps.log": {
+      "bytes": 1193,
+      "sha256": "9813334a2a7359eaf62c4d7f49d29f56ce32b6d6272e500f5849184bb8be47f1"
+    },
+    "preview33-package-unit-final2.log": {
+      "bytes": 683,
+      "sha256": "eb8506ebb28e57b9384dd98848695c67ed8550863b94491a8fc168a01869b06c"
+    },
+    "preview33-studio-version-browser.log": {
+      "bytes": 4034,
+      "sha256": "b2af5d51755c0868b25d7b1d2ed86040e0b6b5f7eb33ac9b5096eba4767f4223"
+    },
+    "preview33-package-unit-final3.log": {
+      "bytes": 683,
+      "sha256": "892f379b9533623f91658c2a413dddb18322882279d2d03bedfaa4eccce89307"
+    },
+    "preview33-wiki-final48.log": {
+      "bytes": 25,
+      "sha256": "cc1170627d94f648e5b1ea5a50dc995eed8bdfcad2cbe8c4d48301da7de1a007"
+    },
+    "preview33-stable-preview-rejected.log": {
+      "bytes": 73,
+      "sha256": "0c891aef22022ac984acbb451d0fd06de8059b8f896e620310081bf626afe5ab"
+    },
+    "preview33-stable-feature-ref-rejected.log": {
+      "bytes": 56,
+      "sha256": "47c1b168186e00cf4a605590f23c43fffb77236d39355469e5efa1d50370b8ed"
+    },
+    "preview33-network-version-fixed.log": {
+      "bytes": 31,
+      "sha256": "be5c7912139dadda6d10ba4619bba24fe3ac4a7a56a5b69331dc36b6ef462353"
+    },
+    "preview33-full-check-final.log": {
+      "bytes": 12717,
+      "sha256": "0bdaa551eb32aded16556debad6825c5d07fad31eaf9ce3f357c0a5edfafdbe3"
+    },
+    "preview33-studio-final.log": {
+      "bytes": 3860,
+      "sha256": "30ce3a65dd34df5c7400bc7c74d19d204686aae03499b50b9b84bc19d2601c72"
+    },
+    "preview33-source-model.log": {
+      "bytes": 62,
+      "sha256": "f8995099fe7c579f3a21c1b9add516b14759bac1774565b1a11a769526a7996f"
+    },
+    "preview33-project_file-model.log": {
+      "bytes": 265,
+      "sha256": "1af8b623836b5bef849558873a6a4cc3b0b580211f49f86105629d6487677006"
+    },
+    "preview33-project-model.log": {
+      "bytes": 277,
+      "sha256": "0c0323e005737ecdced5ff3c4e8b476180909c5024bbaca7618485f7e3bb35c5"
+    },
+    "preview33-scope-model.log": {
+      "bytes": 56,
+      "sha256": "56f260e172ac7978e239eec9780f207d9416658bff1bde21e76855a7f7d73a8c"
+    },
+    "preview33-lexical-model.log": {
+      "bytes": 103,
+      "sha256": "821d22bc5e03851049b4611b371f545fa652a34709708e29c99558ab8ce1b267"
+    },
+    "preview33-highlight-model.log": {
+      "bytes": 94,
+      "sha256": "f727f3dc0a2c785786584128a04e14b6d72b81d89306958de48ae5f3f1acbd85"
+    },
+    "preview33-format-model.log": {
+      "bytes": 204,
+      "sha256": "4401f58bf09f0797c7251f6aeff8c48ca9b31cc45c8e46588978802792ec758a"
+    },
+    "preview33-capabilities-model.log": {
+      "bytes": 547,
+      "sha256": "d20c0f07d5d24197bce4dd8a8a0d25b67e764927c56a6506fc0d998c0f6d8b60"
+    },
+    "preview33-templates-model.log": {
+      "bytes": 53,
+      "sha256": "404e354be517f89b77f2473a165734e848bfd45655898c3e590a272b789068d6"
+    },
+    "preview33-metadata.log": {
+      "bytes": 222,
+      "sha256": "c2d27855599aac8c1c50a78e53f3d3634b5c8a1c285a7e3c083da0367ea2fd8c"
+    },
+    "preview33-unit-package.log": {
+      "bytes": 683,
+      "sha256": "a0d1641275468b0c3d79504511b26dc4c9719644658d61fd33b759de73e9bbc0"
+    },
+    "preview33-generated.log": {
+      "bytes": 42,
+      "sha256": "f1bfc1b29a434ff76cdf28d0296be0ef7a40c630448ca9d01f4c8fc400e438a2"
+    },
+    "preview33-project_browser-final.log": {
+      "bytes": 1492,
+      "sha256": "12de722d62d212c5f2e2dab0729ed997c1a15fef9e119e3aa6ffc715423558b9"
+    },
+    "preview33-project_file_browser-final.log": {
+      "bytes": 3039,
+      "sha256": "9a74083a53ada91c57944a7f0dfa278618f12ac80835e70b8e91ca41edd0088f"
+    },
+    "preview33-completion_context-final.log": {
+      "bytes": 113,
+      "sha256": "c061e26a4042544b2be351a06c576a3ec981975875216c1f80ef3c85779d7b9d"
+    },
+    "preview33-editor_layout-final.log": {
+      "bytes": 358,
+      "sha256": "0741a842ae63900a6a097070bfe42b3c85f8585158e757173cafc494a1ff0bbc"
+    },
+    "preview33-status_layout-final.log": {
+      "bytes": 241,
+      "sha256": "6cce913f3d8413feb3bb42ae37bdcd8964a3c8e223a02666b4fd1db757d0984f"
+    },
+    "preview33-project_layout-final.log": {
+      "bytes": 301,
+      "sha256": "9d9e50978b9db89cf2a28547bf1f9dd645ebb48d5fe51b4ac36493cc2f351080"
+    },
+    "preview33-gallery_layout-final.log": {
+      "bytes": 485,
+      "sha256": "3ae94c5e3383aacee824e4bc153857053216f20a80f87ab32af4a2a6d0000b80"
+    },
+    "preview33-package-unit-environment.log": {
+      "bytes": 683,
+      "sha256": "e12055e12552151a819a206dd5e74a9e53fa47fe242cb581bf31d8e530c008dd"
+    },
+    "preview33-wiki-environment.log": {
+      "bytes": 25,
+      "sha256": "cc1170627d94f648e5b1ea5a50dc995eed8bdfcad2cbe8c4d48301da7de1a007"
+    },
+    "preview33-package-metadata-final.log": {
+      "bytes": 683,
+      "sha256": "9bb9eadfd9529f1a0c9e0fdd1594d4905a1e74cd1f901fe6d5f4bd8220e9c016"
+    },
+    "preview33-cmake-configure.log": {
+      "bytes": 178,
+      "sha256": "c327cb4b022f7c12ab85033237784f96bf44e07c51b75edc8265a9f0649e3e92"
+    },
+    "preview33-cmake-configure-final.log": {
+      "bytes": 380,
+      "sha256": "8030adae3e9d19b1439c16c17a6d511eadb210dd3ac44914c84f1d2302122a74"
+    },
+    "preview33-cmake-build-final.log": {
+      "bytes": 3429,
+      "sha256": "18eabf8756a1d21f57ff1475c19c527af98f3c41b8e0ac01d7a94f77a68f0411"
+    },
+    "preview33-package-unit-final8.log": {
+      "bytes": 776,
+      "sha256": "1e101300706d54000f297ea78e58b4cf456950cc90db2da9ed7adfd34f1a9439"
+    },
+    "preview33-cmake-host85.log": {
+      "bytes": 2208,
+      "sha256": "75f9072d29a4850340adaa80e5917086b371b0ebaaac9a69536164c91509db1f"
+    },
+    "preview33-cmake-shell.log": {
+      "bytes": 885,
+      "sha256": "db6dfaeecc3a3bacdab7c76bd3eeb26e81837d00053ae47534750651bb7592ab"
+    }
+  },
+  "validation": "final full make check EXIT0 including11 alternate configurations85each; CMake actualCLI85+shell EXIT0; complete existing Studio/model/template/layout gates EXIT0;8 package-policy tests EXIT0;48 wiki pages; actual canonical-remote archive extraction smoke is next after push, not claimed complete here"
+}

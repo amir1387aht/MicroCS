@@ -98,8 +98,8 @@ Console.WriteLine(c.ReadToEnd());
 c.Close();
 '''
 
-EXPECT = """200 OK (33 bytes) | hello /a ua=MicroCS/VER key=42 | text/plain | 33 | True
-200 http://127.0.0.1:PORT/hello?x=1 43
+EXPECT = """200 OK (SIZE_A bytes) | hello /a ua=MicroCS/VER key=42 | text/plain | SIZE_A | True
+200 http://127.0.0.1:PORT/hello?x=1 SIZE_REDIRECT
 200 http://127.0.0.1:PORT/hello
 loop 302
 no follow 302 /hello?x=1
@@ -109,7 +109,7 @@ POST {"a":1} ct=application/json
 PUT AB ct=application/octet-stream
 PATCH x ct=text/plain; charset=utf-8 | DELETE  ct=-
 POST q ct=text/csv
-head 200 0 35
+head 200 0 SIZE_HEAD
 404 Not Found False nf!
 HttpRequestException HTTP 404 Not Found: http://127.0.0.1:PORT/missing
 EnsureSuccess threw
@@ -150,7 +150,14 @@ def main():
         out = subprocess.run([mcs, "--fs", d, src], capture_output=True, text=True, timeout=120)
     srv.shutdown()
     got = out.stdout + out.stderr
+    # The fixture echoes the full runtime User-Agent; prerelease labels are longer.
+    # Compute its exact UTF-8 lengths, never suppress content-length assertions.
+    sizes = {"SIZE_A": len(("hello /a ua=MicroCS/%s key=42" % ver).encode()),
+             "SIZE_REDIRECT": len(("hello /hello?x=1 ua=MicroCS/%s key=None" % ver).encode()),
+             "SIZE_HEAD": len(("hello /a ua=MicroCS/%s key=None" % ver).encode())}
     want = EXPECT.replace("PORT", str(port)).replace("VER", ver)
+    for token, size in sizes.items():
+        want = want.replace(token, str(size))
     if got != want:
         import difflib
         print("FAIL network tests"); sys.stdout.writelines(difflib.unified_diff(want.splitlines(True), got.splitlines(True), "expected", "got"))

@@ -2,6 +2,22 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 2.0.0-preview.1 — scoped development preview candidate (not published)
+
+- Preview/runtime version now identifies the v2 development channel; bytecode
+  formats 1–4 and the public execution interfaces remain compatible.
+- Explicit Studio source projects/navigation, portable plaintext snapshots,
+  canonical source preservation and adaptive keyboard/pointer/touch panels.
+- Existing v2 runtime stack-capacity, loader metadata and nested cancellation
+  hardening; not a complete untrusted-image verifier or sandbox.
+- Clean-checkout Linux x86-64, offline Studio and source candidate packaging with
+  commit/tree manifest/checksums; separate read-only artifact workflow.
+- Stable release workflow rejects preview labels and non-main refs, preventing
+  accidental replacement of stable assets with a feature-branch preview.
+- No ready-to-flash firmware in the first preview package. Optional graphics,
+  security/signing, full semantic/undo/accessibility coverage and unfinished
+  roadmap remain deferred; see [preview scope](docs/V2_PREVIEW.md).
+
 ## Unreleased — Bluetooth LE, Studio templates as files
 
 * **Studio console input** — machine-mode `Console.ReadLine` no longer echoes input

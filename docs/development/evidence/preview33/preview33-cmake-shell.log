@@ -1,0 +1,24 @@
+PASS boot.cs then main.cs, jobs.cfg loaded
+PASS binary upload
+PASS binary download matches (EOT, newline, Ctrl-C bytes inside)
+PASS windowed upload (flow control), 5 KB with status bytes inside
+PASS windowed upload, 16-byte window
+PASS streamed upload (no window, older hosts)
+PASS upload of exactly one window
+PASS window capped at MCS_SHELL_PUT_WINDOW
+PASS no temporary file left
+PASS exec one-liner
+PASS Ctrl-C stops a running script (ERR script aborted)
+PASS runtime responsive after stop
+PASS jobs listing
+PASS periodic job ran while idle (b'tttttttt\n')
+PASS unknown command reported
+PASS missing script reported
+PASS script exception reported
+PASS quit
+PASS upload over quota rejected
+PASS previous version intact after failed upload
+PASS no partial files (b'f       24 app.cs\n')
+PASS df reports size (b'/ ramfs 2 KB total, 0 KB used, 2 KB free\n')
+----
+all shell tests passed

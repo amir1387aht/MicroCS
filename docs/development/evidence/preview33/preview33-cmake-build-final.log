@@ -1,0 +1,49 @@
+[  2%] Building C object CMakeFiles/microcs.dir/src/mcs_bytecode.c.o
+[  4%] Building C object CMakeFiles/microcs.dir/src/mcs_compiler.c.o
+[  6%] Building C object CMakeFiles/microcs.dir/src/mcs_fmt.c.o
+[  8%] Building C object CMakeFiles/microcs.dir/src/mcs_lexer.c.o
+[ 10%] Building C object CMakeFiles/microcs.dir/src/mcs_lib.c.o
+[ 12%] Building C object CMakeFiles/microcs.dir/src/mcs_lib_bytes.c.o
+[ 14%] Building C object CMakeFiles/microcs.dir/src/mcs_lib_coll.c.o
+[ 17%] Building C object CMakeFiles/microcs.dir/src/mcs_lib_json.c.o
+[ 19%] Building C object CMakeFiles/microcs.dir/src/mcs_lib_str.c.o
+[ 21%] Building C object CMakeFiles/microcs.dir/src/mcs_object.c.o
+[ 23%] Building C object CMakeFiles/microcs.dir/src/mcs_opt.c.o
+[ 25%] Building C object CMakeFiles/microcs.dir/src/mcs_parser.c.o
+[ 27%] Building C object CMakeFiles/microcs.dir/src/mcs_value.c.o
+[ 29%] Building C object CMakeFiles/microcs.dir/src/mcs_vm.c.o
+[ 31%] Building C object CMakeFiles/microcs.dir/modules/ble/mcs_ble_lib.c.o
+[ 34%] Building C object CMakeFiles/microcs.dir/modules/ble/mcs_ble_sim.c.o
+[ 36%] Building C object CMakeFiles/microcs.dir/modules/drivers/mcs_drivers.c.o
+[ 38%] Building C object CMakeFiles/microcs.dir/modules/drivers/mcs_drv_servo.c.o
+[ 40%] Building C object CMakeFiles/microcs.dir/modules/drivers/mcs_drv_u8g2.c.o
+[ 42%] Building C object CMakeFiles/microcs.dir/modules/drivers/mcs_drv_ws2812.c.o
+[ 44%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_flash.c.o
+[ 46%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_flashfs.c.o
+[ 48%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_fs_lib.c.o
+[ 51%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs.c.o
+[ 53%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs_lfs.c.o
+[ 55%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs_posix.c.o
+[ 57%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs_ram.c.o
+[ 59%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs_tinyfs.c.o
+[ 61%] Building C object CMakeFiles/microcs.dir/modules/fs/mcs_vfs_yaffs.c.o
+[ 63%] Building C object CMakeFiles/microcs.dir/modules/hal/mcs_hal_cfg.c.o
+[ 65%] Building C object CMakeFiles/microcs.dir/modules/hal/mcs_hal_dma.c.o
+[ 68%] Building C object CMakeFiles/microcs.dir/modules/hal/mcs_hal_lib.c.o
+[ 70%] Building C object CMakeFiles/microcs.dir/modules/hal/mcs_hal_sim.c.o
+[ 72%] Building C object CMakeFiles/microcs.dir/modules/lvgl/mcs_lvgl.c.o
+[ 74%] Building C object CMakeFiles/microcs.dir/modules/net/mcs_net_lib.c.o
+[ 76%] Building C object CMakeFiles/microcs.dir/modules/net/mcs_net_sim.c.o
+[ 78%] Building C object CMakeFiles/microcs.dir/modules/net/mcs_net_srv.c.o
+[ 80%] Building C object CMakeFiles/microcs.dir/modules/net/mcs_net_sock.c.o
+[ 82%] Building C object CMakeFiles/microcs.dir/modules/os/mcs_os.c.o
+[ 85%] Building C object CMakeFiles/microcs.dir/modules/runtime/mcs_runtime.c.o
+[ 87%] Building C object CMakeFiles/microcs.dir/modules/sched/mcs_sched.c.o
+[ 89%] Building C object CMakeFiles/microcs.dir/modules/shell/mcs_shell.c.o
+[ 91%] Building C object CMakeFiles/microcs.dir/modules/tft/mcs_display_rgb565.c.o
+[ 93%] Building C object CMakeFiles/microcs.dir/modules/threads/mcs_threads.c.o
+[ 95%] Linking C static library libmicrocs.a
+[ 95%] Built target microcs
+[ 97%] Building C object CMakeFiles/mcs.dir/ports/unix/main.c.o
+[100%] Linking C executable mcs
+[100%] Built target mcs

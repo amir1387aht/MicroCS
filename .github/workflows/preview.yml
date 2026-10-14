@@ -1,0 +1,69 @@
+name: v2 Preview artifacts (no publication)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - include/mcs.h
+      - tools/package_preview.py
+      - tools/release_policy.py
+      - tests/test_preview_package.py
+      - docs/V2_PREVIEW.md
+      - .github/workflows/preview.yml
+      - .github/workflows/release.yml
+
+# This workflow cannot create tags/releases, change latest, or replace v1 assets.
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Linux + offline Studio preview package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Preview policy and package regression tests
+        run: python3 tests/test_preview_package.py
+      - name: Build default host (optional graphics OFF) and validate
+        run: |
+          make -j2 mcs
+          sh tests/run_tests.sh ./mcs
+          python3 tests/test_shell.py ./mcs
+          python3 tests/test_readline_echo.py ./mcs
+      - name: Studio source/project regression gates
+        run: |
+          node tests/studio/test_source.js
+          node tests/studio/test_project_file.js ./mcs
+          node tests/studio/test_project.js ./mcs
+          python3 tools/studio/gen_templates.py --check
+          python3 tools/wiki_sync.py --check
+      - name: Assemble clean-checkout candidate (not a release)
+        run: |
+          version=$(sed -n 's/^#define MCS_VERSION_STRING "\(.*\)"/\1/p' include/mcs.h)
+          python3 tools/package_preview.py --version "$version" --host-binary ./mcs --out dist/preview
+          cd dist/preview/MicroCS-*
+          sha256sum --check SHA256SUMS
+      - name: Extracted candidate host smoke and offline Studio
+        run: |
+          bundle=$(find dist/preview -mindepth 1 -maxdepth 1 -type d -name 'MicroCS-*')
+          python3 tests/test_preview_package.py --bundle "$bundle"
+          npm install --no-save --no-package-lock playwright-core@1
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_preview_package_browser.js
+      - name: Extracted candidate host smoke and offline Studio
+        run: |
+          bundle=$(find dist/preview -mindepth 1 -maxdepth 1 -type d -name 'MicroCS-*')
+          python3 tests/test_preview_package.py --bundle "$bundle"
+          npm install --no-save --no-package-lock playwright-core@1
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_preview_package_browser.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: microcs-v2-preview-${{ github.sha }}
+          path: dist/preview/MicroCS-*/*
+          if-no-files-found: error
+          retention-days: 30

@@ -8,12 +8,14 @@ options (U8g2 displays, pins, filesystem, profile) you choose.
 
 1. Install esptool: `pip install esptool`.
 2. Download `microcs-<version>-<chip>.bin` for your chip (`esp32`, `esp32s3`, `esp32c2`,
-   `esp32c3`, `esp32c6`) from the [latest release](https://github.com/amir1387aht/MicroCS/releases/latest).
+   `esp32c3`, `esp32c6`) from the latest **stable** [release](https://github.com/amir1387aht/MicroCS/releases/latest).
+   The first v2 preview ships no prebuilt firmware; do not substitute its label for a stable firmware asset.
 3. Connect the board by USB and flash the whole image at address 0
    (`--port COM5` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS):
 
    ```sh
-   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.14.0-esp32c3.bin
+   VERSION=1.14.0 # example stable asset; set this to the stable version you downloaded
+   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 "microcs-${VERSION}-esp32c3.bin"
    ```
 
    If esptool cannot connect: hold **BOOT**, tap **RESET** (EN), release BOOT, try again.

@@ -1,0 +1,6 @@
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS entire native vocabulary fits existing protocol v1 grammar
+PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware
+PASS image template requires actual new TFT.Image API, preserving older firmware filtering
+PASS copy template requires new TFT.SpriteCopy API rather than class/image presence
+PASS font template requires actual new LVGL.Font API, preserving old firmware/offline behavior

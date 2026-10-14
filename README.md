@@ -3,6 +3,12 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
   <img alt="MicroCS — a tiny, embeddable C# runtime for microcontrollers" src="assets/banner-light.svg" width="640">
+
+> **v2 preview work:** this branch targets a scoped `2.0.0-preview.1` candidate,
+> not a completed stable v2. See [preview scope, packages and limitations](docs/V2_PREVIEW.md).
+> Linux/Studio/source candidates are separate from existing stable firmware assets;
+> optional graphics stay OFF and untrusted bytecode execution remains unsupported.
+
 </picture>
 
 **Write firmware logic in C#. Run it on any microcontroller. Update it without reflashing.**
@@ -10,7 +16,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.14.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0--preview.1-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -257,7 +263,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.14.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 2.0.0-preview.1 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -287,10 +293,11 @@ scheduler, sensors, displays, motors, every peripheral, console games), a serial
 <p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 160+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
-**Ready-to-flash firmware** in every [release](https://github.com/amir1387aht/MicroCS/releases/latest):
+**Ready-to-flash firmware** in stable [releases](https://github.com/amir1387aht/MicroCS/releases/latest):
 Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W (with Wi-Fi) / RP2040-Zero (`.uf2`), ESP32 / S3 / C2 / C3 / C6 (`.bin`) and the STM32
 boards Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI and Black Pill F411CE
 (`.bin` / `.hex`, [details](ports/stm32/firmware/README.md)).
+The first v2 preview package does **not** include ready-to-flash firmware.
 
 Ready-made firmware projects: [`ports/rp2/example`](ports/rp2/example) (Pico / Pico 2 / Pico W),
 [`ports/esp32/example`](ports/esp32/example) (ESP-IDF), [`ports/stm32/example_main.c`](ports/stm32/example_main.c)
@@ -465,7 +472,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.14.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-2.0.0-preview.1.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**

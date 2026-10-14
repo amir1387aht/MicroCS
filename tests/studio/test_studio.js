@@ -8,6 +8,7 @@ const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path');
 const OUT = path.resolve(process.env.OUT || 'build/studio');
 const MCS = path.resolve(process.argv[2] || './mcs');
+const expectedVersion = require('child_process').execFileSync(MCS, ['--version'], {encoding:'utf8', timeout:5000}).trim();
 const HTML = 'file://' + path.resolve(__dirname, '../../tools/studio/index.html');
 const ROOT = OUT + '/fs';
 fs.mkdirSync(OUT, { recursive: true });
@@ -60,9 +61,9 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.screenshot({ path: OUT + '/0_start.png' });
   await page.click('#btnConnect');
   await page.waitForFunction(() => document.getElementById('connText').textContent.startsWith('MicroCS'), null, { timeout: 8000 }).catch(() => {});
-  check((await page.textContent('#connText')).startsWith('MicroCS 1.'), 'connected, info read: ' + await page.textContent('#connText'));
+  check((await page.textContent('#connText')) === expectedVersion, 'connected, info read: ' + await page.textContent('#connText'));
   check(await page.evaluate(() => !window.__signals), 'connect leaves DTR/RTS alone (no reset on connect)');
-  if (!(await page.textContent('#connText')).startsWith('MicroCS 1.')) console.log(await page.innerText('#term'));
+  if ((await page.textContent('#connText')) !== expectedVersion) console.log(await page.innerText('#term'));
   await page.waitForSelector('.file');
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
@@ -278,7 +279,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(/Waiting for the device/.test(await page.textContent('#connText')) || /Reconnecting/.test(await page.textContent('#connText')), 'waiting for the device after it vanished: ' + await page.textContent('#connText'));
   await page.evaluate(() => { window.__gone = 0; });
   await page.waitForFunction(() => /reconnected/.test(document.getElementById('term').innerText) && /ready/.test(document.getElementById('term').innerText.split('reconnected').pop()), null, { timeout: 10000 }).catch(() => {});
-  check(await page.evaluate(() => dev.connected) && /^MicroCS 1\./.test(await page.textContent('#connText')), 'reconnected after the device came back: ' + await page.textContent('#connText'));
+  check(await page.evaluate(() => dev.connected) && (await page.textContent('#connText')) === expectedVersion, 'reconnected after the device came back: ' + await page.textContent('#connText'));
   // Reset button: answers again afterwards
   await page.click('#btnReset');
   await page.waitForFunction(() => /resetting the board[\s\S]*ready/.test(document.getElementById('term').innerText), null, { timeout: 10000 }).catch(() => {});

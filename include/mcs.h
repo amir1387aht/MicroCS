@@ -20,10 +20,10 @@
 extern "C" {
 #endif
 
-#define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 14
+#define MCS_VERSION_MAJOR 2
+#define MCS_VERSION_MINOR 0
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.14.0"
+#define MCS_VERSION_STRING "2.0.0-preview.1"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
