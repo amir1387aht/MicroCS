@@ -3,12 +3,35 @@ name: v2 Preview artifacts (no publication)
 on:
   workflow_dispatch:
   pull_request:
+    # Inputs to the default host, offline Studio, package metadata and gates.
+    # This is a scoped preview gate, not every platform/source-archive-only edit.
     paths:
-      - include/mcs.h
+      - 'include/**'
+      - 'src/**'
+      - 'modules/**'
+      - 'ports/unix/**'
+      - 'config/**'
+      - Makefile
+      - CMakeLists.txt
+      - library.json
+      - LICENSE
+      - CHANGELOG.md
+      - SECURITY.md
       - tools/package_preview.py
+      - tools/verify_preview.py
       - tools/release_policy.py
+      - tools/wiki_sync.py
+      - 'tools/studio/**'
+      - 'tests/studio/**'
+      - tests/run_tests.sh
+      - 'tests/*.cs'
+      - 'tests/*.out'
+      - tests/test_shell.py
+      - tests/test_readline_echo.py
       - tests/test_preview_package.py
-      - docs/V2_PREVIEW.md
+      - tests/test_verify_preview.py
+      - tests/test_preview_workflow.py
+      - 'docs/**'
       - .github/workflows/preview.yml
       - .github/workflows/release.yml
 
@@ -30,8 +53,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Preview policy and package regression tests
-        run: python3 tests/test_preview_package.py
+      - name: Preview policy, package and offline verification regression tests
+        run: |
+          python3 tests/test_preview_package.py
+          python3 tests/test_verify_preview.py
+          python3 tests/test_preview_workflow.py
       - name: Build default host (optional graphics OFF) and validate
         run: |
           make -j2 mcs
@@ -45,18 +71,14 @@ jobs:
           node tests/studio/test_project.js ./mcs
           python3 tools/studio/gen_templates.py --check
           python3 tools/wiki_sync.py --check
-      - name: Assemble clean-checkout candidate (not a release)
+      - name: Assemble and verify clean-checkout candidate (not a release)
         run: |
+          set -euo pipefail
           version=$(sed -n 's/^#define MCS_VERSION_STRING "\(.*\)"/\1/p' include/mcs.h)
-          python3 tools/package_preview.py --version "$version" --host-binary ./mcs --out dist/preview
-          cd dist/preview/MicroCS-*
-          sha256sum --check SHA256SUMS
-      - name: Extracted candidate host smoke and offline Studio
-        run: |
-          bundle=$(find dist/preview -mindepth 1 -maxdepth 1 -type d -name 'MicroCS-*')
-          python3 tests/test_preview_package.py --bundle "$bundle"
-          npm install --no-save --no-package-lock playwright-core@1
-          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_preview_package_browser.js
+          commit=$(git rev-parse HEAD)
+          bundle=$(python3 tools/package_preview.py --version "$version" --host-binary ./mcs --out dist/preview)
+          python3 tools/verify_preview.py "$bundle" --expected-commit "$commit" --expected-version "$version"
+          (cd "$bundle" && sha256sum --check SHA256SUMS)
       - name: Extracted candidate host smoke and offline Studio
         run: |
           bundle=$(find dist/preview -mindepth 1 -maxdepth 1 -type d -name 'MicroCS-*')

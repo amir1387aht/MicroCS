@@ -20,8 +20,14 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 /* ------------------------------------------------------------ state: mcs_hal_internal.h */
-enum { CB_FREE = 0, CB_GPIO, CB_TIMER, CB_UART, CB_CAN, CB_USER };
+enum { CB_FREE = 0, CB_GPIO, CB_TIMER, CB_UART, CB_CAN, CB_USER, CB_CAN_FD };
 typedef mcs__hal_state_t hal_state_t;
+/* Private userdata extension: the public/internal base layout is unchanged. */
+typedef struct {
+    hal_state_t base;
+    uint8_t fd_owned[MCS_HAL_MAX_BUSES];
+    uint32_t fd_generation[MCS_HAL_MAX_BUSES];
+} hal_fd_state_t;
 typedef mcs__hal_cb_t hal_cb_t;
 #define hal_fail mcs__hal_fail
 #define range_fail mcs__range_fail
@@ -224,6 +230,33 @@ static bool ring_pop(mcs_hal_event_t* ev) {
     return true;
 }
 
+/* Closing an exclusively owned FD bus must not deliver its old notifications
+ * after reopening. Keep all classic/other-bus events and their FIFO order. */
+static void fd_discard_events(hal_state_t* state, int bus) {
+    hal_fd_state_t* extended = (hal_fd_state_t*)state;
+    extended->fd_generation[bus]++;
+    unsigned kept = 0;
+    for (unsigned i = 0; i < state->ndefer; i++) {
+        mcs_hal_event_t event = state->defer[i];
+        if (event.type != MCS_HAL_EV_CAN_FD || event.source != (uint16_t)bus)
+            state->defer[kept++] = event;
+    }
+    state->ndefer = (uint8_t)kept;
+    MCS_HAL_CRITICAL_ENTER();
+    uint32_t read = g_tail, write = g_tail;
+    while (read != g_head) {
+        volatile mcs_hal_event_t* event = &g_ring[read & (MCS_HAL_EVENT_QUEUE - 1)];
+        if (event->type != MCS_HAL_EV_CAN_FD || event->source != (uint16_t)bus) {
+            g_ring[write & (MCS_HAL_EVENT_QUEUE - 1)] = *event;
+            write++;
+        }
+        read++;
+    }
+    MCS_HAL_BARRIER();
+    g_head = write;
+    MCS_HAL_CRITICAL_EXIT();
+}
+
 /* ------------------------------------------------------------ callbacks */
 static int cb_find(hal_state_t* s, int kind, int source) {
     for (int i = 0; i < MCS_HAL_MAX_CALLBACKS; i++)
@@ -271,12 +304,13 @@ bool mcs_hal_events(mcs_vm_t* vm) {
 }
 static int dispatch(mcs_vm_t* vm, hal_state_t* s, const mcs_hal_event_t* ev) {
     if (ev->type == MCS_HAL_EV_DMA) return mcs__dma_event(vm, ev);
-    if (ev->type >= MCS_HAL_EV_NET && ev->type < MCS_HAL_EV_USER) {
+    if (ev->type >= MCS_HAL_EV_NET && ev->type < MCS_HAL_EV_USER && ev->type != MCS_HAL_EV_CAN_FD) {
         mcs_hal_event_fn fn = g_ev_handlers[ev->type - MCS_HAL_EV_NET];
         return fn ? fn(vm, ev) : 0;
     }
     int kind = ev->type == MCS_HAL_EV_GPIO ? CB_GPIO : ev->type == MCS_HAL_EV_TIMER ? CB_TIMER
              : ev->type == MCS_HAL_EV_UART ? CB_UART : ev->type == MCS_HAL_EV_CAN ? CB_CAN
+             : ev->type == MCS_HAL_EV_CAN_FD ? CB_CAN_FD
              : ev->type >= MCS_HAL_EV_USER ? CB_USER : CB_FREE;
     if (kind == CB_FREE) return 0;
     int i = cb_find(s, kind, kind == CB_USER ? ev->type - MCS_HAL_EV_USER : ev->source);
@@ -314,12 +348,18 @@ int mcs_hal_poll(mcs_vm_t* vm) {
     /* events held back while a callback waited for a DMA transfer go first */
     mcs_hal_event_t held[MCS__DEFER];
     int nh = s->ndefer;
+    uint32_t held_fd_generation[MCS_HAL_MAX_BUSES];
+    memcpy(held_fd_generation, ((hal_fd_state_t*)s)->fd_generation, sizeof held_fd_generation);
     memcpy(held, s->defer, sizeof(mcs_hal_event_t) * (size_t)nh);
     s->ndefer = 0;
     /* bounded: events posted by the callbacks themselves wait for the next poll */
     bool driver_empty = h->poll_event == NULL;
     for (int budget = MCS_HAL_EVENT_QUEUE * 2 + nh, i = 0; budget > 0; budget--) {
-        if (i < nh) ev = held[i++];
+        if (i < nh) {
+            ev = held[i++];
+            if (ev.type == MCS_HAL_EV_CAN_FD && ev.source < MCS_HAL_MAX_BUSES &&
+                held_fd_generation[ev.source] != ((hal_fd_state_t*)s)->fd_generation[ev.source]) continue;
+        }
         else if (!next_event(h, &driver_empty, &ev)) break;
         int r = dispatch(vm, s, &ev);
         if (r > 0) ran++;
@@ -1390,6 +1430,282 @@ static const mcs_reg_t can_fns[] = {
     MCS_FN("OnReceive", can_onreceive, 2), MCS_REG_END
 };
 
+/* ------------------------------------------------------------- CAN FD */
+typedef struct {
+    mcs_can_fd_frame_t frame;
+} canfdframe_t;
+static const mcs_class_def_t canfdframe_def;
+#define FD_STATE() ((hal_fd_state_t *)ST())
+static bool fd_uint(mcs_vm_t *vm, mcs_value_t value, uint32_t max, uint32_t *out) {
+    if (!mcs_is_int(value)) {
+        mcs_raise(vm, "ArgumentException", "CAN FD: expected an integer");
+        return false;
+    }
+    mcs_int_t n = mcs_to_int(vm, value);
+    if (n < 0 || (uint64_t)n > max) {
+        range_fail(vm, "CAN FD integer");
+        return false;
+    }
+    *out = (uint32_t)n;
+    return true;
+}
+static bool fd_bus(mcs_vm_t *vm, mcs_value_t value, int *bus) {
+    uint32_t n;
+    if (!fd_uint(vm, value, MCS_HAL_MAX_BUSES - 1, &n))
+        return false;
+    *bus = (int)n;
+    return true;
+}
+static int fd_bus_caps(mcs_vm_t *vm, int bus) {
+    const mcs_hal_t *h = mcs_hal_get(vm);
+    return mcs_hal_can_fd_available(h) ? h->can_fd_caps(h->ctx, bus) : MCS_HAL_ENOTSUP;
+}
+static bool fd_require(mcs_vm_t *vm, int bus, bool owner, const char *operation) {
+    int caps = fd_bus_caps(vm, bus);
+    if (caps < 0 || !(caps & MCS_CAN_FD_SUPPORTED)) {
+        hal_fail(vm, operation, caps < 0 ? caps : MCS_HAL_ENOTSUP);
+        return false;
+    }
+    if (owner && !FD_STATE()->fd_owned[bus]) {
+        mcs_raise(vm, "InvalidOperationException", "CANFD: this VM has not opened the bus");
+        return false;
+    }
+    return true;
+}
+static void canfdframe_ctor(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_value_t *argv) {
+    if (argc < 2 || argc > 4) {
+        mcs_raise(vm, "ArgumentException",
+                  "CanFdFrame(id, data[, extended, bitRateSwitch]) expected");
+        return;
+    }
+    if ((argc > 2 && !mcs_is_bool(argv[2])) || (argc > 3 && !mcs_is_bool(argv[3]))) {
+        mcs_raise(vm, "ArgumentException", "CAN FD flags must be bools");
+        return;
+    }
+    canfdframe_t *object = (canfdframe_t *)mcs_check_userdata(vm, self, &canfdframe_def);
+    if (!object) return;
+    mcs_can_fd_frame_t *frame = &object->frame;
+    memset(frame, 0, sizeof *frame);
+    bool extended = argc > 2 && mcs_truthy(argv[2]);
+    if (!fd_uint(vm, argv[0], extended ? 0x1FFFFFFFu : 0x7FFu, &frame->id))
+        return;
+    mcs_value_t data = argv[1];
+    int kind = mcs_obj_kind(data);
+    if (!mcs_is_null(data) && kind != MCS_O_ARRAY && kind != MCS_O_LIST) {
+        mcs_raise(vm, "ArgumentException", "CAN FD data must be an integer array/List or null");
+        return;
+    }
+    uint32_t length = mcs_is_null(data) ? 0 : mcs_len(data);
+    if (length > MCS_CAN_FD_MAX_DATA) {
+        range_fail(vm, "CAN FD payload (max 64 bytes)");
+        return;
+    }
+    for (uint32_t i = 0; i < length; i++) {
+        uint32_t byte;
+        if (!fd_uint(vm, mcs_index(data, i), 255, &byte))
+            return;
+        frame->data[i] = (uint8_t)byte;
+    }
+    frame->len = mcs_can_fd_dlc_to_len(mcs_can_fd_len_to_dlc(length));
+    frame->extended = extended;
+    frame->flags = argc > 3 && mcs_truthy(argv[3]) ? MCS_CAN_FD_BRS : 0;
+}
+#define CFF()                                                                                      \
+    canfdframe_t *c = (canfdframe_t *)mcs_check_userdata(vm, self, &canfdframe_def);               \
+    if (!c)                                                                                        \
+    return mcs_null()
+NATIVE(cff_id) {
+    CFF();
+    return mcs_int((mcs_int_t)c->frame.id);
+}
+NATIVE(cff_ext) {
+    CFF();
+    return mcs_bool(c->frame.extended);
+}
+NATIVE(cff_brs) {
+    CFF();
+    return mcs_bool((c->frame.flags & MCS_CAN_FD_BRS) != 0);
+}
+NATIVE(cff_esi) {
+    CFF();
+    return mcs_bool((c->frame.flags & MCS_CAN_FD_ESI) != 0);
+}
+NATIVE(cff_remote) {
+    return mcs_bool(false);
+}
+NATIVE(cff_len) {
+    CFF();
+    return mcs_int(c->frame.len);
+}
+NATIVE(cff_dlc) {
+    CFF();
+    return mcs_int(mcs_can_fd_len_to_dlc(c->frame.len));
+}
+NATIVE(cff_data) {
+    CFF();
+    return bytes_val(vm, c->frame.data, c->frame.len);
+}
+NATIVE(cff_tostring) {
+    CFF();
+    char text[240];
+    int n = snprintf(text, sizeof text,
+                     c->frame.extended ? "%08X FD[%u] BRS=%u ESI=%u" : "%03X FD[%u] BRS=%u ESI=%u",
+                     (unsigned)c->frame.id, c->frame.len, !!(c->frame.flags & MCS_CAN_FD_BRS),
+                     !!(c->frame.flags & MCS_CAN_FD_ESI));
+    for (unsigned i = 0; i < c->frame.len && n < (int)sizeof text - 4; i++)
+        n += snprintf(text + n, sizeof text - (size_t)n, " %02X", c->frame.data[i]);
+    return mcs_string(vm, text);
+}
+static const mcs_reg_t canfdframe_members[] = {MCS_GET("Id", cff_id),
+                                               MCS_GET("Extended", cff_ext),
+                                               MCS_GET("Remote", cff_remote),
+                                               MCS_GET("Length", cff_len),
+                                               MCS_GET("Dlc", cff_dlc),
+                                               MCS_GET("Data", cff_data),
+                                               MCS_GET("BitRateSwitch", cff_brs),
+                                               MCS_GET("ErrorStateIndicator", cff_esi),
+                                               MCS_FN("ToString", cff_tostring, 0),
+                                               MCS_REG_END};
+static const mcs_class_def_t canfdframe_def = {"CanFdFrame", sizeof(canfdframe_t), canfdframe_ctor,
+                                               NULL,         canfdframe_members,   NULL};
+NATIVE(canfd_supported) {
+    int bus;
+    if (!fd_bus(vm, argv[0], &bus))
+        return mcs_null();
+    int caps = fd_bus_caps(vm, bus);
+    return mcs_bool(caps >= 0 && (caps & MCS_CAN_FD_SUPPORTED));
+}
+NATIVE(canfd_brs_supported) {
+    int bus;
+    if (!fd_bus(vm, argv[0], &bus))
+        return mcs_null();
+    int caps = fd_bus_caps(vm, bus);
+    return mcs_bool(caps >= 0 && (caps & MCS_CAN_FD_SUPPORTED) && (caps & MCS_CAN_FD_SUPPORTS_BRS));
+}
+NATIVE(canfd_open) {
+    if (argc < 1 || argc > 3) {
+        mcs_raise(vm, "ArgumentException",
+                  "CANFD.Open(bus[, nominalBitrate, dataBitrate]) expected");
+        return mcs_null();
+    }
+    int bus;
+    uint32_t nominal = 500000, data = 2000000;
+    if (!fd_bus(vm, argv[0], &bus) || (argc > 1 && !fd_uint(vm, argv[1], UINT32_MAX, &nominal)) ||
+        (argc > 2 && !fd_uint(vm, argv[2], UINT32_MAX, &data)))
+        return mcs_null();
+    if (!nominal || data < nominal)
+        return range_fail(vm, "CAN FD bitrates");
+    if (!fd_require(vm, bus, false, "CANFD.Open"))
+        return mcs_null();
+    if (data > nominal && !(fd_bus_caps(vm, bus) & MCS_CAN_FD_SUPPORTS_BRS))
+        return hal_fail(vm, "CANFD.Open", MCS_HAL_ENOTSUP);
+    if (FD_STATE()->fd_owned[bus]) {
+        mcs_raise(vm, "InvalidOperationException", "CANFD: close this VM's bus before reopening");
+        return mcs_null();
+    }
+    int rc = HAL()->can_fd_open(CTX(), bus, nominal, data);
+    if (rc < 0)
+        return hal_fail(vm, "CANFD.Open", rc);
+    FD_STATE()->fd_owned[bus] = 1;
+    fd_discard_events(ST(), bus);
+    return mcs_null();
+}
+NATIVE(canfd_send) {
+    if (argc < 2 || argc > 3) {
+        mcs_raise(vm, "ArgumentException", "CANFD.Send(bus, frame[, timeoutMs]) expected");
+        return mcs_null();
+    }
+    int bus;
+    uint32_t timeout = 100;
+    if (!fd_bus(vm, argv[0], &bus) || (argc > 2 && !fd_uint(vm, argv[2], UINT32_MAX, &timeout)))
+        return mcs_null();
+    canfdframe_t *frame = (canfdframe_t *)mcs_check_userdata(vm, argv[1], &canfdframe_def);
+    if (!frame)
+        return mcs_null();
+    if (!mcs_can_fd_frame_valid(&frame->frame, true))
+        return hal_fail(vm, "CANFD.Send", MCS_HAL_EINVAL);
+    if (!fd_require(vm, bus, true, "CANFD.Send"))
+        return mcs_null();
+    if ((frame->frame.flags & MCS_CAN_FD_BRS) && !(fd_bus_caps(vm, bus) & MCS_CAN_FD_SUPPORTS_BRS))
+        return hal_fail(vm, "CANFD.Send", MCS_HAL_ENOTSUP);
+    int rc = HAL()->can_fd_send(CTX(), bus, &frame->frame, timeout);
+    return rc < 0 ? hal_fail(vm, "CANFD.Send", rc) : mcs_null();
+}
+NATIVE(canfd_receive) {
+    if (argc < 1 || argc > 2) {
+        mcs_raise(vm, "ArgumentException", "CANFD.Receive(bus[, timeoutMs]) expected");
+        return mcs_null();
+    }
+    int bus;
+    uint32_t timeout = 0;
+    if (!fd_bus(vm, argv[0], &bus) || (argc > 1 && !fd_uint(vm, argv[1], UINT32_MAX, &timeout)))
+        return mcs_null();
+    if (!fd_require(vm, bus, true, "CANFD.Receive"))
+        return mcs_null();
+    mcs_can_fd_frame_t frame;
+    memset(&frame, 0, sizeof frame);
+    int rc = HAL()->can_fd_recv(CTX(), bus, &frame, timeout);
+    if (rc == MCS_HAL_ETIMEOUT)
+        return mcs_null();
+    if (rc < 0)
+        return hal_fail(vm, "CANFD.Receive", rc);
+    if (!mcs_can_fd_frame_valid(&frame, false) ||
+        ((frame.flags & MCS_CAN_FD_BRS) && !(fd_bus_caps(vm, bus) & MCS_CAN_FD_SUPPORTS_BRS))) {
+        mcs_raise(vm, "InvalidOperationException", "CANFD.Receive: invalid backend frame");
+        return mcs_null();
+    }
+    mcs_value_t object, args[2] = {mcs_int(0), mcs_null()};
+    if (mcs_new_object(vm, "CanFdFrame", 2, args, &object) != MCS_OK)
+        return mcs_null();
+    canfdframe_t *value = (canfdframe_t *)mcs_check_userdata(vm, object, &canfdframe_def);
+    if (!value) return mcs_null();
+    value->frame = frame;
+    return object;
+}
+NATIVE(canfd_close) {
+    int bus;
+    if (!fd_bus(vm, argv[0], &bus) || !fd_require(vm, bus, false, "CANFD.Close"))
+        return mcs_null();
+    if (!FD_STATE()->fd_owned[bus])
+        return mcs_null(); /* never close another owner */
+    int rc = HAL()->can_fd_close(CTX(), bus);
+    if (rc < 0)
+        return hal_fail(vm, "CANFD.Close", rc);
+    FD_STATE()->fd_owned[bus] = 0;
+    fd_discard_events(ST(), bus);
+    cb_set(vm, ST(), CB_CAN_FD, bus, mcs_null());
+    return mcs_null();
+}
+NATIVE(canfd_onreceive) {
+    int bus;
+    if (!fd_bus(vm, argv[0], &bus) ||
+        !fd_require(vm, bus, !mcs_is_null(argv[1]), "CANFD.OnReceive"))
+        return mcs_null();
+    return set_callback(vm, CB_CAN_FD, bus, argv[1]);
+}
+static const mcs_reg_t canfd_fns[] = {MCS_FN("IsSupported", canfd_supported, 1),
+                                      MCS_FN("SupportsBitRateSwitch", canfd_brs_supported, 1),
+                                      MCS_FN("Open", canfd_open, -1),
+                                      MCS_FN("Send", canfd_send, -1),
+                                      MCS_FN("Receive", canfd_receive, -1),
+                                      MCS_FN("Close", canfd_close, 1),
+                                      MCS_FN("OnReceive", canfd_onreceive, 2),
+                                      MCS_REG_END};
+
+/* Called both on detach and when private HAL userdata is finalized. Never
+ * access VM objects: mcs_free may already have destroyed callback roots. */
+static void fd_state_release(mcs_vm_t *vm, void *data) {
+    hal_fd_state_t *state = (hal_fd_state_t *)data;
+    (void)vm;
+    for (int bus = 0; bus < MCS_HAL_MAX_BUSES; bus++) {
+        if (!state->fd_owned[bus])
+            continue;
+        state->fd_owned[bus] = 0;
+        if (state->base.hal && state->base.hal->can_fd_close)
+            state->base.hal->can_fd_close(state->base.hal->ctx, bus);
+        fd_discard_events(&state->base, bus);
+    }
+}
 /* ------------------------------------------------------------- Watchdog / RTC */
 NATIVE(wdt_start) {
     INT_ARG(0, ms);
@@ -1478,7 +1794,7 @@ static const mcs_reg_t hal_fns[] = {
 };
 
 /* ------------------------------------------------------------- registration */
-static const mcs_class_def_t state_def = { "__HalState", sizeof(hal_state_t), NULL, NULL, NULL, NULL };
+static const mcs_class_def_t state_def = { "__HalState", sizeof(hal_fd_state_t), NULL, fd_state_release, NULL, NULL };
 
 const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm) {
     hal_state_t* s = ST();
@@ -1489,6 +1805,7 @@ void mcs_hal_close_lib(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s) return;
     mcs__dma_close(vm);                           /* stop / finish transfers still in flight */
+    fd_state_release(vm, s);
     mcs_set_ext(vm, MCS_EXT_HAL, NULL);
     mcs_set_idle(vm, NULL, NULL);
     int a = s->cb_pin, b = s->self_pin;
@@ -1526,7 +1843,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         mcs_value_t obj;
         if (mcs_new_object(vm, "__HalState", 0, NULL, &obj) != MCS_OK) return;
         s = (hal_state_t*)mcs_userdata(obj);
-        memset(s, 0, sizeof *s);
+        memset(s, 0, sizeof(hal_fd_state_t));
         s->self_pin = mcs_pin(vm, obj);
         mcs_value_t list = mcs_new_list(vm);
         mcs_push_root(vm, list);
@@ -1541,6 +1858,10 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         }
         mcs_set_ext(vm, MCS_EXT_HAL, s);
     }
+    if (s->hal) {
+        fd_state_release(vm, s);
+        for (int bus = 0; bus < MCS_HAL_MAX_BUSES; bus++) cb_set(vm, s, CB_CAN_FD, bus, mcs_null());
+    }
     s->hal = h;
     memset(s->spi_valid, 0, sizeof s->spi_valid);
     for (int i = 0; i < MCS_HAL_MAX_BUSES; i++) { s->spi_cs[i] = -1; s->spi_cs_high[i] = 0; }
@@ -1548,6 +1869,10 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
     if (!s->no_events) mcs_set_idle(vm, idle_poll, NULL);
 
     mcs_register_module(vm, "Hal", hal_fns);
+    /* Introspection and explicit unsupported-operation errors even on classic
+     * HALs; capability queries depend on callbacks, not these global names. */
+    mcs_register_module(vm, "CANFD", canfd_fns);
+    mcs_register_class(vm, &canfdframe_def);
     mcs_register_consts(vm, "Hal", hal_consts);
     if (h && (h->gpio_write != NULL)) {
         mcs_register_module(vm, "GPIO", gpio_fns);

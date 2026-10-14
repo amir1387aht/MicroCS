@@ -1,0 +1,49 @@
+PASS boot.cs then main.cs, jobs.cfg loaded
+PASS binary upload
+PASS binary download matches (EOT, newline, Ctrl-C bytes inside)
+PASS windowed upload (flow control), 5 KB with status bytes inside
+PASS windowed upload, 16-byte window
+PASS streamed upload (no window, older hosts)
+PASS upload of exactly one window
+PASS window capped at MCS_SHELL_PUT_WINDOW
+PASS no temporary file left
+PASS exec one-liner
+PASS Ctrl-C stops a running script (ERR script aborted)
+PASS runtime responsive after stop
+PASS jobs listing
+PASS periodic job ran while idle (b'tttttttt\n')
+PASS unknown command reported
+PASS missing script reported
+PASS script exception reported
+PASS quit
+PASS upload over quota rejected
+PASS previous version intact after failed upload
+PASS no partial files (b'f       24 app.cs\n')
+PASS df reports size (b'/ ramfs 2 KB total, 0 KB used, 2 KB free\n')
+----
+all shell tests passed
+PASS Console.ReadLine echo: machine/REPL, echo on/off, CRLF, and identical application output
+cc -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1 src/mcs_bytecode.c src/mcs_compiler.c src/mcs_fmt.c src/mcs_lexer.c src/mcs_lib.c src/mcs_lib_bytes.c src/mcs_lib_coll.c src/mcs_lib_json.c src/mcs_lib_str.c src/mcs_object.c src/mcs_opt.c src/mcs_parser.c src/mcs_value.c src/mcs_vm.c modules/ble/mcs_ble_lib.c modules/ble/mcs_ble_sim.c modules/drivers/mcs_drivers.c modules/drivers/mcs_drv_servo.c modules/drivers/mcs_drv_u8g2.c modules/drivers/mcs_drv_ws2812.c modules/fs/mcs_flash.c modules/fs/mcs_flashfs.c modules/fs/mcs_fs_lib.c modules/fs/mcs_vfs.c modules/fs/mcs_vfs_lfs.c modules/fs/mcs_vfs_posix.c modules/fs/mcs_vfs_ram.c modules/fs/mcs_vfs_tinyfs.c modules/fs/mcs_vfs_yaffs.c modules/hal/mcs_hal_cfg.c modules/hal/mcs_hal_dma.c modules/hal/mcs_hal_lib.c modules/hal/mcs_hal_sim.c modules/lvgl/mcs_lvgl.c modules/net/mcs_net_lib.c modules/net/mcs_net_sim.c modules/net/mcs_net_sock.c modules/net/mcs_net_srv.c modules/os/mcs_os.c modules/runtime/mcs_runtime.c modules/sched/mcs_sched.c modules/shell/mcs_shell.c modules/tft/mcs_display_rgb565.c modules/threads/mcs_threads.c ports/unix/main.c -lm -o build/mcs_ble
+PASS tests/ble/t_ble_api.cs
+PASS tests/ble/t_ble_central.cs
+PASS tests/ble/t_ble_options.cs
+PASS tests/ble/t_ble_peripheral.cs
+PASS tests/ble/t_ble_uart_security.cs
+PASS examples/ble/*.cs (smoke, 12 scripts)
+OK default mcs is without BLE, build/mcs_ble has it
+OK BLE -DMCS_BLE_SIM=0
+OK BLE -DMCS_ENABLE_SCHED=0
+OK BLE -DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4
+OK BLE -DMCS_PROFILE=MCS_PROFILE_MCU
+76/76 capability checks passed
+88/88 capability checks passed
+69/69 capability checks passed
+PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata
+PASS entire native vocabulary fits existing protocol v1 grammar
+PASS packed sprite templates require new palette/bitmap APIs, not earlier sprite-only firmware
+PASS image template requires actual new TFT.Image API, preserving older firmware filtering
+PASS copy template requires new TFT.SpriteCopy API rather than class/image presence
+PASS font template requires actual new LVGL.Font API, preserving old firmware/offline behavior
+PASS template metadata: explicit requirements, inheritance, overrides and validation
+PASS Arduino package includes capability manifest
+PASS Arduino optional graphics packaging: generated includes and explicit dependencies

@@ -1,0 +1,15 @@
+BUILD default
+Traceback (most recent call last):
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 85, in <module>
+    main()
+    ~~~~^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 73, in main
+    run([str(default), "--emit", str(fixtures)], "emit.log")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 64, in run
+    subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/data/v2-mission/can-fd/build/can-fd-sanitizers-06/default', '--emit', '/data/v2-mission/can-fd/build/can-fd-sanitizers-06/fixtures']' returned non-zero exit status 127.

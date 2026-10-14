@@ -1,0 +1,37 @@
+{
+  "commit": "865ce88522cb1a76c34053449f27e5ab4f4ff85f",
+  "tree": "7e00a37c563b8771e7505e67b278d880c96afccb",
+  "base": "b4f670a2a778b92322bf868cba300f9b767df893",
+  "source_status": "clean",
+  "sanitizer_variants": {
+    "default": 512,
+    "gc-stress": 512,
+    "compiler-off": 315,
+    "xip-off": 512,
+    "compact": 512,
+    "int64": 516,
+    "min": 173,
+    "lowram": 315,
+    "min-hal": 301,
+    "queue-off": 319,
+    "hal-off": 173
+  },
+  "total_variant_checks": 4160,
+  "host_source_image_xip_checks": 85,
+  "shell": "pass",
+  "readline": "pass",
+  "ble": "pass; script/API/examples and flag variants",
+  "capabilities": [
+    76,
+    88,
+    69
+  ],
+  "document_checks": "48 wiki pages and218 templates pass",
+  "example": "simulator 64bytes DLC15 BRS True; byte63=63",
+  "backup": "/data/backups/v2-mission-can-fd/865ce88522cb1a76c34053449f27e5ab4f4ff85f",
+  "approval": "pending independent reviewer",
+  "remote_checkpoint": "parent to create/verify separately",
+  "scope": "software loopback only; no physical controller or full-v2 approval",
+  "commands": "FINAL-865ce88.commands.txt",
+  "failure_records": "all previous raw failures and orchestration errors retained"
+}

@@ -1,0 +1,2 @@
+Unhandled exception. MissingMemberException: The name 'Hal' does not exist in the current context
+   at <main> in examples/can_fd/loopback.cs:line 2

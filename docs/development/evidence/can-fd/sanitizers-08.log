@@ -1,0 +1,46 @@
+BUILD default
+default FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+502 CAN FD checks, 0 failures; software/native only
+BUILD gc-stress
+gc-stress FLAGS compiler=1 hal=1 xip=1 gc-stress=1 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+502 CAN FD checks, 0 failures; software/native only
+BUILD compiler-off
+compiler-off FLAGS compiler=0 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+315 CAN FD checks, 0 failures; software/native only
+BUILD xip-off
+xip-off FLAGS compiler=1 hal=1 xip=0 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+502 CAN FD checks, 0 failures; software/native only
+BUILD compact
+compact FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=1 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+502 CAN FD checks, 0 failures; software/native only
+BUILD int64
+int64 FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=1 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+506 CAN FD checks, 0 failures; software/native only
+BUILD min
+min FLAGS compiler=0 hal=0 xip=1 gc-stress=0 compact=0 int64=0 superops=0
+SIZES hal=584 simulator=8000 classic=16 fd=72
+173 CAN FD checks, 0 failures; software/native only
+BUILD lowram
+lowram FLAGS compiler=0 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+315 CAN FD checks, 0 failures; software/native only
+BUILD min-hal
+min-hal FLAGS compiler=0 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=0
+SIZES hal=584 simulator=8000 classic=16 fd=72
+IMAGES: superinstructions disabled; execute compiler NO_OPT fixture only
+301 CAN FD checks, 0 failures; software/native only
+BUILD queue-off
+queue-off FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=7408 classic=16 fd=72
+309 CAN FD checks, 0 failures; software/native only
+BUILD hal-off
+hal-off FLAGS compiler=1 hal=0 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+173 CAN FD checks, 0 failures; software/native only
+PASS 11 CAN FD variants; physical backend validation and full v2 remain separate

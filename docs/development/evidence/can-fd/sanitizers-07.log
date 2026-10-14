@@ -1,0 +1,47 @@
+BUILD default
+default FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+499 CAN FD checks, 0 failures; software/native only
+BUILD gc-stress
+gc-stress FLAGS compiler=1 hal=1 xip=1 gc-stress=1 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+499 CAN FD checks, 0 failures; software/native only
+BUILD compiler-off
+compiler-off FLAGS compiler=0 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+314 CAN FD checks, 0 failures; software/native only
+BUILD xip-off
+xip-off FLAGS compiler=1 hal=1 xip=0 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+499 CAN FD checks, 0 failures; software/native only
+BUILD compact
+compact FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=1 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+499 CAN FD checks, 0 failures; software/native only
+BUILD int64
+int64 FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=1 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+503 CAN FD checks, 0 failures; software/native only
+BUILD min
+min FLAGS compiler=0 hal=0 xip=1 gc-stress=0 compact=0 int64=0 superops=0
+SIZES hal=584 simulator=8000 classic=16 fd=72
+172 CAN FD checks, 0 failures; software/native only
+BUILD lowram
+lowram FLAGS compiler=0 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+314 CAN FD checks, 0 failures; software/native only
+BUILD min-hal
+Traceback (most recent call last):
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 86, in <module>
+    main()
+    ~~~~^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 78, in main
+    run([str(binary), str(fixtures)], name + ".log")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 65, in run
+    subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/data/v2-mission/can-fd/build/can-fd-sanitizers-07/min-hal', '/data/v2-mission/can-fd/build/can-fd-sanitizers-07/fixtures']' returned non-zero exit status 1.

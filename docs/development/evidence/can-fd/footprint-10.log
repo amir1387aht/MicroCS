@@ -1,0 +1,48 @@
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/default-base-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  55329	      0	    392	  55721	   d9a9	/data/v2-mission/can-fd/build/can-fd-footprint-10/default-base-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/default-base-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-10/default-base-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/default-current-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  61635	      0	    392	  62027	   f24b	/data/v2-mission/can-fd/build/can-fd-footprint-10/default-current-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/default-current-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  11493	     40	      0	  11533	   2d0d	/data/v2-mission/can-fd/build/can-fd-footprint-10/default-current-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/min-base-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+   2418	      0	      0	   2418	    972	/data/v2-mission/can-fd/build/can-fd-footprint-10/min-base-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/min-base-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+     48	      0	      0	     48	     30	/data/v2-mission/can-fd/build/can-fd-footprint-10/min-base-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/min-current-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+   2433	      0	      0	   2433	    981	/data/v2-mission/can-fd/build/can-fd-footprint-10/min-current-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/min-current-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+     48	      0	      0	     48	     30	/data/v2-mission/can-fd/build/can-fd-footprint-10/min-current-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-base-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  55343	      0	    392	  55735	   d9b7	/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-base-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-base-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-base-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-current-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  61617	      0	    392	  62009	   f239	/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-current-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-current-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  11493	     40	      0	  11533	   2d0d	/data/v2-mission/can-fd/build/can-fd-footprint-10/lowram-current-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_HAL_SIM_CAN_FD_QUEUE=0', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-base-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  55329	      0	    392	  55721	   d9a9	/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-base-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/include', '-I/data/v2-mission/can-fd/build/can-fd-footprint-06/base/src', '-DMCS_HAL_SIM_CAN_FD_QUEUE=0', '-c', '/data/v2-mission/can-fd/build/can-fd-footprint-06/base/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-base-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-base-mcs_hal_sim.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_HAL_SIM_CAN_FD_QUEUE=0', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_lib.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-current-mcs_hal_lib.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  61635	      0	    392	  62027	   f24b	/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-current-mcs_hal_lib.c.o
+COMMAND ['cc', '-std=gnu99', '-Os', '-DMCS_USER_CONFIG=0', '-I/data/v2-mission/can-fd/include', '-I/data/v2-mission/can-fd/src', '-DMCS_HAL_SIM_CAN_FD_QUEUE=0', '-c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_sim.c', '-o', '/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-current-mcs_hal_sim.c.o']
+   text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-10/queue-off-current-mcs_hal_sim.c.o

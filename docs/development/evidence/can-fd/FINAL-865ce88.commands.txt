@@ -1,0 +1,16 @@
+Clean committed checkout: 865ce88522cb1a76c34053449f27e5ab4f4ff85f
+
+LD_LIBRARY_PATH=/data/toolchains/sanitizer-libs ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 python3 tests/can_fd/run.py --sanitize --build-dir build/can-fd-exact-865ce88
+make -B mcs
+flock /data/v2-parallel/network-tests.lock sh -ec 'sh tests/run_tests.sh'
+flock /data/v2-parallel/network-tests.lock sh -ec 'python3 tests/test_shell.py && python3 tests/test_readline_echo.py && make ble-test && make capabilities-test'
+./mcs --sim examples/can_fd/loopback.cs
+make docs-check
+
+Full exact commands for compiler invocation and fixture execution are in the
+matrix provenance.json. Host85 passed in the first combined command, which then
+failed because tests/shell/run_tests.sh does not exist. The correct Python shell
+entry point and all remaining gates passed in a separate preserved log. An
+initial example invocation omitted --sim, so no Hal existed; the documented
+simulator invocation above passes. Neither error was hidden or counted as a
+production-code pass.

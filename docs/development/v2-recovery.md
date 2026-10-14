@@ -1162,3 +1162,7 @@ Sample33CI93total/onequeued; NOallgreenclaim. New34CI independentstillrequired,
 plus reviewed scoped notes/publicationapproval. User-approvedpreview neednotwait
 forfullroadmap; fullstable/security/graphics/hardware promises still not made.
 Main unchanged, PRpreviewcandidate scoped; no merge/tag/release/provisioning.
+
+## Original-mission CAN FD tested WIP increment
+
+Source865ce88522cb1a76c34053449f27e5ab4f4ff85f/tree7e00a37c563b8771e7505e67b278d880c96afccb is unchanged. Actual64byte loopback/commonHAL/bindings implemented; exact11sanitizer/profile variants4160checks, host85+shell/BLE/capability/docs passed. Commands/rawsuccess+failureevidence in evidence/can-fd. Independentreviewpending; softwareloopback NOTphysicalCAN/hardware/fullv2 approval. No protectedintegration/releases. Complete immutable ownerbackup verified; remotecheckpoint local expectedtree/fetched canonicalSHA recordedexternallyaftercommit. TFT.SpriteScroll is intentionally not included in this isolated source slice; combinedreview mustpreservebothnewcapentries+alloriginalIDs. Originalscope remains v2-original-mission-status.md.

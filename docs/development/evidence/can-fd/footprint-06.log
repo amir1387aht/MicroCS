@@ -1,0 +1,48 @@
+default base mcs_hal_lib.c flags= []
+text	   data	    bss	    dec	    hex	filename
+  55329	      0	    392	  55721	   d9a9	/data/v2-mission/can-fd/build/can-fd-footprint-06/default-base-mcs_hal_lib.c.o
+default base mcs_hal_sim.c flags= []
+text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-06/default-base-mcs_hal_sim.c.o
+default current mcs_hal_lib.c flags= []
+text	   data	    bss	    dec	    hex	filename
+  61602	      0	    392	  61994	   f22a	/data/v2-mission/can-fd/build/can-fd-footprint-06/default-current-mcs_hal_lib.c.o
+default current mcs_hal_sim.c flags= []
+text	   data	    bss	    dec	    hex	filename
+  11493	     40	      0	  11533	   2d0d	/data/v2-mission/can-fd/build/can-fd-footprint-06/default-current-mcs_hal_sim.c.o
+min base mcs_hal_lib.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN']
+text	   data	    bss	    dec	    hex	filename
+   2418	      0	      0	   2418	    972	/data/v2-mission/can-fd/build/can-fd-footprint-06/min-base-mcs_hal_lib.c.o
+min base mcs_hal_sim.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN']
+text	   data	    bss	    dec	    hex	filename
+     48	      0	      0	     48	     30	/data/v2-mission/can-fd/build/can-fd-footprint-06/min-base-mcs_hal_sim.c.o
+min current mcs_hal_lib.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN']
+text	   data	    bss	    dec	    hex	filename
+   2433	      0	      0	   2433	    981	/data/v2-mission/can-fd/build/can-fd-footprint-06/min-current-mcs_hal_lib.c.o
+min current mcs_hal_sim.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN']
+text	   data	    bss	    dec	    hex	filename
+     48	      0	      0	     48	     30	/data/v2-mission/can-fd/build/can-fd-footprint-06/min-current-mcs_hal_sim.c.o
+lowram base mcs_hal_lib.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM']
+text	   data	    bss	    dec	    hex	filename
+  55343	      0	    392	  55735	   d9b7	/data/v2-mission/can-fd/build/can-fd-footprint-06/lowram-base-mcs_hal_lib.c.o
+lowram base mcs_hal_sim.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM']
+text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-06/lowram-base-mcs_hal_sim.c.o
+lowram current mcs_hal_lib.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM']
+text	   data	    bss	    dec	    hex	filename
+  61584	      0	    392	  61976	   f218	/data/v2-mission/can-fd/build/can-fd-footprint-06/lowram-current-mcs_hal_lib.c.o
+lowram current mcs_hal_sim.c flags= ['-DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM']
+text	   data	    bss	    dec	    hex	filename
+  11493	     40	      0	  11533	   2d0d	/data/v2-mission/can-fd/build/can-fd-footprint-06/lowram-current-mcs_hal_sim.c.o
+queue-off base mcs_hal_lib.c flags= ['-DMCS_HAL_SIM_CAN_FD_QUEUE=0']
+text	   data	    bss	    dec	    hex	filename
+  55329	      0	    392	  55721	   d9a9	/data/v2-mission/can-fd/build/can-fd-footprint-06/queue-off-base-mcs_hal_lib.c.o
+queue-off base mcs_hal_sim.c flags= ['-DMCS_HAL_SIM_CAN_FD_QUEUE=0']
+text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-06/queue-off-base-mcs_hal_sim.c.o
+queue-off current mcs_hal_lib.c flags= ['-DMCS_HAL_SIM_CAN_FD_QUEUE=0']
+text	   data	    bss	    dec	    hex	filename
+  61602	      0	    392	  61994	   f22a	/data/v2-mission/can-fd/build/can-fd-footprint-06/queue-off-current-mcs_hal_lib.c.o
+queue-off current mcs_hal_sim.c flags= ['-DMCS_HAL_SIM_CAN_FD_QUEUE=0']
+text	   data	    bss	    dec	    hex	filename
+  10800	     40	      0	  10840	   2a58	/data/v2-mission/can-fd/build/can-fd-footprint-06/queue-off-current-mcs_hal_sim.c.o

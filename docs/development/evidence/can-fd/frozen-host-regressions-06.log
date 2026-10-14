@@ -1,0 +1,112 @@
+PASS t01_basics.cs
+PASS t01_basics.cs (image)
+PASS t01_basics.cs (xip)
+PASS t02_oop.cs
+PASS t02_oop.cs (image)
+PASS t02_oop.cs (xip)
+PASS t03_collections.cs
+PASS t03_collections.cs (image)
+PASS t03_collections.cs (xip)
+PASS t04_exceptions.cs
+PASS t04_exceptions.cs (image)
+PASS t04_exceptions.cs (xip)
+PASS t05_functional.cs
+PASS t05_functional.cs (image)
+PASS t05_functional.cs (xip)
+PASS t06_gc_stress.cs
+PASS t06_gc_stress.cs (image)
+PASS t06_gc_stress.cs (xip)
+PASS t07_filesystem.cs
+PASS t07_filesystem.cs (image)
+PASS t07_filesystem.cs (xip)
+PASS t08_hal.cs
+PASS t08_hal.cs (image)
+PASS t08_hal.cs (xip)
+PASS t09_scheduler.cs
+PASS t09_scheduler.cs (image)
+PASS t09_scheduler.cs (xip)
+PASS t10_lang_phase2.cs
+PASS t10_lang_phase2.cs (image)
+PASS t10_lang_phase2.cs (xip)
+PASS t11_tuples_ranges.cs
+PASS t11_tuples_ranges.cs (image)
+PASS t11_tuples_ranges.cs (xip)
+PASS t12_memory_churn.cs
+PASS t12_memory_churn.cs (image)
+PASS t12_memory_churn.cs (xip)
+PASS t13_stdlib_more.cs
+PASS t13_stdlib_more.cs (image)
+PASS t13_stdlib_more.cs (xip)
+PASS t14_low_resource.cs
+PASS t14_low_resource.cs (image)
+PASS t14_low_resource.cs (xip)
+PASS t15_hal_v2.cs
+PASS t15_hal_v2.cs (image)
+PASS t15_hal_v2.cs (xip)
+PASS t16_bytes.cs
+PASS t16_bytes.cs (image)
+PASS t16_bytes.cs (xip)
+PASS t17_optimizer.cs
+PASS t17_optimizer.cs (image)
+PASS t17_optimizer.cs (xip)
+PASS t18_utils.cs
+PASS t18_utils.cs (image)
+PASS t18_utils.cs (xip)
+PASS t19_ledstrip.cs
+PASS t19_ledstrip.cs (image)
+PASS t19_ledstrip.cs (xip)
+PASS t20_sched_sleep.cs
+PASS t20_sched_sleep.cs (image)
+PASS t20_sched_sleep.cs (xip)
+PASS t21_servo.cs
+PASS t21_servo.cs (image)
+PASS t21_servo.cs (xip)
+PASS t22_hal_config.cs
+PASS t22_hal_config.cs (image)
+PASS t22_hal_config.cs (xip)
+PASS t23_dma.cs
+PASS t23_dma.cs (image)
+PASS t23_dma.cs (xip)
+PASS t24_net.cs
+PASS t24_net.cs (image)
+PASS t24_net.cs (xip)
+PASS t25_json.cs
+PASS t25_json.cs (image)
+PASS t25_json.cs (xip)
+PASS t26_robustness.cs
+PASS t26_robustness.cs (image)
+PASS t26_robustness.cs (xip)
+PASS t27_dotnet_semantics.cs
+PASS t27_dotnet_semantics.cs (image)
+PASS t27_dotnet_semantics.cs (xip)
+PASS err_limits.cs
+PASS err_member.cs
+PASS err_runtime.cs
+PASS err_syntax.cs
+----
+85 passed, 0 failed
+PASS boot.cs then main.cs, jobs.cfg loaded
+PASS binary upload
+PASS binary download matches (EOT, newline, Ctrl-C bytes inside)
+PASS windowed upload (flow control), 5 KB with status bytes inside
+PASS windowed upload, 16-byte window
+PASS streamed upload (no window, older hosts)
+PASS upload of exactly one window
+PASS window capped at MCS_SHELL_PUT_WINDOW
+PASS no temporary file left
+PASS exec one-liner
+PASS Ctrl-C stops a running script (ERR script aborted)
+PASS runtime responsive after stop
+PASS jobs listing
+PASS periodic job ran while idle (b'tttttttt\n')
+PASS unknown command reported
+PASS missing script reported
+PASS script exception reported
+PASS quit
+PASS upload over quota rejected
+PASS previous version intact after failed upload
+PASS no partial files (b'f       24 app.cs\n')
+PASS df reports size (b'/ ramfs 2 KB total, 0 KB used, 2 KB free\n')
+----
+all shell tests passed
+PASS Console.ReadLine echo: machine/REPL, echo on/off, CRLF, and identical application output

@@ -1,0 +1,24 @@
+BUILD default
+default SIZES hal=584 simulator=8000 classic=16 fd=72
+457 CAN FD checks, 0 failures; software/native only
+BUILD gc-stress
+gc-stress SIZES hal=584 simulator=8000 classic=16 fd=72
+457 CAN FD checks, 0 failures; software/native only
+BUILD compiler-off
+Traceback (most recent call last):
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 83, in <module>
+    main()
+    ~~~~^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 74, in main
+    binary = default if name == "default" else build(name)
+                                               ~~~~~^^^^^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 67, in build
+    run(command + VARIANTS[name] + list(map(str, sources)) + [str(test), "-lm", "-o", str(binary)], name + "-build.log")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 62, in run
+    subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['cc', '-std=gnu99', '-O1', '-g', '-Wall', '-Wextra', '-Werror', '-I/data/v2-mission/can-fd/include', '-DMCS_USER_CONFIG=0', '-DMCS_ENABLE_COMPILER=0', '/data/v2-mission/can-fd/src/mcs_bytecode.c', '/data/v2-mission/can-fd/src/mcs_compiler.c', '/data/v2-mission/can-fd/src/mcs_fmt.c', '/data/v2-mission/can-fd/src/mcs_lexer.c', '/data/v2-mission/can-fd/src/mcs_lib.c', '/data/v2-mission/can-fd/src/mcs_lib_bytes.c', '/data/v2-mission/can-fd/src/mcs_lib_coll.c', '/data/v2-mission/can-fd/src/mcs_lib_json.c', '/data/v2-mission/can-fd/src/mcs_lib_str.c', '/data/v2-mission/can-fd/src/mcs_object.c', '/data/v2-mission/can-fd/src/mcs_opt.c', '/data/v2-mission/can-fd/src/mcs_parser.c', '/data/v2-mission/can-fd/src/mcs_value.c', '/data/v2-mission/can-fd/src/mcs_vm.c', '/data/v2-mission/can-fd/modules/ble/mcs_ble_lib.c', '/data/v2-mission/can-fd/modules/ble/mcs_ble_sim.c', '/data/v2-mission/can-fd/modules/drivers/mcs_drivers.c', '/data/v2-mission/can-fd/modules/drivers/mcs_drv_servo.c', '/data/v2-mission/can-fd/modules/drivers/mcs_drv_u8g2.c', '/data/v2-mission/can-fd/modules/drivers/mcs_drv_ws2812.c', '/data/v2-mission/can-fd/modules/fs/mcs_flash.c', '/data/v2-mission/can-fd/modules/fs/mcs_flashfs.c', '/data/v2-mission/can-fd/modules/fs/mcs_fs_lib.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs_lfs.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs_posix.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs_ram.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs_tinyfs.c', '/data/v2-mission/can-fd/modules/fs/mcs_vfs_yaffs.c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_cfg.c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_dma.c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_lib.c', '/data/v2-mission/can-fd/modules/hal/mcs_hal_sim.c', '/data/v2-mission/can-fd/modules/lvgl/mcs_lvgl.c', '/data/v2-mission/can-fd/modules/net/mcs_net_lib.c', '/data/v2-mission/can-fd/modules/net/mcs_net_sim.c', '/data/v2-mission/can-fd/modules/net/mcs_net_sock.c', '/data/v2-mission/can-fd/modules/net/mcs_net_srv.c', '/data/v2-mission/can-fd/modules/os/mcs_os.c', '/data/v2-mission/can-fd/modules/runtime/mcs_runtime.c', '/data/v2-mission/can-fd/modules/sched/mcs_sched.c', '/data/v2-mission/can-fd/modules/shell/mcs_shell.c', '/data/v2-mission/can-fd/modules/tft/mcs_display_rgb565.c', '/data/v2-mission/can-fd/modules/threads/mcs_threads.c', '/data/v2-mission/can-fd/tests/can_fd/test_can_fd.c', '-lm', '-o', '/data/v2-mission/can-fd/build/can-fd-matrix-04/compiler-off']' returned non-zero exit status 1.

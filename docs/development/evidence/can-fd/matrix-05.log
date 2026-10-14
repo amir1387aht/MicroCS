@@ -1,0 +1,31 @@
+BUILD default
+default SIZES hal=584 simulator=8000 classic=16 fd=72
+478 CAN FD checks, 0 failures; software/native only
+BUILD gc-stress
+gc-stress SIZES hal=584 simulator=8000 classic=16 fd=72
+478 CAN FD checks, 0 failures; software/native only
+BUILD compiler-off
+compiler-off SIZES hal=584 simulator=8000 classic=16 fd=72
+314 CAN FD checks, 0 failures; software/native only
+BUILD xip-off
+xip-off SIZES hal=584 simulator=8000 classic=16 fd=72
+478 CAN FD checks, 0 failures; software/native only
+BUILD compact
+compact SIZES hal=584 simulator=8000 classic=16 fd=72
+478 CAN FD checks, 0 failures; software/native only
+BUILD int64
+int64 SIZES hal=584 simulator=8000 classic=16 fd=72
+482 CAN FD checks, 0 failures; software/native only
+BUILD min
+min SIZES hal=584 simulator=8000 classic=16 fd=72
+172 CAN FD checks, 0 failures; software/native only
+BUILD lowram
+lowram SIZES hal=584 simulator=8000 classic=16 fd=72
+314 CAN FD checks, 0 failures; software/native only
+BUILD queue-off
+queue-off SIZES hal=584 simulator=7408 classic=16 fd=72
+290 CAN FD checks, 0 failures; software/native only
+BUILD hal-off
+hal-off SIZES hal=584 simulator=8000 classic=16 fd=72
+172 CAN FD checks, 0 failures; software/native only
+PASS 10 CAN FD variants; physical backend validation and full v2 remain separate

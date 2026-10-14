@@ -61,11 +61,20 @@ Chrome/Edge browser. Responsive layout does not give phones unsupported serial.
    editing and project-file import/export.
 4. Extract `*-source.tar.gz` to build/test or inspect the implementation.
 
+For a read-only check from a trusted source checkout that includes the verifier,
+see [offline bundle verification](PREVIEW_VERIFICATION.md). The tool accepts
+independently obtained expected commit/version identifiers; it does not extract
+archives or execute their contents. A successful check is not signing, proof of
+source provenance, safe-content certification or release approval.
+
 Do not replace production firmware or stable installations based solely on this
 preview label. Keep the stable version available for rollback; Studio source
 projects are independent plaintext files, not firmware provisioning.
 
 ## Artifact and publication policy
+
+For changes after a tested candidate, follow the
+[integration and revalidation checklist](PREVIEW_INTEGRATION.md).
 
 `tools/package_preview.py` requires a clean committed checkout, a preview label
 matching the committed runtime version, all required offline Studio modules and,

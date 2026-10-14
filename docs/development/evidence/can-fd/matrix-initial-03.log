@@ -1,0 +1,15 @@
+BUILD default
+Traceback (most recent call last):
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 83, in <module>
+    main()
+    ~~~~^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 75, in main
+    run([str(binary), str(fixtures)], name + ".log")
+    ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/v2-mission/can-fd/tests/can_fd/run.py", line 62, in run
+    subprocess.run(cmd, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, check=True, timeout=300)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/data/v2-mission/can-fd/build/can-fd-initial-03/default', '/data/v2-mission/can-fd/build/can-fd-initial-03/fixtures']' returned non-zero exit status 1.

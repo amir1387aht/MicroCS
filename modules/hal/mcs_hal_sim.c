@@ -541,6 +541,52 @@ static int dm_abort(void* ctx, int id) {
     return MCS_HAL_ERR;          /* everything else has already finished */
 }
 
+/* CAN FD software loopback: no arbitration, controller or physical traffic. */
+#if MCS_HAL_SIM_CAN_FD_QUEUE > 0
+static int fd_caps(void* ctx, int bus) {
+    return bus == 0 ? MCS_CAN_FD_SUPPORTED | MCS_CAN_FD_SUPPORTS_BRS : MCS_HAL_ENOTSUP;
+}
+static int fd_open(void* ctx, int bus, uint32_t nominal, uint32_t data) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (!nominal || data < nominal) return MCS_HAL_EINVAL;
+    if (SIM->can_fd_opened) return MCS_HAL_EBUSY;
+    SIM->can_fd_head = SIM->can_fd_count = 0;
+    SIM->can_fd_nominal_bitrate = nominal;
+    SIM->can_fd_data_bitrate = data;
+    SIM->can_fd_opened = 1;
+    return 0;
+}
+static int fd_send(void* ctx, int bus, const mcs_can_fd_frame_t* frame, uint32_t timeout) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (!SIM->can_fd_opened) return MCS_HAL_ENODEV;
+    if (!mcs_can_fd_frame_valid(frame, true)) return MCS_HAL_EINVAL;
+    if (SIM->can_fd_count == MCS_HAL_SIM_CAN_FD_QUEUE) return MCS_HAL_EBUSY;
+    unsigned slot = (SIM->can_fd_head + SIM->can_fd_count) % MCS_HAL_SIM_CAN_FD_QUEUE;
+    SIM->can_fd_q[slot] = *frame;
+    SIM->can_fd_count++;
+    mcs_hal_post(MCS_HAL_EV_CAN_FD, bus, SIM->can_fd_count);
+    return 0;
+}
+static int fd_recv(void* ctx, int bus, mcs_can_fd_frame_t* frame, uint32_t timeout) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (!SIM->can_fd_opened) return MCS_HAL_ENODEV;
+    if (!frame) return MCS_HAL_EINVAL;
+    if (!SIM->can_fd_count) return MCS_HAL_ETIMEOUT;
+    *frame = SIM->can_fd_q[SIM->can_fd_head];
+    memset(&SIM->can_fd_q[SIM->can_fd_head], 0, sizeof(*frame));
+    SIM->can_fd_head = (uint8_t)((SIM->can_fd_head + 1) % MCS_HAL_SIM_CAN_FD_QUEUE);
+    SIM->can_fd_count--;
+    return 0;
+}
+static int fd_close(void* ctx, int bus) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    SIM->can_fd_opened = SIM->can_fd_head = SIM->can_fd_count = 0;
+    SIM->can_fd_nominal_bitrate = SIM->can_fd_data_bitrate = 0;
+    memset(SIM->can_fd_q, 0, sizeof SIM->can_fd_q);
+    return 0;
+}
+#endif
+
 /* ---------------------------------------------------------------- system */
 static int w_start(void* ctx, uint32_t ms) { SIM->wdt_timeout = ms; return 0; }
 static int w_feed(void* ctx) { SIM->wdt_feeds++; return 0; }
@@ -577,6 +623,10 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->i2s_open = s2_open; h->i2s_write = s2_write; h->i2s_read = s2_read;
     h->qspi_open = q_open; h->qspi_command = q_cmd;
     h->can_open = c_open; h->can_send = c_send; h->can_recv = c_recv;
+#if MCS_HAL_SIM_CAN_FD_QUEUE > 0
+    h->can_fd_caps = fd_caps; h->can_fd_open = fd_open; h->can_fd_send = fd_send;
+    h->can_fd_recv = fd_recv; h->can_fd_close = fd_close;
+#endif
     h->wdt_start = w_start; h->wdt_feed = w_feed;
     h->rtc_get = r_get; h->rtc_set = r_set;
 #if MCS_ENABLE_WS2812

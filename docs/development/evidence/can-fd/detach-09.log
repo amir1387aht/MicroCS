@@ -1,0 +1,5 @@
+BUILD default
+default FLAGS compiler=1 hal=1 xip=1 gc-stress=0 compact=0 int64=0 superops=1
+SIZES hal=584 simulator=8000 classic=16 fd=72
+512 CAN FD checks, 0 failures; software/native only
+PASS 1 CAN FD variants; physical backend validation and full v2 remain separate

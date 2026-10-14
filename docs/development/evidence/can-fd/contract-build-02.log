@@ -1,0 +1,19 @@
+modules/hal/mcs_hal_sim.c: In function 'fd_caps':
+modules/hal/mcs_hal_sim.c:547:72: warning: operand of '?:' changes signedness from 'int' to 'unsigned int' due to unsignedness of other operand [-Wsign-compare]
+  547 |     return bus == 0 ? MCS_CAN_FD_SUPPORTED | MCS_CAN_FD_SUPPORTS_BRS : MCS_HAL_ENOTSUP;
+      |                                                                        ^~~~~~~~~~~~~~~
+tests/can_fd/test_can_fd.c: In function 'spy_caps':
+tests/can_fd/test_can_fd.c:72:121: warning: operand of '?:' changes signedness from 'int' to 'unsigned int' due to unsignedness of other operand [-Wsign-compare]
+   72 | static int spy_caps(void* ctx, int bus) { (void)ctx; return bus == 0 ? MCS_CAN_FD_SUPPORTED | MCS_CAN_FD_SUPPORTS_BRS : MCS_HAL_ENOTSUP; }
+      |                                                                                                                         ^~~~~~~~~~~~~~~
+tests/can_fd/test_can_fd.c: In function 'test_strict_vm_and_backend':
+tests/can_fd/test_can_fd.c:169:11: warning: implicit declaration of function 'mcs_has_capability' [-Wimplicit-function-declaration]
+  169 |     CHECK(mcs_has_capability(vm, "CAN.FD"));
+      |           ^~~~~~~~~~~~~~~~~~
+tests/can_fd/test_can_fd.c:13:39: note: in definition of macro 'CHECK'
+   13 | #define CHECK(c) do { checks++; if (!(c)) { failures++; fprintf(stderr, "FAIL %d: %s\n", __LINE__, #c); } } while (0)
+      |                                       ^
+/usr/bin/ld: /tmp/ccbNdicv.o: in function `test_strict_vm_and_backend':
+/data/v2-mission/can-fd/tests/can_fd/test_can_fd.c:169:(.text+0x13ff): undefined reference to `mcs_has_capability'
+/usr/bin/ld: /data/v2-mission/can-fd/tests/can_fd/test_can_fd.c:227:(.text+0x1d87): undefined reference to `mcs_has_capability'
+collect2: error: ld returned 1 exit status
