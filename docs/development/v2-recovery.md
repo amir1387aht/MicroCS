@@ -1162,3 +1162,7 @@ Sample33CI93total/onequeued; NOallgreenclaim. New34CI independentstillrequired,
 plus reviewed scoped notes/publicationapproval. User-approvedpreview neednotwait
 forfullroadmap; fullstable/security/graphics/hardware promises still not made.
 Main unchanged, PRpreviewcandidate scoped; no merge/tag/release/provisioning.
+
+## Original-mission increment — bounded real native sprite scrolling
+
+Tested Phase4 implementation and native/cross-build evidence are preserved in evidence/tft-scroll/HANDOFF.md. All eight original phases remain partial/incomplete, as v2-original-mission-status.md records. Independent approval and combined integration are pending. Preserve prior preview/main; this checkpoint is WIP recovery only, not publication. Local full-history backup and remote WIP tree verification are recorded externally after the commit to avoid self-referential hashes.

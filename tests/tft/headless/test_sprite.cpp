@@ -208,6 +208,51 @@ static void shell_scope_tests() {
     mcs_ramfs_free(&ram);
 }
 int main(int argc, char **argv) {
+    // Execute an exact trusted example through source, copied image and XIP.
+    // Compiler-owned image bytes outlive every execution VM, including XIP.
+    if (argc == 3 && !strcmp(argv[1], "--trusted-example")) {
+        FILE *file = fopen(argv[2], "rb");
+        CHECK(file);
+        if (!file)
+            return 1;
+        char source[16385];
+        size_t length = fread(source, 1, sizeof(source) - 1, file);
+        bool valid = !ferror(file) && feof(file);
+        fclose(file);
+        CHECK(valid);
+        if (!valid)
+            return 1;
+        source[length] = 0;
+        mcs_vm_t *compiler = create();
+        CHECK(compiler);
+        if (!compiler)
+            return 1;
+        uint8_t *image = NULL;
+        size_t bytes = 0;
+        CHECK(mcs_compile_image(compiler, argv[2], source, false, &image, &bytes) == MCS_OK);
+        if (image) {
+            for (int mode = 0; mode < 3; ++mode) {
+                mcs_vm_t *vm = create();
+                CHECK(vm);
+                if (!vm)
+                    break;
+                const mcs_hal_t no_peripherals = {};
+                mcs_hal_open_lib(vm, &no_peripherals); // Real Hal.Has, no device callbacks.
+                mcs_result_t result = mode == 0 ? mcs_exec_source(vm, argv[2], source)
+                                      : mode == 1 ? mcs_exec_image(vm, image, bytes)
+                                                  : mcs_exec_image_xip(vm, image, bytes);
+                CHECK(result == MCS_OK);
+                if (result != MCS_OK)
+                    fprintf(stderr, "%s\n", mcs_last_error(vm));
+                mcs_free(vm);
+            }
+            mcs_free_image(compiler, image);
+        }
+        mcs_free(compiler);
+        CHECK(vm_bytes == 0);
+        printf("%d/%d trusted example source/copy/XIP checks passed\n", checks - failures, checks);
+        return failures != 0;
+    }
     if (argc == 2 && !strcmp(argv[1], "--attempt-io")) {
         TFT_eSPI physical;
         physical.init(); // Harness self-test MUST abort on actual upstream IO.
@@ -257,6 +302,7 @@ int main(int argc, char **argv) {
     CHECK(mcs_capability_has(vm, "TFT.Bitmap"));
     CHECK(mcs_capability_has(vm, "TFT.Image"));
     CHECK(mcs_capability_has(vm, "TFT.SpriteCopy"));
+    CHECK(mcs_capability_has(vm, "TFT.SpriteScroll"));
     mcs_mem_stats_t before, after;
     mcs_mem_stats(vm, &before);
     for (int i = 0; i < 100; i++) {

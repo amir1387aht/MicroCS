@@ -99,7 +99,44 @@
     });
     return edits(raw, changes);
   }
+  // Byte-only edits cannot be identified by native textarea undo. Keep a
+  // separate, explicitly invoked history of contiguous same-display edits.
+  class EolHistory {
+    constructor(limit = 128, budget = 2 * 1024 * 1024) {
+      this.limit = limit; this.budget = budget; this.clear();
+    }
+    clear() { this.items = []; this.cursor = 0; this.units = 0; }
+    record(before, after, selectionBefore, selectionAfter) {
+      if (before === after) return true;
+      if (display(before) !== display(after)) { this.clear(); return false; }
+      if (this.items.length && this.current() !== before) this.clear();
+      this.items.splice(this.cursor);
+      this.units = this.items.reduce((n, item) => n + item.before.length + item.after.length, 0);
+      const cost = before.length + after.length;
+      if (cost > this.budget || this.limit < 1) { this.clear(); return false; }
+      this.items.push({ before, after, selectionBefore: [...selectionBefore], selectionAfter: [...selectionAfter] });
+      this.units += cost;
+      while (this.items.length > this.limit || this.units > this.budget) {
+        const old = this.items.shift(); this.units -= old.before.length + old.after.length;
+      }
+      this.cursor = this.items.length;
+      return true;
+    }
+    current() {
+      return this.cursor ? this.items[this.cursor - 1].after : this.items[0]?.before;
+    }
+    step(raw, redo = false) {
+      if (!this.items.length) return null;
+      if (raw !== this.current()) { this.clear(); return null; }
+      const item = this.items[redo ? this.cursor : this.cursor - 1];
+      if (!item) return null;
+      this.cursor += redo ? 1 : -1;
+      return { raw: redo ? item.after : item.before,
+        selection: [...(redo ? item.selectionAfter : item.selectionBefore)] };
+    }
+  }
   window.SourceText = Object.freeze({
+    EolHistory,
     display,
     edits,
     reconcile,

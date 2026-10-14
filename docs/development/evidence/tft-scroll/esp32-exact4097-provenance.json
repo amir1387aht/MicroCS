@@ -1,0 +1,90 @@
+{
+  "validation": "cross-compile-and-link ONLY; NOT hardware execution",
+  "platform": "espressif32@6.10.0",
+  "board": "esp32dev",
+  "ram_note": "PIO static section usage, excludes runtime VM/upstream heap/stack",
+  "log_sha256": "a3a43140491b8fdb8aa50f04ad1cae00d315535fd5b91e879888e51243b02e21",
+  "dependencies": {
+    "TFT_eSPI": "16e37595040eac69cd628e4bffb56fc30cad6299",
+    "LVGL8": "4495f428630cc1741bd8bfd977f080e8460e8e8d",
+    "LVGL9": "c016f72d4c125098287be5e83c0f1abed4706ee5"
+  },
+  "environments": {
+    "tft-standalone": {
+      "static_ram_bytes": 21936,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 551065,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "bc1fd10ba9bb05633f469aee8b772d75a5cc766bea5037dea6c6f37d31d21ded",
+      "elf_file_bytes": 9461256,
+      "bin_sha256": "f4aa19c882e5913cc543f1a81a70a9d6ec8a43a2af77ba6cc6458cf65543d3e2",
+      "bin_file_bytes": 551424
+    },
+    "tft-lvgl8": {
+      "static_ram_bytes": 90064,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 782217,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "ac75cce0d5130b59c1bb849fb2469a621baea134b461eee938c19e13c542b38c",
+      "elf_file_bytes": 12885532,
+      "bin_sha256": "4973b6278d4bd037bb6d0a83bc84f9c4cdd7cbb2b2d071c92d2f9f3f169061b4",
+      "bin_file_bytes": 782576
+    },
+    "tft-lvgl9": {
+      "static_ram_bytes": 22528,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 848801,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "2377b2793fea0992115e2cf720a0793416670907ce12fac26e7f16f13486f885",
+      "elf_file_bytes": 13575772,
+      "bin_sha256": "eafb32343dbf6531d0a0a130b612b072bb26861065e8a90dc8cd0197224866b3",
+      "bin_file_bytes": 849168
+    },
+    "tft-touch-lvgl9": {
+      "static_ram_bytes": 22528,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 850617,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "757e5cdee183765238467c404ac660dd5d2710bd82db88cc2af6579a12513b82",
+      "elf_file_bytes": 13591968,
+      "bin_sha256": "77174e8a1c3fb3cd3922d7e3d20ae9fc1c8ace1e913c400c1c3e808aab1ccf2b",
+      "bin_file_bytes": 850976
+    },
+    "graphics-off": {
+      "static_ram_bytes": 21828,
+      "static_ram_limit_bytes": 327680,
+      "flash_usage_bytes": 493213,
+      "flash_usage_limit_bytes": 1310720,
+      "elf_sha256": "c4de56ed513055ec94acdcdea2241febdae5f4291e1b069a6b444ee2ab51e067",
+      "elf_file_bytes": 8830576,
+      "bin_sha256": "4e9cb3705459f102fa432132f77fb92ab29b23311f4985e0ac13176c3f944753",
+      "bin_file_bytes": 493584
+    }
+  },
+  "integration_source_sha256": {
+    "include/mcs_tft.h": "8606469f798b5ab3313ce1fc3607180204be9da1d436c8c8c1f8317fb3ad09d3",
+    "modules/shell/mcs_shell.c": "61889f98089b33f240dad68b57ffc1a33e9cbefbad451b5df93756a2d1c3fedb",
+    "include/mcs.h": "c3f15e3531591c7f6b370e7d514e417799bda5cc2f22f6c4299f5608366de6e4",
+    "include/mcs_config.h": "b7e6e5ebbbeb9ae2ea2a2f3d010c620c730d2d42af6e8d0510c02fc44a51433a",
+    "include/mcs_capabilities.def": "6d338c701919210be7d963be27119dc623b5ce91264a127044d6253bbd23a170",
+    "src/mcs_vm.c": "8ff0cb3d792019311c7563db32f7a17738cb69e973f0a3a185546396692fcf59",
+    "ports/arduino/mcs_arduino_tft.cpp": "19aa8388fe153555a46bdacaac3c14ef502418570063b0337f23db9acaa73971",
+    "tools/pio_build.py": "169b1d874110052c01c75b5e6b6c4280984e05600da7002ad3eb50179d151556",
+    "library.json": "85c44dab909088137d9f0f5c10489f769de0b0dd2c1aa525131472a247448f03",
+    "tests/tft/platformio.ini": "b8abe74b07e50b494fcd81ebf6528ecf1d99a747edf11ace36c774447a14ed55",
+    "tests/tft/src/main.cpp": "bffeaad7a10f018ea7019250bdac29cdce6724d0c45aeffb0b9e4e9b05d67839",
+    "tests/tft/src/sprite_contract.h": "f9e246fd28788f38ada029640a73ce5751df19519bba9a1c26ca5499efeed963",
+    "tests/tft/sprite_contract.cs": "8c417609765d62eebf7749223c84df610018cd2d123cbc2376cbea9fba6317b4",
+    "include/mcs_tft_sprite_budget.h": "bd715e6c0309365e915a83f676ab57b639b71713c10c3aff3c9d535abe643af7",
+    "ports/arduino/mcs_tft_sprite_native.h": "bb7c39b8811b62e0b382255fe6877cae7f80e6de8c358e225a4ceb1492549ba1",
+    "tests/tft/configs/lvgl8/lv_conf.h": "16c1a5d3ccd33100e680780ee16ac1eaf832f67fdc382a0e821783480caab938",
+    "tests/tft/configs/lvgl9/lv_conf.h": "832f7104379c8c9bcade85e7cff66bb344470f412246755ea276b4180da05722",
+    "modules/tft/mcs_display_rgb565.c": "f4d5a5ebdb0b72130f72d89d517fdf5e46167641d7d2ed27fd6a91e2f71eaeb8",
+    "include/mcs_display_rgb565.h": "cfddc15d5d151029e5db19d3b2f696f9a393b38df0b4671c39b9ebfa2105b4db",
+    "modules/lvgl/mcs_lvgl.c": "acb48beb66b230492dba45652e8310050890bb402af14329e04bc3cc09c91259",
+    "modules/lvgl/mcs_lvgl_calls.inc": "5b42e14c8d3e4d303f95a22a2adbd7b0bf52fd7a1e17c6499837c3e0534ec037",
+    "modules/lvgl/mcs_lvgl_styles.inc": "4443848be40f96cd48faf65a926ab196fc84db55773dadba86abd1549604630f",
+    "modules/lvgl/mcs_lvgl_widgets.inc": "1c65fc3850828a87db93f7558358763b96829e3273f8df10aae38f44f019a550",
+    "modules/lvgl/mcs_lvgl_fonts.inc": "4b0e40258343f3fbaa1d50aff01ef10237db22e398b80c726889ba7d665cf75d"
+  }
+}

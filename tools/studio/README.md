@@ -321,3 +321,33 @@ checks use actual keyboard, mouse and Chromium touch input, breakpoint transitio
 independent persisted collapse settings, preferred-size retention, invalid-size
 fallback, focus handoff and page reload. Broader zoom/assistive-tech/long-file/
 findbar/phone-editor/performance/history audits remain full-v2 gates.
+
+## Explicit bounded EOL-only source history (parallel Studio feature)
+
+An exact paste/replacement can change CRLF/CR/LF bytes while leaving every
+textarea character unchanged, including inside multiline literals. Native
+textarea undo cannot reliably identify those operations. Studio therefore skips
+native insertion for same-display replacements and provides a **separate** raw
+history: **Ctrl/Cmd+Alt+Z** undoes an EOL-only change;
+**Ctrl/Cmd+Alt+Shift+Z** redoes it. Selection/caret and exact raw source are
+restored; dirty state and source/project diagnostic staleness use the raw source.
+A replacement with identical raw bytes is a no-op, not a history entry.
+
+This specifically supersedes the EOL-only replacement caveat above for this
+explicit mechanism, not for native Ctrl/Cmd+Z. Ordinary textarea undo/redo stays
+browser-owned and skips these byte-only operations. The separate history covers
+only contiguous EOL-only edits in the currently open editor: a text-changing
+edit, native undo/redo request, or tab reopening clears it. It retains at most
+128 entries and 2 Mi UTF-16 units across before/after raw copies; eviction stops
+at the oldest retained boundary. An oversized change still preserves its exact
+bytes, clears this history, and displays a warning that raw undo is unavailable.
+No arbitrarily old, cross-tab, interleaved text/raw, or native mixed-EOL history
+promise is made. Read-only editors and composing keyboard events do not invoke
+raw history. This is not a change to project saving or execution.
+
+Regression commands (browser is offline, no device required):
+
+```sh
+node tests/studio/test_source.js
+CHROME=$(command -v chromium) node tests/studio/test_source_eol_history_browser.js
+```

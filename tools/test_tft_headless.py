@@ -61,6 +61,7 @@ def main():
     subprocess.run(cxx+flags+objects+['-Wl,--gc-sections', '-Wl,--wrap=calloc', '-lm', '-o', str(exe)], check=True)
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     subprocess.run([str(exe)], check=True)
+    subprocess.run([str(exe), '--trusted-example', str(ROOT/'examples/tft_sprite_scroll.cs')], check=True)
     guard = subprocess.run([str(exe), '--attempt-io'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if guard.returncode != -signal.SIGABRT or 'FORBIDDEN physical Arduino IO:' not in guard.stderr:
         raise SystemExit(f'Physical-IO guard failed: status{guard.returncode}, stderr{guard.stderr}')

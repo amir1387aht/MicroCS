@@ -756,6 +756,48 @@ NATIVE(sprite_copy) {
         }
     return mcs_null();
 }
+/* Bounded RAM-only scroll. Validate every argument before touching pixels.
+ * Native memmove handles overlap at 8/16 bits. Packed formats use the real
+ * native indexed read/draw API in destination-safe order: the pinned upstream
+ * packed scroll path does not preserve all right-moving subrectangles. */
+NATIVE(sprite_scroll_rect) {
+    (void)argc;
+    sprite_t *s = sprite_checked(vm, self);
+    int32_t x, y, w, h, dx, dy, color;
+    if (!s || !integer(vm, argv[0], 0, 4095, &x) || !integer(vm, argv[1], 0, 4095, &y) ||
+        !integer(vm, argv[2], 1, 4096, &w) || !integer(vm, argv[3], 1, 4096, &h) ||
+        !integer(vm, argv[4], -4096, 4096, &dx) || !integer(vm, argv[5], -4096, 4096, &dy) ||
+        !color_value(vm, self, argv[6], &color))
+        return mcs_null();
+    int32_t width = s->display->width(), height = s->display->height();
+    if (w > width || h > height || x > width - w || y > height - h || w > 4096 / h) {
+        mcs_raise(vm, "ArgumentOutOfRangeException",
+                  "ScrollRect must fit the sprite and contain <=4096 pixels");
+        return mcs_null();
+    }
+    if (!dx && !dy)
+        return mcs_null();
+    if (s->display->getColorDepth() >= 8) {
+        s->display->setScrollRect(x, y, w, h, (uint16_t)color);
+        s->display->scroll((int16_t)dx, (int16_t)dy);
+    } else {
+        const int32_t row_first = dy > 0 ? h - 1 : 0;
+        const int32_t row_end = dy > 0 ? -1 : h;
+        const int32_t row_step = dy > 0 ? -1 : 1;
+        const int32_t col_first = dx > 0 ? w - 1 : 0;
+        const int32_t col_end = dx > 0 ? -1 : w;
+        const int32_t col_step = dx > 0 ? -1 : 1;
+        for (int32_t row = row_first; row != row_end; row += row_step)
+            for (int32_t col = col_first; col != col_end; col += col_step) {
+                int32_t from_x = col - dx, from_y = row - dy;
+                uint16_t value = (from_x >= 0 && from_x < w && from_y >= 0 && from_y < h)
+                                     ? s->display->readPixelValue(x + from_x, y + from_y)
+                                     : (uint16_t)color;
+                s->display->drawPixel(x + col, y + row, value);
+            }
+    }
+    return mcs_null();
+}
 NATIVE(tft_sprite_bytes) {
     (void)argc;
     (void)argv;
@@ -786,6 +828,7 @@ static const mcs_reg_t sprite_members[] = {MCS_FN("Dispose", sprite_dispose, 0),
                                            MCS_FN("ReadPixel", sprite_read, 2),
                                            MCS_FN("ReadValue", sprite_read_raw, 2),
                                            MCS_FN("CopyTo", sprite_copy, 3),
+                                           MCS_FN("ScrollRect", sprite_scroll_rect, 7),
                                            MCS_FN("SetPaletteColor", sprite_palette_set, 2),
                                            MCS_FN("GetPaletteColor", sprite_palette_get, 1),
                                            MCS_FN("BitmapColors", sprite_bitmap_colors, 2),

@@ -1,0 +1,20 @@
+PASS TFT sprite fixture source parity
+131558/131558 actual upstream sprite/VM checks passed; native C# contract +20 undisposed teardowns; hardware IO forbidden
+FAIL line 242: result == MCS_OK
+Unhandled exception. MissingMemberException: The name 'Hal' does not exist in the current context
+FAIL line 242: result == MCS_OK
+Unhandled exception. MissingMemberException: The name 'Hal' does not exist in the current context
+FAIL line 242: result == MCS_OK
+Unhandled exception. MissingMemberException: The name 'Hal' does not exist in the current context
+8/11 trusted example source/copy/XIP checks passed
+Traceback (most recent call last):
+  File "/data/v2-mission/tft-scroll/tools/test_tft_headless.py", line 72, in <module>
+    main()
+    ~~~~^^
+  File "/data/v2-mission/tft-scroll/tools/test_tft_headless.py", line 64, in main
+    subprocess.run([str(exe), '--trusted-example', str(ROOT/'examples/tft_sprite_scroll.cs')], check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/data/v2-mission/tft-scroll/build/tft-scroll-example-final/test_sprite', '--trusted-example', '/data/v2-mission/tft-scroll/examples/tft_sprite_scroll.cs']' returned non-zero exit status 1.

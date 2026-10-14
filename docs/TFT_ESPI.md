@@ -216,6 +216,40 @@ rows without rewriting/vendorizing pixel storage. This is bounded per-pixel work
 **not** a fast memcpy/DMA claim. No callback/allocation/safepoint within the copy;
 Stop is observed after the native call, not during it. Board timing is unmeasured.
 
+## Checked RAM sprite scrolling
+
+`TFT.SpriteScroll` advertises the real `TftSprite` method
+`ScrollRect(x, y, width, height, dx, dy, fill)`. Older `TFT.Sprite` firmware may
+not implement it; check this capability rather than class presence. It scrolls
+only the selected RAM rectangle: positive `dx` moves right, positive `dy` moves
+down, and newly uncovered pixels use `fill`. A displacement reaching or exceeding
+one rectangle dimension fills the whole rectangle. Pixels outside are unchanged.
+Zero displacement leaves valid pixels unchanged, but still validates the live
+receiver and every argument.
+
+The entire rectangle must fit: nonnegative origins, dimensions 1..4096, and at
+most **4096 pixels per call**. Displacements are integers -4096..4096. Invalid
+arguments are rejected before any pixel mutation; there is no implicit clipping.
+Fill is RGB565 0..65535 at depths 8/16 (8-bit quantizes to native RGB332), an exact
+palette index 0..15 at depth 4, or a bit 0..1 at depth 1. Palette definitions and
+parent-wide bitmap colors are not changed. Disposed sprites/parents are rejected.
+
+For 8/16-bit sprites the adapter calls actual upstream `setScrollRect`/`scroll`,
+using its overlap-safe native memory moves. For odd-width and packed 1/4-bit
+sprites it uses actual native `readPixelValue`/`drawPixel` in an overlap-safe
+traversal order instead of the pinned upstream packed-scroll assumptions. It
+neither vendors nor replaces the upstream storage implementation. No allocation,
+script callback, retained pointer, display transfer or DMA is involved. Work is
+bounded and synchronous: Stop is observed after the native call, not during it;
+physical-board latency is not established by host tests.
+
+The native contract compares every pixel with a pre-operation snapshot for all
+four depths, both movement directions, diagonal moves, no-op/fill cases, packed
+odd rows, invalid inputs and the exact work-limit boundary. These are actual RAM
+library/VM tests, not physical display tests. See
+[`examples/tft_sprite_scroll.cs`](../examples/tft_sprite_scroll.cs) for a RAM-only
+example that requires no physical `Tft.Begin` or pixel push.
+
 ## Foreground file lifetime versus persistent REPL/embedding
 
 Shell `run`/interactive `.run` (including source or image files and boot-file

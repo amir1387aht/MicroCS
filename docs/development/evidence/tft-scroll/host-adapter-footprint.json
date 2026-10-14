@@ -1,0 +1,49 @@
+{
+  "comparison": "host test-boundary adapter object only, not MCU/full-firmware/peak-RAM performance",
+  "baseline_commit": "b4f670a2a778b92322bf868cba300f9b767df893",
+  "compiler": "g++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "flags": [
+    "-std=gnu++17",
+    "-O1",
+    "-g",
+    "-ffunction-sections",
+    "-fdata-sections",
+    "-I/data/v2-mission/tft-scroll/include",
+    "-I/data/v2-mission/tft-scroll/ports/arduino",
+    "-I/data/v2-mission/tft-scroll/tests/tft/headless",
+    "-I/data/deps/TFT_eSPI-upstream",
+    "-DMCS_USER_CONFIG=0",
+    "-DARDUINO=1",
+    "-DMCS_ENABLE_TFT_ESPI=1",
+    "-DMCS_ENABLE_THREADS=0",
+    "-DMCS_ENABLE_LVGL=0",
+    "-DUSER_SETUP_LOADED=1",
+    "-DILI9341_DRIVER=1",
+    "-DTFT_WIDTH=240",
+    "-DTFT_HEIGHT=320",
+    "-DTFT_CS=5",
+    "-DTFT_DC=2",
+    "-DLOAD_GLCD=1",
+    "-DDISABLE_ALL_LIBRARY_WARNINGS=1"
+  ],
+  "sections": {
+    "baseline": {
+      "text": 7659,
+      "rodata": 3044,
+      "data": 0,
+      "bss": 16
+    },
+    "scroll": {
+      "text": 8469,
+      "rodata": 3136,
+      "data": 0,
+      "bss": 16
+    }
+  },
+  "delta": {
+    "text": 810,
+    "rodata": 92,
+    "data": 0,
+    "bss": 0
+  }
+}

@@ -6,6 +6,134 @@ void Check(bool ok, string reason)
         throw new Exception(reason);
 }
 var owner = new Tft(); // Native RAM sprites do not require physical Begin.
+// Compare every native pixel against a pre-operation snapshot, including
+// pixels outside a subrectangle and odd-width packed rows.
+void CheckScroll(Tft parent, int depth)
+{
+    var target = new TftSprite(parent, 9, 7, depth);
+    var sample = new TftSprite(parent, 1, 1, depth);
+    int fill = depth < 8 ? 1 : 0xF81F;
+    sample.Fill(fill);
+    int fillValue = sample.ReadValue(0, 0);
+    sample.Dispose();
+    var before = new int[63];
+    int checks = 0;
+    for (int dy = -5; dy <= 5; dy++)
+    {
+        for (int dx = -7; dx <= 7; dx++)
+        {
+            for (int i = 0; i < 63; i++)
+            {
+                int value = depth == 1 ? i % 2 : depth == 4 ? i % 16 : (i * 977) % 65536;
+                target.DrawPixel(i % 9, i / 9, value);
+                before[i] = target.ReadValue(i % 9, i / 9);
+            }
+            target.ScrollRect(1, 1, 7, 5, dx, dy, fill);
+            for (int y = 0; y < 7; y++)
+            {
+                for (int x = 0; x < 9; x++)
+                {
+                    int expected = before[y * 9 + x];
+                    if (x >= 1 && x < 8 && y >= 1 && y < 6)
+                    {
+                        int sx = x - dx, sy = y - dy;
+                        expected = sx >= 1 && sx < 8 && sy >= 1 && sy < 6 ? before[sy * 9 + sx] : fillValue;
+                    }
+                    Check(target.ReadValue(x, y) == expected, "scroll snapshot/outer pixels");
+                    checks++;
+                }
+            }
+        }
+    }
+    var windows = new int[] { 0, 0, 9, 1, 8, 0, 1, 7, 0, 6, 9, 1, 0, 0, 1, 7 };
+    for (int box = 0; box < windows.Length; box += 4)
+    {
+        int bx = windows[box], by = windows[box + 1];
+        int bw = windows[box + 2], bh = windows[box + 3];
+        for (int shift = -1; shift <= 1; shift++)
+        {
+            for (int i = 0; i < 63; i++)
+            {
+                target.DrawPixel(i % 9, i / 9, depth < 8 ? i % (depth == 1 ? 2 : 16) : i * 977);
+                before[i] = target.ReadValue(i % 9, i / 9);
+            }
+            target.ScrollRect(bx, by, bw, bh, shift, shift, fill);
+            for (int y = 0; y < 7; y++)
+            {
+                for (int x = 0; x < 9; x++)
+                {
+                    int expected = before[y * 9 + x];
+                    if (x >= bx && x < bx + bw && y >= by && y < by + bh)
+                    {
+                        int sx = x - shift, sy = y - shift;
+                        expected = sx >= bx && sx < bx + bw && sy >= by && sy < by + bh ? before[sy * 9 + sx] : fillValue;
+                    }
+                    Check(target.ReadValue(x, y) == expected, "edge-fit single row/column scroll");
+                }
+            }
+        }
+    }
+    if (depth == 4)
+    {
+        target.SetPaletteColor(1, 0x1234);
+        target.ScrollRect(0, 0, 9, 7, 4096, 0, 1);
+        Check(target.ReadPixel(8, 6) == 0x1234 && target.GetPaletteColor(1) == 0x1234, "scroll retains custom native palette");
+    }
+    target.Fill(fill);
+    try { target.ScrollRect(0, 0, 9, 8, 1, 0, fill); throw new Exception("scroll bounds accepted"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.ScrollRect(-1, 0, 1, 1, 0, 0, fill); throw new Exception("negative scroll origin"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.ScrollRect(0, 0, 0, 1, 1, 0, fill); throw new Exception("zero scroll width"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.ScrollRect(0, 0, 1, 1, 4097, 0, fill); throw new Exception("scroll narrowing"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.ScrollRect(0, 0, 1, 1, 1, 0, 65536); throw new Exception("scroll color narrowing"); }
+    catch (ArgumentOutOfRangeException e) {}
+    try { target.ScrollRect(0, 0, 1, 1, 1, 0, "bad"); throw new Exception("scroll color type"); }
+    catch (ArgumentException e) {}
+    for (int i = 0; i < 63; i++)
+        Check(target.ReadValue(i % 9, i / 9) == fillValue, "invalid scroll did not mutate pixels");
+    target.ScrollRect(8, 6, 1, 1, -4096, 4096, fill);
+    Check(target.ReadValue(8, 6) == fillValue, "last pixel/maximum displacement");
+    if (depth < 8)
+    {
+        try { target.ScrollRect(0, 0, 1, 1, 1, 0, depth == 1 ? 2 : 16); throw new Exception("packed scroll index truncated"); }
+        catch (ArgumentOutOfRangeException e) {}
+        Check(target.ReadValue(0, 0) == fillValue, "invalid packed scroll did not mutate");
+    }
+    try { target.ScrollRect(0, 0, 1, 1, 1.5, 0, fill); throw new Exception("fractional scroll accepted"); }
+    catch (ArgumentException e) {}
+    target.Dispose();
+    try { target.ScrollRect(0, 0, 1, 1, 1, 0, fill); throw new Exception("disposed scroll accepted"); }
+    catch (ObjectDisposedException e) {}
+    Console.WriteLine($"scroll depth {depth}: {checks} native pixel comparisons");
+}
+CheckScroll(owner, 1);
+CheckScroll(owner, 4);
+CheckScroll(owner, 8);
+CheckScroll(owner, 16);
+var scrollLimit = new TftSprite(owner, 4096, 2, 1);
+scrollLimit.Fill(1);
+scrollLimit.ScrollRect(0, 0, 4096, 1, 4096, 0, 0);
+Check(scrollLimit.ReadValue(4095, 0) == 0 && scrollLimit.ReadValue(4095, 1) == 1, "exact4096 scroll accepted");
+try { scrollLimit.ScrollRect(0, 0, 4096, 2, 1, 0, 0); throw new Exception("scroll work limit ignored"); }
+catch (ArgumentOutOfRangeException e) {}
+Check(scrollLimit.ReadValue(4095, 1) == 1, "oversize scroll rejected atomically");
+scrollLimit.Dispose();
+// 17 * 241 is exactly one pixel beyond the bounded work limit.
+var scrollOneOver = new TftSprite(owner, 17, 241, 1);
+for (int i = 0; i < 4097; i++)
+    scrollOneOver.DrawPixel(i % 17, i / 17, i % 2);
+try { scrollOneOver.ScrollRect(0, 0, 17, 241, 1, 1, 0); throw new Exception("exact4097 scroll accepted"); }
+catch (ArgumentOutOfRangeException e) {}
+for (int i = 0; i < 4097; i++)
+    Check(scrollOneOver.ReadValue(i % 17, i / 17) == i % 2, "exact4097 rejection changed pixels");
+scrollOneOver.Dispose();
+var disposedScrollOwner = new TftSprite(owner, 1, 1, 16);
+disposedScrollOwner.Dispose();
+try { disposedScrollOwner.ScrollRect(0, 0, 1, 1, 0, 0, 0); throw new Exception("no-op bypassed disposal"); }
+catch (ObjectDisposedException e) {}
 // Every depth: odd rows, boundaries at64/128, exact row-major semantics.
 void CheckImage(Tft parent, int depth)
 {
