@@ -1,0 +1,20 @@
+[work/v2-mission-review 230d4d0] feat(tft): add bounded native sprite rectangle scrolling
+ Author: MicroCS Engineering Agent <microcs-agent@users.noreply.github.com>
+ Date: Wed Oct 14 07:13:27 2026 +0000
+ 26 files changed, 1037 insertions(+), 2 deletions(-)
+ create mode 100644 docs/development/evidence/tft-scroll/HANDOFF.md
+ create mode 100644 docs/development/evidence/tft-scroll/capabilities-off-final.log
+ create mode 100644 docs/development/evidence/tft-scroll/esp32-exact4097-matrix.log
+ create mode 100644 docs/development/evidence/tft-scroll/esp32-exact4097-provenance.json
+ create mode 100644 docs/development/evidence/tft-scroll/exact4097-gc.log
+ create mode 100644 docs/development/evidence/tft-scroll/exact4097-normal.log
+ create mode 100644 docs/development/evidence/tft-scroll/exact4097-sanitize.log
+ create mode 100644 docs/development/evidence/tft-scroll/final-wiki-corrected.log
+ create mode 100644 docs/development/evidence/tft-scroll/final-wiki.log
+ create mode 100644 docs/development/evidence/tft-scroll/frozen-exact4097-source.json
+ create mode 100644 docs/development/evidence/tft-scroll/headless-with-example.log
+ create mode 100644 docs/development/evidence/tft-scroll/host-adapter-footprint.json
+ create mode 100644 docs/development/evidence/tft-scroll/host-regressions.log
+ create mode 100644 docs/development/evidence/tft-scroll/initial-failures.md
+ create mode 100644 docs/development/v2-original-mission-status.md
+ create mode 100644 examples/tft_sprite_scroll.cs

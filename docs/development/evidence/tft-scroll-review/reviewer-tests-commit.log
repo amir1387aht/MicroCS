@@ -1,0 +1,4 @@
+[work/v2-mission-review bbdf56d] test(tft): add independent snapshot and public-VM lifetime oracle
+ 2 files changed, 159 insertions(+)
+ create mode 100644 tests/tft/reviewer_scroll_oracle.cpp
+ create mode 100644 tests/tft/reviewer_scroll_oracle.py

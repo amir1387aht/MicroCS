@@ -1166,3 +1166,7 @@ Main unchanged, PRpreviewcandidate scoped; no merge/tag/release/provisioning.
 ## Original-mission increment — bounded real native sprite scrolling
 
 Tested Phase4 implementation and native/cross-build evidence are preserved in evidence/tft-scroll/HANDOFF.md. All eight original phases remain partial/incomplete, as v2-original-mission-status.md records. Independent approval and combined integration are pending. Preserve prior preview/main; this checkpoint is WIP recovery only, not publication. Local full-history backup and remote WIP tree verification are recorded externally after the commit to avoid self-referential hashes.
+
+## Independent bounded sprite scrolling review
+
+Ownerb7c5650 independently reviewed; reviewerbbdf56db987ecee9345f69b8f23d1d855134e0bb adds unique actual-upstream oracle source/runner. APPROVED bounded slice for local disposable testing ONLY; normal+sanitizedGC131558/example11 and own840snapshotcases/64680pixels/263079checks pass. Rawreview/verdict in evidence/tft-scroll-review. FiveESPcrosslinks are owner inspected evidence, not independently rebuilt. No physicalIO/fullphase/remoteCI/protectedintegration/releaseapproval. Both frozen owner+reviewer snapshots restore/checksumverified. Preserve prior preview/main; remotecheckpoint canonicalSHA/tree recordedexternally.
