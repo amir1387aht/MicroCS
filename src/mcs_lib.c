@@ -1371,7 +1371,23 @@ static void apply_pending_registration(mcs_vm_t* vm, mcs_lazy_t* z) {
     z->applying = true;
     if (previous) {
         vm->panic = &guard;
-        int code = setjmp(guard);
+        /* C99 requires setjmp to be a permitted controlling expression, not
+         * a variable initializer/assignment. Forward every supported panic
+         * result explicitly; code is assigned after each nonzero return. */
+        int code;
+        switch (setjmp(guard)) {
+        case 0: code = MCS_OK; break;
+        case MCS_ERR_COMPILE: code = MCS_ERR_COMPILE; break;
+        case MCS_ERR_RUNTIME: code = MCS_ERR_RUNTIME; break;
+        case MCS_ERR_MEMORY: code = MCS_ERR_MEMORY; break;
+        case MCS_ERR_BYTECODE: code = MCS_ERR_BYTECODE; break;
+        case MCS_ERR_ABORTED: code = MCS_ERR_ABORTED; break;
+        default:
+            vm->panic = previous;
+            z->applying = false;
+            mcs_panic(vm, MCS_ERR_RUNTIME, "invalid registration panic result");
+            return;
+        }
         if (code) {
             vm->panic = previous;
             z->applying = false;

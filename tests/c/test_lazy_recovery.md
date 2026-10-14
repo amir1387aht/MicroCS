@@ -71,3 +71,19 @@ implementation pass.
 
 Independent review and combined real LVGL 8/9 group regression approval are
 separate gates. These changes do not complete an original v2 phase.
+
+## Portable private guard follow-up
+
+The first frozen owner commit 416f6ce used a new setjmp call in a variable
+initializer. Independent review correctly rejected that invocation context under
+C99/C11 7.13.1.1; passing GCC/sanitizer tests did not establish portability.
+The follow-up uses switch(setjmp(guard)) as its entire controlling expression.
+Explicit cases forward each of the five supported mcs_result_t errors to the
+original target, restoring the pending marker and leaving its message unchanged.
+An invalid internal result is rejected as a runtime error rather than continuing
+registration. No existing compiler/VM guard sites were changed.
+
+A dedicated native C guard regression exercises all five supported error results
+from inside a pending registration's allocator call, verifies the previous target,
+message, retryable queue marker and same-VM retry, and checks physical teardown.
+It does not execute invalid images or reproduce an input/security failure.

@@ -1,0 +1,106 @@
+FLAGS lazy-classes=1 lazy-regs=1 gc-stress=1 compact=0 int64=0
+WINDOW const-source fault=-1 seen=11 denied=0 result=0
+WINDOW const-source fault=0 seen=1 denied=1 result=3
+ORIGINAL const-source fault=0 error=out of memory (allocation of 184 bytes failed)
+WINDOW const-source fault=1 seen=2 denied=1 result=3
+ORIGINAL const-source fault=1 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-source fault=2 seen=3 denied=1 result=3
+ORIGINAL const-source fault=2 error=out of memory (allocation of 128 bytes failed)
+WINDOW const-source fault=3 seen=4 denied=1 result=3
+ORIGINAL const-source fault=3 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-source fault=4 seen=5 denied=1 result=3
+ORIGINAL const-source fault=4 error=out of memory (allocation of 36 bytes failed)
+WINDOW const-source fault=5 seen=6 denied=1 result=3
+ORIGINAL const-source fault=5 error=out of memory (allocation of 256 bytes failed)
+WINDOW const-source fault=6 seen=7 denied=1 result=3
+ORIGINAL const-source fault=6 error=out of memory (allocation of 33 bytes failed)
+WINDOW const-source fault=7 seen=8 denied=1 result=3
+ORIGINAL const-source fault=7 error=out of memory (allocation of 512 bytes failed)
+WINDOW const-source fault=8 seen=9 denied=1 result=3
+ORIGINAL const-source fault=8 error=out of memory (allocation of 33 bytes failed)
+WINDOW const-source fault=9 seen=10 denied=1 result=3
+ORIGINAL const-source fault=9 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-source fault=10 seen=11 denied=1 result=3
+ORIGINAL const-source fault=10 error=out of memory (allocation of 512 bytes failed)
+WINDOW const-source fault=11 seen=11 denied=0 result=0
+UNHIT const-source fault=11 seen=11 (sentinel, expected success)
+WINDOW const-nested fault=-1 seen=12 denied=0 result=0
+WINDOW const-nested fault=0 seen=1 denied=1 result=3
+ORIGINAL const-nested fault=0 error=out of memory (allocation of 46 bytes failed)
+WINDOW const-nested fault=1 seen=2 denied=1 result=3
+ORIGINAL const-nested fault=1 error=out of memory (allocation of 184 bytes failed)
+WINDOW const-nested fault=2 seen=3 denied=1 result=3
+ORIGINAL const-nested fault=2 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-nested fault=3 seen=4 denied=1 result=3
+ORIGINAL const-nested fault=3 error=out of memory (allocation of 128 bytes failed)
+WINDOW const-nested fault=4 seen=5 denied=1 result=3
+ORIGINAL const-nested fault=4 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-nested fault=5 seen=6 denied=1 result=3
+ORIGINAL const-nested fault=5 error=out of memory (allocation of 36 bytes failed)
+WINDOW const-nested fault=6 seen=7 denied=1 result=3
+ORIGINAL const-nested fault=6 error=out of memory (allocation of 256 bytes failed)
+WINDOW const-nested fault=7 seen=8 denied=1 result=3
+ORIGINAL const-nested fault=7 error=out of memory (allocation of 33 bytes failed)
+WINDOW const-nested fault=8 seen=9 denied=1 result=3
+ORIGINAL const-nested fault=8 error=out of memory (allocation of 512 bytes failed)
+WINDOW const-nested fault=9 seen=10 denied=1 result=3
+ORIGINAL const-nested fault=9 error=out of memory (allocation of 33 bytes failed)
+WINDOW const-nested fault=10 seen=11 denied=1 result=3
+ORIGINAL const-nested fault=10 error=out of memory (allocation of 37 bytes failed)
+WINDOW const-nested fault=11 seen=12 denied=1 result=3
+ORIGINAL const-nested fault=11 error=out of memory (allocation of 512 bytes failed)
+WINDOW const-nested fault=12 seen=12 denied=0 result=0
+UNHIT const-nested fault=12 seen=12 (sentinel, expected success)
+WINDOW module-source fault=-1 seen=11 denied=0 result=0
+WINDOW module-source fault=0 seen=1 denied=1 result=3
+ORIGINAL module-source fault=0 error=out of memory (allocation of 184 bytes failed)
+WINDOW module-source fault=1 seen=2 denied=1 result=3
+ORIGINAL module-source fault=1 error=out of memory (allocation of 24 bytes failed)
+WINDOW module-source fault=2 seen=3 denied=1 result=3
+ORIGINAL module-source fault=2 error=out of memory (allocation of 37 bytes failed)
+WINDOW module-source fault=3 seen=4 denied=1 result=3
+ORIGINAL module-source fault=3 error=out of memory (allocation of 128 bytes failed)
+WINDOW module-source fault=4 seen=5 denied=1 result=3
+ORIGINAL module-source fault=4 error=out of memory (allocation of 37 bytes failed)
+WINDOW module-source fault=5 seen=6 denied=1 result=3
+ORIGINAL module-source fault=5 error=out of memory (allocation of 24 bytes failed)
+WINDOW module-source fault=6 seen=7 denied=1 result=3
+ORIGINAL module-source fault=6 error=out of memory (allocation of 36 bytes failed)
+WINDOW module-source fault=7 seen=8 denied=1 result=3
+ORIGINAL module-source fault=7 error=out of memory (allocation of 256 bytes failed)
+WINDOW module-source fault=8 seen=9 denied=1 result=3
+ORIGINAL module-source fault=8 error=out of memory (allocation of 33 bytes failed)
+WINDOW module-source fault=9 seen=10 denied=1 result=3
+ORIGINAL module-source fault=9 error=out of memory (allocation of 512 bytes failed)
+WINDOW module-source fault=10 seen=11 denied=1 result=3
+ORIGINAL module-source fault=10 error=out of memory (allocation of 33 bytes failed)
+WINDOW module-source fault=11 seen=11 denied=0 result=0
+UNHIT module-source fault=11 seen=11 (sentinel, expected success)
+WINDOW module-nested fault=-1 seen=12 denied=0 result=0
+WINDOW module-nested fault=0 seen=1 denied=1 result=3
+ORIGINAL module-nested fault=0 error=out of memory (allocation of 46 bytes failed)
+WINDOW module-nested fault=1 seen=2 denied=1 result=3
+ORIGINAL module-nested fault=1 error=out of memory (allocation of 184 bytes failed)
+WINDOW module-nested fault=2 seen=3 denied=1 result=3
+ORIGINAL module-nested fault=2 error=out of memory (allocation of 24 bytes failed)
+WINDOW module-nested fault=3 seen=4 denied=1 result=3
+ORIGINAL module-nested fault=3 error=out of memory (allocation of 37 bytes failed)
+WINDOW module-nested fault=4 seen=5 denied=1 result=3
+ORIGINAL module-nested fault=4 error=out of memory (allocation of 128 bytes failed)
+WINDOW module-nested fault=5 seen=6 denied=1 result=3
+ORIGINAL module-nested fault=5 error=out of memory (allocation of 37 bytes failed)
+WINDOW module-nested fault=6 seen=7 denied=1 result=3
+ORIGINAL module-nested fault=6 error=out of memory (allocation of 24 bytes failed)
+WINDOW module-nested fault=7 seen=8 denied=1 result=3
+ORIGINAL module-nested fault=7 error=out of memory (allocation of 36 bytes failed)
+WINDOW module-nested fault=8 seen=9 denied=1 result=3
+ORIGINAL module-nested fault=8 error=out of memory (allocation of 256 bytes failed)
+WINDOW module-nested fault=9 seen=10 denied=1 result=3
+ORIGINAL module-nested fault=9 error=out of memory (allocation of 33 bytes failed)
+WINDOW module-nested fault=10 seen=11 denied=1 result=3
+ORIGINAL module-nested fault=10 error=out of memory (allocation of 512 bytes failed)
+WINDOW module-nested fault=11 seen=12 denied=1 result=3
+ORIGINAL module-nested fault=11 error=out of memory (allocation of 33 bytes failed)
+WINDOW module-nested fault=12 seen=12 denied=0 result=0
+UNHIT module-nested fault=12 seen=12 (sentinel, expected success)
+2309/2309 lazy module recovery checks passed; finite trusted operation, not general OOM safety

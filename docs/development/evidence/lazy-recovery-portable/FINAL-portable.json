@@ -1,0 +1,33 @@
+{
+  "commit": "2daf6239846d41f6b677c8a264e04e78242edf64",
+  "tree": "1ee960fc22d10059b4e666de10e2392ed3035294",
+  "parent": "416f6ced54912628041ed76c74bebd8b369f7d09",
+  "scope": "narrow portable controlling-expression setjmp correction and five-result forwarding test",
+  "sanitizers": "ASan+UBSan+leak",
+  "matrix": {
+    "default": [
+      76,
+      2309
+    ],
+    "gc": [
+      76,
+      2309
+    ],
+    "eager-regs": [
+      17,
+      1183
+    ],
+    "eager-classes": [
+      17,
+      260
+    ],
+    "both-eager": [
+      17,
+      260
+    ]
+  },
+  "total_checks": 6524,
+  "host_source_image_xip": 85,
+  "shell_readline_capabilities": "PASS",
+  "independent_approval": "PENDING"
+}

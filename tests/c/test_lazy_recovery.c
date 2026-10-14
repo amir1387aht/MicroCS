@@ -8,6 +8,8 @@ typedef struct { void *p; size_t bytes; } owned_t;
 static owned_t owned[8192];
 static unsigned checks, failures;
 static int fail_next, constructions;
+static mcs_vm_t *forward_vm;
+static mcs_result_t forward_code;
 static size_t physical_bytes, live_allocations;
 #define CHECK(c) do { checks++; if(!(c)) { failures++; printf("FAIL line %d: %s\n", __LINE__, #c); } } while(0)
 static void quiet(void *ud, const char *s, size_t n) { (void)ud; (void)s; (void)n; }
@@ -20,7 +22,10 @@ static void *physical_alloc(void *ud, void *p, size_t hint, size_t n) {
         if(p) { physical_bytes-=owned[i].bytes; live_allocations--; owned[i].p=NULL; owned[i].bytes=0; free(p); }
         return NULL;
     }
-    if(fail_next && --fail_next==0) return NULL;
+    if(fail_next && --fail_next==0) {
+        if(forward_vm) mcs_panic(forward_vm,forward_code,"registration forwarding sentinel");
+        return NULL;
+    }
     void *out=realloc(p,n);
     if(out) { physical_bytes=physical_bytes-owned[i].bytes+n; if(!p) live_allocations++; owned[i].p=out; owned[i].bytes=n; }
     return out;
@@ -50,6 +55,43 @@ static mcs_value_t nested_lookup(mcs_vm_t *vm, mcs_value_t self, int argc, mcs_v
     (void)self; (void)argc; (void)argv; return mcs_get_global(vm,"NestedLateOwned");
 }
 static const mcs_class_def_t held_def={"HeldOwned",sizeof(int),owned_ctor,NULL,members,NULL};
+/* Internal native guard test, not bytecode/input or generic fault recovery.
+ * Every supported result must reach the original C target unchanged. */
+static void check_panic_forwarding(void) {
+#if MCS_LAZY_CLASSES && MCS_LAZY_REGS
+    const mcs_result_t codes[]={MCS_ERR_COMPILE,MCS_ERR_RUNTIME,MCS_ERR_MEMORY,MCS_ERR_BYTECODE,MCS_ERR_ABORTED};
+    for(volatile unsigned i=0;i<sizeof(codes)/sizeof(codes[0]);i++) {
+        mcs_config_t cfg; mcs_config_default(&cfg);
+        cfg.realloc_fn=physical_alloc; cfg.write_fn=quiet; cfg.error_fn=quiet;
+        mcs_vm_t *vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm) return;
+        mcs_register_class(vm,&late_def);
+        mcs_global_slot(vm,mcs_intern_c(vm,late_def.name));
+        const int pause=vm->gc_pause, roots=vm->root_count;
+        jmp_buf outer; int received;
+        vm->panic=&outer; forward_vm=vm; forward_code=codes[i]; fail_next=1;
+        switch(setjmp(outer)) {
+        case 0: (void)mcs_get_global(vm,late_def.name); received=0; break;
+        case MCS_ERR_COMPILE: received=MCS_ERR_COMPILE; break;
+        case MCS_ERR_RUNTIME: received=MCS_ERR_RUNTIME; break;
+        case MCS_ERR_MEMORY: received=MCS_ERR_MEMORY; break;
+        case MCS_ERR_BYTECODE: received=MCS_ERR_BYTECODE; break;
+        case MCS_ERR_ABORTED: received=MCS_ERR_ABORTED; break;
+        default: received=-1; break;
+        }
+        forward_vm=NULL;
+        CHECK(received==(int)codes[i]);
+        CHECK(vm->panic==&outer && fail_next==0);
+        CHECK(!strcmp(mcs_last_error(vm),"registration forwarding sentinel"));
+        CHECK(vm->lazy && !vm->lazy->applying);
+        /* The outer embedding guard owns its entry-state restoration. */
+        vm->panic=NULL; vm->gc_pause=pause; vm->root_count=roots;
+        CHECK(!mcs_is_null(mcs_get_global(vm,late_def.name)));
+        CHECK(!mcs_lazy_pending(vm,late_def.name,strlen(late_def.name)));
+        mcs_gc(vm); mcs_free(vm);
+        CHECK(live_allocations==0 && physical_bytes==0);
+    }
+#endif
+}
 int main(void) {
     mcs_config_t cfg; mcs_config_default(&cfg); cfg.realloc_fn=physical_alloc; cfg.write_fn=quiet; cfg.error_fn=quiet;
     mcs_vm_t *vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm) return 1;
@@ -120,6 +162,7 @@ int main(void) {
     mcs_free(vm);
     if(live_allocations) printf("physical outstanding: %zu pointers, %zu requested bytes\n",live_allocations,physical_bytes);
     CHECK(live_allocations==0); CHECK(physical_bytes==0);
+    check_panic_forwarding();
     printf("%u/%u trusted lazy recovery checks passed\n",checks-failures,checks);
     return failures!=0;
 }

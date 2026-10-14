@@ -1,0 +1,38 @@
+{
+  "source_commit": "416f6ced54912628041ed76c74bebd8b369f7d09",
+  "tree": "d1641af035ec9ef8f8ab42f5474364a1867e9a0d",
+  "test_sha256": "06bb90d9b57fcddaf098b20b734268a065ea5ba3d728f5941aa2c785db921b99",
+  "unchanged_test_commit": "35e758f733e5de0219fef7d668538cedbac89058",
+  "results": {
+    "default": {
+      "checks": 2309,
+      "unhit_sentinels": 4,
+      "outstanding_inventory": "none; zero-pointer assertions passed before cleanup"
+    },
+    "gc-stress": {
+      "checks": 2309,
+      "unhit_sentinels": 4,
+      "outstanding_inventory": "none; zero-pointer assertions passed before cleanup"
+    },
+    "eager-classes": {
+      "checks": 260,
+      "unhit_sentinels": 4,
+      "outstanding_inventory": "none; zero-pointer assertions passed before cleanup"
+    },
+    "eager-regs": {
+      "checks": 1183,
+      "unhit_sentinels": 4,
+      "outstanding_inventory": "none; zero-pointer assertions passed before cleanup"
+    },
+    "eager-both": {
+      "checks": 260,
+      "unhit_sentinels": 4,
+      "outstanding_inventory": "none; zero-pointer assertions passed before cleanup"
+    }
+  },
+  "total_checks": 6321,
+  "scope": "Independent unchanged B regression only; sustained denial; eager mixed-path gap retained; not general OOM safety/full-v2 approval",
+  "backup": "/data/backups/v2-mission-lazy-module-validation/416f6ced54912628041ed76c74bebd8b369f7d09",
+  "clean_restore": "416f6ced54912628041ed76c74bebd8b369f7d09 / d1641af035ec9ef8f8ab42f5474364a1867e9a0d",
+  "approval": "Independent B unchanged-test gate PASS only; full core review separate"
+}

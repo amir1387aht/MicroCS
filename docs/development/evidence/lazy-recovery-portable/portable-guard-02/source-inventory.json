@@ -1,0 +1,10 @@
+{
+  "src/mcs_internal.h": "54f7c215e98a6dea8a2770849c9158e4fe531612ede1fea3ba6eaa1c4b26b6ca",
+  "src/mcs_lib.c": "e5457f1e19441d355acec631e4512f0e443097218388be797d1a9d66b6d9d3aa",
+  "src/mcs_object.c": "7a86216a03626cee043fb14e94e979c5b832d1b70442d1acc030be58c35e29e1",
+  "src/mcs_vm.c": "b7d4a7e01344b2eb8ab2987d0fa9b416f93bb6a7d205c94451beae60fdea205f",
+  "tests/c/test_lazy_recovery.c": "ee67527f421363ca5a413b743a7b071d2044ae30000017a1d3c607ca1e8bd71b",
+  "tests/c/test_lazy_recovery.md": "3990abb07156b375d95ade9c4858af29bc68a5c06334573795ee197123583339",
+  "tests/c/test_lazy_module_recovery.c": "06bb90d9b57fcddaf098b20b734268a065ea5ba3d728f5941aa2c785db921b99",
+  "tests/c/test_lazy_module_recovery.md": "d1095920fa579d5f54b91351ee10dffa07ba5d3455bf2618b8b6b5ec4afde474"
+}
