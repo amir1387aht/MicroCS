@@ -1,0 +1,35 @@
+{
+  "commit": "416f6ced54912628041ed76c74bebd8b369f7d09",
+  "tree": "d1641af035ec9ef8f8ab42f5474364a1867e9a0d",
+  "parent": "b4f670a2a778b92322bf868cba300f9b767df893",
+  "scope": "bounded queued native class/module/constant registration recovery; not general OOM transactions",
+  "source_inventory": "pending-flag-01/source-inventory.json",
+  "matrix": {
+    "default": [
+      36,
+      2309
+    ],
+    "gc": [
+      36,
+      2309
+    ],
+    "eager-regs": [
+      17,
+      1183
+    ],
+    "eager-classes": [
+      17,
+      260
+    ],
+    "both-eager": [
+      17,
+      260
+    ]
+  },
+  "sanitizers": "ASan+UBSan, leak detection and halt_on_error enabled",
+  "retained_host": 85,
+  "shell_readline": "PASS",
+  "capabilities": "PASS",
+  "independent_approval": "PENDING",
+  "original_lvgl_group_failure": "pending unchanged rerun"
+}

@@ -1,0 +1,18 @@
+FLAGS lazy-classes=0 lazy-regs=1 gc-stress=0 compact=0 int64=0
+WINDOW const-source fault=-1 seen=0 denied=0 result=0
+EAGER semantics only; no equivalent first-use lazy allocation coverage claimed
+WINDOW const-source fault=0 seen=0 denied=0 result=0
+UNHIT const-source fault=0 seen=0 (sentinel, expected success)
+WINDOW const-nested fault=-1 seen=0 denied=0 result=0
+EAGER semantics only; no equivalent first-use lazy allocation coverage claimed
+WINDOW const-nested fault=0 seen=0 denied=0 result=0
+UNHIT const-nested fault=0 seen=0 (sentinel, expected success)
+WINDOW module-source fault=-1 seen=0 denied=0 result=0
+EAGER semantics only; no equivalent first-use lazy allocation coverage claimed
+WINDOW module-source fault=0 seen=0 denied=0 result=0
+UNHIT module-source fault=0 seen=0 (sentinel, expected success)
+WINDOW module-nested fault=-1 seen=0 denied=0 result=0
+EAGER semantics only; no equivalent first-use lazy allocation coverage claimed
+WINDOW module-nested fault=0 seen=0 denied=0 result=0
+UNHIT module-nested fault=0 seen=0 (sentinel, expected success)
+260/260 lazy module recovery checks passed; finite trusted operation, not general OOM safety

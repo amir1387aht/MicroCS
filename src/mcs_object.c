@@ -278,12 +278,12 @@ mcs_class_t* mcs_new_class(mcs_vm_t* vm, mcs_string_t* name, uint8_t ckind) {
 
 /* give a class that borrows its parent's field layout its own copy */
 static void own_layout(mcs_vm_t* vm, mcs_class_t* cls) {
-    if (!cls->layout_shared) return;
+    if (!(cls->layout_shared & MCS_CLASS_SHARED_LAYOUT)) return;
     mcs_table_t shared = cls->fields;
     const mcs_value_t* defs = cls->field_defaults;
     mcs_table_init(&cls->fields);
     cls->field_defaults = NULL;
-    cls->layout_shared = 0;
+    cls->layout_shared &= (uint8_t)~MCS_CLASS_SHARED_LAYOUT;
     mcs_table_copy(vm, &shared, &cls->fields);
     if (cls->field_count) {
         cls->field_defaults = MCS_ALLOC(vm, mcs_value_t, cls->field_count);
@@ -317,7 +317,7 @@ void mcs_class_inherit_shared(mcs_vm_t* vm, mcs_class_t* cls, mcs_class_t* super
     cls->fields = super->fields;
     cls->field_defaults = super->field_defaults;
     cls->field_count = super->field_count;
-    cls->layout_shared = 1;
+    cls->layout_shared |= MCS_CLASS_SHARED_LAYOUT;
     if (!cls->native_ctor) cls->native_ctor = super->native_ctor;
     if (!cls->def) cls->def = super->def;
 }
@@ -428,6 +428,12 @@ static mcs_table_t* cls_tab(mcs_class_t* c, int which) {
 }
 bool mcs_cls_get(mcs_vm_t* vm, mcs_class_t* c, int which, mcs_string_t* name, mcs_value_t* out) {
     mcs_table_t* t = cls_tab(c, which);
+    /* A partially applied module can already contain an older cached constant.
+     * Complete its pending registrations before returning any member. Ordinary
+     * classes have no flag, so their cached path never scans the pending queue. */
+    if ((c->layout_shared & MCS_CLASS_PENDING_REGS) &&
+        mcs_lazy_pending(vm, c->name->chars, c->name->len))
+        mcs_lazy_resolve(vm, c->name->chars, c->name->len);
     if (mcs_table_get_s(t, name, out)) return true;
     bool any = false;
     mcs_value_t inh;
@@ -869,7 +875,7 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
         mcs_table_free(vm, &c->methods); mcs_table_free(vm, &c->getters); mcs_table_free(vm, &c->setters);
         for (mcs_rom_t* r = c->rom; r;) { mcs_rom_t* nx = r->next; mcs_realloc(vm, r, sizeof(mcs_rom_t), 0); r = nx; }
         mcs_table_free(vm, &c->statics); mcs_table_free(vm, &c->ifaces);
-        if (!c->layout_shared) { mcs_table_free(vm, &c->fields); MCS_FREE(vm, mcs_value_t, c->field_defaults, c->field_count); }
+        if (!(c->layout_shared & MCS_CLASS_SHARED_LAYOUT)) { mcs_table_free(vm, &c->fields); MCS_FREE(vm, mcs_value_t, c->field_defaults, c->field_count); }
         mcs_realloc(vm, o, sizeof(mcs_class_t), 0);
         break;
     }

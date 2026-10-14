@@ -71,9 +71,11 @@ static bool resolve_guarded(mcs_vm_t* vm, const char* name, size_t len) {
     if (!mcs_lazy_known(vm, name, len)) return false;
     if (vm->panic) return mcs_lazy_resolve(vm, name, len);
     jmp_buf jb;
-    bool ok = false;
+    volatile bool ok = false;
+    const int pause = vm->gc_pause, roots = vm->root_count;
     vm->panic = &jb;
     if (!setjmp(jb)) ok = mcs_lazy_resolve(vm, name, len);
+    else { vm->gc_pause = pause; vm->root_count = roots; }
     vm->panic = NULL;
     return ok;
 }

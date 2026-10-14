@@ -128,13 +128,17 @@ typedef struct mcs_lazy {
     const mcs_reg_t* regs;           /* static functions / properties */
     const mcs_class_def_t* def;      /* native class */
     const mcs_const_t* consts;       /* integer constants */
+    bool applying;                 /* temporarily hidden, but still queue-owned */
     char name[1];                    /* flexible, NUL terminated (copied) */
 } mcs_lazy_t;
+
+#define MCS_CLASS_SHARED_LAYOUT 1u
+#define MCS_CLASS_PENDING_REGS  2u
 
 typedef struct mcs_class {
     mcs_obj_t obj;
     uint8_t ckind;
-    uint8_t layout_shared;  /* fields + field_defaults borrowed from super (copy on write) */
+    uint8_t layout_shared;  /* SHARED_LAYOUT / PENDING_REGS flags; no extra class storage */
     uint16_t field_count;
     mcs_string_t* name;
     struct mcs_class* super;
@@ -571,6 +575,7 @@ mcs_class_t* mcs_exc_class(mcs_vm_t* vm, int kind);
 bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len);
 /* true if `name` is a built-in / registered global that is not created yet */
 bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len);
+bool mcs_lazy_pending(mcs_vm_t* vm, const char* name, size_t len);
 void mcs_lazy_free(mcs_vm_t* vm);
 
 /* library (mcs_lib.c) */

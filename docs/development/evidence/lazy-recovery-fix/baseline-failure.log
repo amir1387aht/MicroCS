@@ -1,0 +1,7 @@
+retry result=2 error=Unhandled exception. MissingMemberException: The name 'LateOwned' does not exist in the current context
+FAIL line 50: retry==MCS_OK
+FAIL line 52: mcs_exec_source(vm,"again.cs","if(kept.Value!=42 || recovered.Value!=42) throw new Exception(\"GC state changed\");") == MCS_OK
+physical outstanding: 1 pointers, 49 requested bytes
+FAIL line 55: live_allocations==0
+FAIL line 55: physical_bytes==0
+4/8 trusted lazy recovery checks passed

@@ -1,0 +1,2 @@
+FAIL line 69: partial_name && partial_name->obj.aux && vm->globals[partial_name->obj.aux-1].type==MCS_T_UNDEF
+30/31 trusted lazy recovery checks passed

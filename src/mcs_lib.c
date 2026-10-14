@@ -79,10 +79,17 @@ static void add_consts(mcs_vm_t* vm, mcs_class_t* c, const mcs_const_t* k) {
     vm->gc_pause--;
 }
 static void define_native_class(mcs_vm_t* vm, const mcs_class_def_t* def) {
-    mcs_class_t* c = mcs_define_builtin_class(vm, def->name, MCS_CLS(vm, object), CLS_USERDATA);
+    /* Publish only a complete native class. A guarded allocation failure must
+     * not leave a partially initialized global that bypasses the pending retry. */
+    vm->gc_pause++;
+    mcs_class_t* c = mcs_new_class(vm, mcs_intern_c(vm, def->name), CLS_USERDATA);
+    mcs_class_inherit_lazy(vm, c, MCS_CLS(vm, object));
     c->def = def;
     mcs_add_regs(vm, c, def->members, false);
     mcs_add_regs(vm, c, def->statics, true);
+    uint32_t slot = mcs_global_slot(vm, c->name);
+    if (vm->globals[slot].type == MCS_T_UNDEF) vm->globals[slot] = OBJ_VAL(c);
+    vm->gc_pause--;
 }
 
 #if MCS_LAZY_CLASSES
@@ -96,7 +103,7 @@ static bool lazy_add(mcs_vm_t* vm, const char* name, const mcs_reg_t* regs, cons
     if (global_defined(vm, name)) return false;   /* exists: extend it now */
     size_t n = strlen(name);
     mcs_lazy_t* z = (mcs_lazy_t*)mcs_realloc(vm, NULL, 0, sizeof(mcs_lazy_t) + n);
-    z->next = NULL; z->regs = regs; z->def = def; z->consts = k;
+    z->next = NULL; z->regs = regs; z->def = def; z->consts = k; z->applying = false;
     memcpy(z->name, name, n + 1);
     mcs_lazy_t** pp = &vm->lazy;            /* append: keeps registration order */
     while (*pp) pp = &(*pp)->next;
@@ -1344,11 +1351,42 @@ mcs_class_t* mcs_core_class(mcs_vm_t* vm, int which) {
     return *slot;
 }
 
+bool mcs_lazy_pending(mcs_vm_t* vm, const char* name, size_t len) {
+    for (mcs_lazy_t* z = vm->lazy; z; z = z->next)
+        if (!z->applying && name_is(z->name, name, len)) return true;
+    return false;
+}
+
 bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len) {
     int area;
     if (lib_find(vm, name, len, &area) || exc_find(name, len) >= 0) return true;
-    for (mcs_lazy_t* z = vm->lazy; z; z = z->next) if (name_is(z->name, name, len)) return true;
-    return false;
+    return mcs_lazy_pending(vm, name, len);
+}
+
+/* Keep the node at its original position, but hide it from recursive lookup.
+ * On allocation failure it remains owned and retryable without queue reordering. */
+static void apply_pending_registration(mcs_vm_t* vm, mcs_lazy_t* z) {
+    jmp_buf guard;
+    jmp_buf* previous = vm->panic;
+    z->applying = true;
+    if (previous) {
+        vm->panic = &guard;
+        int code = setjmp(guard);
+        if (code) {
+            vm->panic = previous;
+            z->applying = false;
+            longjmp(*previous, code);
+        }
+    }
+    if (z->def) define_native_class(vm, z->def);
+    else {
+        mcs_class_t* c = module_for(vm, z->name);
+        c->layout_shared |= MCS_CLASS_PENDING_REGS;
+        if (z->regs) mcs_add_regs(vm, c, z->regs, true);
+        add_consts(vm, c, z->consts);
+    }
+    z->applying = false;
+    vm->panic = previous;
 }
 
 bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
@@ -1356,22 +1394,35 @@ bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
     int area, x;
     vm->gc_pause++;
     const mcs_lib_entry_t* e = lib_find(vm, name, len, &area);
-    if (e) { lib_areas[area].make(vm, e->id); any = true; }
-    else if ((x = exc_find(name, len)) >= 0) { make_exception(vm, x); any = true; }
+    /* Retrying a pending extension must not duplicate a completed builtin. */
+    if (!peek_global_class(vm, name)) {
+        if (e) { lib_areas[area].make(vm, e->id); any = true; }
+        else if ((x = exc_find(name, len)) >= 0) { make_exception(vm, x); any = true; }
+    }
     /* registrations from modules / the host, in the order they were made */
     mcs_lazy_t** pp = &vm->lazy;
     while (*pp) {
         mcs_lazy_t* z = *pp;
-        if (!name_is(z->name, name, len)) { pp = &z->next; continue; }
-        *pp = z->next;   /* unlink first: applying may resolve other names */
-        if (z->def) define_native_class(vm, z->def);
-        else {
-            mcs_class_t* c = module_for(vm, z->name);
-            if (z->regs) mcs_add_regs(vm, c, z->regs, true);
-            add_consts(vm, c, z->consts);
-        }
+        if (z->applying || !name_is(z->name, name, len)) { pp = &z->next; continue; }
+        apply_pending_registration(vm, z);
+        /* Nested resolution may remove a predecessor. Find the still-owned
+         * node again instead of retaining a pointer into that predecessor. */
+        pp = &vm->lazy;
+        while (*pp && *pp != z) pp = &(*pp)->next;
+        if (!*pp) mcs_panic(vm, MCS_ERR_RUNTIME, "pending registration ownership lost");
+        *pp = z->next;
         mcs_realloc(vm, z, sizeof(mcs_lazy_t) + strlen(z->name), 0);
         any = true;
+        pp = &vm->lazy;
+    }
+    /* An outer, currently applying registration still owns this flag. Do not
+     * clear it merely because recursive lookup skips that active queue entry. */
+    bool queued = false;
+    for (mcs_lazy_t* z = vm->lazy; z; z = z->next)
+        if (name_is(z->name, name, len)) { queued = true; break; }
+    if (!queued) {
+        mcs_class_t* c = peek_global_class(vm, name);
+        if (c) c->layout_shared &= (uint8_t)~MCS_CLASS_PENDING_REGS;
     }
     vm->gc_pause--;
     return any;

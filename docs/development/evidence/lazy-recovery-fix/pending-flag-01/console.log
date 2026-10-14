@@ -1,0 +1,15 @@
+36/36 trusted lazy recovery checks passed
+UNHIT module-nested fault=12 seen=12 (sentinel, expected success)
+2309/2309 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+36/36 trusted lazy recovery checks passed
+UNHIT module-nested fault=12 seen=12 (sentinel, expected success)
+2309/2309 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+17/17 trusted lazy recovery checks passed
+UNHIT module-nested fault=0 seen=0 (sentinel, expected success)
+1183/1183 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+17/17 trusted lazy recovery checks passed
+UNHIT module-nested fault=0 seen=0 (sentinel, expected success)
+260/260 lazy module recovery checks passed; finite trusted operation, not general OOM safety
+17/17 trusted lazy recovery checks passed
+UNHIT module-nested fault=0 seen=0 (sentinel, expected success)
+260/260 lazy module recovery checks passed; finite trusted operation, not general OOM safety
