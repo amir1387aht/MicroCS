@@ -1,0 +1,14 @@
+{
+  "base_commit": "b4f670a2a778b92322bf868cba300f9b767df893",
+  "base_tree": "cd227a96f8a8852e8eefe9ba3df8f2bb4ecbfb68",
+  "attachments": {
+    "/data/.agent-service/files/496f7698-f410-4aef-bbd2-54f6543052fe/MICROCS_V2_HANDOFF.md": "d16d759989a831649afedea6c5bb58ac6b58ff7f82820db35c1bee23e9643731",
+    "/data/.agent-service/files/e2ecfc91-5c80-4370-b76a-9afb40df28ff/MICROCS_V2_RESUME_HANDOFF.md": "70105e36c5dba34463530b800c6529a4ecfdaa8e5a0dd16e62898e89f971559f"
+  },
+  "review_checkout": "/data/v2-mission/review",
+  "branch": "work/v2-mission-review",
+  "status": "conditional_design_acceptance_only",
+  "new_feature_approved": false,
+  "original_mission_complete": false,
+  "remote_checkpoint_owner": "coordinator"
+}
