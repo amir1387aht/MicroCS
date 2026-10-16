@@ -1490,6 +1490,7 @@ function legacyCapabilities(info) {
 }
 const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
 const TAG_RULES = [
+  ["power", /\bPower\./],
   ["Wi-Fi", /\b(Wifi|Http|HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer|Ntp|Mdns|Ping|Dns)\b\s*[.(]|new (HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer)\b/],
   ["ESP-NOW", /\bEspNow\./], ["BLE", /\bBle\.\w+|\bnew Ble(Service|Uart|Advertisement)\b/], ["OLED", /\b(?:new U8(?:g2|x8)\b|U8(?:g2|x8)\.(?:I2C|SPI|Parallel)\s*\()/], ["files", /\b(File|Directory)\.\w+\(/],
   ["jobs", /\bScheduler\./], ["threads", /\bThread\.(Run|RunOn|Every)\b/],

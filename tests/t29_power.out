@@ -1,0 +1,8 @@
+power True timer True
+initial -1 False
+selected 2 True
+simulated transitions returned
+negative rejected
+no wake rejected
+pin rejected
+cleared -1 False

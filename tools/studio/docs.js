@@ -796,6 +796,16 @@ Post(int n, int source, int value): void | Queues user event n with data
 Options(): List<string> | Board-specific settings for configuration objects ("SPI.queue_size (1..16): ...")
 Options(string peripheral): List<string> | Board options of one peripheral: "GPIO", "UART", "SPI"…
 
+@Power | Cooperative delay and capability-gated hardware sleep (docs/POWER.md)
+Sleep(int milliseconds): void | Cooperative VM delay, supports cancellation; no hardware low-power promise
+SetWakePin(object pin, bool high): void | Select one input and active level; validated again for the chosen sleep mode
+ClearWakePin(): void | Clear the VM wake-input selection, not native SDK configuration
+WakePin: int | Selected numeric input, -1 if none
+WakeHigh: bool | Selected active level
+LightSleep(int milliseconds = 0): void | Hardware light/CPU-idle sleep; timeout or pin required, Studio cannot cancel until wake
+DeepSleep(int milliseconds = 0): void | Reset-on-wake; RAM/VM state lost, timeout or pin required
+Shutdown(): void | Actual port shutdown/poweroff, not a deep-sleep alias; requires board-specific recovery
+
 @GPIO | Digital pins (modules/hal)
 const Input: int | Input mode
 const Output: int | Push-pull output mode

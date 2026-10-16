@@ -2,6 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Power management and documentation audit
+
+* **Power API / HAL v4** — cooperative `Sleep`, per-VM `SetWakePin` / `ClearWakePin`,
+  `WakePin` / `WakeHigh`, capability-gated `LightSleep`, reset-on-wake `DeepSleep`,
+  and actual `Shutdown`. Optional append-only callbacks/masks preserve source
+  compatibility for old ports; unsupported modes never become delay fallbacks.
+* **Port support** — shared ESP-IDF / Arduino-ESP32 light/deep sleep and chip-specific
+  GPIO/timer wake; RP2 WFE CPU idle with sampled GPIO; STM32 CPU SLEEP and limited
+  F4/L4/G4 PA0/high standby, L4 shutdown; optional Zephyr `CONFIG_POWEROFF`.
+  No claim of RP2 dormant, STM32 STOP, generic Zephyr deep sleep or ESP shutdown.
+* **Safety** — validate before entry, reject worker VMs / active MicroCS DMA / worker
+  subsystem use, require a wake source for light/deep sleep, and reject live ESP radios.
+  `Wifi.Off` now checks driver stop errors and sets the SDK mode to NULL for safe entry.
+* **Docs and Studio** — power support matrix, wake/USB/watchdog/recovery caveats,
+  six guarded capability-filtered templates, completion/hover reference and generated
+  API reference. Fix stale release/BLE claims and current HAL version; publish power
+  and previously omitted BLE documentation in the wiki navigation.
+* **Tests** — power policy, simulated calls, SDK wake-backend variants, gallery filtering,
+  and documentation/API/template consistency; no physical power-current claims.
+
 ## 1.15.0 — Radio-enabled releases, Bluetooth LE and Studio reliability
 
 * **Release firmware** — Wi-Fi + ESP-NOW and NimBLE on all supported ESP32-family

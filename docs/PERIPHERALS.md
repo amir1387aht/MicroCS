@@ -172,7 +172,7 @@ ESP32-S2 13 bit. ³ async memcpy (GDMA chips). "basic" = the fields listed under
 
 ## Ports: implementing v3
 
-All v3 members of `mcs_hal_t` are optional; `MCS_HAL_API_VERSION` is 3.
+All v3 members of `mcs_hal_t` are optional; `MCS_HAL_API_VERSION` is now 4 (v3 configuration members remain unchanged; v4 adds [power management](POWER.md)).
 
 ```c
 hal->spi_configure = my_spi_configure;   /* int (*)(void* ctx, int bus, const mcs_spi_config_t* cfg) */

@@ -197,3 +197,9 @@ and TinyFS). CI runs it for 18 popular STM32 boards across 12 families (Blue Pil
 F401/F411, F4 Discovery, Nucleo F0/F4/F7/G0/G4/H5/H7/L0/L4/U5/WB) as parallel jobs with the ST
 headers cached, builds the RP2 example for `pico` and `pico2`, and builds
 the ESP-IDF example for ESP32, S3, C3 and C6 (`.github/workflows/ci.yml`).
+
+## Hardware power management
+
+HAL API v4 appends optional power-mode masks and validation/entry callbacks. See
+[the power port contract](POWER.md#implementing-a-port-hal-api-v4); unsupported ports
+leave them zero. Rebuild applications against the new header (no binary ABI promise).

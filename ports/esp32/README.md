@@ -1,9 +1,10 @@
 # MicroCS for ESP32 (ESP-IDF 5.x)
 
-ESP32, ESP32-S2, S3, C2, C3, C5, C6, H2 and P4: every peripheral, plus **Wi-Fi and networking**
+ESP32, ESP32-S2, S3, C2, C3, C5, C6, C61, H2 and P4: every peripheral, plus **Wi-Fi and networking**
 from C# on the chips with a radio (`Wifi`, ESP-NOW, SNTP, mDNS, ping, TCP/UDP sockets, HTTP +
 HTTPS) — see [NETWORK.md](../../docs/NETWORK.md). Chips without Wi-Fi (H2, P4) build the same
-port without it; Bluetooth is not used.
+port without it. BLE-capable release targets include NimBLE; S2 and P4 have no onboard BLE.
+See [Bluetooth LE](../../docs/BLE.md).
 
 ## Quick start — MicroCS as the whole firmware
 
@@ -306,3 +307,9 @@ is single-threaded, as before. See [docs/THREADS.md](../../docs/THREADS.md).
 The example is built the way a user builds it (copied to a new folder, MicroCS in
 `components/MicroCS`) with the `espressif/idf:v5.3.2` image for ESP32, ESP32-S3, ESP32-C2,
 ESP32-C3 and ESP32-C6 — Wi-Fi and networking included.
+
+## Power management
+
+See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
+`Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
+Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.

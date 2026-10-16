@@ -7,6 +7,7 @@
 #endif
 #if defined(ESP32)
 #include "esp_idf_version.h"
+#include "mcs_esp_power.h"
 #if ESP_IDF_VERSION_MAJOR >= 5
 #include "soc/soc_caps.h"
 #include "esp_task_wdt.h"
@@ -651,6 +652,9 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     memset(hal, 0, sizeof *hal);
     hal->board = g_cfg.name ? g_cfg.name : "Arduino";
     hal->ctx = &g_cfg;
+#if defined(ESP32)
+    mcs_esp_power_init(hal);
+#endif
     hal->pin_lookup = a_pin_lookup;
     hal->gpio_mode = a_gpio_mode;
     hal->gpio_write = a_gpio_write;

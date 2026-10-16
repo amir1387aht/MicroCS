@@ -232,7 +232,8 @@ static int set_mode(void* ctx, int mode) {
     if (mode < MCS_WIFI_OFF || mode > MCS_WIFI_APSTA) return MCS_HAL_EINVAL;
     if (mode == MCS_WIFI_OFF) {
         if (g.en_on) { esp_now_deinit(); g.en_on = 0; }
-        if (g.started) { g.user_disc = 1; esp_wifi_stop(); g.started = 0; }
+        if (g.started) { g.user_disc = 1; TRY(esp_wifi_stop()); g.started = 0; }
+        if (g.inited) TRY(esp_wifi_set_mode(WIFI_MODE_NULL));
         g.mode = MCS_WIFI_OFF; g.status = MCS_WIFI_STOPPED;
         return 0;
     }

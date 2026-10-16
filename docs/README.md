@@ -8,6 +8,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 🧭 | [Step-by-step guides](guides/README.md) | from nothing to C# on your board: PC, ESP32, ESP32-C3 + OLED, Raspberry Pi Pico, STM32, Arduino, Zephyr |
 | 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
 | 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
+| 💤 | [Power management](POWER.md) | cooperative sleep, wake-input selection, light/deep sleep, shutdown; per-port capabilities and Studio/recovery precautions |
 | 🎛️ | [Peripheral configuration](PERIPHERALS.md) | `GpioConfig`, `SpiConfig`, `UartConfig` …: pins, pulls, drive strength, filters, board options; what each board supports; implementing it in a port |
 | ⚡ | [DMA](DMA.md) | `DmaBuffer`, `SPI.WriteAsync` & co., `DmaTransfer`, memory DMA; ordering and lifetime rules; per-board support; implementing it in a port |
 | 📶 | [Wi-Fi & networking](NETWORK.md) | `Wifi` (station, soft AP, scan, events, static IP, saved networks), ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; ESP32 setup; the `--sim` radio |

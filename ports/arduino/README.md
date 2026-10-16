@@ -95,3 +95,9 @@ cfg.fs_ops = &mcs_arduino_fs_ops; cfg.fs_ctx = &files;      // mcs_runtime_cfg_t
 `SPIFFS`, `FFat`, `SD`, `SD_MMC`, `SDFS`. On other cores include `<SD.h>` in the sketch and use
 `MCS_ARDUINO_SD_FS(SD)` after `SD.begin(cs)` (the SD library cannot rename, so `File.Move` /
 `mv` copy the file and delete the original; directories cannot be moved there).
+
+## Power management
+
+See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
+`Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
+Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.

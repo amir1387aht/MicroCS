@@ -3,6 +3,9 @@
 #include "mcs_driver.h"
 #include <string.h>
 #include <zephyr/kernel.h>
+#if defined(CONFIG_POWEROFF)
+#include <zephyr/sys/poweroff.h>
+#endif
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/sys/util.h>
@@ -929,9 +932,26 @@ mcs_transport_t mcs_zephyr_console(void) {
     return t;
 }
 
+#if defined(CONFIG_POWEROFF)
+static int z_power_validate(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    (void)ctx; (void)high;
+    return mode == MCS_POWER_SHUTDOWN && !ms && pin < 0 ? 0 : MCS_HAL_ENOTSUP;
+}
+static int z_power_enter(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    int rc = z_power_validate(ctx, mode, ms, pin, high);
+    if (rc < 0) return rc;
+    sys_poweroff(); /* board-specific reset/wake; no portable GPIO setup */
+    return MCS_HAL_ERR;
+}
+#endif
+
 void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     if (cfg) g_cfg = *cfg;
     memset(hal, 0, sizeof *hal);
+#if defined(CONFIG_POWEROFF)
+    hal->power_modes = MCS_POWER_SHUTDOWN;
+    hal->power_validate = z_power_validate; hal->power_enter = z_power_enter;
+#endif
     hal->board = g_cfg.name ? g_cfg.name : CONFIG_BOARD;
     hal->ctx = &g_cfg;
     hal->pin_lookup = z_pin_lookup;

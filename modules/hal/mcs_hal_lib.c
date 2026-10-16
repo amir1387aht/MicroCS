@@ -230,6 +230,9 @@ static int cb_find(hal_state_t* s, int kind, int source) {
         if (s->cb[i].kind == kind && s->cb[i].source == (uint16_t)source) return i;
     return -1;
 }
+bool mcs__hal_pin_has_irq(mcs_vm_t* vm, int pin) {
+    return ST() && cb_find(ST(), CB_GPIO, pin) >= 0;
+}
 /* fn null = remove. Returns false when the table is full. */
 static bool cb_set(mcs_vm_t* vm, hal_state_t* s, int kind, int source, mcs_value_t fn) {
     mcs_value_t list = mcs_pinned(vm, s->cb_pin);
@@ -1542,12 +1545,15 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         mcs_set_ext(vm, MCS_EXT_HAL, s);
     }
     s->hal = h;
+    s->wake_pin = -1;
+    s->wake_high = 0;
     memset(s->spi_valid, 0, sizeof s->spi_valid);
     for (int i = 0; i < MCS_HAL_MAX_BUSES; i++) { s->spi_cs[i] = -1; s->spi_cs_high[i] = 0; }
     s->no_events = (flags & MCS_HAL_NO_EVENTS) != 0;
     if (!s->no_events) mcs_set_idle(vm, idle_poll, NULL);
 
     mcs_register_module(vm, "Hal", hal_fns);
+    mcs__power_open(vm);
     mcs_register_consts(vm, "Hal", hal_consts);
     if (h && (h->gpio_write != NULL)) {
         mcs_register_module(vm, "GPIO", gpio_fns);
@@ -1634,7 +1640,7 @@ bool mcs_capability_has(mcs_vm_t* vm, const char* feature) {
 #endif
     unsigned i;
     for (i = 0; i < MCS_CAP_COUNT; i++) if (!strcmp(feature, capability_names[i])) break;
-#define CAP_GLOBAL(name) mcs_global_exists(vm, feature)
+#define CAP_GLOBAL(name) mcs_global_exists(vm, name)
 #define CAP_HW(predicate) (h != NULL && (predicate))
 #define CAP_NET(name) capability_net(vm, feature)
 #define CAP_BLE(name) capability_ble(vm, feature)

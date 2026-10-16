@@ -117,3 +117,9 @@ west build -b <board> ports/zephyr/example -- -DEXTRA_CONF_FILE=overlay-threads.
 ```
 
 See [docs/THREADS.md](../../docs/THREADS.md).
+
+## Power management
+
+See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
+`Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
+Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.

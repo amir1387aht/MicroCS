@@ -56,6 +56,7 @@ MAP = {
     "path_fns": ("Filesystem (modules/fs)", "Path", "static", ""),
     "drive_members": ("Filesystem (modules/fs)", "DriveInfo", "instance", "`new DriveInfo(path)`; size of the mount holding `path`"),
     "drive_statics": ("Filesystem (modules/fs)", "DriveInfo", "static", ""),
+    "power_fns": ("Hardware (modules/hal)", "Power", "static", "capability-gated hardware modes; [power management](POWER.md)"),
     "hal_fns": ("Hardware (modules/hal)", "Hal", "static", "consts `Board`, `ApiVersion`"),
     "gpio_fns": ("Hardware (modules/hal)", "GPIO", "static", "consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md))"),
     "pin_members": ("Hardware (modules/hal)", "Pin", "instance", "`new Pin(pin[, mode or GpioConfig])`; pin = number or name (`\"PA5\"`, `\"GPIO21\"`, `\"LED\"`)"),

@@ -86,6 +86,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
+| **Power** | static | `WakePin` `WakeHigh` | `Sleep(·)` `SetWakePin(·, ·)` `ClearWakePin()` `LightSleep(…)` `DeepSleep(…)` `Shutdown()` | capability-gated hardware modes; [power management](POWER.md) |
 | **Hal** | static | `Board` `Micros` `UniqueId` `CpuHz` `DroppedEvents` | `Has(·)` `Poll()` `Run(…)` `DelayMicroseconds(·)` `Reset()` `OnEvent(·, ·)` `Post(…)` `Options(…)` | consts `Board`, `ApiVersion` |
 | **GPIO** | static | — | `Configure(·, ·)` `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` `Pin(·)` `OnChange(·, ·, ·)` `Off(·)` `PulseIn(…)` | consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md)) |
 | **Pin** | instance | `Value` `Number` | `Write(·)` `Read()` `Toggle()` `High()` `Low()` `SetMode(·)` `OnChange(·, ·)` `Configure(·)` | `new Pin(pin[, mode or GpioConfig])`; pin = number or name (`"PA5"`, `"GPIO21"`, `"LED"`) |
@@ -194,4 +195,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1319 members in 109 tables._
+_1327 members in 110 tables._

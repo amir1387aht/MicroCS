@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -103,8 +103,8 @@ u8g2-test: mcs-u8g2
 	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
 	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
 
-# Bluetooth LE (docs/BLE.md): opt-in, like on the boards - the default `mcs` (and every release
-# build) is without it. build/mcs_ble has the module and the simulated radio (--sim).
+# Bluetooth LE (docs/BLE.md): opt-in for custom builds; default host `mcs` is without it.
+# ESP32 release firmware enables BLE on capable chips. build/mcs_ble uses the simulated radio (--sim).
 BLE_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1
 mcs-ble: | build
 	$(CC) $(BLE_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble
@@ -356,3 +356,13 @@ build/test_firmware_heap: tests/c/test_firmware_heap.c $(OBJ)
 firmware-heap-test: build/test_firmware_heap
 	./build/test_firmware_heap
 .PHONY: firmware-heap-test
+
+build/test_power: tests/c/test_power.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+power-test: build/test_power
+	./build/test_power
+	python3 tests/test_power_docs.py
+	@for v in 1 2 3 4; do \
+	  $(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/power_sdk -DMCS_ESP32_WIFI=1 -DMCS_ENABLE_BLE=1 -DPOWER_VARIANT=$$v tests/c/test_esp_sleep.c -o build/test_esp_sleep && ./build/test_esp_sleep || exit 1; \
+	  $(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Wno-missing-field-initializers -Iinclude -Itests/c/power_sdk -DARDUINO=1 -DMCS_ENABLE_BLE=1 -DPOWER_VARIANT=$$v tests/c/test_esp_sleep.c -o build/test_esp_sleep_cpp && ./build/test_esp_sleep_cpp || exit 1; done
+.PHONY: power-test

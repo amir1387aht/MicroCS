@@ -123,9 +123,11 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(nTpl >= 80, nTpl + ' templates in the gallery');
   check(await page.$('#gCats div[data-c="Boot and startup"]') !== null && await page.$('#gCats div[data-c="Scheduler"]') !== null, 'boot and scheduler categories');
   await page.fill('#gSearch', 'jobs.cfg');
-  await page.click('#gItems .item b:text-is("jobs.cfg - scheduled scripts")');
+  await page.waitForFunction(() => App.gal.q === 'jobs.cfg'); // wait for debounced render before clicking
+  await page.locator('#gItems .item').filter({ hasText: "jobs.cfg - scheduled scripts" }).click(); // name contains search <mark> children
   check(/every\s+500ms\s+\/blink\.cs/.test(await page.textContent('#gPrev')) && (await page.inputValue('#gName')) === 'jobs.cfg', 'search finds jobs.cfg, preview + file name');
   await page.fill('#gSearch', '');
+  await page.waitForFunction(() => App.gal.q === '');
   await page.click('#gCats div[data-c="Scheduler"]'); await page.click('#gItems .item b:text-is("State machine with jobs")');
   await page.screenshot({ path: OUT + '/4_templates.png' });
   await tpl('Files and free space');

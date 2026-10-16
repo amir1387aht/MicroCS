@@ -554,6 +554,17 @@ static int sys_uid(void* ctx, uint8_t* b, size_t cap) {
     return (int)n;
 }
 
+static int sim_power_validate(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    (void)ctx; (void)mode; (void)ms; (void)high;
+    return pin >= -1 && pin < 64 ? 0 : MCS_HAL_EINVAL;
+}
+static int sim_power_enter(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    SIM->power_mode = mode; SIM->power_ms = ms;
+    SIM->power_pin = pin; SIM->power_high = high; SIM->power_calls++;
+    SIM->virt_us += ms * 1000u;
+    return 0; /* simulation deliberately returns even for deep/shutdown */
+}
+
 void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     mcs_write_fn log = s->log; void* lud = s->log_ud;
     uint32_t (*clk)(void*) = s->clock_us; void* cud = s->clock_ud;
@@ -565,6 +576,9 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     memset(s->flash, 0xFF, sizeof s->flash);
     memset(h, 0, sizeof *h);
     h->board = "sim";
+    h->power_modes = h->power_pin_modes = MCS_POWER_LIGHT | MCS_POWER_DEEP | MCS_POWER_SHUTDOWN;
+    h->power_timer_modes = MCS_POWER_LIGHT | MCS_POWER_DEEP;
+    h->power_validate = sim_power_validate; h->power_enter = sim_power_enter;
     h->ctx = s;
     h->gpio_mode = g_mode; h->gpio_write = g_write; h->gpio_read = g_read; h->gpio_irq = g_irq; h->pin_lookup = g_lookup;
     h->uart_open = u_open; h->uart_config = u_config; h->uart_write = u_write; h->uart_read = u_read; h->uart_available = u_avail;

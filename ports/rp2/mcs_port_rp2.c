@@ -643,6 +643,25 @@ static int r_pin_lookup(void* ctx, const char* name) {
     (void)name;
     return -1;                       /* -> generic parser: "GP15", "GPIO15", "15" */
 }
+/* Light sleep = SDK WFE-based CPU idle, NOT clock-stopped dormant mode.
+ * Leave USB, alarm pool and CYW43 clocks operational. GPIO levels are sampled
+ * at 1 ms intervals; this does not steal GPIO IRQ handlers from other drivers. */
+static int r_power_validate(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    (void)ctx; (void)ms; (void)high;
+    if (mode && mode != MCS_POWER_LIGHT) return MCS_HAL_ENOTSUP;
+    return pin >= -1 && pin < (int)NUM_BANK0_GPIOS ? 0 : MCS_HAL_EINVAL;
+}
+static int r_power_enter(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    int rc = r_power_validate(ctx, mode, ms, pin, high);
+    if (rc < 0) return rc;
+    uint64_t t0 = time_us_64();
+    for (;;) {
+        if (pin >= 0 && gpio_get((uint)pin) == (high != 0)) return 0;
+        if (ms && time_us_64() - t0 >= (uint64_t)ms * 1000u) return 0;
+        sleep_ms(1);
+    }
+}
+
 void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     static const mcs_rp2_cfg_t defaults = MCS_RP2_CFG_DEFAULT;
     g_cfg = cfg ? *cfg : defaults;
@@ -653,6 +672,8 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->board = g_cfg.name ? g_cfg.name : "RP2040";
 #endif
     hal->ctx = &g_cfg;
+    hal->power_modes = hal->power_timer_modes = hal->power_pin_modes = MCS_POWER_LIGHT;
+    hal->power_validate = r_power_validate; hal->power_enter = r_power_enter;
     hal->gpio_mode = r_gpio_mode;
     hal->gpio_write = r_gpio_write;
     hal->gpio_read = r_gpio_read;
