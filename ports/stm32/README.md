@@ -150,3 +150,9 @@ TinyFS) for 18 boards covering F0, F1, F4, F7, G0, G4, H5, H7, L0, L4, U5 and WB
 `tools/build_stm32_firmware.sh` links the [ready-to-flash firmware](firmware/README.md) for 7
 boards, and `tools/renode_check.py` boots the F4 and H743 images in the Renode emulator and
 uses their REPL (an expression, `Hal.Board`, a file in internal flash, the LED).
+
+## Power management
+
+See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
+`Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
+Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.

@@ -6,8 +6,9 @@ C# scripts can use the Bluetooth LE radio of the board in every role: **advertis
 bonding, and a ready-made **Nordic UART** serial port.
 
 > [!IMPORTANT]
-> BLE is **opt-in**: off by default and left out of every release firmware (the stacks cost
-> 100–250 KB of flash and 30–60 KB of RAM). Turn it on for your build as shown in
+> BLE is **opt-in for custom builds** (the stacks cost 100–250 KB of flash and
+> 30–60 KB of RAM). ESP32 release images enable it where the chip has BLE; Pico W
+> release images currently include Wi-Fi but not BLE. For other builds see
 > [Turn it on](#turn-it-on).
 
 ```csharp

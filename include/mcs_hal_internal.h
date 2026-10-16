@@ -50,6 +50,8 @@ typedef struct {
     int16_t spi_cs[MCS_HAL_MAX_BUSES];    /* default chip select from SpiConfig.Cs, -1 = none */
     uint8_t spi_cs_high[MCS_HAL_MAX_BUSES];
     uint8_t i2s_bits[MCS_HAL_MAX_BUSES];
+    int wake_pin;
+    uint8_t wake_high;
     uint8_t polling;
     uint8_t no_events;                /* MCS_HAL_NO_EVENTS: OS-thread VM, callbacks belong to the main VM */
     uint8_t ndefer;
@@ -66,6 +68,9 @@ bool mcs__check_callable(mcs_vm_t* vm, mcs_value_t fn);
 /* spi_transfer with NULL tx (send 0xFF) / rx (discard) allowed, any length */
 extern uint32_t mcs__spi_half;
 int mcs__spi_raw(const mcs_hal_t* h, int bus, const uint8_t* tx, uint8_t* rx, size_t n);
+
+void mcs__power_open(mcs_vm_t* vm);
+bool mcs__hal_pin_has_irq(mcs_vm_t* vm, int pin);
 
 /* config classes (mcs_hal_cfg.c) */
 enum { MCS__CFG_GPIO = 1, MCS__CFG_UART, MCS__CFG_I2C, MCS__CFG_SPI, MCS__CFG_QSPI, MCS__CFG_PWM, MCS__CFG_ADC };

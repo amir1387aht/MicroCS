@@ -7,7 +7,7 @@ do not write the table yourself — pick a port:
 | Port | Init call | Docs |
 |---|---|---|
 | STM32 (Cube HAL, every family) | `mcs_stm32_hal_init(&hal, &board)` | [ports/stm32](../ports/stm32/README.md) |
-| ESP32 / S2 / S3 / C3 / C6 / H2 / P4 (ESP-IDF 5) | `mcs_esp32_hal_init(&hal, &pins)` | [ports/esp32](../ports/esp32/README.md) |
+| ESP32 family (ESP-IDF 5) | `mcs_esp32_hal_init(&hal, &pins)` | [ports/esp32](../ports/esp32/README.md) |
 | RP2040 / RP2350 (pico-sdk) | `mcs_rp2_hal_init(&hal, &pins)` | [ports/rp2](../ports/rp2/README.md) |
 | Zephyr (devicetree) | `mcs_zephyr_hal_init(&hal, NULL)` | [ports/zephyr](../ports/zephyr/README.md) |
 | Arduino (any 32-bit core) | `mcs_arduino_hal_init(&hal, &cfg)` | [ports/arduino](../ports/arduino/README.md) |
@@ -15,6 +15,13 @@ do not write the table yourself — pick a port:
 | Your own | fill `mcs_hal_t` | [below](#writing-a-board-table) |
 
 Then `mcs_hal_open_lib(vm, &hal)` (library use) or `cfg.hal = &hal` (`mcs_runtime`).
+
+## Power management
+
+[Power management](POWER.md) covers `Power.Sleep`, wake-pin selection, light/deep sleep
+and true shutdown, with per-mode/per-source capabilities and a port support matrix.
+Hardware modes are synchronous; Studio cannot cancel until wake. HAL API v4 appends
+optional power callbacks/masks; all v3 peripheral/DMA members remain unchanged.
 
 ## Concepts
 

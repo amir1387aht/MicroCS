@@ -11,6 +11,7 @@
 #include "esp_err.h"
 #include "esp_timer.h"
 #include "esp_system.h"
+#include "mcs_esp_power.h"
 #include "esp_mac.h"
 #include "esp_rom_sys.h"
 #include "esp_task_wdt.h"
@@ -1451,6 +1452,7 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     for (int i = 0; i < MCS_ESP32_PWM_CHANNELS; i++) { g_pwm_timer[i] = -1; g_pwm_pin[i] = -1; }
     hal->board = g_cfg.name ? g_cfg.name : CONFIG_IDF_TARGET;
     hal->ctx = &g_cfg;
+    mcs_esp_power_init(hal);
     hal->gpio_mode = e_gpio_mode;
     hal->gpio_write = e_gpio_write;
     hal->gpio_read = e_gpio_read;

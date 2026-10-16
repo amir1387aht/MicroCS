@@ -337,6 +337,7 @@ jobs:
           - { name: native_sim YAFFS2 (run), board: native_sim/native/64, fs: yaffs2, args: "-DEXTRA_CONF_FILE=overlay-yaffs2.conf -DEXTRA_DTC_OVERLAY_FILE=boards/native_sim_yaffs2.overlay -DMICROCS_FS_DOWNLOAD=ON" }
           - { name: native_sim TinyFS (run), board: native_sim/native/64, fs: tinyfs, args: "-DEXTRA_CONF_FILE=overlay-tinyfs.conf" }
           - { name: nRF52840 DK, board: nrf52840dk/nrf52840 }
+          - { name: nRF52840 DK poweroff, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-poweroff.conf" }
           - { name: nRF52840 DK USB console, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-usb.conf -DEXTRA_DTC_OVERLAY_FILE=usb.overlay" }
           - { name: native_sim threads (run), board: native_sim/native/64, threads: threads, args: "-DEXTRA_CONF_FILE=overlay-threads.conf" }
           - { name: nRF52840 DK threads, board: nrf52840dk/nrf52840, args: "-DEXTRA_CONF_FILE=overlay-threads.conf" }
