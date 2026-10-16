@@ -1,5 +1,5 @@
 # MicroCS without Wi-Fi (CONFIG_MICROCS_WIFI=n) on a 4 MB flash: 1.5 MB app, 2.4 MB LittleFS.
-# The ready-to-flash release images use this table (they are built without Wi-Fi).
+# Optional custom no-radio builds; release images use partitions.csv / partitions_large.csv.
 # Name,   Type, SubType, Offset,   Size
 nvs,      data, nvs,     0x9000,   0x6000
 phy_init, data, phy,     0xf000,   0x1000

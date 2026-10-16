@@ -24,3 +24,18 @@ assert(TEMPLATES.find(t=>t.src.endsWith('/wifi_ap.cs')).requires.includes('Wifi.
 assert(!TEMPLATES.find(t=>t.src.endsWith('/tcp_echo.cs')).requires.includes('Wifi'));
 assert(TEMPLATES.find(t=>t.src.endsWith('/https_download.cs')).requires.includes('Tls'));
 console.log('PASS gallery capabilities: strict reports, offline/legacy behavior, multi-requirement filtering and explicit metadata');
+
+const manifest = fs.readFileSync(path.join(__dirname, '../../include/mcs_capabilities.def'), 'utf8');
+const names = [...manifest.matchAll(/^MCS_CAP\("([^"\n]+)"/gm)].map(m => m[1]);
+const complete = parseCapabilities('capabilities=1\n' + names.map(n => n + '=1').join('\n') + '\n');
+assert(complete && complete.size === names.length);
+const oled = TEMPLATES.find(t => t.file === 'oled_two_displays.cs');
+assert(oled.requires.includes('U8g2'));
+complete.set('U8g2', false);
+assert(!templateCompatible(oled, complete, true));
+complete.set('U8g2', true);
+assert(templateCompatible(oled, complete, true));
+const tagsStart = js.indexOf('const TAG_RULES ='), tagsEnd = js.indexOf('function galMark', tagsStart);
+const galTags = new Function(js.slice(tagsStart, tagsEnd) + ';return galTags;')();
+assert(galTags(oled).includes('OLED'));
+console.log('PASS full firmware manifest and two-display U8g2 filtering / OLED tag');

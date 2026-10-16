@@ -65,10 +65,11 @@ if (!on_flash) cfg.ramfs_size = 32 * 1024;                                 // no
   | 8 MB | `0x5F0000` | 5.9 MB |
   | 16 MB | `0xDF0000` | 13.9 MB |
 
-  Building without Wi-Fi (`CONFIG_MICROCS_WIFI=n`)? A 1.5 MB app is enough — use
+  Building without radios (`CONFIG_MICROCS_WIFI=n`, `CONFIG_MICROCS_BLE=n`)?
+  A 1.5 MB app is enough — use
   [`example/partitions_nowifi.csv`](example/partitions_nowifi.csv)
   (`CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_nowifi.csv"`): `factory` `0x180000`,
-  `storage` `0x270000` (2.4 MB) at `0x190000`, as the release images do.
+  `storage` `0x270000` (2.4 MB) at `0x190000`, as older no-Wi-Fi releases did.
 
   The boot log prints `MicroCS: LittleFS on flash, N of M KB used`.
 * **TinyFS instead** (built in, nothing to fetch): menuconfig → MicroCS → *Filesystem on the
@@ -152,9 +153,9 @@ Optional C# `U8g2` / `U8x8` for OLED and LCD panels: menuconfig → *MicroCS* �
 ## Wi-Fi and networking
 
 On by default wherever the chip has Wi-Fi when you build the example: menuconfig → *MicroCS* →
-*Wi-Fi and networking* (`CONFIG_MICROCS_WIFI`). The ready-to-flash release images are built
-without it (`CONFIG_MICROCS_WIFI=n`, [`partitions_nowifi.csv`](example/partitions_nowifi.csv):
-1.5 MB app + 2.4 MB files).
+*Wi-Fi and networking* (`CONFIG_MICROCS_WIFI`). The ready-to-flash release images
+include Wi-Fi + ESP-NOW on every Wi-Fi-capable target. H2 / P4 have no onboard Wi-Fi.
+See the release migration warning below before updating old no-Wi-Fi firmware.
 
 ```csharp
 Wifi.Connect("MyNetwork", "secret-password");
@@ -174,9 +175,21 @@ Console.WriteLine(Wifi.Ip + " " + Http.Get("https://example.com/").StatusCode);
 * **HTTPS** uses esp-tls with the ESP-IDF certificate bundle; ESP-NOW, SNTP and ping need
   nothing extra. WPA2/WPA3-Enterprise needs IDF 5.1+.
 
+## Release firmware and stored scripts
+
+Release images enable real threads and each chip's onboard radios: Wi-Fi + ESP-NOW
+where Wi-Fi is supported, and NimBLE where BLE is supported. H2 is BLE-only; S2 is
+Wi-Fi-only; P4 has neither onboard radio. C5 / C61 use ESP-IDF 5.5.2, others 5.3.2.
+
+**Back up scripts before upgrading from the old no-Wi-Fi release images.** The app
+partition grows from 1.5 MB to 2 MB (2.5 MB on C5 / C61), moving `storage`. The new
+filesystem will not preserve files at the old offset. Custom `partitions_nowifi.csv`
+builds are still available for users who deliberately disable networking.
+
 ## Bluetooth LE
 
-Opt-in, not in the release images: [`sdkconfig.ble`](example/sdkconfig.ble) turns on NimBLE and
+Included in BLE-capable release images; opt-in for custom builds:
+[`sdkconfig.ble`](example/sdkconfig.ble) turns on NimBLE and
 `CONFIG_MICROCS_BLE` (C# `Ble`, `BleService`, `BleConnection`, `BleUart`; [BLE.md](../../docs/BLE.md)):
 
 ```sh

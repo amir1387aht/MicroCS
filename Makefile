@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -346,5 +346,13 @@ capabilities-test: | build
 	@for f in "" "-DMCS_ENABLE_BLE=1" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_NET=0 -DMCS_ENABLE_BLE=0"; do \
 	  $(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) tests/c/test_capabilities.c -lm -o build/test_capabilities && ./build/test_capabilities || exit 1; done
 	@node tests/studio/test_capabilities.js
+	@node tests/studio/test_upload_stop.js
 	@python3 tests/test_template_metadata.py
 .PHONY: capabilities-test
+
+# Studio benchmark and capability report in the actual fixed-pool allocator.
+build/test_firmware_heap: tests/c/test_firmware_heap.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+firmware-heap-test: build/test_firmware_heap
+	./build/test_firmware_heap
+.PHONY: firmware-heap-test

@@ -89,7 +89,7 @@ jobs:
           python3 -m pip install kconfiglib==14.1.0
           python3 tests/test_esp_config.py
       - name: Capability-aware template metadata and filtering
-        run: node tests/studio/test_capabilities.js && python3 tests/test_template_metadata.py
+        run: node tests/studio/test_capabilities.js && node tests/studio/test_upload_stop.js && python3 tests/test_template_metadata.py
       - name: Script input echo ownership (machine protocol and raw REPL)
         run: python3 tests/test_readline_echo.py ./mcs
       - name: C# interpolated / verbatim string highlighting
@@ -196,7 +196,7 @@ jobs:
           - { board: pico, fs: tinyfs, args: "-DMICROCS_FS_SIZE=65536" }
           - { board: waveshare_rp2040_zero, fs: littlefs }
           - { board: adafruit_qtpy_rp2040, fs: littlefs, args: "-DMICROCS_WS2812=OFF", name: " no ws2812", tag: "-no-ws2812" }
-          - { board: waveshare_rp2040_zero, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
+          - { board: waveshare_rp2040_zero, fs: littlefs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
           - { board: pico2, fs: tinyfs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " FreeRTOS SMP (both cores)", tag: "-freertos", freertos: true }
           - { board: pico, fs: tinyfs, args: "-DMICROCS_U8G2=ON -DMICROCS_U8G2_DOWNLOAD=ON", name: " u8g2", tag: "-u8g2" }
           - { board: pico_w, fs: littlefs, args: "-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel", name: " Wi-Fi (FreeRTOS + lwIP)", tag: "-wifi", freertos: true, wifi: true }
@@ -296,7 +296,12 @@ jobs:
           # "u8g2": LittleFS + C# U8g2 / U8x8, u8g2 2.37.1 downloaded at configure time
           if [ "${{ matrix.fs }}" = u8g2 ]; then printf 'CONFIG_MICROCS_U8G2=y\nCONFIG_MICROCS_U8G2_DOWNLOAD=y\n' >> sdkconfig.defaults; fi
           # "ble": LittleFS + Wi-Fi + C# Ble on NimBLE (ports/esp32/example/sdkconfig.ble)
-          if [ "${{ matrix.fs }}" = ble ]; then cat sdkconfig.ble >> sdkconfig.defaults; fi
+          if [ "${{ matrix.fs }}" = ble ]; then
+            cat sdkconfig.ble >> sdkconfig.defaults
+            echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults
+          fi
+          # The non-BLE release targets still ship real threads.
+          case "${{ matrix.target }}" in esp32s2|esp32p4) echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults ;; esac
           idf.py set-target ${{ matrix.target }}
           idf.py build
           # Kconfig must not silently drop BLE, including on low-RAM C2 and BLE-only H2.

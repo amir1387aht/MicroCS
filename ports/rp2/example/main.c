@@ -32,7 +32,9 @@ static mcs_flashfs_t flashfs;
 
 static void microcs_main(void) {
     mcs_rp2_cfg_t pins = MCS_RP2_CFG_DEFAULT;
-#if PICO_RP2350 && (MCS_RP2_WIFI || MCS_RP2_BLE)
+#if defined(WAVESHARE_RP2040_ZERO)
+    pins.name = "Waveshare RP2040-Zero";
+#elif PICO_RP2350 && (MCS_RP2_WIFI || MCS_RP2_BLE)
     pins.name = "Raspberry Pi Pico 2 W";
 #elif PICO_RP2350
     pins.name = "Raspberry Pi Pico 2";
