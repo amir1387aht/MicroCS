@@ -89,6 +89,6 @@ requires: ADC, U8x8, I2C, Format
 A clean label / value layout with U8x8, updating only the values that change.
 
 [oled_two_displays.cs] Two displays at once
-requires: I2C, Format
+requires: U8g2, I2C, Format
 Two OLEDs on one I2C bus (0x3C and 0x3D), or one on I2C and one on SPI; free memory with
 Dispose.

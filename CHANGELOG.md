@@ -2,7 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — Bluetooth LE, Studio templates as files
+## 1.15.0 — Radio-enabled releases, Bluetooth LE and Studio reliability
+
+* **Release firmware** — Wi-Fi + ESP-NOW and NimBLE on all supported ESP32-family
+  targets according to their onboard radios, including S2, H2, P4, C5 and C61;
+  explicit Wi-Fi on Pico W / Pico 2 W. Builds check requested radio configuration
+  and linked backend symbols before publishing. Back up scripts before upgrading
+  ESP32: the larger app partition moves storage from older no-Wi-Fi releases.
+* **Release capability detection** — the 1.14.0 release predates the shell `caps`
+  report, while Studio now requires it for peripheral templates. This new version
+  produces fresh firmware with capability reporting instead of reusing the old
+  release. No hardware is guessed from board names or feature bits.
+* **Studio upload responsiveness** — save, upload and Run Selection stop a running
+  foreground script before entering its occupied operation queue, with a bounded
+  wait and an actionable failure instead of an indefinitely queued transfer.
+* **RP2 USB output** — raw block writes replace byte-by-byte TinyUSB writes, avoiding
+  a USB write/task/flush cycle per output byte; binary output is unchanged.
+* **Templates** — the two-display OLED example requires U8g2 and gets an OLED tag.
+  CPU benchmark collection workloads fit fixed 96 / 128 KB release pools, with
+  accurate labels and preallocated list capacity rather than a 4,000-entry list
+  whose growth needs old and new tagged-value buffers at once.
 
 * **Studio console input** — machine-mode `Console.ReadLine` no longer echoes input
   a second time; raw REPL echo is preserved. Studio forwards trailing spaces in script
@@ -21,7 +40,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   radio, configurable scan interval/window (including ESP menuconfig), operation-level role
   flags and `Ble.Reset` for clean reruns without erasing bonds. Added seven BLE templates
   and matching standalone examples. Fixed lost/ignored passkey writes and misleading no-op
-  MTU/PHY/security setters. NimBLE role reports honor the configured roles. BLE remains opt-in.
+  MTU/PHY/security setters. NimBLE role reports honor the configured roles. BLE remains opt-in in custom builds.
 
 
 * **Web templates / foreground network lifecycle** — moved the raw HTTP example into

@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.14.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.15.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -257,7 +257,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.14.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.15.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -418,8 +418,8 @@ EspNow.Broadcast("hello");
 | Servers | `HttpServer` (routes with `{params}`, JSON replies, forms, Basic auth, CORS, `ServeFiles`), `WebSocket` server + client, `DnsServer` (captive portal) |
 | Data | `Json.Parse` / `Json.Stringify`, `JsonSerializer` |
 
-On the ESP32 Wi-Fi is part of the firmware you build from `ports/esp32/example` (the
-ready-to-flash release images leave it out); the Pico W / Pico 2 W release images have it
+ESP32 release images include Wi-Fi and ESP-NOW on chips with an onboard Wi-Fi radio
+(not H2 / P4); the Pico W / Pico 2 W release images include Wi-Fi too
 ([Pico W setup](docs/NETWORK.md#pico-w-setup)). Turn it on or off in menuconfig (*MicroCS → Wi-Fi and networking*), join a network at boot,
 and find every method, event and option in [NETWORK.md](docs/NETWORK.md). Studio has 25
 ready-to-run networking templates (web pages, REST API, live WebSocket dashboard, captive
@@ -429,8 +429,8 @@ portal, MQTT publish, HTTPS download, ESP-NOW …).
 
 ## 🔵 Bluetooth LE
 
-Opt-in (never in the release images): ESP32 family on NimBLE, **Pico W / Pico 2 W** on
-BTstack, Zephyr boards (nRF52840 …) and Arduino boards with ArduinoBLE. Every role —
+ESP32 release images include NimBLE on BLE-capable chips (not S2 / P4). BLE is opt-in
+for custom builds: **Pico W / Pico 2 W** on BTstack, Zephyr boards (nRF52840 …) and Arduino boards with ArduinoBLE. Every role —
 advertiser (iBeacon, Eddystone), observer, peripheral with your own GATT services, central /
 GATT client — plus pairing, bonding and a Nordic UART serial port. `make mcs-ble` builds the PC
 CLI with a simulated radio and peers.
@@ -465,7 +465,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.14.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.15.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**

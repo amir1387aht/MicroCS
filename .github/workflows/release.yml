@@ -67,7 +67,12 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        board: [pico, pico2, pico_w, pico2_w, waveshare_rp2040_zero]   # *_w: Wi-Fi (MICROCS_WIFI, automatic)
+        include:
+          - { board: pico, wifi: "OFF" }
+          - { board: pico2, wifi: "OFF" }
+          - { board: pico_w, wifi: "ON" }
+          - { board: pico2_w, wifi: "ON" }
+          - { board: waveshare_rp2040_zero, wifi: "OFF" }
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain, pico-sdk, LittleFS
@@ -82,8 +87,13 @@ jobs:
       - name: Build ports/rp2/example (FreeRTOS SMP, C# threads on both cores)
         run: |
           cmake -S ports/rp2/example -B build/fw -G Ninja -DPICO_BOARD=${{ matrix.board }} -DPICO_SDK_PATH=$HOME/pico-sdk -DMICROCS_FS=littlefs -DMICROCS_LITTLEFS_DIR=$HOME/littlefs \
-            -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel
+            -DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=$HOME/FreeRTOS-Kernel -DMICROCS_WIFI=${{ matrix.wifi }}
           cmake --build build/fw
+          arm-none-eabi-nm build/fw/microcs_pico.elf > /tmp/mcs-symbols.txt
+          grep -q ' mcs_capability_names$' /tmp/mcs-symbols.txt
+          if [ "${{ matrix.wifi }}" = ON ]; then
+            grep -q ' mcs_rp2_net$' /tmp/mcs-symbols.txt
+          fi
           mkdir -p out && cp build/fw/microcs_pico.uf2 out/microcs-${{ needs.version.outputs.version }}-${{ matrix.board }}.uf2
       - uses: actions/upload-artifact@v4
         with: { name: "fw-${{ matrix.board }}", path: out/* }
@@ -93,13 +103,23 @@ jobs:
     needs: version
     if: needs.version.outputs.new == 'true'
     runs-on: ubuntu-24.04
-    container: espressif/idf:v5.3.2
+    container: espressif/idf:${{ matrix.idf }}
     strategy:
       matrix:
-        target: [esp32, esp32s3, esp32c2, esp32c3, esp32c6]
+        include:
+          - { target: esp32, idf: v5.3.2, wifi: true, ble: true }
+          - { target: esp32s2, idf: v5.3.2, wifi: true, ble: false }
+          - { target: esp32s3, idf: v5.3.2, wifi: true, ble: true }
+          - { target: esp32c2, idf: v5.3.2, wifi: true, ble: true }
+          - { target: esp32c3, idf: v5.3.2, wifi: true, ble: true }
+          - { target: esp32c6, idf: v5.3.2, wifi: true, ble: true }
+          - { target: esp32h2, idf: v5.3.2, wifi: false, ble: true }
+          - { target: esp32p4, idf: v5.3.2, wifi: false, ble: false }
+          - { target: esp32c5, idf: v5.5.2, wifi: true, ble: true }
+          - { target: esp32c61, idf: v5.5.2, wifi: true, ble: true }
     steps:
       - uses: actions/checkout@v4
-      - name: Build ports/esp32/example (one image, flash at 0x0; C# threads on FreeRTOS tasks; no Wi-Fi)
+      - name: Build ports/esp32/example (one image, flash at 0x0; C# threads; onboard Wi-Fi + ESP-NOW + BLE)
         shell: bash
         run: |
           . $IDF_PATH/export.sh
@@ -110,12 +130,30 @@ jobs:
           cd /tmp/proj
           # FreeRTOS is ESP-IDF's own OS: release images run C# threads on its tasks (both cores on ESP32 / S3)
           echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults
-          # release images leave Wi-Fi / networking out (build ports/esp32/example yourself for it)
-          # and keep the 1.5 MB app + 2.4 MB LittleFS layout of earlier releases
-          echo CONFIG_MICROCS_WIFI=n >> sdkconfig.defaults
-          echo 'CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_nowifi.csv"' >> sdkconfig.defaults
+          # Wi-Fi defaults on when SOC_WIFI_SUPPORTED (also exposes ESP-NOW).
+          # Only enable NimBLE on chips with an onboard BLE controller.
+          if [ "${{ matrix.ble }}" = true ]; then cat sdkconfig.ble >> sdkconfig.defaults; fi
           idf.py set-target ${{ matrix.target }}
           idf.py build
+          # Fail rather than publish an image whose requested radios were silently disabled.
+          NM=$(sed -n 's/^CMAKE_NM:FILEPATH=//p' build/CMakeCache.txt)
+          "$NM" build/*.elf > /tmp/mcs-symbols.txt
+          grep -q ' mcs_capability_names$' /tmp/mcs-symbols.txt
+          grep -qx 'CONFIG_MICROCS_THREADS=y' sdkconfig
+          if [ "${{ matrix.wifi }}" = true ]; then
+            grep -qx 'CONFIG_MICROCS_WIFI=y' sdkconfig
+            grep -q ' mcs_esp32_net$' /tmp/mcs-symbols.txt
+          else
+            ! grep -qx 'CONFIG_MICROCS_WIFI=y' sdkconfig
+          fi
+          if [ "${{ matrix.ble }}" = true ]; then
+            grep -qx 'CONFIG_MICROCS_BLE=y' sdkconfig
+            grep -qx 'CONFIG_BT_NIMBLE_ENABLED=y' sdkconfig
+            grep -qx 'CONFIG_BT_CONTROLLER_ENABLED=y' sdkconfig
+            grep -q ' mcs_esp32_ble$' /tmp/mcs-symbols.txt
+          else
+            ! grep -qx 'CONFIG_MICROCS_BLE=y' sdkconfig
+          fi
           cd build && esptool.py --chip ${{ matrix.target }} merge_bin -o $OUT/microcs-${{ needs.version.outputs.version }}-${{ matrix.target }}.bin @flash_args
       - uses: actions/upload-artifact@v4
         with: { name: "fw-${{ matrix.target }}", path: out/* }
@@ -173,11 +211,13 @@ jobs:
             echo "| Board | File | How to flash |"
             echo "|---|---|---|"
             echo "| Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W / RP2040-Zero | \`microcs-$V-<board>.uf2\` | hold BOOTSEL, plug in, copy the file to the RPI-RP2 drive (\`pico_w\` / \`pico2_w\` files: Wi-Fi, sockets, HTTP client + server, WebSocket) |"
-            echo "| ESP32 / ESP32-S3 / ESP32-C2 / ESP32-C3 / ESP32-C6 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
+            echo "| ESP32 / S2 / S3 / C2 / C3 / C5 / C6 / C61 / H2 / P4 | \`microcs-$V-<chip>.bin\` | \`esptool.py --chip <chip> write_flash 0 microcs-$V-<chip>.bin\` |"
             echo "| STM32 Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI | \`microcs-$V-nucleo_<board>.bin\` | copy the file to the NOD_xxx drive of the Nucleo's ST-LINK (or STM32CubeProgrammer, \`.hex\` keeps your files); the console is the ST-LINK virtual COM port |"
             echo "| STM32 Black Pill (F411CE) | \`microcs-$V-blackpill_f411ce.bin\` | USB DFU (hold BOOT0, reset): \`dfu-util -a 0 -s 0x08000000:leave -D microcs-$V-blackpill_f411ce.bin\`, or ST-LINK; console = USART1 (PA9 TX, PA10 RX) via a USB-serial adapter |"
             echo "| Linux x64 | \`mcs-$V-<os>.tar.gz\` | compiler, REPL and simulator: \`./mcs --repl --sim\` |"
             echo "| Threads | | Pico / Pico 2 / RP2040-Zero and ESP32 files run FreeRTOS (SMP on dual cores): \`Thread.RunOn(1, …)\` and \`jobs.cfg\` jobs use real threads; STM32 files are bare-metal |"
+            echo "| Radios | | ESP32: Wi-Fi + ESP-NOW and BLE where the chip supports them. S2: Wi-Fi + ESP-NOW only; H2: BLE only; P4: neither onboard radio. Pico W / Pico 2 W: Wi-Fi. Radios start when used by a script (or saved Wi-Fi autoconnect). |"
+            echo "| ESP32 storage migration | | Radio-enabled images use a larger app partition than the old no-Wi-Fi releases. Back up scripts before flashing: the storage partition moves and old files are not preserved. |"
             echo "| ESP32-C2 note | | built for a 40 MHz crystal (ESP-IDF default); boards with a 26 MHz ESP8684 need a rebuild with \`CONFIG_XTAL_FREQ_26=y\` |"
             echo "| Arduino IDE | \`MicroCS-$V.zip\` | Sketch → Include Library → Add .ZIP Library |"
             echo

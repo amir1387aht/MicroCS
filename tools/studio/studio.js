@@ -1491,7 +1491,7 @@ function legacyCapabilities(info) {
 const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
 const TAG_RULES = [
   ["Wi-Fi", /\b(Wifi|Http|HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer|Ntp|Mdns|Ping|Dns)\b\s*[.(]|new (HttpServer|TcpClient|TcpListener|UdpClient|WebSocket|DnsServer)\b/],
-  ["ESP-NOW", /\bEspNow\./], ["BLE", /\bBle\.\w+|\bnew Ble(Service|Uart|Advertisement)\b/], ["OLED", /\bnew U8(g2|x8)\b/], ["files", /\b(File|Directory)\.\w+\(/],
+  ["ESP-NOW", /\bEspNow\./], ["BLE", /\bBle\.\w+|\bnew Ble(Service|Uart|Advertisement)\b/], ["OLED", /\b(?:new U8(?:g2|x8)\b|U8(?:g2|x8)\.(?:I2C|SPI|Parallel)\s*\()/], ["files", /\b(File|Directory)\.\w+\(/],
   ["jobs", /\bScheduler\./], ["threads", /\bThread\.(Run|RunOn|Every)\b/],
   ["DMA", /\bDmaBuffer\b|\w+Async\(/], ["input", /\bConsole\.ReadLine\b/],
 ];
@@ -1845,8 +1845,18 @@ const App = {
     const avail = st.free + (old ? old.size : 0) + 4096;   // flash filesystems report free space in whole blocks
     if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(Math.max(0, avail - 4096))} free. Delete some files first.`);
   },
+  async stopForUpload() {
+    if (!dev.running) return;
+    term.line("— stopping the running script before upload —", "sys");
+    await dev.stop();                 // out of band: the run owns the operation queue
+    const end = Date.now() + 4000;
+    while (dev.running && dev.connected && Date.now() < end) await sleep(20);
+    if (!dev.connected) throw new Error("Disconnected");
+    if (dev.running) throw new Error("The script did not stop. Press Stop or reset the board before uploading.");
+  },
   /* uploads go through the device's UART buffer: retry slower if bytes were lost */
   async putReliable(path, data, prog) {
+    await this.stopForUpload();
     this.checkSpace(path, data.length);
     try { return await dev.op(() => dev.put(path, data, prog)); }
     catch (e) {
@@ -1965,6 +1975,8 @@ const App = {
     ed.stash();
     if (t.local && !dev.connected) { download(t.name || "file.cs", enc.encode(t.text)); t.saved = t.text; this.renderTabs(); return true; }
     if (!dev.connected) { toast("Connect a device to save there (or use ⋯ → Download).", "err"); return false; }
+    try { await this.stopForUpload(); }
+    catch (e) { toast(e.message, "err", 6000); return false; }
     if (!t.path || t.local) {
       const sug = joinPath(this.cwd, (t.name || "app.cs").replace(/\s+/g, "_"));
       const ext = extOf(sug);
@@ -1996,6 +2008,7 @@ const App = {
       const code = s !== e ? ed.ta.value.slice(s, e) : ed.ta.value.slice(ed.lineRange()[0], ed.lineRange()[1]);
       const tmp = "/.studio_run.cs";
       try {
+        await this.stopForUpload();
         await dev.op(() => dev.put(tmp, enc.encode(code)));
         await this.runPath(tmp, "selection", async () => { try { await dev.check("rm " + tmp); } catch {} });
       } catch (e) { toast(e.message, "err"); }

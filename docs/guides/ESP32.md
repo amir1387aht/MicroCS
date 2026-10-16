@@ -8,12 +8,12 @@ options (U8g2 displays, pins, filesystem, profile) you choose.
 
 1. Install esptool: `pip install esptool`.
 2. Download `microcs-<version>-<chip>.bin` for your chip (`esp32`, `esp32s3`, `esp32c2`,
-   `esp32c3`, `esp32c6`) from the [latest release](https://github.com/amir1387aht/MicroCS/releases/latest).
+   `esp32c3`, `esp32c6`, `esp32s2`, `esp32h2`, `esp32p4`, `esp32c5`, `esp32c61`) from the [latest release](https://github.com/amir1387aht/MicroCS/releases/latest).
 3. Connect the board by USB and flash the whole image at address 0
    (`--port COM5` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS):
 
    ```sh
-   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.14.0-esp32c3.bin
+   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.15.0-esp32c3.bin
    ```
 
    If esptool cannot connect: hold **BOOT**, tap **RESET** (EN), release BOOT, try again.
@@ -27,7 +27,10 @@ options (U8g2 displays, pins, filesystem, profile) you choose.
    > GPIO.Mode(8, GPIO.Output); GPIO.Write(8, true);
    ```
 
-The release firmware has every built-in peripheral class but no pins assigned to buses
+**Before upgrading old no-Wi-Fi releases, back up your scripts.** Radio-enabled images
+use a larger app partition and move storage; old scripts are not preserved.
+
+The release firmware has the chip's supported peripheral classes but no pins assigned to buses
 (I²C, SPI…) and no U8g2 — for those, build it yourself (path B).
 
 ## Path B — build your own firmware (ESP-IDF)
@@ -87,8 +90,8 @@ Press Enter for the `> ` prompt.
 
 ## Go online
 
-Wi-Fi is built into the firmware you build yourself (Path B; the ready-to-flash release images
-of Path A leave it out). Save your network once, and every later boot joins it by itself:
+Release images include Wi-Fi and ESP-NOW on Wi-Fi-capable chips (not H2 / P4).
+Custom builds can disable networking. Save your network once, and every later boot joins it by itself:
 
 ```csharp
 Wifi.Save("MyNetwork", "secret-password");

@@ -609,7 +609,10 @@ static int con_read(void* ud, uint8_t* buf, size_t n, uint32_t timeout_ms) {
 }
 static void con_write(void* ud, const char* s, size_t n) {
     (void)ud;
-    while (n--) putchar_raw(*s++);      /* raw: no \n -> \r\n translation (binary uploads) */
+    /* One SDK write per block, not per byte: USB writes pump TinyUSB and flush
+     * a packet each time. Byte writes turn caps / file output into hundreds of
+     * tiny packets, especially expensive under FreeRTOS. Keep binary output raw. */
+    stdio_put_string(s, (int)n, false, false);
     stdio_flush();
 }
 mcs_transport_t mcs_rp2_console_stdio(void) {

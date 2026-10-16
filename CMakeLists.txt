@@ -32,8 +32,8 @@
 #                     + MICROCS_FREERTOS_PORT + MICROCS_FREERTOS_CONFIG_DIR
 #   MICROCS_WIFI      ON (RP2 only): Wi-Fi + lwIP sockets on a Pico W / Pico 2 W (PICO_BOARD=pico_w / pico2_w,
 #                     MICROCS_OS=freertos; ports/rp2/mcs_port_rp2_net.c, lwipopts.h from MICROCS_LWIPOPTS_DIR)
-#   MICROCS_BLE       ON: Bluetooth LE (C# Ble, BleService, BleConnection, BleUart; docs/BLE.md; default OFF,
-#                     never in the release builds). RP2: BTstack on a Pico W / Pico 2 W (PICO_BOARD=pico_w /
+#   MICROCS_BLE       ON: Bluetooth LE (C# Ble, BleService, BleConnection, BleUart; docs/BLE.md; default OFF; enabled on BLE-capable
+#                     ESP32 release targets). RP2: BTstack on a Pico W / Pico 2 W (PICO_BOARD=pico_w /
 #                     pico2_w; btstack_config.h from MICROCS_BTSTACK_CONFIG_DIR); host: the simulated radio
 #                     (mcs --sim). ESP-IDF: CONFIG_MICROCS_BLE; Zephyr: CONFIG_MICROCS_BLE
 #   MICROCS_U8G2      ON: C# U8g2 / U8x8 on olikraus' u8g2 library (docs/U8G2.md; default OFF, or ON when
@@ -234,7 +234,7 @@ if(NOT DEFINED MICROCS_OS)
 endif()
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    project(MicroCS VERSION 1.14.0 LANGUAGES C)
+    project(MicroCS VERSION 1.15.0 LANGUAGES C)
 endif()
 
 set(MICROCS_SRCS ${MICROCS_CORE_SRCS})

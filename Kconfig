@@ -138,8 +138,8 @@ menu "MicroCS"
             central role with a GATT client, pairing / bonding and BleUart
             (Nordic UART Service). Needs Component config > Bluetooth enabled
             with the NimBLE host (CONFIG_BT_ENABLED, CONFIG_BT_NIMBLE_ENABLED),
-            legacy advertising (CONFIG_BT_NIMBLE_EXT_ADV off). Not part of the
-            release firmware; costs ~110 KB of flash and ~40 KB of RAM.
+            legacy advertising (CONFIG_BT_NIMBLE_EXT_ADV off). Enabled for BLE-capable
+            release targets; costs ~110 KB of flash and ~40 KB of RAM.
 
     config MICROCS_BLE_RESERVE_KB
         int "RAM kept free for the Bluetooth stack (KB)"

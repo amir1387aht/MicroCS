@@ -1,5 +1,5 @@
 # Bluetooth LE firmware (C# Ble, BleService, BleConnection, BleUart; docs/BLE.md).
-# Not in the release firmware. Build it with:
+# Used by BLE-capable release targets. For a custom build:
 #   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ble" set-target esp32s3 build
 # (or `rm sdkconfig` first when the project was configured before)
 CONFIG_BT_ENABLED=y

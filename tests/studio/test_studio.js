@@ -430,6 +430,18 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.screenshot({ path: OUT + '/5_plotter.png' });
   await page.click('#consView button[data-v="text"]');
 
+  // An LED/BLE-style foreground loop must not hold uploads behind its run status.
+  fs.writeFileSync(ROOT + '/upload_busy.cs', 'while (true) Thread.Sleep(30000);\n');
+  await page.evaluate(() => { window.uploadRun = App.runPath('/upload_busy.cs'); });
+  await page.waitForFunction(() => dev.running);
+  const uploadStart = Date.now();
+  await page.evaluate(async () => {
+    await App.putReliable('/after_busy.cs', new TextEncoder().encode('Console.WriteLine(42);\n'));
+    await window.uploadRun;
+  });
+  check(Date.now() - uploadStart < 4000 && fs.readFileSync(ROOT + '/after_busy.cs', 'utf8') === 'Console.WriteLine(42);\n', 'upload stops a sleeping foreground script rather than queueing forever');
+  check(await page.evaluate(() => !dev.running), 'foreground run released before upload');
+
   /* ---- drafts survive a reload */
   await page.waitForTimeout(800);
   const nDraft = await page.evaluate(() => JSON.parse(localStorage.getItem('mcs-studio.drafts') || '[]').length);
