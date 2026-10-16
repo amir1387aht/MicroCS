@@ -20,6 +20,7 @@
 [**Hardware API**](docs/HAL.md) ·
 [**Peripheral settings & DMA**](docs/PERIPHERALS.md) ·
 [**Drivers**](docs/DRIVERS.md) ·
+[**Power management**](docs/POWER.md) ·
 [**Wi-Fi & networking**](docs/NETWORK.md) ·
 [**Examples**](examples/README.md) ·
 [**Porting**](docs/PORTING.md) ·
@@ -288,7 +289,7 @@ scheduler, sensors, displays, motors, every peripheral, console games), a serial
 <p align="center"><img src="assets/studio_intellisense.svg" alt="MicroCS Studio: parameter info while typing a call, and the serial plotter" width="860"></p>
 
 **Ready-to-flash firmware** in every [release](https://github.com/amir1387aht/MicroCS/releases/latest):
-Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W (with Wi-Fi) / RP2040-Zero (`.uf2`), ESP32 / S3 / C2 / C3 / C6 (`.bin`) and the STM32
+Raspberry Pi Pico / Pico 2 / Pico W / Pico 2 W (with Wi-Fi) / RP2040-Zero (`.uf2`), ESP32 / S2 / S3 / C2 / C3 / C5 / C6 / C61 / H2 / P4 (`.bin`; Wi-Fi/ESP-NOW and BLE where the chip supports them) and the STM32
 boards Nucleo-F401RE / F411RE / F446RE / G474RE / L476RG / H743ZI and Black Pill F411CE
 (`.bin` / `.hex`, [details](ports/stm32/firmware/README.md)).
 

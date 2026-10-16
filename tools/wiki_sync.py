@@ -44,6 +44,8 @@ SECTIONS = [
     ]),
     ("Hardware", [
         ("docs/HAL.md", "Hardware-API"),
+        ("docs/POWER.md", "Power-Management"),
+        ("docs/BLE.md", "Bluetooth-LE"),
         ("docs/PERIPHERALS.md", "Peripheral-Configuration"),
         ("docs/DMA.md", "DMA"),
         ("docs/DRIVERS.md", "Device-Drivers"),

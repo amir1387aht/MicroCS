@@ -1047,11 +1047,78 @@ static int s_pin_lookup(void* ctx, const char* name) {
     if ((!strcmp(name, "LED") || !strcmp(name, "LED_BUILTIN")) && b && b->led) return mcs_hal_parse_pin(b->led);
     return -1;                       /* -> generic parser: "PA5", "PC13" */
 }
+/* Keep the system clock and HAL tick alive in CPU SLEEP. Standby support is
+ * intentionally limited to verified WKUP1 mappings (PA0, active high). */
+#if defined(HAL_PWR_MODULE_ENABLED) && defined(PWR_SLEEPENTRY_WFI)
+#if defined(STM32F4) || defined(STM32L4) || defined(STM32G4)
+#define MCS_ST_STANDBY 1
+#endif
+static int st_power_validate(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    (void)ctx;
+    if (pin < -1 || (pin >= 0 && !port_fast(pin))) return MCS_HAL_EINVAL;
+    if (!mode || mode == MCS_POWER_LIGHT) return 0;
+#if MCS_ST_STANDBY
+    if (mode == MCS_POWER_DEEP
+#if defined(STM32L4)
+        || mode == MCS_POWER_SHUTDOWN
+#endif
+    ) {
+        if (ms) return MCS_HAL_ENOTSUP; /* no implicit RTC configuration */
+        return pin == 0 && high ? 0 : MCS_HAL_EINVAL;
+    }
+#else
+    (void)ms; (void)high;
+#endif
+    return MCS_HAL_ENOTSUP;
+}
+static int st_power_enter(void* ctx, int mode, uint32_t ms, int pin, int high) {
+    int rc = st_power_validate(ctx, mode, ms, pin, high);
+    if (rc < 0) return rc;
+    if (__get_PRIMASK() || __get_IPSR()) return MCS_HAL_EBUSY;
+#if defined(__CORTEX_M) && (__CORTEX_M >= 3)
+    if (__get_BASEPRI()) return MCS_HAL_EBUSY;
+#endif
+    if (mode == MCS_POWER_LIGHT) {
+        /* A live interrupt-driven HAL tick is required; do not suspend it. */
+        uint32_t t0 = HAL_GetTick();
+        for (;;) {
+            if (pin >= 0 && st_gpio_read(ctx, pin) == high) return 0;
+            if (ms && (uint32_t)(HAL_GetTick() - t0) >= ms) return 0;
+            HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+        }
+    }
+#if MCS_ST_STANDBY
+    __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_PWR_DisableWakeUpPin(PWR_WAKEUP_PIN1);
+    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+    HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
+#if defined(STM32L4)
+    if (mode == MCS_POWER_SHUTDOWN) HAL_PWREx_EnterSHUTDOWNMode();
+    else
+#endif
+        HAL_PWR_EnterSTANDBYMode();
+#endif
+    return MCS_HAL_ERR; /* physical standby/shutdown must not resume here */
+}
+#endif
+
 void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     memset(hal, 0, sizeof *hal);
     g_board = b;
     hal->board = b->name ? b->name : "STM32";
     hal->ctx = b;
+#if defined(HAL_PWR_MODULE_ENABLED) && defined(PWR_SLEEPENTRY_WFI)
+    hal->power_modes = hal->power_timer_modes = hal->power_pin_modes = MCS_POWER_LIGHT;
+#if MCS_ST_STANDBY
+    hal->power_modes |= MCS_POWER_DEEP;
+    hal->power_pin_modes |= MCS_POWER_DEEP;
+#if defined(STM32L4)
+    hal->power_modes |= MCS_POWER_SHUTDOWN;
+    hal->power_pin_modes |= MCS_POWER_SHUTDOWN;
+#endif
+#endif
+    hal->power_validate = st_power_validate; hal->power_enter = st_power_enter;
+#endif
     hal->gpio_mode = st_gpio_mode;
     hal->gpio_write = st_gpio_write;
     hal->gpio_read = st_gpio_read;

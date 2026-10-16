@@ -1,0 +1,30 @@
+category: Power management
+requires: Power
+
+[sleep.cs] Cooperative sleep
+requires: Power.Sleep
+Pause the VM while retaining cancellation and idle hooks. No hardware low-power promise.
+
+[light_sleep.cs] Timed light sleep
+requires: Power.LightSleep.Timer
+Resume after a bounded hardware sleep. Stop active radios first. Studio cannot cancel until wake.
+
+[wake_pin.cs] Wake input with timeout
+requires: Power.LightSleep.Pin, Power.LightSleep.Timer, GPIO
+Choose a safe board-specific input and active level, with a five-second timeout safety net.
+RP2 and STM32 light sleep sample the level; hold the input until wake.
+
+[deep_sleep.cs] Timed deep sleep (reset on wake)
+requires: Power.DeepSleep.Timer
+Explicit opt-in. Saves no RAM/VM state: waking boots firmware and may disconnect USB.
+Never place unconditionally in a startup script.
+
+[deep_sleep_pin.cs] Deep sleep with wake input
+requires: Power.DeepSleep.Pin, GPIO
+Explicit opt-in and board-specific input. STM32 F4/L4/G4 adapter: PA0/WKUP1, high only.
+Wake resets the board. Avoid startup sleep loops and use external pulls as needed.
+
+[shutdown.cs] Hardware shutdown / poweroff
+requires: Power.Shutdown
+Explicit opt-in. Not a deep-sleep alias. L4 requires PA0/high; Zephyr poweroff is board-specific.
+USB disconnects; recovery requires a supported wake source, reset or power cycle.

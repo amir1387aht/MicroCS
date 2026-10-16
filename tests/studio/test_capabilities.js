@@ -39,3 +39,19 @@ const tagsStart = js.indexOf('const TAG_RULES ='), tagsEnd = js.indexOf('functio
 const galTags = new Function(js.slice(tagsStart, tagsEnd) + ';return galTags;')();
 assert(galTags(oled).includes('OLED'));
 console.log('PASS full firmware manifest and two-display U8g2 filtering / OLED tag');
+
+// Hardware power modes and wake-source requirements are independent of Power.Sleep.
+const powerTemplates = TEMPLATES.filter(t => t.src.startsWith('32-power-management/'));
+assert.strictEqual(powerTemplates.length, 6);
+for (const t of powerTemplates) assert(galTags(t).includes('power'));
+const light = powerTemplates.find(t => t.file === 'light_sleep.cs');
+const deepPin = powerTemplates.find(t => t.file === 'deep_sleep_pin.cs');
+const shutdown = powerTemplates.find(t => t.file === 'shutdown.cs');
+complete.set('Power.DeepSleep.Pin', false);
+complete.set('Power.Shutdown', false);
+assert(templateCompatible(light, complete, true));
+assert(!templateCompatible(deepPin, complete, true));
+assert(!templateCompatible(shutdown, complete, true));
+complete.set('Power.DeepSleep.Pin', true);
+assert(templateCompatible(deepPin, complete, true));
+console.log('PASS power gallery mode/source filtering and power tags');

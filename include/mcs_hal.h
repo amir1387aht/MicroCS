@@ -33,7 +33,10 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 3
+#define MCS_HAL_API_VERSION 4
+
+/* v4: hardware power modes, also used as capability-mask bits. */
+enum { MCS_POWER_LIGHT = 1, MCS_POWER_DEEP = 2, MCS_POWER_SHUTDOWN = 4 };
 
 #ifndef MCS_HAL_MAX_XFER
 #define MCS_HAL_MAX_XFER 256     /* largest single transfer per call; buffers live on the C stack */
@@ -381,6 +384,16 @@ typedef struct mcs_hal {
     int (*uart_write_async)(void* ctx, int port, const uint8_t* data, size_t n, int id);
     int (*uart_read_async)(void* ctx, int port, uint8_t* buf, size_t n, int id);   /* completes when n bytes arrived */
     int (*qspi_command_async)(void* ctx, int bus, const mcs_qspi_cmd_t* cmd, const uint8_t* tx, uint8_t* rx, size_t n, int id);
+    /* v4: optional power management. Zero masks / NULL callbacks = unsupported.
+     * validate must be side-effect free; mode 0 validates a prospective wake pin
+     * for at least one supported mode. pin -1 means no GPIO wake source.
+     * enter owns the SDK wake configuration, returns >=0 after light sleep,
+     * <0 on error. Physical deep/shutdown normally never return (wake resets).
+     * The caller checks masks, validates and excludes MicroCS workers / DMA;
+     * the port must reject unsafe native peripheral / task states itself. */
+    unsigned power_modes, power_timer_modes, power_pin_modes;
+    int (*power_validate)(void* ctx, int mode, uint32_t ms, int pin, int high);
+    int (*power_enter)(void* ctx, int mode, uint32_t ms, int pin, int high);
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
@@ -503,6 +516,9 @@ typedef struct {
     uint8_t* uart_rx_buf;           /* pending UART.ReadAsync */
     uint32_t uart_rx_len, uart_rx_got;
     int uart_rx_port, uart_rx_id;
+    /* v4: appended simulation state */
+    int power_mode, power_pin, power_high;
+    uint32_t power_ms, power_calls; /* simulated requests, not physical sleep */
 } mcs_hal_sim_t;
 void mcs_hal_sim_init(mcs_hal_t* hal, mcs_hal_sim_t* sim);
 

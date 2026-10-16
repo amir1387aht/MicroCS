@@ -89,3 +89,10 @@ is why it loads and disassembles instead of executing. Final 1.2 runs under ASan
 2. If it is pure C#, run `tools/verify_dotnet.sh tests/tNN_topic.cs`; when it prints `SAME`,
    add it to the default list in the script.
 3. `make check` must stay green.
+
+## Power management regressions
+
+`make power-test` exercises mode/source capability masks, wake-input state, invalid
+arguments and unsafe worker/DMA entry without sleeping the host. ESP SDK stubs test
+wake-source selection, radio rejection and error cleanup; these are not electrical
+wake or current-consumption measurements. `make check` includes the policy tests.

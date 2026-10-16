@@ -135,3 +135,9 @@ the last 8 KB of flash. Backend: [`mcs_port_rp2_ble.c`](mcs_port_rp2_ble.c).
 The example firmware is built for `pico` (RP2040, LittleFS) and `pico2` (RP2350, LittleFS and
 YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi, `pico_w` with BLE (no OS) and
 `pico2_w` with Wi-Fi + BLE.
+
+## Power management
+
+See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
+`Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
+Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
