@@ -124,7 +124,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 
 ### 🔌 Built for devices
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
-YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and the Pico W (station, soft AP, ESP-NOW, `TcpClient`, `UdpClient`, `Http` with TLS, `HttpServer`, `WebSocket`, NTP, mDNS, `Json`). Opt-in [Bluetooth LE](docs/BLE.md) on ESP32 (NimBLE), Pico W (BTstack), Zephyr and ArduinoBLE: beacons, scanning, GATT server and client, pairing, `BleUart`. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
+YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and Pico W / Pico 2 W: station, soft AP, TCP/UDP, HTTP, web servers, WebSocket, NTP, mDNS and `Json`; ESP-NOW and HTTPS/TLS are ESP32-specific, and other features vary by backend. [Bluetooth LE](docs/BLE.md) on ESP32 (NimBLE), Pico W / Pico 2 W (BTstack), Zephyr and ArduinoBLE (opt-in for custom builds; enabled in BLE-capable ESP32 release images): beacons, scanning, GATT server and client, pairing, `BleUart`. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
 </tr>
@@ -280,7 +280,7 @@ python3 tools/mcs_remote.py --port /dev/ttyACM0 repl          # terminal (Ctrl-]
 Or do it all in the browser: open **[MicroCS Studio](https://amir1387aht.github.io/MicroCS/)**
 (or [`tools/studio/index.html`](tools/studio/index.html) offline) in Chrome or Edge, click **Connect** and you get a file manager (upload, download, rename, delete), a C#
 editor in Visual Studio's dark look with IntelliSense (member lists with docs, parameter info,
-hover, find/replace, format) that saves to and runs on the device, 190+ templates (boot scripts, every peripheral with its settings, DMA, U8g2 displays, Wi-Fi and networking,
+hover, find/replace, format) that saves to and runs on the device, 200+ templates (boot scripts, every peripheral with its settings, DMA, U8g2 displays, Wi-Fi and networking, Bluetooth LE, power management,
 scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
 
@@ -556,8 +556,8 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
 | DMA / background transfers | ✅ `DmaBuffer`, `SPI.WriteAsync` … | port-specific | — |
 | Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
-| Wi-Fi / networking | ✅ ESP32 family + Pico W: station + AP, ESP-NOW, TCP/UDP, HTTP(S), web server + WebSocket, NTP, mDNS, JSON | ✅ | ✅ |
-| Bluetooth LE | ❌ not yet ([roadmap](#%EF%B8%8F-roadmap)) | ✅ | ✅ |
+| Wi-Fi / networking | ✅ ESP32 family + Pico W / Pico 2 W; [features vary by port](docs/NETWORK.md) (ESP-NOW and TLS are not available on every backend) | ✅ | ✅ |
+| Bluetooth LE | ✅ ESP32 (NimBLE), Pico W / Pico 2 W (BTstack), Zephyr and ArduinoBLE; [roles vary by backend](docs/BLE.md) | ✅ | ✅ |
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
@@ -581,7 +581,7 @@ within 3–4× of C.
 Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
 nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve
 the device, and C# developers get a REPL on a $4 board. Where it does not (yet): heap use
-on small scripts, Bluetooth and Wi-Fi beyond the ESP32 family, a step debugger and the size of the ecosystem.
+on small scripts, the breadth of board-specific radio support, a step debugger and the size of the ecosystem.
 Method, all numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
 · reproduce: [`bench/compare/`](bench/compare).
 
@@ -648,19 +648,21 @@ optimized with superinstructions, `-O0` = plain bytecode):
 
 | Area | Status | Evidence |
 |---|:---:|---|
-| Interpreter core, GC, stdlib | ✅ | `make check`: GC-stress run of every program, 32 feature-flag / profile builds `-Werror`, whole suite under 12 configurations |
+| Interpreter core, GC, stdlib | ✅ | `make check`: source/image/XIP regressions, GC stress, feature-flag / profile builds `-Werror`, and alternate-configuration script suites |
 | 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
-| Hardware API v3 (14 classes, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
+| Hardware API (peripherals, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
-| ESP32 port | ✅ | CI: ESP-IDF 5.3 builds for ESP32, S3, C2, C3, C6 |
-| Wi-Fi & networking (ESP32 family, host sockets) | 🧪 | `t24_net` (every `Wifi` / `EspNow` / `Ntp` / `Mdns` / `Ping` call on the simulated radio, TCP / UDP over loopback), `tests/test_net.py` (HTTP client against a local server), 16 Studio templates run in CI, ESP-IDF builds for 5 chips — reports from real boards welcome |
+| ESP32 port | ✅ | CI: ESP-IDF build matrix for ESP32-family targets, including Wi-Fi and BLE configurations where the chip supports them |
+| Wi-Fi & networking (ESP32 family, Pico W / Pico 2 W, host sockets) | 🧪 | `t24_net` (simulated radio and loopback sockets), `tests/test_net.py` (HTTP against a local server), Studio templates, ESP-IDF and CYW43/lwIP firmware builds; [per-port capabilities](docs/NETWORK.md) — reports from real boards welcome |
+| Bluetooth LE (ESP32, Pico W / Pico 2 W, Zephyr, ArduinoBLE) | 🧪 | `make ble-test`: simulated advertising, scanning, GATT client/server and security tests; CI builds NimBLE, BTstack, Zephyr and ArduinoBLE integrations; [roles and options vary by backend](docs/BLE.md) |
+| Power management (sleep, wake pins, deep sleep / shutdown) | 🧪 | `make power-test`: policy and SDK API tests; [supported modes and wake sources vary by port](docs/POWER.md); physical wake and current-consumption testing still required |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |
-| BLE, Pico W Wi-Fi, debugger, signed images | 🗓️ | [roadmap](#%EF%B8%8F-roadmap) |
+| Debugger, signed images | 🗓️ | [roadmap](#%EF%B8%8F-roadmap) |
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -687,7 +689,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
       transfers (`DmaBuffer`, `SPI.WriteAsync`), Studio templates for every area
 - [x] **1.13** — Wi-Fi & networking on the ESP32 family: `Wifi` (station, AP, scan, events, saved networks),
       ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; simulated radio
-- [x] Bluetooth LE (ESP32 NimBLE, Pico W BTstack, Zephyr, ArduinoBLE; opt-in), Wi-Fi on the Pico W (CYW43)
+- [x] Bluetooth LE (ESP32 NimBLE, Pico W / Pico 2 W BTstack, Zephyr, ArduinoBLE; opt-in for custom builds), Wi-Fi on the Pico W / Pico 2 W (CYW43)
 - [ ] Wi-Fi on Arduino cores, MQTT client
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
