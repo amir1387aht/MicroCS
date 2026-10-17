@@ -20,7 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: make check (tests, GC stress, feature-flag and profile builds)
-        run: make CC=${{ matrix.cc }} check
+        run: |
+          set +e
+          make CC=${{ matrix.cc }} check 2>&1 | tee /tmp/host-check.log
+          result=${PIPESTATUS[0]}
+          if [ "$result" != 0 ]; then
+            python3 -c 'from pathlib import Path; s=Path("/tmp/host-check.log").read_text()[-6000:]; print("::error title=Host check failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+          fi
+          exit "$result"
 
   sanitizers:
     name: ASan + UBSan · fuzz
@@ -83,7 +90,14 @@ jobs:
           fi
           exit "$result"
       - name: Project save/build/run and automatic formatting
-        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project.js ./mcs
+        run: |
+          set +e
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_project.js ./mcs 2>&1 | tee /tmp/studio-project-test.log
+          result=${PIPESTATUS[0]}
+          if [ "$result" != 0 ]; then
+            python3 -c 'from pathlib import Path; s=Path("/tmp/studio-project-test.log").read_text()[-6000:]; print("::error title=Studio Project failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+          fi
+          exit "$result"
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: ESP BLE menuconfig gating and limits
