@@ -2,8 +2,18 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — Power management and documentation audit
+## Unreleased — Power management, memory recovery and documentation audit
 
+* **Repeated-run memory recovery** — collect dead objects before an idle top-level
+  source run starts compilation; preserve live globals and callbacks. Fixed-pool
+  regressions run the Studio CPU benchmark 20 times without manual collection.
+* **File memory safety** — stable reads no longer double their temporary buffer to
+  detect EOF. Failed resizing never returns uninitialized capacity as file content.
+  Native OOM cleanup releases whole-file read buffers, sequence-write handles and
+  directory iterators; tests cover forced failures and 100 Studio upload/run cycles.
+* **U8g2 naming** — add upstream-style `GetAscent()`, `GetDescent()`,
+  `GetMaxCharHeight()` and `GetMaxCharWidth()`; retain the old property aliases and
+  update the reference, Studio completion and OLED text template.
 * **Power API / HAL v4** — cooperative `Sleep`, per-VM `SetWakePin` / `ClearWakePin`,
   `WakePin` / `WakeHigh`, capability-gated `LightSleep`, reset-on-wake `DeepSleep`,
   and actual `Shutdown`. Optional append-only callbacks/masks preserve source

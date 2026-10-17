@@ -23,6 +23,33 @@ mcs_fs_open_lib(vm, &vfs);                                             /* C# Fil
   A backend reports it through the optional `statfs` op (all built-in backends have one;
   custom backends may leave it NULL → `MCS_VFS_EINVAL`).
 
+## Memory use and out-of-memory recovery
+
+A stable file read needs one temporary buffer of `file size + 1` bytes; the
+terminating byte is also used to check for EOF, without doubling the buffer.
+`File.ReadAllText`, `ReadAllLines` and `ReadAllBytes` additionally allocate the
+managed result in the VM heap. Allow room for both copies (and, for arrays,
+per-element storage). A read returns an error rather than padded/uninitialized
+content if resizing a file that changed during the read fails.
+
+Before a new top-level source run, the VM collects unreachable objects left by
+the previous run, before compilation temporarily pauses collection. This keeps
+repeated runs from failing early just because old garbage is waiting for an
+execution safepoint. Live globals and callbacks are preserved.
+
+Temporary read buffers, sequence-write handles and directory iterators are
+released even if managed allocation fails partway through the operation. An
+out-of-memory error does not roll back a partially written file. The shell's
+`put` upload streams through a small buffer to a `.part` file instead of loading
+the entire upload into VM memory.
+
+RAM filesystems still use RAM for saved contents; flash filesystem capacity is
+separate from the VM heap. Use shell `df` for storage and `mem` for VM memory.
+`GC.Collect()` reclaims unreachable managed objects, not saved RAMFS contents,
+live globals or active jobs. Close/dispose devices and stop unwanted jobs when
+finished with them; rebooting should not be necessary just to release temporary
+file-operation resources.
+
 ## Backends
 | Backend | Use | Notes |
 |---|---|---|
