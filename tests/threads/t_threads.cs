@@ -34,6 +34,11 @@ var ticks = new Channel("ticks", 16);
 var per = Thread.Every(20, "/math.cs", "Tick");
 int got = 0;
 while (got < 3) { var t = ticks.Receive(2000); if (t == null) break; if ((bool)t) got++; }
+// Tick publishes to the channel before the worker marks that run complete.
+// Wait for the completion counter before stopping, otherwise Stop can abort
+// the third run after its message and make this test fail under CI load.
+var completed = Stopwatch.StartNew();
+while (per.Runs < 3 && completed.ElapsedMilliseconds < 2000) Thread.Sleep(1);
 per.Stop(); per.Join();
 Console.WriteLine("periodic runs>=3 " + (per.Runs >= 3) + " " + per.State);
 
