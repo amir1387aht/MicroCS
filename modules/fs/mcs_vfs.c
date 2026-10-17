@@ -280,6 +280,18 @@ const char* mcs_vfs_strerror(int e) {
     }
 }
 
+#if MCS_ENABLE_COMPILER
+mcs_result_t mcs_check_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path) {
+    char* data; size_t len;
+    int e = (mcs_vfs_flags(vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+            : mcs_vfs_read_file(vfs, path, &data, &len);
+    if (e) return mcs_fail(vm, MCS_ERR_RUNTIME, "cannot check '%s': %s", path, mcs_vfs_strerror(e));
+    mcs_result_t r = mcs_check_source(vm, path, data);
+    mcs_vfs_free(vfs, data, len);
+    return r;
+}
+#endif
+
 mcs_result_t mcs_exec_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path) {
     char* data; size_t len;
     int e;

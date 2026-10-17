@@ -103,6 +103,9 @@ void mcs_sched_run(mcs_sched_t* s, mcs_delay_fn delay, void* delay_ud, volatile 
 /* The job with this id, NULL if none. */
 mcs_job_t* mcs_sched_job(mcs_sched_t* s, int id);
 int mcs_sched_load_config(mcs_sched_t* s, const char* text);
+/* Validate all config and source paths before replacing existing jobs.
+ * Returns job count, or -1 with mcs_last_error; no scripts are executed here. */
+int mcs_sched_start_project(mcs_sched_t* s, const char* text);
 
 /* C# API: Scheduler.Every(ms, action [, maxFailures]), Scheduler.After(ms, action),
  * Scheduler.Cancel(id), Scheduler.Count. Stored in MCS_EXT_SCHED. */

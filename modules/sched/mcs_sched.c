@@ -344,6 +344,37 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
     return added;
 }
 
+int mcs_sched_start_project(mcs_sched_t* s, const char* text) {
+    if (s->busy || mcs_running(s->vm)) { mcs_fail(s->vm, MCS_ERR_RUNTIME, "stop the running script before starting a project"); return -1; }
+    mcs_sched_t staged;
+    memset(&staged, 0, sizeof staged);
+    staged.vm = s->vm; staged.vfs = s->vfs; staged.ticks = s->ticks;
+    staged.ticks_ud = s->ticks_ud; staged.next_id = s->next_id;
+    uint32_t prepared_at = now(&staged);
+    int count = mcs_sched_load_config(&staged, text);
+    if (count < 0) { mcs_fail(s->vm, MCS_ERR_RUNTIME, "jobs.cfg: invalid configuration or job table full at line %d", -count); return -1; }
+    if (!count) { mcs_fail(s->vm, MCS_ERR_RUNTIME, "jobs.cfg must contain at least one job"); return -1; }
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+        mcs_job_t* j = &staged.jobs[i];
+        if (j->state != MCS_JOB_ACTIVE) continue;
+        size_t len = strlen(j->path);
+        if (!s->vfs || j->path[0] != '/' || len < 3 || strcmp(j->path + len - 3, ".cs")) {
+            mcs_fail(s->vm, MCS_ERR_RUNTIME, "project jobs require absolute .cs paths: '%s'", j->path); return -1;
+        }
+#if MCS_ENABLE_COMPILER
+        if (mcs_check_file(s->vm, s->vfs, j->path) != MCS_OK) return -1;
+#else
+        mcs_fail(s->vm, MCS_ERR_RUNTIME, "project requires a source compiler"); return -1;
+#endif
+    }
+    uint32_t elapsed = now(s) - prepared_at;
+    for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) staged.jobs[i].next_due += elapsed;
+    mcs_sched_cancel_all(s, MCS_SCHED_ALL);
+    memcpy(s->jobs, staged.jobs, sizeof s->jobs);
+    s->next_id = staged.next_id;
+    return count;
+}
+
 /* ------------------------------------------------------------ C# API */
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-parameter"

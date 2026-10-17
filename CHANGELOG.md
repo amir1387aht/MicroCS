@@ -2,6 +2,22 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Studio project workflow
+
+* **Studio formatting** — safe offline C# whitespace formatter, explicit document formatting,
+  default-on line/paste formatting and format-on-save; preserve literal/comment contents.
+* **Parameter info** — reliably dismiss on outside pointer clicks, Escape, close button,
+  focus loss and leaving the call context.
+* **Save/build** — default-on upload of all editable open C# tabs and compile-only checks
+  before Save/F5/Run file; individual toggles, duplicate-path protection and action locking.
+* **Project mode** — remembered device folder, required `jobs.cfg`, recursive source checks,
+  F5/global Run scheduling only configured jobs; separate Run file / Ctrl+Enter action.
+* **Firmware** — guarded `mcs_check_source` / `mcs_check_file`, `check` shell command and
+  validated `project` job replacement without reboot. Failed validation preserves the job
+  table, not already-uploaded file contents. Updated firmware required for the new workflow.
+* **Tests/docs** — formatter, compiler/project transaction and real-shell browser regressions;
+  usage, compatibility and deployment caveats documented. No physical-board validation.
+
 ## Unreleased — Power management and documentation audit
 
 * **Power API / HAL v4** — cooperative `Sleep`, per-VM `SetWakePin` / `ClearWakePin`,
