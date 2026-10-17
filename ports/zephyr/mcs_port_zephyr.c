@@ -475,50 +475,73 @@ static struct k_msgq* const g_can_q[] = { &g_can_q0, &g_can_q1 };
 static void can_rx_cb(const struct device* dev, struct can_frame* f, void* ud) {   /* ISR context */
     (void)dev;
     int bus = (int)(intptr_t)ud;
-    if (k_msgq_put(g_can_q[bus], f, K_NO_WAIT) == 0)
-        mcs_hal_post(MCS_HAL_EV_CAN, bus, (int32_t)k_msgq_num_used_get(g_can_q[bus]));   /* CAN.OnReceive */
+    (void)k_msgq_put(g_can_q[bus], f, K_NO_WAIT); /* the HAL polls subscribed buses */
 }
-static bool g_can_on[2], g_can_filt[2];
+static bool g_can_on[2];
+static int g_can_filter[2][2] = { { -1, -1 }, { -1, -1 } };
 static const struct device* can_of(int bus) { return bus >= 0 && bus < 2 && g_can[bus] && device_is_ready(g_can[bus]) ? g_can[bus] : NULL; }
-static int z_can_open(void* ctx, int bus, uint32_t bitrate) {
+static int z_can_close(void* ctx, int bus) {
     (void)ctx;
     const struct device* d = can_of(bus);
     if (!d) return MCS_HAL_ENOTSUP;
-    if (g_can_on[bus]) { can_stop(d); g_can_on[bus] = false; }
-    int r = bitrate ? can_set_bitrate(d, bitrate) : 0;
-    if (r) return z_rc(r);
-    if (g_can_lb[bus] && (r = can_set_mode(d, CAN_MODE_LOOPBACK)) != 0) return z_rc(r);
-    if (!g_can_filt[bus]) {
-        struct can_filter f = { .id = 0, .mask = 0, .flags = 0 };
+    if (g_can_on[bus]) {
+        int r = can_stop(d);
+        if (r && r != -EALREADY) return z_rc(r);
+        g_can_on[bus] = false;
+    }
+    for (int i = 0; i < 2; i++) if (g_can_filter[bus][i] >= 0) {
+        can_remove_rx_filter(d, g_can_filter[bus][i]); g_can_filter[bus][i] = -1;
+    }
+    k_msgq_purge(g_can_q[bus]);
+    return 0;
+}
+static int z_can_configure(void* ctx, int bus, const mcs_can_config_t* cfg) {
+    const struct device* d = can_of(bus);
+    if (!d) return MCS_HAL_ENOTSUP;
+    if (cfg->tx != -1 || cfg->rx != -1 || cfg->opts.n) return MCS_HAL_ENOTSUP; /* devicetree owns pinctrl */
+    if (!cfg->bitrate || cfg->bitrate > 1000000 || cfg->mode > MCS_CAN_LOOPBACK) return MCS_HAL_EINVAL;
+    int r = z_can_close(ctx, bus);
+    if (r) return r;
+    can_mode_t mode = cfg->mode == MCS_CAN_LOOPBACK || g_can_lb[bus] ? CAN_MODE_LOOPBACK : cfg->mode == MCS_CAN_LISTEN_ONLY ? CAN_MODE_LISTENONLY : CAN_MODE_NORMAL;
+    if ((r = can_set_bitrate(d, cfg->bitrate)) || (r = can_set_mode(d, mode))) return z_rc(r);
+    struct can_filter f = { .id = 0, .mask = 0, .flags = 0 };
 #ifdef CAN_FILTER_DATA
-        f.flags = CAN_FILTER_DATA | CAN_FILTER_RTR;
+    f.flags = CAN_FILTER_DATA | CAN_FILTER_RTR;
 #endif
-        if ((r = can_add_rx_filter(d, can_rx_cb, (void*)(intptr_t)bus, &f)) < 0) return z_rc(r);
-        f.flags |= CAN_FILTER_IDE;
-        if ((r = can_add_rx_filter(d, can_rx_cb, (void*)(intptr_t)bus, &f)) < 0) return z_rc(r);
-        g_can_filt[bus] = true;
+    for (int i = 0; i < 2; i++) {
+        if (i) f.flags |= CAN_FILTER_IDE;
+        r = can_add_rx_filter(d, can_rx_cb, (void*)(intptr_t)bus, &f);
+        if (r < 0) { z_can_close(ctx, bus); return z_rc(r); }
+        g_can_filter[bus][i] = r;
     }
     r = can_start(d);
     g_can_on[bus] = r == 0 || r == -EALREADY;
-    return g_can_on[bus] ? 0 : z_rc(r);
+    if (!g_can_on[bus]) { z_can_close(ctx, bus); return z_rc(r); }
+    return 0;
 }
+static int z_can_open(void* ctx, int bus, uint32_t rate) {
+    mcs_can_config_t cfg; mcs_can_config_init(&cfg, rate); return z_can_configure(ctx, bus, &cfg);
+}
+static void can_tx_cb(const struct device* dev, int error, void* ud) { (void)dev; (void)error; (void)ud; }
 static int z_can_send(void* ctx, int bus, const mcs_can_frame_t* fr, uint32_t timeout_ms) {
     (void)ctx;
     const struct device* d = can_of(bus);
     if (!d || !g_can_on[bus]) return MCS_HAL_ENOTSUP;
+    if (fr->len > 8 || fr->id > (fr->extended ? 0x1fffffffu : 0x7ffu)) return MCS_HAL_EINVAL;
     struct can_frame f;
     memset(&f, 0, sizeof f);
     f.id = fr->id;
     f.dlc = fr->len > 8 ? 8 : fr->len;
     f.flags = (fr->extended ? CAN_FRAME_IDE : 0) | (fr->rtr ? CAN_FRAME_RTR : 0);
     memcpy(f.data, fr->data, f.dlc);
-    return z_rc(can_send(d, &f, K_MSEC(timeout_ms), NULL, NULL));
+    return z_rc(can_send(d, &f, K_MSEC(timeout_ms), can_tx_cb, NULL));
 }
 static int z_can_recv(void* ctx, int bus, mcs_can_frame_t* fr, uint32_t timeout_ms) {
     (void)ctx;
     if (!can_of(bus) || !g_can_on[bus]) return MCS_HAL_ENOTSUP;
     struct can_frame f;
     if (k_msgq_get(g_can_q[bus], &f, K_MSEC(timeout_ms))) return MCS_HAL_ETIMEOUT;
+    if ((f.flags & CAN_FRAME_FDF) || f.dlc > 8) return MCS_HAL_ENOTSUP;
     fr->id = f.id;
     fr->extended = (f.flags & CAN_FRAME_IDE) != 0;
     fr->rtr = (f.flags & CAN_FRAME_RTR) != 0;
@@ -993,6 +1016,8 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     hal->timer_start = z_timer_start;
     hal->timer_stop = z_timer_stop;
 #ifdef MCS_Z_CAN
+    hal->can_configure = z_can_configure;
+    hal->can_close = z_can_close;
     hal->can_open = z_can_open;
     hal->can_send = z_can_send;
     hal->can_recv = z_can_recv;

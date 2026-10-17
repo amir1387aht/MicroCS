@@ -33,7 +33,7 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 4
+#define MCS_HAL_API_VERSION 5
 
 /* v4: hardware power modes, also used as capability-mask bits. */
 enum { MCS_POWER_LIGHT = 1, MCS_POWER_DEEP = 2, MCS_POWER_SHUTDOWN = 4 };
@@ -118,6 +118,11 @@ typedef struct {
     uint8_t len;           /* 0..8 */
     uint8_t data[8];
 } mcs_can_frame_t;
+
+/* Classic CAN configuration. Pins -1 retain the board/CubeMX wiring.
+ * Mode is explicit: no silent fallback from loopback/listen-only to normal. */
+enum { MCS_CAN_NORMAL = 0, MCS_CAN_LISTEN_ONLY = 1, MCS_CAN_LOOPBACK = 2 };
+
 
 /* ---------------- v3: peripheral configuration ----------------
  * Every field has a "board default" value: 0 for numbers and tri-states,
@@ -263,6 +268,14 @@ typedef struct {
     int32_t value;
 } mcs_hal_event_t;
 
+typedef struct {
+    uint32_t bitrate;
+    int16_t tx, rx;
+    uint8_t mode;
+    mcs_hal_opts_t opts;
+} mcs_can_config_t;
+void mcs_can_config_init(mcs_can_config_t* cfg, uint32_t bitrate);
+
 typedef struct mcs_hal {
     const char* board;            /* shown as Hal.Board */
     void* ctx;                    /* passed to every function */
@@ -394,6 +407,9 @@ typedef struct mcs_hal {
     unsigned power_modes, power_timer_modes, power_pin_modes;
     int (*power_validate)(void* ctx, int mode, uint32_t ms, int pin, int high);
     int (*power_enter)(void* ctx, int mode, uint32_t ms, int pin, int high);
+    /* v5: classic CAN settings and deterministic controller teardown. */
+    int (*can_configure)(void* ctx, int bus, const mcs_can_config_t* cfg);
+    int (*can_close)(void* ctx, int bus);
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the

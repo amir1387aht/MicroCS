@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -366,3 +366,13 @@ power-test: build/test_power
 	  $(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/power_sdk -DMCS_ESP32_WIFI=1 -DMCS_ENABLE_BLE=1 -DPOWER_VARIANT=$$v tests/c/test_esp_sleep.c -o build/test_esp_sleep && ./build/test_esp_sleep || exit 1; \
 	  $(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Wno-missing-field-initializers -Iinclude -Itests/c/power_sdk -DARDUINO=1 -DMCS_ENABLE_BLE=1 -DPOWER_VARIANT=$$v tests/c/test_esp_sleep.c -o build/test_esp_sleep_cpp && ./build/test_esp_sleep_cpp || exit 1; done
 .PHONY: power-test
+
+# Native CAN policy and portable MCP2515 SPI/register model (no physical bus).
+build/test_can: tests/c/test_can.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) tests/c/test_can.c -o $@ $(LDLIBS)
+can-test: build/test_can
+	./build/test_can
+	@for v in 0 1; do \
+	  $(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can && ./build/test_esp_can || exit 1; \
+	  $(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can_cpp && ./build/test_esp_can_cpp || exit 1; done
+.PHONY: can-test

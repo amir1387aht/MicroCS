@@ -15,6 +15,7 @@ config MICROCS_PORT
 	imply UART_USE_RUNTIME_CONFIGURE
 	imply HWINFO
 	imply REBOOT
+	imply CAN_ACCEPT_RTR if CAN
 
 config MICROCS_USER_CONFIG_FILE
 	string "Project config header (mcs_user_config.h)"

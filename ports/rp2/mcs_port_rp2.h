@@ -11,7 +11,8 @@
  * GPIO numbers (every pin can do PWM), ADC.Read(0..3) = GP26..GP29 (RP2350B:
  * GP40..47), ADC.Read(4) / (8) = the internal temperature sensor.
  * UART 0/1, I2C 0/1 and SPI 0/1 use the pins in mcs_rp2_cfg_t.
- * Not on this chip: DAC, CAN, QSPI bus for user devices, I2S (needs PIO).
+ * Not native on this chip: DAC, CAN, QSPI bus for user devices, I2S (needs PIO).
+ * CAN.OpenMcp2515 supports an external SPI controller + transceiver (docs/CAN.md).
  */
 #ifndef MCS_PORT_RP2_H
 #define MCS_PORT_RP2_H

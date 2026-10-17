@@ -392,12 +392,21 @@ static int q_cmd(void* ctx, int bus, const mcs_qspi_cmd_t* c, const uint8_t* tx,
 
 /* ---------------------------------------------------------------- CAN (loopback) */
 static int c_open(void* ctx, int bus, uint32_t rate) { return bus == 0 ? 0 : MCS_HAL_ENOTSUP; }
+static int c_configure(void* ctx, int bus, const mcs_can_config_t* cfg) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    if (cfg->tx != -1 || cfg->rx != -1 || cfg->opts.n) return MCS_HAL_ENOTSUP;
+    if (!cfg->bitrate || cfg->bitrate > 1000000 || cfg->mode > MCS_CAN_LOOPBACK) return MCS_HAL_EINVAL;
+    SIM->can_head = SIM->can_count = 0; return 0;
+}
+static int c_close(void* ctx, int bus) {
+    if (bus != 0) return MCS_HAL_ENOTSUP;
+    SIM->can_head = SIM->can_count = 0; return 0;
+}
 static int c_send(void* ctx, int bus, const mcs_can_frame_t* f, uint32_t to) {
     if (bus != 0) return MCS_HAL_ENOTSUP;
     if (SIM->can_count >= 8) return MCS_HAL_EBUSY;
     SIM->can_q[(SIM->can_head + SIM->can_count) % 8] = *f;
     SIM->can_count++;
-    mcs_hal_post(MCS_HAL_EV_CAN, bus, SIM->can_count);
     return 0;
 }
 static int c_recv(void* ctx, int bus, mcs_can_frame_t* f, uint32_t to) {
@@ -590,7 +599,7 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->timer_start = t_start; h->timer_stop = t_stop;
     h->i2s_open = s2_open; h->i2s_write = s2_write; h->i2s_read = s2_read;
     h->qspi_open = q_open; h->qspi_command = q_cmd;
-    h->can_open = c_open; h->can_send = c_send; h->can_recv = c_recv;
+    h->can_configure = c_configure; h->can_close = c_close; h->can_open = c_open; h->can_send = c_send; h->can_recv = c_recv;
     h->wdt_start = w_start; h->wdt_feed = w_feed;
     h->rtc_get = r_get; h->rtc_set = r_set;
 #if MCS_ENABLE_WS2812

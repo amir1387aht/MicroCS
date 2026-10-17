@@ -110,6 +110,12 @@ static const struct { GPIO_TypeDef* port; uint16_t pin; } pwm_pins[4] = {
 UART_HandleTypeDef huart_con;
 I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim3;
+SPI_HandleTypeDef hspi2;
+#if defined(MCS_STM32_HAS_CAN)
+static CAN_HandleTypeDef hcan1;
+#elif defined(MCS_STM32_HAS_FDCAN)
+static FDCAN_HandleTypeDef hfdcan1;
+#endif
 
 /* ------------------------------------------------------------------ clocks */
 static void fw_fault(void) {
@@ -195,14 +201,17 @@ static void clock_init(void) {
     RCC_PeriphCLKInitTypeDef p;
     memset(&p, 0, sizeof p);
 #  if defined(STM32G4)
-    p.PeriphClockSelection = RCC_PERIPHCLK_LPUART1 | RCC_PERIPHCLK_I2C1;
+    p.PeriphClockSelection = RCC_PERIPHCLK_LPUART1 | RCC_PERIPHCLK_I2C1 | RCC_PERIPHCLK_FDCAN;
+    p.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
     p.Lpuart1ClockSelection = RCC_LPUART1CLKSOURCE_HSI;
     p.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
 #  elif defined(STM32L4)
     p.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
     p.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
 #  else
-    p.PeriphClockSelection = RCC_PERIPHCLK_I2C123;
+    p.PeriphClockSelection = RCC_PERIPHCLK_I2C123 | RCC_PERIPHCLK_FDCAN | RCC_PERIPHCLK_SPI123;
+    p.FdcanClockSelection = RCC_FDCANCLKSOURCE_PLL;
+    p.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL;
     p.I2c123ClockSelection = RCC_I2C123CLKSOURCE_HSI;
 #  endif
     if (HAL_RCCEx_PeriphCLKConfig(&p) != HAL_OK) fw_fault();
@@ -265,6 +274,66 @@ static void i2c_init(void) {
     hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
     hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
     (void)HAL_I2C_Init(&hi2c1);            /* a missing bus is reported by I2C calls, not here */
+}
+
+/* SPI bus 0 = SPI2 on PB13(SCK)/PB14(MISO)/PB15(MOSI), avoiding LED,
+ * console, I2C and PWM pins. Used by the portable MCP2515 backend too. */
+static void spi_init(void) {
+    __HAL_RCC_SPI2_CLK_ENABLE();
+    pin_af(GPIOB, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_AF5_SPI2);
+    hspi2.Instance = SPI2;
+    hspi2.Init.Mode = SPI_MODE_MASTER; hspi2.Init.Direction = SPI_DIRECTION_2LINES;
+    hspi2.Init.DataSize = SPI_DATASIZE_8BIT; hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
+    hspi2.Init.CLKPhase = SPI_PHASE_1EDGE; hspi2.Init.NSS = SPI_NSS_SOFT;
+    hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
+    hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB; hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
+    hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE; hspi2.Init.CRCPolynomial = 7;
+    (void)HAL_SPI_Init(&hspi2);
+}
+
+/* Only initialize native controllers on parts that actually have one. Pins:
+ * F446/L476/G474: PA11 RX, PA12 TX; H743: PD0 RX, PD1 TX. */
+static void can_init(void) {
+#if defined(MCS_STM32_HAS_CAN)
+    __HAL_RCC_CAN1_CLK_ENABLE();
+    pin_af(GPIOA, GPIO_PIN_11 | GPIO_PIN_12, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_AF9_CAN1);
+    hcan1.Instance = CAN1;
+    hcan1.Init.Prescaler = 1; hcan1.Init.Mode = CAN_MODE_NORMAL;
+    hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+    hcan1.Init.TimeSeg1 = CAN_BS1_13TQ; hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+    hcan1.Init.AutoBusOff = ENABLE; hcan1.Init.AutoRetransmission = ENABLE;
+    (void)HAL_CAN_Init(&hcan1); /* not started until CAN.Open */
+#elif defined(MCS_STM32_HAS_FDCAN)
+    __HAL_RCC_FDCAN_CLK_ENABLE();
+#if defined(STM32H7)
+    pin_af(GPIOD, GPIO_PIN_0 | GPIO_PIN_1, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_AF9_FDCAN1);
+#else
+    pin_af(GPIOA, GPIO_PIN_11 | GPIO_PIN_12, GPIO_MODE_AF_PP, GPIO_NOPULL, GPIO_AF9_FDCAN1);
+#endif
+    hfdcan1.Instance = FDCAN1;
+    hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC; hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
+    hfdcan1.Init.AutoRetransmission = ENABLE;
+    hfdcan1.Init.NominalPrescaler = 1; hfdcan1.Init.NominalSyncJumpWidth = 1;
+    hfdcan1.Init.NominalTimeSeg1 = 13; hfdcan1.Init.NominalTimeSeg2 = 2;
+    hfdcan1.Init.DataPrescaler = 1; hfdcan1.Init.DataSyncJumpWidth = 1;
+    hfdcan1.Init.DataTimeSeg1 = 1; hfdcan1.Init.DataTimeSeg2 = 1;
+    hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
+#if defined(STM32H7)
+    hfdcan1.Init.RxFifo0ElmtsNbr = 16; hfdcan1.Init.RxFifo0ElmtSize = FDCAN_DATA_BYTES_8;
+    hfdcan1.Init.RxFifo1ElmtSize = FDCAN_DATA_BYTES_8; hfdcan1.Init.RxBufferSize = FDCAN_DATA_BYTES_8;
+    hfdcan1.Init.TxFifoQueueElmtsNbr = 3; hfdcan1.Init.TxElmtSize = FDCAN_DATA_BYTES_8;
+#else
+    hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV2;
+#endif
+    if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK) return;
+#if defined(STM32H7)
+    /* PLL1Q = 200 MHz; shared CCU /2 keeps CAN at 100 MHz. */
+    FDCAN_ClkCalUnitTypeDef ccu;
+    memset(&ccu, 0, sizeof ccu); ccu.ClockCalibration = FDCAN_CLOCK_CALIBRATION_DISABLE;
+    ccu.ClockDivider = FDCAN_CLOCK_DIV2;
+    (void)HAL_FDCAN_ConfigClockCalibration(&hfdcan1, &ccu);
+#endif
+#endif
 }
 
 /* timer input clock of an APB1 timer: PCLK1, doubled when APB1 is divided */
@@ -341,11 +410,24 @@ int main(void) {
     console_init();
     i2c_init();
     pwm_init();
+    spi_init();
+    can_init();
 
     board.name = FW_NAME;
     board.led = FW_LED;                                   /* new Pin("LED") in C# */
     board.uart[CON_INDEX] = &huart_con;                   /* the console */
     board.i2c[1] = &hi2c1;                                /* I2C.Open(1, ...) */
+    board.spi[0] = &hspi2;
+#if defined(STM32H7)
+    board.spi_clock_hz[0] = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_SPI123);
+#else
+    board.spi_clock_hz[0] = HAL_RCC_GetPCLK1Freq();
+#endif
+#if defined(MCS_STM32_HAS_CAN)
+    board.can[0] = &hcan1;
+#elif defined(MCS_STM32_HAS_FDCAN)
+    board.fdcan[0] = &hfdcan1;
+#endif
     uint32_t tclk = apb1_timer_clock();
     static const uint32_t ch[4] = { TIM_CHANNEL_1, TIM_CHANNEL_2, TIM_CHANNEL_3, TIM_CHANNEL_4 };
     for (int i = 0; i < 4; i++) board.pwm[i] = (mcs_stm32_pwm_t){ &htim3, ch[i], tclk };   /* PWM / Servo 0..3 */

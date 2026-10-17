@@ -1,0 +1,11 @@
+can True configure=True mcp=True
+config 250000 tx=-1 rx=-1 mode=2
+standard 7FF [3] 01 02 03 copy=True
+remote 1FFFFFFF [8] RTR ext=True data=0 dlc=8
+empty True
+callbacks 2
+closed
+listen-only
+negative timeout
+bad id
+long payload

@@ -62,6 +62,8 @@ static mcs_value_t enter(mcs_vm_t* vm, int mode, uint32_t ms) {
     for (int i = 0; i < MCS_HAL_MAX_DMA; i++)
         if (s->dma[i].kind != MCS__DMA_FREE)
             return mcs__hal_fail(vm, "Power: active DMA", MCS_HAL_EBUSY);
+    for (int i = 0; i < MCS_HAL_MAX_BUSES; i++)
+        if (s->can[i].backend) return mcs__hal_fail(vm, "Power: close CAN before hardware sleep", MCS_HAL_EBUSY);
     RC("Power", h->power_validate(h->ctx, mode, ms, s->wake_pin, s->wake_high));
     if (mcs_safepoint(vm)) return mcs_null();
     RC("Power", h->power_enter(h->ctx, mode, ms, s->wake_pin, s->wake_high));

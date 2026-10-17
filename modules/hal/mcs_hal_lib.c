@@ -314,6 +314,14 @@ int mcs_hal_poll(mcs_vm_t* vm) {
     const mcs_hal_t* h = s->hal;
     int ran = 0, err = 0;
     mcs_hal_event_t ev;
+    /* CAN receive is polled once per subscribed bus, on every port. One-frame
+     * lookahead leaves backpressure in the SDK/controller, with no heap growth. */
+    for (int bus = 0; bus < MCS_HAL_MAX_BUSES; bus++) {
+        int r = mcs__can_event(vm, bus, &ev);
+        if (r > 0) r = dispatch(vm, s, &ev);
+        if (r > 0) ran++;
+        else if (r < 0) { err = r; break; }
+    }
     /* events held back while a callback waited for a DMA transfer go first */
     mcs_hal_event_t held[MCS__DEFER];
     int nh = s->ndefer;
@@ -321,9 +329,10 @@ int mcs_hal_poll(mcs_vm_t* vm) {
     s->ndefer = 0;
     /* bounded: events posted by the callbacks themselves wait for the next poll */
     bool driver_empty = h->poll_event == NULL;
-    for (int budget = MCS_HAL_EVENT_QUEUE * 2 + nh, i = 0; budget > 0; budget--) {
+    for (int budget = MCS_HAL_EVENT_QUEUE * 2 + nh, i = 0; !err && budget > 0; budget--) {
         if (i < nh) ev = held[i++];
         else if (!next_event(h, &driver_empty, &ev)) break;
+        if (ev.type == MCS_HAL_EV_CAN) continue; /* legacy ISR hints: handled above */
         int r = dispatch(vm, s, &ev);
         if (r > 0) ran++;
         else if (r < 0) {
@@ -1316,82 +1325,16 @@ static const mcs_reg_t qspi_fns[] = {
     MCS_FN("Write", qspi_write, -1), MCS_FN("Transfer", qspi_transfer, 9), MCS_REG_END
 };
 
-/* ------------------------------------------------------------- CAN */
-typedef struct { mcs_can_frame_t f; } canframe_t;
-static const mcs_class_def_t canframe_def;
-static bool frame_from(mcs_vm_t* vm, mcs_can_frame_t* f, mcs_value_t id, mcs_value_t data, bool ext) {
-    memset(f, 0, sizeof *f);
-    mcs_int_t i = mcs_to_int(vm, id);
-    if (mcs_has_exception(vm)) return false;
-    if (i < 0 || (uint32_t)i > (ext ? 0x1FFFFFFFu : 0x7FFu)) { range_fail(vm, "CAN identifier"); return false; }
-    uint8_t buf[MCS_HAL_MAX_XFER]; size_t n;
-    if (!to_bytes(vm, data, buf, &n)) return false;
-    if (n > 8) { range_fail(vm, "CAN payload (max 8 bytes)"); return false; }
-    f->id = (uint32_t)i; f->extended = ext; f->len = (uint8_t)n;
-    memcpy(f->data, buf, n);
-    return true;
+/* CAN lives in mcs_hal_can.c; callbacks share this library's pinned list. */
+mcs_value_t mcs__can_onreceive(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
+    (void)self; (void)argc;
+    mcs_int_t bus = mcs_to_int(vm, argv[0]);
+    if (mcs_has_exception(vm)) return mcs_null();
+    if (bus < 0 || bus >= MCS_HAL_MAX_BUSES) return range_fail(vm, "CAN bus");
+    mcs_value_t r = set_callback(vm, CB_CAN, (int)bus, argv[1]);
+    if (!mcs_has_exception(vm)) mcs__can_subscribe(vm, (int)bus, !mcs_is_null(argv[1]));
+    return r;
 }
-static void canframe_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
-    canframe_t* c = (canframe_t*)mcs_userdata(self);
-    if (argc < 2 || argc > 3) { mcs_raise(vm, "ArgumentException", "CanFrame(id, data[, extended]) expected"); return; }
-    frame_from(vm, &c->f, argv[0], argv[1], argc > 2 && mcs_truthy(argv[2]));
-}
-#define CF() canframe_t* c = (canframe_t*)mcs_check_userdata(vm, self, &canframe_def); if (!c) return mcs_null()
-NATIVE(cf_id) { CF(); return mcs_int((mcs_int_t)c->f.id); }
-NATIVE(cf_ext) { CF(); return mcs_bool(c->f.extended); }
-NATIVE(cf_rtr) { CF(); return mcs_bool(c->f.rtr); }
-NATIVE(cf_len) { CF(); return mcs_int(c->f.len); }
-NATIVE(cf_data) { CF(); return bytes_val(vm, c->f.data, c->f.len); }
-NATIVE(cf_tostring) {
-    CF();
-    char s[48]; int k = snprintf(s, sizeof s, c->f.extended ? "%08X [%u]" : "%03X [%u]", (unsigned)c->f.id, (unsigned)c->f.len);
-    for (int i = 0; i < c->f.len && k < (int)sizeof s - 4; i++) k += snprintf(s + k, sizeof s - (size_t)k, " %02X", c->f.data[i]);
-    return mcs_string(vm, s);
-}
-static const mcs_reg_t canframe_members[] = {
-    MCS_GET("Id", cf_id), MCS_GET("Extended", cf_ext), MCS_GET("Remote", cf_rtr), MCS_GET("Length", cf_len),
-    MCS_GET("Data", cf_data), MCS_FN("ToString", cf_tostring, 0), MCS_REG_END
-};
-static const mcs_class_def_t canframe_def = { "CanFrame", sizeof(canframe_t), canframe_ctor, NULL, canframe_members, NULL };
-
-NATIVE(can_open) {
-    INT_ARG(0, bus); OPT_INT(1, rate, 500000);
-    if (rate <= 0) return range_fail(vm, "bit rate");
-    if (HAL()->can_open) RC("CAN.Open", HAL()->can_open(CTX(), bus, (uint32_t)rate));
-    return mcs_null();
-}
-NATIVE(can_send) {       /* (bus, frame) or (bus, id, data[, extended]) */
-    INT_ARG(0, bus);
-    mcs_can_frame_t f;
-    if (argc == 2) {
-        canframe_t* c = (canframe_t*)mcs_check_userdata(vm, argv[1], &canframe_def);
-        if (!c) return mcs_null();
-        f = c->f;
-    } else if (argc == 3 || argc == 4) {
-        if (!frame_from(vm, &f, argv[1], argv[2], argc > 3 && mcs_truthy(argv[3]))) return mcs_null();
-    } else { mcs_raise(vm, "ArgumentException", "CAN.Send(bus, frame) or CAN.Send(bus, id, data[, extended])"); return mcs_null(); }
-    RC("CAN.Send", HAL()->can_send(CTX(), bus, &f, 100));
-    return mcs_null();
-}
-NATIVE(can_recv) {       /* (bus[, timeoutMs]) -> CanFrame or null */
-    INT_ARG(0, bus); OPT_INT(1, timeout, 0);
-    NEED(can_recv, "CAN.Receive");
-    mcs_can_frame_t f;
-    int rc = HAL()->can_recv(CTX(), bus, &f, (uint32_t)timeout);
-    if (rc == MCS_HAL_ETIMEOUT) return mcs_null();
-    if (rc < 0) return hal_fail(vm, "CAN.Receive", rc);
-    mcs_value_t obj, args[2] = { mcs_int(0), mcs_null() };
-    if (mcs_new_object(vm, "CanFrame", 2, args, &obj) != MCS_OK) return mcs_null();
-    canframe_t* c = (canframe_t*)mcs_userdata(obj);
-    if (f.len > 8) f.len = 8;
-    c->f = f;
-    return obj;
-}
-NATIVE(can_onreceive) { INT_ARG(0, bus); return set_callback(vm, CB_CAN, bus, argv[1]); }
-static const mcs_reg_t can_fns[] = {
-    MCS_FN("Open", can_open, -1), MCS_FN("Send", can_send, -1), MCS_FN("Receive", can_recv, -1),
-    MCS_FN("OnReceive", can_onreceive, 2), MCS_REG_END
-};
 
 /* ------------------------------------------------------------- Watchdog / RTC */
 NATIVE(wdt_start) {
@@ -1491,6 +1434,7 @@ const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm) {
 void mcs_hal_close_lib(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s) return;
+    mcs__can_close_all(vm);
     mcs__dma_close(vm);                           /* stop / finish transfers still in flight */
     mcs_set_ext(vm, MCS_EXT_HAL, NULL);
     mcs_set_idle(vm, NULL, NULL);
@@ -1544,6 +1488,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         }
         mcs_set_ext(vm, MCS_EXT_HAL, s);
     }
+    if (s->hal) mcs__can_close_all(vm);
     s->hal = h;
     s->wake_pin = -1;
     s->wake_high = 0;
@@ -1576,7 +1521,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         mcs_register_consts(vm, "I2S", i2s_consts);
     }
     if (h && (h->qspi_command != NULL)) mcs_register_module(vm, "QSPI", qspi_fns);
-    if (h && (h->can_send != NULL)) { mcs_register_module(vm, "CAN", can_fns); mcs_register_class(vm, &canframe_def); }
+    mcs__can_open(vm);
     if (h && (h->wdt_start != NULL)) mcs_register_module(vm, "Watchdog", wdt_fns);
     if (h && (h->rtc_get != NULL)) mcs_register_module(vm, "RTC", rtc_fns);
     mcs__cfg_open(vm, h);                         /* GpioConfig, SpiConfig ... + Hal.Options */

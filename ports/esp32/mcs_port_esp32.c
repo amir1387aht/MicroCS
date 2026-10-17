@@ -1122,58 +1122,10 @@ static int e_i2s_read(void* ctx, int bus, uint8_t* buf, size_t n, uint32_t timeo
 }
 #endif
 
-/* ------------------------------------------------------------------ CAN (TWAI) */
-#if SOC_TWAI_SUPPORTED && !SOC_TWAI_SUPPORT_FD
-static bool g_twai;
-static int e_can_open(void* ctx, int bus, uint32_t bitrate) {
-    (void)ctx;
-    if (bus != 0 || g_cfg.can.tx < 0) return MCS_HAL_ENOTSUP;
-    if (g_twai) { twai_stop(); twai_driver_uninstall(); g_twai = false; }
-    twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT((gpio_num_t)g_cfg.can.tx, (gpio_num_t)g_cfg.can.rx, TWAI_MODE_NORMAL);
-    twai_filter_config_t f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    twai_timing_config_t t;
-    switch (bitrate) {
-    case 25000:   { twai_timing_config_t x = TWAI_TIMING_CONFIG_25KBITS(); t = x; break; }
-    case 50000:   { twai_timing_config_t x = TWAI_TIMING_CONFIG_50KBITS(); t = x; break; }
-    case 100000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_100KBITS(); t = x; break; }
-    case 125000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_125KBITS(); t = x; break; }
-    case 250000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_250KBITS(); t = x; break; }
-    case 500000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_500KBITS(); t = x; break; }
-    case 800000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_800KBITS(); t = x; break; }
-    case 1000000: { twai_timing_config_t x = TWAI_TIMING_CONFIG_1MBITS(); t = x; break; }
-    default: return MCS_HAL_ENOTSUP;
-    }
-    esp_err_t e = twai_driver_install(&g, &t, &f);
-    if (e == ESP_OK) e = twai_start();
-    g_twai = e == ESP_OK;
-    return esp_rc(e);
-}
-static int e_can_send(void* ctx, int bus, const mcs_can_frame_t* fr, uint32_t timeout_ms) {
-    (void)ctx;
-    if (bus != 0 || !g_twai) return MCS_HAL_ENOTSUP;
-    twai_message_t m;
-    memset(&m, 0, sizeof m);
-    m.identifier = fr->id;
-    m.extd = fr->extended ? 1 : 0;
-    m.rtr = fr->rtr ? 1 : 0;
-    m.data_length_code = fr->len > 8 ? 8 : fr->len;
-    memcpy(m.data, fr->data, m.data_length_code);
-    return esp_rc(twai_transmit(&m, ms_ticks(timeout_ms)));
-}
-static int e_can_recv(void* ctx, int bus, mcs_can_frame_t* fr, uint32_t timeout_ms) {
-    (void)ctx;
-    if (bus != 0 || !g_twai) return MCS_HAL_ENOTSUP;
-    twai_message_t m;
-    esp_err_t e = twai_receive(&m, ms_ticks(timeout_ms));
-    if (e != ESP_OK) return esp_rc(e);
-    fr->id = m.identifier;
-    fr->extended = m.extd;
-    fr->rtr = m.rtr;
-    fr->len = m.data_length_code > 8 ? 8 : m.data_length_code;
-    memcpy(fr->data, m.data, fr->len);
-    return 0;
-}
-#endif
+/* Native CAN is shared with Arduino-ESP32 (legacy TWAI + IDF 5.5 FD nodes). */
+#define MCS_CAN_TX_DEFAULT g_cfg.can.tx
+#define MCS_CAN_RX_DEFAULT g_cfg.can.rx
+#include "mcs_esp_can.h"
 
 /* ------------------------------------------------------------------ watchdog / RTC / system */
 static int e_wdt_start(void* ctx, uint32_t timeout_ms) {
@@ -1491,10 +1443,12 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->i2s_read = e_i2s_read;
     hal->i2s_close = e_i2s_close;
 #endif
-#if SOC_TWAI_SUPPORTED && !SOC_TWAI_SUPPORT_FD
-    hal->can_open = e_can_open;
-    hal->can_send = e_can_send;
-    hal->can_recv = e_can_recv;
+#if SOC_TWAI_SUPPORTED
+    hal->can_open = esp_can_open;
+    hal->can_configure = esp_can_configure;
+    hal->can_close = esp_can_close;
+    hal->can_send = esp_can_send;
+    hal->can_recv = esp_can_recv;
 #endif
     hal->wdt_start = e_wdt_start;
     hal->wdt_feed = e_wdt_feed;

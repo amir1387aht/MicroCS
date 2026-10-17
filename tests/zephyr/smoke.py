@@ -122,6 +122,14 @@ try:
     time.sleep(0.5)
     st, out = b.cmd("info")
     check("CAN.OnReceive callback ran", "can 291 len 3" in out, out)
+    st, out = b.cmd("exec CAN.Close(0); CAN.Close(0); CAN.Open(0, new CanConfig { Bitrate = 250000, Mode = CAN.Loopback });")
+    check("CAN configuration and idempotent close", st == "OK", (st, out))
+    st, out = b.cmd("exec CAN.Send(0, new CanFrame(0x18FF50E5, new byte[8], true, true)); Thread.Sleep(20);")
+    check("CAN extended RTR send", st == "OK", (st, out))
+    st, out = b.cmd("exec var r = CAN.Receive(0, 100); Console.WriteLine(r != null && r.Remote && r.Extended && r.Id == 0x18FF50E5 && r.Length == 8 && r.Data.Length == 0); CAN.Close(0);")
+    check("CAN extended RTR receive", st == "OK" and "True" in out, (st, out))
+    st, out = b.cmd("exec CAN.Open(0); CAN.Close(0); CAN.Open(0); CAN.Send(0, 1, new byte[0]); Thread.Sleep(20); Console.WriteLine(CAN.Receive(0, 100).Length); CAN.Close(0);")
+    check("CAN reused after close", st == "OK" and out.strip() == "0", (st, out))
     if THREADS:                                       # CONFIG_MICROCS_THREADS=y
         lib = b'int Sq(int x) { return x * x; }\n'
         b.send(f"put /sq.cs {len(lib)}\n")

@@ -33,7 +33,7 @@ typedef struct {
     uint8_t kind;
     union {
         mcs_gpio_config_t gpio; mcs_uart_config_t uart; mcs_i2c_config_t i2c; mcs_spi_config_t spi;
-        mcs_qspi_config_t qspi; mcs_pwm_config_t pwm; mcs_adc_config_t adc;
+        mcs_qspi_config_t qspi; mcs_pwm_config_t pwm; mcs_adc_config_t adc; mcs_can_config_t can;
     } u;
 } cfg_obj_t;
 
@@ -121,6 +121,13 @@ typedef struct {
     X(adc, 2, "Oversample", mcs_adc_config_t, oversample, T_U8, 0, 255, 0) \
     X(adc, 3, "SampleTime", mcs_adc_config_t, sample_time, T_U16, 0, 65535, 0)
 
+#define CAN_FIELDS(X) \
+    X(can, 0, "Bitrate", mcs_can_config_t, bitrate, T_U32, 1, 1000000, 500000) \
+    X(can, 1, "Tx", mcs_can_config_t, tx, T_PIN, -1, 32767, -1) \
+    X(can, 2, "Rx", mcs_can_config_t, rx, T_PIN, -1, 32767, -1) \
+    X(can, 3, "Mode", mcs_can_config_t, mode, T_U8, 0, MCS_CAN_LOOPBACK, 0)
+static const fld_t can_f[] = { CAN_FIELDS(X_FLD) };
+static const uint8_t can_c[] = { 0, 1, 2, 0xFF };
 static const fld_t gpio_f[] = { GPIO_FIELDS(X_FLD) };
 static const fld_t uart_f[] = { UART_FIELDS(X_FLD) };
 static const fld_t i2c_f[] = { I2C_FIELDS(X_FLD) };
@@ -140,6 +147,7 @@ static const cfg_cls_t classes[] = {
     { "QspiConfig", "QSPI", MCS__CFG_QSPI, NF(qspi_f), offsetof(mcs_qspi_config_t, opts), qspi_f, qspi_c },
     { "PwmConfig", "PWM", MCS__CFG_PWM, NF(pwm_f), offsetof(mcs_pwm_config_t, opts), pwm_f, pwm_c },
     { "AdcConfig", "ADC", MCS__CFG_ADC, NF(adc_f), offsetof(mcs_adc_config_t, opts), adc_f, adc_c },
+    { "CanConfig", "CAN", MCS__CFG_CAN, NF(can_f), offsetof(mcs_can_config_t, opts), can_f, can_c },
 };
 
 /* ------------------------------------------------------------ field access */
@@ -168,7 +176,7 @@ static void defaults(const cfg_cls_t* c, void* base, size_t size) {
     for (int i = 0; i < c->nf; i++) fput(base, &c->f[i], c->f[i].def);
 }
 static const size_t sizes[] = { 0, sizeof(mcs_gpio_config_t), sizeof(mcs_uart_config_t), sizeof(mcs_i2c_config_t),
-                                sizeof(mcs_spi_config_t), sizeof(mcs_qspi_config_t), sizeof(mcs_pwm_config_t), sizeof(mcs_adc_config_t) };
+                                sizeof(mcs_spi_config_t), sizeof(mcs_qspi_config_t), sizeof(mcs_pwm_config_t), sizeof(mcs_adc_config_t), sizeof(mcs_can_config_t) };
 
 void mcs_gpio_config_init(mcs_gpio_config_t* c, int mode) { defaults(&classes[MCS__CFG_GPIO], c, sizeof *c); c->mode = (uint8_t)mode; }
 void mcs_uart_config_init(mcs_uart_config_t* c, uint32_t baud) { defaults(&classes[MCS__CFG_UART], c, sizeof *c); if (baud) c->frame.baud = baud; }
@@ -177,6 +185,8 @@ void mcs_spi_config_init(mcs_spi_config_t* c, uint32_t f, int mode) { defaults(&
 void mcs_qspi_config_init(mcs_qspi_config_t* c, uint32_t f) { defaults(&classes[MCS__CFG_QSPI], c, sizeof *c); if (f) c->freq_hz = f; }
 void mcs_pwm_config_init(mcs_pwm_config_t* c, uint32_t f) { defaults(&classes[MCS__CFG_PWM], c, sizeof *c); c->freq_hz = f; }
 void mcs_adc_config_init(mcs_adc_config_t* c) { defaults(&classes[MCS__CFG_ADC], c, sizeof *c); }
+
+void mcs_can_config_init(mcs_can_config_t* c, uint32_t rate) { defaults(&classes[MCS__CFG_CAN], c, sizeof *c); if (rate) c->bitrate = rate; }
 
 static int ieq(const char* a, const char* b) {
     for (; *a && *b; a++, b++) {
@@ -195,7 +205,7 @@ int32_t mcs_hal_opt(const mcs_hal_option_t* t, const mcs_hal_opts_t* o, const ch
 }
 
 const char* mcs__cfg_nondefault(const void* cfg, int kind, const char* const* allowed) {
-    if (kind < 1 || kind > MCS__CFG_ADC) return NULL;
+    if (kind < 1 || kind > MCS__CFG_CAN) return NULL;
     const cfg_cls_t* c = &classes[kind];
     for (int i = 0; i < c->nf; i++) {
         if (fget(cfg, &c->f[i]) == c->f[i].def) continue;
@@ -208,15 +218,15 @@ const char* mcs__cfg_nondefault(const void* cfg, int kind, const char* const* al
 }
 
 /* ------------------------------------------------------------ C# objects */
-static const mcs_class_def_t* defs[8];
+static const mcs_class_def_t* defs[9];
 void* mcs__cfg_get(mcs_value_t v, int kind) {
-    if (kind < 1 || kind > MCS__CFG_ADC || !defs[kind]) return NULL;
+    if (kind < 1 || kind > MCS__CFG_CAN || !defs[kind]) return NULL;
     cfg_obj_t* o = (cfg_obj_t*)mcs_userdata_of(v, defs[kind]);
     return o ? (void*)&o->u : NULL;
 }
 static cfg_obj_t* obj_of(mcs_value_t self) {
     cfg_obj_t* o = (cfg_obj_t*)mcs_userdata(self);
-    return o && o->kind >= 1 && o->kind <= MCS__CFG_ADC ? o : NULL;
+    return o && o->kind >= 1 && o->kind <= MCS__CFG_CAN ? o : NULL;
 }
 static mcs_value_t value_of(const fld_t* f, int32_t v) {
     if (f->type == T_TRI) return v == MCS_ON ? mcs_bool(true) : v == MCS_OFF ? mcs_bool(false) : mcs_null();
@@ -377,6 +387,7 @@ CLASS(spi, MCS__CFG_SPI, "SpiConfig", SPI_FIELDS)
 CLASS(qspi, MCS__CFG_QSPI, "QspiConfig", QSPI_FIELDS)
 CLASS(pwm, MCS__CFG_PWM, "PwmConfig", PWM_FIELDS)
 CLASS(adc, MCS__CFG_ADC, "AdcConfig", ADC_FIELDS)
+CLASS(can, MCS__CFG_CAN, "CanConfig", CAN_FIELDS)
 
 /* Hal.Options([peripheral]): this board's extra settings, "SPI.queue_size (1..16): queued transactions" */
 NATIVE(hal_options) {
@@ -418,12 +429,13 @@ static bool hal_has(const mcs_hal_t* h, int kind) {
     case MCS__CFG_QSPI: return h->qspi_command != NULL;
     case MCS__CFG_PWM: return h->pwm_set != NULL || h->pwm_set16 != NULL;
     case MCS__CFG_ADC: return h->adc_read != NULL;
+    case MCS__CFG_CAN: return h->can_send != NULL;
     default: return false;
     }
 }
 void mcs__cfg_open(mcs_vm_t* vm, const mcs_hal_t* h) {
-    static const mcs_class_def_t* const all[8] = { NULL, &gpio_def, &uart_def, &i2c_def, &spi_def, &qspi_def, &pwm_def, &adc_def };
-    for (int k = 1; k <= MCS__CFG_ADC; k++) {
+    static const mcs_class_def_t* const all[9] = { NULL, &gpio_def, &uart_def, &i2c_def, &spi_def, &qspi_def, &pwm_def, &adc_def, &can_def };
+    for (int k = 1; k <= MCS__CFG_CAN; k++) {
         defs[k] = all[k];
         if (hal_has(h, k)) mcs_register_class(vm, all[k]);
     }
