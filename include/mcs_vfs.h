@@ -119,6 +119,10 @@ const char* mcs_vfs_strerror(int err);
 
 /* Run a script (source or .mcsb image) from the VFS. Honours MCS_VFS_NOEXEC. */
 mcs_result_t mcs_exec_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path);
+#if MCS_ENABLE_COMPILER
+/* Compile a source file without running it. */
+mcs_result_t mcs_check_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path);
+#endif
 
 /* C# System.IO subset: File, Directory, Path, DriveInfo. Stores `vfs` in MCS_EXT_VFS. */
 void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs);

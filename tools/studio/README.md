@@ -24,6 +24,7 @@ the editor works there, but it can't connect to a board.
 | `snippets.js` | completion snippets (`label`, `detail`, `text` with `$0` for the caret) |
 | `api.js` | class and member names known to the runtime (completion fallback) |
 | `docs.js` | signatures and one-line docs of every library member (completion details, parameter info, hover) |
+| `format.js` | offline, whitespace-only C# formatter; protects literals and comments |
 | `lang.js` | C# language service: symbols of the open file, type inference, call context |
 
 No build step for the app: edit a file and reload the page. After changing a template run
@@ -39,7 +40,68 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | Shift+Alt+F | format document |
 | Alt+↑/↓ · Shift+Alt+↑/↓ · Ctrl+D · Ctrl+Shift+K | move line · copy line · duplicate · delete line |
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
-| F5 / Ctrl+Enter · Ctrl+Shift+Enter · Ctrl+S | save and run · run the selection · save |
+| F5 | save/build, then run the active file or the Project jobs |
+| Ctrl+Enter · Ctrl+Shift+Enter | save/build and run the active file · run the selection |
+| Ctrl+S | save/upload and compile-check (no execution) |
+
+## Formatting and save/build defaults
+
+The ⋯ menu has three independent options, **on by default**:
+
+* **Automatic formatting while typing**: indent/space the current C# line after `;` or `}`;
+  paste formats indentation/spacing. IME composition and read-only/non-C# files are excluded.
+* **Format C# on save**: format the whole document, including Allman-style braces.
+  `Shift+Alt+F` formats explicitly. This is a conservative formatter, not Roslyn: it leaves
+  ambiguous operators/generic brackets alone and preserves strings and comments byte-for-byte.
+  Documents with multiline literals/comments retain their line structure.
+* **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file upload every
+  editable open C# tab, even unchanged ones, plus the explicitly saved file. New/local tabs
+  ask for a device path; duplicate open paths are rejected. Compile-only checks never execute
+  scripts. A cancelled/failed upload or compilation prevents the requested run.
+
+Compile checks require firmware with the `check` command. For older firmware, update it or
+turn off the all-C# option for legacy single-file saves/runs. Offline local saves download
+only the selected file. Selection-run is an explicit exception: it executes just the selection.
+
+Parameter info closes on outside pointer clicks, Escape, its × button, focus loss and moving
+out of the call; it should not block other controls.
+
+## Project mode
+
+1. Create a device folder (or use `/`), with C# scripts and a `jobs.cfg` file. Use the existing
+   boot/jobs templates or create a text file. For a project at `/demo`, for example:
+
+   ```text
+   startup /demo/init.cs
+   every 1s /demo/blink.cs restart=always
+   ```
+
+2. Click **Project…** and choose `/demo`. The toolbar mode changes to Project; the choice
+   and folder are remembered in this browser.
+3. **F5 / Run project** saves all open project C# tabs and an open project `jobs.cfg`, then
+   recursively compile-checks the device folder's `.cs` files, including closed files.
+   New/local C# tabs must be saved inside the project folder. Other device projects are left
+   alone. Hidden subfolders and `.studio` temporary scripts are excluded from discovery
+   (limits: 128 folders, 512 scripts).
+4. Firmware reads the required `jobs.cfg`, validates its syntax and each configured source,
+   then replaces all existing jobs with exactly those entries. It does **not** run the active
+   editor tab implicitly. Empty configs, relative paths and non-`.cs` job paths are rejected.
+   `startup /main.cs` runs once here; the boot-only duplicate-main exclusion does not apply.
+
+**Ctrl+S** in Project mode saves/builds without launching/reloading jobs. **Run file / Ctrl+Enter**
+remains an explicit single-file action, even in Project mode; it uses the normal open-C# save
+option and retains existing file jobs. Switch the toolbar back to File for single-file F5.
+The Stop button cancels all jobs after a project launch; ⋯ → Stop all jobs is also available.
+
+Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
+individual scripts, not a linked multi-file assembly or persistent `.mcsb` output. There is no
+implicit cross-file initialization: list required startup jobs in `jobs.cfg`. Runtime errors
+and actual device-resource availability are still determined at execution time.
+
+Each file upload is atomic, **not the entire project**. Failed checks retain the previous job
+configuration, not previous file contents; old file jobs may observe uploaded changes before
+launch succeeds. Stop all jobs first when updating a live application. Uploading a nested
+`jobs.cfg` does not change boot's `/jobs.cfg`; configure boot separately if persistence is wanted.
 
 ## Document an API
 
@@ -73,7 +135,7 @@ automatically. If a board needs the lines low, enable ⋯ → *Release DTR/RTS o
 ## Jobs
 
 `Scheduler.Every` / `Scheduler.After` jobs keep running after their script returns (and after
-its file is deleted). So that re-running a script does not stack copies, *Run* first sends
+its file is deleted). So that re-running a script does not stack copies, *Run file* first sends
 `cancel scripts` (⋯ → *Stop script jobs before each Run*, on by default); `jobs.cfg` jobs are
 left alone. ⋯ → *Show running jobs* lists them, ⋯ → *Stop all jobs* cancels every job until
 the next reset.

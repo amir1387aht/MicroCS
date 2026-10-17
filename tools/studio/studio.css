@@ -378,3 +378,11 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
   .gallery .gf input { flex: 1; width: 160px; }
   .gallery .gf .spacer { display: none; }
 }
+
+/* Project controls stay reachable on compact windows; popups always have a close affordance. */
+.toolbar { flex-wrap: wrap; justify-content: flex-end; }
+#runMode { font-size: 11px; max-width: 110px; padding: 3px; }
+.sig-close { float: right; margin-left: auto; order: 3; border: 0; background: transparent; color: var(--fg2); cursor: pointer; font-size: 18px; }
+.sig-close:hover { color: var(--accent2); }
+.sighelp { max-height: min(300px, 55vh); overflow: auto; }
+@media (max-width: 900px) { .tabs { flex-wrap: wrap; } .toolbar { width: 100%; } }

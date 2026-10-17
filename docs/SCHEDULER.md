@@ -27,6 +27,21 @@ every     1m     /report.cs      restart=3
 after the first failure), `always` (never stop), or `N` consecutive failures. Periodic jobs
 that fall behind run once late, then continue one period later (no burst catch-up).
 
+## Reloading a Studio project
+
+The shell command `project /path/jobs.cfg` (or `mcs_sched_start_project(&s, text)` in C)
+validates a staged configuration and compile-checks every listed file without executing it.
+It requires at least one job, absolute `.cs` paths and a compiler-enabled build. Invalid syntax,
+missing files and compile errors leave the existing job table intact. On success it cancels
+all old jobs, installs exactly the new file jobs, and starts relative delays from the commit
+point; the next scheduler poll runs due entries. The VM must be idle. Unlike the boot loader,
+this explicit launch does not skip `startup /main.cs`.
+
+This replaces jobs, not the filesystem or VM global state, and is not a multi-file linker.
+Source checks cannot guarantee runtime success. Uploads happen before this command, one file
+at a time; stop old jobs before deployment if they must not observe partially updated files.
+See [Studio Project mode](../tools/studio/README.md#project-mode) for editor controls.
+
 ## C# API
 ```csharp
 int id = Scheduler.Every(1000, () => GPIO.Toggle(13));   // optional 3rd arg: maxFailures

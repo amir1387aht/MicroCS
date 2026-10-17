@@ -97,6 +97,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(fs.readFileSync(ROOT + '/hello.cs', 'utf8').endsWith('Console.WriteLine(6 * 7);'), 'saved to device fs');
   check(await page.$('.tab.dirty') === null, 'tab clean after save');
 
+  await page.evaluate(() => store.set('saveAllCs', false));
+
   // REPL again after machine ops
   await page.fill('#cin', 'x + 1'); await page.press('#cin', 'Enter');
   await page.waitForFunction(() => /\n22\n/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
@@ -202,12 +204,13 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#gItems .item b:text-is("Hello world")');
   check((await page.inputValue('#gName')) === 'hello-2.cs', 'a name no open tab uses: ' + await page.inputValue('#gName'));
   await page.keyboard.press('Escape');
-  // saving a new file over one on the device asks first
+  // Saving over an existing unopened device file asks first; open paths are rejected as duplicate tabs.
+  fs.writeFileSync(ROOT + '/replace-target.cs', 'Console.WriteLine(1);');
   await tpl('Files and free space');
   await page.keyboard.press('Control+s');
-  await page.waitForSelector('#dlgIn'); await page.fill('#dlgIn', '/files.cs'); await page.press('#dlgIn', 'Enter');
+  await page.waitForSelector('#dlgIn'); await page.fill('#dlgIn', '/replace-target.cs'); await page.press('#dlgIn', 'Enter');
   await page.waitForFunction(() => /Replace file/.test(document.getElementById('modal').innerText), null, { timeout: 4000 }).catch(() => {});
-  check(/already exists on the device/.test(await page.innerText('#modal')), 'save asks before replacing /files.cs');
+  check(/already exists on the device/.test(await page.innerText('#modal')), 'save asks before replacing /replace-target.cs');
   await page.click('#dlgNo');
   await page.evaluate(() => { const t = App.tab(); t.saved = t.text; t.dirty = false; return App.closeTab(App.active); });
 
@@ -419,7 +422,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.keyboard.press('Escape'); await page.click('#fClose').catch(() => {});
   await page.evaluate(() => { ed.ta.focus(); ed.insert('if (true)\n{\nConsole.WriteLine(1);\n  switch (2) {\ncase 2:\nbreak;\n}\n}', ed.ta.value.length, ed.ta.value.length); });
   await page.keyboard.press('Shift+Alt+F'); await sleep(100);
-  check((await page.inputValue('#ta')).endsWith('if (true)\n{\n    Console.WriteLine(1);\n    switch (2) {\n        case 2:\n            break;\n    }\n}'), 'format document');
+  check((await page.inputValue('#ta')).endsWith('if (true)\n{\n    Console.WriteLine(1);\n    switch (2)\n    {\n        case 2:\n            break;\n    }\n}'), 'format document');
+  await page.evaluate(()=>ed.ta.setSelectionRange(ed.ta.value.length,ed.ta.value.length));
   await page.keyboard.press('Alt+ArrowUp'); await sleep(50);
   check(/\n}\n    }$/.test(await page.inputValue('#ta')), 'Alt+Up moves the line');
   await page.keyboard.press('Control+z'); await sleep(50);

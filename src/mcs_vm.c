@@ -2059,6 +2059,16 @@ mcs_result_t mcs_run_closure(mcs_vm_t* vm, mcs_closure_t* cl) {
 }
 
 #if MCS_ENABLE_COMPILER
+mcs_result_t mcs_check_source(mcs_vm_t* vm, const char* name, const char* src) {
+    GUARD_BEGIN(vm);
+    vm->error[0] = 0;
+    if (!vm->run_depth) mcs_collect(vm);
+    mcs_function_t* fn = mcs_compile(vm, name, src);
+    mcs_result_t result = fn ? MCS_OK : MCS_ERR_COMPILE;
+    GUARD_END(vm);
+    return result;
+}
+
 mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_BEGIN(vm);
     vm->error[0] = 0;

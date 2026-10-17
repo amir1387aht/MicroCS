@@ -434,6 +434,23 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     } else if (!strcmp(c, "mv")) {
         if (argc < 3) { err(sh, "usage: mv <from> <to>"); return; }
         if ((e = mcs_vfs_rename(sh->vfs, argv[1], argv[2]))) err(sh, mcs_vfs_strerror(e)); else ok(sh);
+#if MCS_ENABLE_COMPILER
+    } else if (!strcmp(c, "check")) {
+        if (argc != 2) { err(sh, "usage: check <source.cs>"); return; }
+        report(sh, mcs_check_file(sh->vm, sh->vfs, argv[1]));
+#endif
+#if MCS_ENABLE_SCHED
+    } else if (!strcmp(c, "project")) {
+        if (!sh->sched || argc != 2) { err(sh, "usage: project <jobs.cfg> (requires scheduler)"); return; }
+        char* text; size_t len;
+        e = mcs_vfs_read_file(sh->vfs, argv[1], &text, &len);
+        if (e) { err(sh, mcs_vfs_strerror(e)); return; }
+        if (memchr(text, 0, len)) { mcs_vfs_free(sh->vfs, text, len); err(sh, "jobs.cfg contains a NUL byte"); return; }
+        int n = mcs_sched_start_project(sh->sched, text);
+        mcs_vfs_free(sh->vfs, text, len);
+        if (n < 0) err(sh, mcs_last_error(sh->vm));
+        else { outf(sh, "project loaded %d job%s\n", n, n == 1 ? "" : "s"); ok(sh); }
+#endif
     } else if (!strcmp(c, "run")) {
         if (argc < 2) { err(sh, "usage: run <path>"); return; }
         report(sh, run_file(sh, argv[1]));
@@ -497,6 +514,7 @@ static void repl_command(mcs_shell_t* sh, char* line) {
     if (!strcmp(c, "help")) {
         out(sh, "C# statements and expressions run as you type them; expressions are printed.\n"
                 ".ls [dir]  .cat <f>  .run <f>  .rm <f>  .df  .mem  .info  .jobs  .cancel <id>|all  .clear  .exit (machine mode)\n"
+                "check <file.cs>: compile only; project <jobs.cfg>: validate and replace jobs\n"
                 "Jobs started with Scheduler.Every/After keep running after the script ends (and after\n"
                 "its file is deleted) until .cancel, Scheduler.CancelAll() or a reset.\n"
                 "Ctrl-C clears / stops a script, Ctrl-E paste mode (Ctrl-D runs), Ctrl-A machine mode\n");

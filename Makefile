@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -378,6 +378,15 @@ can-test: build/test_can
 	  $(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can && ./build/test_esp_can || exit 1; \
 	  $(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can_cpp && ./build/test_esp_can_cpp || exit 1; done
 .PHONY: can-test
+
+.PHONY: project-test
+build/test_project: tests/c/test_project.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+project-test: build/test_project
+	@for defs in "-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_COMPILER=0" "-DMCS_ENABLE_FS=0 -DMCS_ENABLE_COMPILER=0"; do \
+	  $(CC) $(CFLAGS) -Werror $$defs -c modules/sched/mcs_sched.c -o build/project_flags.o || exit 1; done
+	./build/test_project
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
