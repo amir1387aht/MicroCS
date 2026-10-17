@@ -132,7 +132,7 @@ mcs_esp32_hal_init(&hal, &pins);
 | `LedStrip` | `ws2812` driver (menuconfig → MicroCS → *WS2812 / NeoPixel driver*): RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
 | `Timer` | `gptimer` |
 | `I2S` | `i2s_std` |
-| `CAN` | Legacy TWAI (not CAN-FD-only chips such as C5; the new TWAI driver is not wrapped yet) |
+| `CAN` | Classic CAN through legacy TWAI or IDF 5.5+ TWAI nodes (including C5); native pins/modes in `CanConfig`, or external MCP2515 over SPI ([setup](../../docs/CAN.md)) |
 | `Watchdog` | task watchdog |
 | `RTC` | `gettimeofday` / `settimeofday` |
 | `Hal.UniqueId` | eFuse MAC |

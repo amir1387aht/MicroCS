@@ -203,3 +203,11 @@ the ESP-IDF example for ESP32, S3, C3 and C6 (`.github/workflows/ci.yml`).
 HAL API v4 appends optional power-mode masks and validation/entry callbacks. See
 [the power port contract](POWER.md#implementing-a-port-hal-api-v4); unsupported ports
 leave them zero. Rebuild applications against the new header (no binary ABI promise).
+
+## Classic CAN (HAL API v5)
+
+Native controllers can provide `can_configure` and `can_close` in addition to
+`can_send` / `can_recv`; older `can_open` remains supported for simple settings.
+The library polls receive subscriptions and slices waits into nonblocking SDK
+calls. SPI/GPIO ports can instead use the portable MCP2515 driver without a native
+CAN peripheral. See [CAN port contract and setup](CAN.md#firmware-integration-and-validation).

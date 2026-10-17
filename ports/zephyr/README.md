@@ -79,7 +79,7 @@ cfg.fs_ops = &mcs_zephyr_fs_ops; cfg.fs_ctx = &sd;  // mcs_runtime_cfg_t
 | `LedStrip` | `ws2812` driver (`CONFIG_MICROCS_WS2812`, default y): `led_strip` device at alias `led-strip` (`CONFIG_LED_STRIP=y`, `chain-length`); the pin argument is ignored |
 | `DAC` | alias `mcs-dac` |
 | `I2S.Open(n)` | alias `mcs-i2sN` (fallback: `i2s0`) — memory-slab streaming, `CONFIG_I2S=y` |
-| `CAN.Open(n)` | alias `mcs-canN` (bus 0 falls back to chosen `zephyr,canbus`) |
+| `CAN.Open(n)` | Classic CAN via alias `mcs-canN` (bus 0 falls back to chosen `zephyr,canbus`), `CONFIG_CAN=y`; [MCP2515 and configuration](../../docs/CAN.md) |
 | `Watchdog` | alias `watchdog0` (fallback: `wdt0`, `wdt`, `iwdg`) |
 | `RTC` | alias `rtc` with `CONFIG_RTC=y`, else a software clock |
 | `Hal.UniqueId` / `Hal.Reset` | `hwinfo` / `sys_reboot` |

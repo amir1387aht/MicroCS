@@ -994,7 +994,7 @@ Open(int bus, QspiConfig cfg): void | Opens with pins, mode, DDR, flash size
 ReadAsync(int bus, int instr, int address, DmaBuffer rx): DmaTransfer | Background read (address -1 = none)
 WriteAsync(int bus, int instr, int address, object data): DmaTransfer | Background write
 
-@CAN | CAN bus / TWAI (modules/hal)
+@CAN | Classic CAN / TWAI or external MCP2515 (modules/hal)
 Open(int bus): void | 500 kbit/s
 Open(int bus, int bitrate): void | Bit rate (125000, 250000, 500000, 1000000)
 Send(int bus, int id, byte[] data): void | Standard 11-bit frame
@@ -1002,14 +1002,32 @@ Send(int bus, int id, byte[] data, bool extended): void | 29-bit id when extende
 Send(int bus, CanFrame frame): void | Sends a frame
 Receive(int bus): CanFrame | Next frame or null
 Receive(int bus, int timeoutMs): CanFrame | Waits up to timeoutMs
-OnReceive(int bus, Action<int> handler): void | Callback(pending) when frames arrive
+OnReceive(int bus, Action<int> handler): void | VM callback; pending is a lower bound, drain Receive until null; null unsubscribes
+Open(int bus, CanConfig cfg): void | Native bitrate, pins and Normal / ListenOnly / Loopback mode
+OpenMcp2515(int bus, int spiBus, int csPin): void | External SPI CAN, 16 MHz crystal and 500 kbit/s defaults
+OpenMcp2515(int bus, int spiBus, int csPin, int oscillatorHz, int bitrate, int mode): void | 8/16/20 MHz crystal; configure SPI pins first; requires controller plus transceiver
+Close(int bus): void | Stops controller, discards lookahead, unsubscribes callback; idempotent
+Send(int bus, CanFrame frame, int timeoutMs): void | Cooperative queue-space timeout, not a delivery acknowledgment
+Send(int bus, int id, byte[] data, bool extended, int timeoutMs): void | Explicit queue timeout; zero is nonblocking
+.Normal: int | Normal active CAN
+.ListenOnly: int | Receive without sending or acknowledging
+.Loopback: int | Test mode; legacy TWAI still requires TX-to-RX wiring
+
+@CanConfig | Native classic CAN settings (HAL v5)
+new() | 500000 bit/s, board-default pins, normal mode
+new(int bitrate) | Nominal bitrate
+.Bitrate: int | 1..1000000; must be supported by the backend clock
+.Tx: int | ESP32 TX pin, -1 is board default; STM32/Zephyr use firmware wiring
+.Rx: int | ESP32 RX pin, -1 is board default
+.Mode: int | CAN.Normal, CAN.ListenOnly or CAN.Loopback
 
 @CanFrame | A CAN frame
 new(int id, byte[] data) | Standard frame
 new(int id, byte[] data, bool extended) | Extended (29-bit) when true
+new(int id, byte[] data, bool extended, bool remote) | RTR uses array length as requested DLC (0..8), ignores content
 .Id: int | Identifier
 .Extended: bool | 29-bit id
-.Remote: bool | Remote request
+.Remote: bool | Remote request; Data is empty, Length preserves requested DLC
 .Length: int | Data length
 .Data: byte[] | Payload
 

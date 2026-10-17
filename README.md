@@ -554,6 +554,7 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
+| Classic CAN | ✅ native TWAI / STM32 / Zephyr; external MCP2515 over SPI on other MCUs ([setup](docs/CAN.md)); no CAN FD payloads | port-specific | target-specific |
 | DMA / background transfers | ✅ `DmaBuffer`, `SPI.WriteAsync` … | port-specific | — |
 | Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
 | Wi-Fi / networking | ✅ ESP32 family + Pico W / Pico 2 W; [features vary by port](docs/NETWORK.md) (ESP-NOW and TLS are not available on every backend) | ✅ | ✅ |
@@ -659,6 +660,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | ESP32 port | ✅ | CI: ESP-IDF build matrix for ESP32-family targets, including Wi-Fi and BLE configurations where the chip supports them |
 | Wi-Fi & networking (ESP32 family, Pico W / Pico 2 W, host sockets) | 🧪 | `t24_net` (simulated radio and loopback sockets), `tests/test_net.py` (HTTP against a local server), Studio templates, ESP-IDF and CYW43/lwIP firmware builds; [per-port capabilities](docs/NETWORK.md) — reports from real boards welcome |
 | Bluetooth LE (ESP32, Pico W / Pico 2 W, Zephyr, ArduinoBLE) | 🧪 | `make ble-test`: simulated advertising, scanning, GATT client/server and security tests; CI builds NimBLE, BTstack, Zephyr and ArduinoBLE integrations; [roles and options vary by backend](docs/BLE.md) |
+| Classic CAN (native + external MCP2515) | 🧪 | `make can-test`: API, timing, SPI/register model; [port setup and physical-test caveats](docs/CAN.md) |
 | Power management (sleep, wake pins, deep sleep / shutdown) | 🧪 | `make power-test`: policy and SDK API tests; [supported modes and wake sources vary by port](docs/POWER.md); physical wake and current-consumption testing still required |
 | Zephyr / Arduino ports | ✅ / 🧪 | CI: Zephyr 4.1 builds for 5 configurations + `native_sim` run; Arduino examples compiled for 6 boards — reports from real boards welcome |
 | Flash filesystems: TinyFS, LittleFS, YAFFS2 on internal flash, SPI NOR / SPI NAND drivers | 🧪 | `make test` (drivers, `make tinyfs-test`: TinyFS with a power cut at every flash operation), `make lfs-test`, `make yaffs-test` on simulated SPI chips with bad blocks and simulated STM32 / RP2 internal flash; CI builds the port examples with LittleFS (YAFFS2 on Pico 2, ESP32-S3, Zephyr; every STM32 board compiled with all three) and runs LittleFS / YAFFS2 on Zephyr `native_sim` |

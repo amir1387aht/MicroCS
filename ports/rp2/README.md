@@ -36,7 +36,8 @@ mcs_rp2_hal_init(&hal, &pins);
 | `Timer` | hardware alarm pool |
 | `Watchdog`, `RTC`, `Hal.UniqueId` | hardware watchdog, software clock on the 64-bit µs timer (set it with `RTC.Set`), flash unique id |
 
-Not available on this chip: DAC, CAN, QSPI for user devices; I²S needs PIO (planned).
+Not available natively on this chip: DAC, CAN, QSPI for user devices; I²S needs PIO (planned).
+Classic CAN is available with an **external MCP2515 controller + transceiver** over SPI: [CAN setup](../../docs/CAN.md#mcp2515-can-on-mcus-without-a-controller).
 
 ## Files on flash
 

@@ -58,7 +58,7 @@ Only peripherals whose `HAL_xxx_MODULE_ENABLED` is set in `stm32xxxx_hal_conf.h`
 | `LedStrip` | `ws2812` driver (`MCS_ENABLE_WS2812=0` / `-DMICROCS_WS2812=OFF` leaves it out; replace the backend with `mcs_driver_register`, e.g. SPI + DMA): WS2812 on any pin, SysTick-timed bit-bang with interrupts masked during `Show()` (~30 µs per LED); HCLK ≥ 24 MHz |
 | `Timer.Start` | timer update interrupt |
 | `QSPI` | `HAL_QSPI_Command` / `HAL_OSPI_Command` |
-| `CAN` | bxCAN or FDCAN (classic frames), accept-all filter |
+| `CAN` | bxCAN or FDCAN (classic frames), requested bitrate from kernel clock, listen-only/loopback, accept-all filter, cleanup; [CAN setup](../../docs/CAN.md) |
 | `Hal.Micros` | DWT cycle counter (Cortex-M3+) or SysTick |
 | `Hal.UniqueId` | 96-bit UID |
 
