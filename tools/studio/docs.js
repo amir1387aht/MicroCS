@@ -1361,10 +1361,14 @@ const BtnXFrame: int | Double frame
 .GetXOffsetGlyph(int code): int | Left offset of a glyph
 .GetGlyphWidth(int code): int | Advance width of a glyph
 .IsGlyph(int code): bool | The font has this glyph
-.Ascent: int | Font ascent
-.Descent: int | Font descent (negative)
-.MaxCharHeight: int | Tallest glyph
-.MaxCharWidth: int | Widest glyph
+.GetAscent(): int | Font ascent (upstream u8g2 API)
+.GetDescent(): int | Font descent, negative (upstream u8g2 API)
+.GetMaxCharHeight(): int | Tallest glyph (upstream u8g2 API)
+.GetMaxCharWidth(): int | Widest glyph (upstream u8g2 API)
+.Ascent: int | Compatibility alias for GetAscent()
+.Descent: int | Compatibility alias for GetDescent()
+.MaxCharHeight: int | Compatibility alias for GetMaxCharHeight()
+.MaxCharWidth: int | Compatibility alias for GetMaxCharWidth()
 .SetFontMode(int transparent): void | 1 = transparent text background
 .SetFontDirection(int dir): void | 0 normal, 1 down, 2 upside down, 3 up
 .SetFontPosBaseline(): void | y = baseline (default)

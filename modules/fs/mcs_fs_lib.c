@@ -4,6 +4,7 @@
 #if MCS_ENABLE_FS
 #include <string.h>
 #include <stdio.h>
+#include "mcs_native_internal.h"
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-parameter"
@@ -29,15 +30,49 @@ static bool is_file(mcs_vfs_t* vfs, const char* p) { mcs_vfs_stat_t st; return !
 static bool is_dir(mcs_vfs_t* vfs, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(vfs, p, &st) && st.is_dir; }
 
 /* -------------------------------------------------------------- File */
-NATIVE(f_read_text) {
+typedef struct {
+    mcs_vm_t* vm;
+    const char* data;
+    size_t len;
+    int kind;                         /* 0 text, 1 lines, 2 bytes */
+    mcs_value_t result;
+} read_result_t;
+static void make_read_result(void* ud) {
+    read_result_t* c = (read_result_t*)ud;
+    mcs_vm_t* vm = c->vm;
+    if (!c->kind) { c->result = mcs_string_n(vm, c->data, c->len); return; }
+    if (c->kind == 2) {
+        c->result = mcs_new_array(vm, (uint32_t)c->len);
+        for (size_t i = 0; i < c->len; i++) mcs_set_index(c->result, (uint32_t)i, mcs_int((uint8_t)c->data[i]));
+        return;
+    }
+    uint32_t n = 0;
+    for (size_t i = 0; i < c->len; i++) if (c->data[i] == '\n') n++;
+    if (c->len && c->data[c->len - 1] != '\n') n++;
+    c->result = mcs_new_array(vm, n);
+    size_t start = 0; uint32_t k = 0;
+    for (size_t i = 0; i <= c->len && k < n; i++) {
+        if (i == c->len || c->data[i] == '\n') {
+            size_t end = i;
+            if (end > start && c->data[end - 1] == '\r') end--;
+            mcs_set_index(c->result, k++, mcs_string_n(vm, c->data + start, end - start));
+            start = i + 1;
+        }
+    }
+}
+static mcs_value_t read_all(mcs_vm_t* vm, mcs_value_t* argv, int kind) {
     ARG_PATH(0, p);
     char* data; size_t len;
-    int e = mcs_vfs_read_file(VFS(), p, &data, &len);
+    mcs_vfs_t* vfs = VFS();
+    int e = mcs_vfs_read_file(vfs, p, &data, &len);
     if (e) return io_fail(vm, e, p, false);
-    mcs_value_t s = mcs_string_n(vm, data, len);
-    mcs_vfs_free(VFS(), data, len);
-    return s;
+    read_result_t c = { vm, data, len, kind, mcs_null() };
+    int code = mcs_protect_native(vm, make_read_result, &c);
+    mcs_vfs_free(vfs, data, len);
+    mcs_rethrow_native(vm, code);
+    return c.result;
 }
+NATIVE(f_read_text) { return read_all(vm, argv, 0); }
 
 static mcs_value_t write_text(mcs_vm_t* vm, mcs_value_t* argv, bool append) {
     ARG_PATH(0, p);
@@ -48,49 +83,44 @@ static mcs_value_t write_text(mcs_vm_t* vm, mcs_value_t* argv, bool append) {
 NATIVE(f_write_text) { return write_text(vm, argv, false); }
 NATIVE(f_append_text) { return write_text(vm, argv, true); }
 
-NATIVE(f_read_lines) {
-    ARG_PATH(0, p);
-    char* data; size_t len;
-    int e = mcs_vfs_read_file(VFS(), p, &data, &len);
-    if (e) return io_fail(vm, e, p, false);
-    uint32_t n = 0;
-    for (size_t i = 0; i < len; i++) if (data[i] == '\n') n++;
-    if (len && data[len - 1] != '\n') n++;
-    mcs_value_t arr = mcs_new_array(vm, n);
-    size_t start = 0; uint32_t k = 0;
-    for (size_t i = 0; i <= len && k < n; i++) {
-        if (i == len || data[i] == '\n') {
-            size_t end = i;
-            if (end > start && data[end - 1] == '\r') end--;
-            mcs_set_index(arr, k++, mcs_string_n(vm, data + start, end - start));
-            start = i + 1;
-        }
-    }
-    mcs_vfs_free(VFS(), data, len);
-    return arr;
-}
+NATIVE(f_read_lines) { return read_all(vm, argv, 1); }
 
+typedef struct {
+    mcs_vm_t* vm;
+    mcs_vfs_file_t* file;
+    mcs_value_t seq;
+    bool bytes;
+    int error;
+} write_seq_t;
+static void write_seq_body(void* ud) {
+    write_seq_t* c = (write_seq_t*)ud;
+    mcs_vm_t* vm = c->vm;
+    uint32_t n = mcs_len(c->seq);
+    uint8_t buf[64]; size_t bl = 0;
+    for (uint32_t i = 0; i < n && !c->error; i++) {
+        mcs_value_t v = mcs_index(c->seq, i);
+        if (c->bytes) {
+            buf[bl++] = (uint8_t)mcs_to_int(vm, v);
+            if (bl == sizeof buf) { if (mcs_vfs_write(c->file, buf, bl) != (int)bl) c->error = MCS_VFS_EIO; bl = 0; }
+        } else {
+            mcs_value_t s = mcs_tostring(vm, v);
+            if (mcs_has_exception(vm)) break;
+            size_t sl = mcs_strlen(s);
+            if (mcs_vfs_write(c->file, mcs_cstr(s), sl) != (int)sl || mcs_vfs_write(c->file, "\n", 1) != 1) c->error = MCS_VFS_EIO;
+        }
+        if (mcs_has_exception(vm)) break;
+    }
+    if (!c->error && bl && mcs_vfs_write(c->file, buf, bl) != (int)bl) c->error = MCS_VFS_EIO;
+}
 static int write_seq(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* p, mcs_value_t seq, bool append, bool bytes) {
     mcs_vfs_file_t f;
     int e = mcs_vfs_open(vfs, p, append ? MCS_VFS_APPEND : MCS_VFS_WRITE, &f);
     if (e) return e;
-    uint32_t n = mcs_len(seq);
-    uint8_t buf[64]; size_t bl = 0;
-    for (uint32_t i = 0; i < n && !e; i++) {
-        mcs_value_t v = mcs_index(seq, i);
-        if (bytes) {
-            buf[bl++] = (uint8_t)mcs_to_int(vm, v);
-            if (bl == sizeof buf) { if (mcs_vfs_write(&f, buf, bl) != (int)bl) e = MCS_VFS_EIO; bl = 0; }
-        } else {
-            mcs_value_t s = mcs_tostring(vm, v);
-            size_t sl = mcs_strlen(s);
-            if (mcs_vfs_write(&f, mcs_cstr(s), sl) != (int)sl || mcs_vfs_write(&f, "\n", 1) != 1) e = MCS_VFS_EIO;
-        }
-        if (mcs_has_exception(vm)) break;
-    }
-    if (!e && bl && mcs_vfs_write(&f, buf, bl) != (int)bl) e = MCS_VFS_EIO;
-    int c = mcs_vfs_close(&f);
-    return e ? e : c;
+    write_seq_t c = { vm, &f, seq, bytes, 0 };
+    int code = mcs_protect_native(vm, write_seq_body, &c);
+    int closed = mcs_vfs_close(&f);
+    mcs_rethrow_native(vm, code);
+    return c.error ? c.error : closed;
 }
 
 static bool check_seq(mcs_vm_t* vm, mcs_value_t v) {
@@ -112,16 +142,7 @@ NATIVE(f_append_lines) {
     int e = write_seq(vm, VFS(), p, argv[1], true, false);
     return e && !mcs_has_exception(vm) ? io_fail(vm, e, p, false) : mcs_null();
 }
-NATIVE(f_read_bytes) {
-    ARG_PATH(0, p);
-    char* data; size_t len;
-    int e = mcs_vfs_read_file(VFS(), p, &data, &len);
-    if (e) return io_fail(vm, e, p, false);
-    mcs_value_t arr = mcs_new_array(vm, (uint32_t)len);
-    for (size_t i = 0; i < len; i++) mcs_set_index(arr, (uint32_t)i, mcs_int((uint8_t)data[i]));
-    mcs_vfs_free(VFS(), data, len);
-    return arr;
-}
+NATIVE(f_read_bytes) { return read_all(vm, argv, 2); }
 NATIVE(f_write_bytes) {
     ARG_PATH(0, p);
     if (!check_seq(vm, argv[1])) return mcs_null();
@@ -213,14 +234,21 @@ NATIVE(d_create) {
     return mcs_string(vm, norm);
 }
 
-typedef struct { mcs_vm_t* vm; mcs_value_t list; const char* dir; int want; /* 1 files 2 dirs 3 both */ } collect_t;
+typedef struct { mcs_vm_t* vm; mcs_value_t list; const char* dir; int want; int panic_code; /* 1 files 2 dirs 3 both */ } collect_t;
+typedef struct { collect_t* collect; const char* path; } collect_item_t;
+static void collect_add(void* ud) {
+    collect_item_t* item = (collect_item_t*)ud;
+    collect_t* c = item->collect;
+    mcs_list_add(c->vm, c->list, mcs_string(c->vm, item->path));
+}
 static int collect(void* ud, const char* name, const mcs_vfs_stat_t* st) {
     collect_t* c = (collect_t*)ud;
     if (!((st->is_dir ? 2 : 1) & c->want)) return 0;
     char full[MCS_VFS_PATH_MAX * 2];
     snprintf(full, sizeof full, "%s%s%s", c->dir, strcmp(c->dir, "/") ? "/" : "", name);
-    mcs_list_add(c->vm, c->list, mcs_string(c->vm, full));
-    return 0;
+    collect_item_t item = { c, full };
+    c->panic_code = mcs_protect_native(c->vm, collect_add, &item);
+    return c->panic_code != 0;
 }
 
 static mcs_value_t list_entries(mcs_vm_t* vm, mcs_value_t* argv, int want) {
@@ -231,8 +259,9 @@ static mcs_value_t list_entries(mcs_vm_t* vm, mcs_value_t* argv, int want) {
     if (!is_dir(VFS(), norm)) return io_fail(vm, MCS_VFS_ENOENT, p, true);
     mcs_value_t list = mcs_new_list(vm);
     mcs_push_root(vm, list);
-    collect_t c = { vm, list, norm, want };
+    collect_t c = { vm, list, norm, want, 0 };
     e = mcs_vfs_list(VFS(), norm, collect, &c);
+    mcs_rethrow_native(vm, c.panic_code);
     uint32_t n = mcs_len(list);
     mcs_value_t arr = mcs_new_array(vm, n);
     for (uint32_t i = 0; i < n; i++) mcs_set_index(arr, i, mcs_index(list, i));

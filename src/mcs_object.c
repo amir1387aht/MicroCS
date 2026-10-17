@@ -1,5 +1,6 @@
 /* MicroCS - memory management, objects, hash tables and garbage collector. */
 #include "mcs_internal.h"
+#include "mcs_native_internal.h"
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -8,6 +9,24 @@ void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg) {
     snprintf(vm->error, sizeof vm->error, "%s", msg);
     if (vm->panic) longjmp(*vm->panic, (int)code);
     mcs_report_error(vm, "fatal: %s\n", msg);
+    abort();
+}
+
+/* Native modules must release non-GC resources before an OOM longjmp reaches
+ * the VM execution guard. Keep ctx/ownership in the caller's stack frame. */
+int mcs_protect_native(mcs_vm_t* vm, void (*body)(void*), void* ctx) {
+    jmp_buf jb;
+    jmp_buf* previous = vm->panic;
+    vm->panic = &jb;
+    int code = setjmp(jb);
+    if (!code) body(ctx);
+    vm->panic = previous;
+    return code;
+}
+void mcs_rethrow_native(mcs_vm_t* vm, int code) {
+    if (!code) return;
+    if (vm->panic) longjmp(*vm->panic, code);
+    mcs_report_error(vm, "fatal: %s\n", vm->error);
     abort();
 }
 

@@ -1259,6 +1259,9 @@ static const mcs_reg_t g_members[] = {
     MCS_FN("DrawUTF8Line", g_utf8line, 6), MCS_FN("DrawButtonUTF8", g_button, 7), MCS_FN("DrawButtonFrame", g_buttonframe, 6),
     MCS_FN("GetStrWidth", g_strwidth, 1), MCS_FN("GetUTF8Width", g_utf8width, 1), MCS_FN("GetXOffsetUTF8", g_xoffutf8, 1),
     MCS_FN("GetXOffsetGlyph", g_xoffglyph, 1), MCS_FN("IsGlyph", g_isglyph, 1), MCS_FN("GetGlyphWidth", g_glyphwidth, 1),
+    /* Upstream names first; property spellings remain compatibility aliases. */
+    MCS_FN("GetAscent", g_ascent, 0), MCS_FN("GetDescent", g_descent, 0),
+    MCS_FN("GetMaxCharHeight", g_maxh, 0), MCS_FN("GetMaxCharWidth", g_maxw, 0),
     MCS_GET("Ascent", g_ascent), MCS_GET("Descent", g_descent), MCS_GET("MaxCharHeight", g_maxh), MCS_GET("MaxCharWidth", g_maxw),
     MCS_FN("SetFontMode", g_fontmode, 1), MCS_FN("SetFontDirection", g_fontdir, 1), MCS_FN("SetFontPosBaseline", g_posbaseline, 0),
     MCS_FN("SetFontPosBottom", g_posbottom, 0), MCS_FN("SetFontPosTop", g_postop, 0), MCS_FN("SetFontPosCenter", g_poscenter, 0),
