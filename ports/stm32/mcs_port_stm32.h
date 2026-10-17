@@ -200,6 +200,9 @@ typedef struct {
 #ifdef MCS_STM32_HAS_FDCAN
     FDCAN_HandleTypeDef* fdcan[MCS_STM32_BUSES];
 #endif
+    /* Optional CAN kernel clocks (Hz). 0 = query RCC. Required if the HAL has
+     * no RCC_PERIPHCLK_FDCAN query. bxCAN normally uses APB1. */
+    uint32_t can_clock_hz[MCS_STM32_BUSES];
 #ifdef HAL_IWDG_MODULE_ENABLED
     IWDG_HandleTypeDef* iwdg;                 /* NULL = the port uses its own handle */
 #endif

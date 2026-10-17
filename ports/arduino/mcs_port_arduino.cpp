@@ -14,9 +14,6 @@
 #if SOC_I2S_SUPPORTED
 #include "driver/i2s_std.h"
 #endif
-#if SOC_TWAI_SUPPORTED
-#include "driver/twai.h"
-#endif
 #endif
 #endif
 #if defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
@@ -357,52 +354,9 @@ static int a_i2s_read(void*, int bus, uint8_t* buf, size_t n, uint32_t timeout_m
 #endif
 #if SOC_TWAI_SUPPORTED
 #define MCS_ARDUINO_CAN 1
-static bool g_twai;
-static int a_can_open(void*, int bus, uint32_t bitrate) {
-    if (bus != 0 || g_can_tx < 0 || g_can_rx < 0) return MCS_HAL_ENOTSUP;
-    if (g_twai) { twai_stop(); twai_driver_uninstall(); g_twai = false; }
-    twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT((gpio_num_t)g_can_tx, (gpio_num_t)g_can_rx, TWAI_MODE_NORMAL);
-    twai_filter_config_t f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    twai_timing_config_t t;
-    switch (bitrate) {
-    case 25000:   { twai_timing_config_t x = TWAI_TIMING_CONFIG_25KBITS(); t = x; break; }
-    case 50000:   { twai_timing_config_t x = TWAI_TIMING_CONFIG_50KBITS(); t = x; break; }
-    case 100000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_100KBITS(); t = x; break; }
-    case 125000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_125KBITS(); t = x; break; }
-    case 250000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_250KBITS(); t = x; break; }
-    case 500000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_500KBITS(); t = x; break; }
-    case 800000:  { twai_timing_config_t x = TWAI_TIMING_CONFIG_800KBITS(); t = x; break; }
-    case 1000000: { twai_timing_config_t x = TWAI_TIMING_CONFIG_1MBITS(); t = x; break; }
-    default: return MCS_HAL_ENOTSUP;
-    }
-    esp_err_t e = twai_driver_install(&g, &t, &f);
-    if (e == ESP_OK) e = twai_start();
-    g_twai = e == ESP_OK;
-    return esp_rc(e);
-}
-static int a_can_send(void*, int bus, const mcs_can_frame_t* fr, uint32_t timeout_ms) {
-    if (bus != 0 || !g_twai) return MCS_HAL_ENOTSUP;
-    twai_message_t m;
-    memset(&m, 0, sizeof m);
-    m.identifier = fr->id;
-    m.extd = fr->extended ? 1 : 0;
-    m.rtr = fr->rtr ? 1 : 0;
-    m.data_length_code = fr->len > 8 ? 8 : fr->len;
-    memcpy(m.data, fr->data, m.data_length_code);
-    return esp_rc(twai_transmit(&m, ms_ticks(timeout_ms)));
-}
-static int a_can_recv(void*, int bus, mcs_can_frame_t* fr, uint32_t timeout_ms) {
-    if (bus != 0 || !g_twai) return MCS_HAL_ENOTSUP;
-    twai_message_t m;
-    esp_err_t e = twai_receive(&m, ms_ticks(timeout_ms));
-    if (e != ESP_OK) return esp_rc(e);
-    fr->id = m.identifier;
-    fr->extended = m.extd;
-    fr->rtr = m.rtr;
-    fr->len = m.data_length_code > 8 ? 8 : m.data_length_code;
-    memcpy(fr->data, m.data, fr->len);
-    return 0;
-}
+#define MCS_CAN_TX_DEFAULT g_can_tx
+#define MCS_CAN_RX_DEFAULT g_can_rx
+#include "mcs_esp_can.h"
 #endif
 #define MCS_ARDUINO_WDT 1
 static int a_wdt_start(void*, uint32_t timeout_ms) {
@@ -529,9 +483,6 @@ static int a_timer_stop(void*, int i) {
     return 0;
 }
 static int g_uart_seen[MCS_ARDUINO_UARTS];
-#if defined(MCS_ARDUINO_CAN)
-static uint32_t g_can_seen;
-#endif
 static int a_poll_event(void*, mcs_hal_event_t* ev) {
 #if MCS_ENABLE_BLE
     mcs_arduino_ble_poll();          /* ArduinoBLE has no thread: callbacks run from BLE.poll() */
@@ -547,19 +498,6 @@ static int a_poll_event(void*, mcs_hal_event_t* ev) {
         }
         if (n < g_uart_seen[p]) g_uart_seen[p] = n;
     }
-#if defined(MCS_ARDUINO_CAN)
-    if (g_twai) {
-        twai_status_info_t st;
-        if (twai_get_status_info(&st) == ESP_OK) {
-            if (st.msgs_to_rx > g_can_seen) {
-                g_can_seen = st.msgs_to_rx;
-                ev->type = MCS_HAL_EV_CAN; ev->reserved = 0; ev->source = 0; ev->value = (int32_t)st.msgs_to_rx;
-                return 1;
-            }
-            if (st.msgs_to_rx < g_can_seen) g_can_seen = st.msgs_to_rx;
-        }
-    }
-#endif
     uint32_t now = micros();
     for (int i = 0; i < MCS_ARDUINO_TIMERS; i++) {
         if (!g_tim[i].on || (int32_t)(now - g_tim[i].next_us) < 0) continue;
@@ -709,9 +647,11 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     hal->i2s_close = a_i2s_close;
 #endif
 #ifdef MCS_ARDUINO_CAN
-    hal->can_open = a_can_open;
-    hal->can_send = a_can_send;
-    hal->can_recv = a_can_recv;
+    hal->can_open = esp_can_open;
+    hal->can_configure = esp_can_configure;
+    hal->can_close = esp_can_close;
+    hal->can_send = esp_can_send;
+    hal->can_recv = esp_can_recv;
 #endif
 #ifdef MCS_ARDUINO_ESP_IDF5
     hal->adc_read_mv = a_adc_read_mv;

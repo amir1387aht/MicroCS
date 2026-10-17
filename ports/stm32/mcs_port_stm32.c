@@ -3,6 +3,7 @@
  * Add this file + mcs_port_stm32.h to your Cube project next to MicroCS.
  */
 #include "mcs_port_stm32.h"
+#include "mcs_can_timing.h"
 #include "mcs_driver.h"
 #include <string.h>
 
@@ -808,22 +809,45 @@ static CAN_HandleTypeDef* can_of(void* ctx, int bus) {
     mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
     return bus >= 0 && bus < MCS_STM32_BUSES ? b->can[bus] : NULL;
 }
-static int st_can_open(void* ctx, int bus, uint32_t bitrate) {
+static int st_can_close(void* ctx, int bus) {
     CAN_HandleTypeDef* h = can_of(ctx, bus);
-    (void)bitrate;   /* bit timing comes from CubeMX */
     if (!h) return MCS_HAL_ENOTSUP;
-    CAN_FilterTypeDef f;
-    memset(&f, 0, sizeof f);            /* accept everything into FIFO 0 */
-    f.FilterBank = bus == 0 ? 0 : 14;
-    f.FilterMode = CAN_FILTERMODE_IDMASK;
-    f.FilterScale = CAN_FILTERSCALE_32BIT;
-    f.FilterFIFOAssignment = CAN_RX_FIFO0;
-    f.FilterActivation = ENABLE;
-    f.SlaveStartFilterBank = 14;
-    int r = st_err(HAL_CAN_ConfigFilter(h, &f));
+    if (HAL_CAN_GetState(h) != HAL_CAN_STATE_LISTENING) return 0;
+    uint32_t pending = CAN_TX_MAILBOX0 | CAN_TX_MAILBOX1 | CAN_TX_MAILBOX2;
+    int r = st_err(HAL_CAN_AbortTxRequest(h, pending));
+    return r ? r : st_err(HAL_CAN_Stop(h));
+}
+static int st_can_configure(void* ctx, int bus, const mcs_can_config_t* cfg) {
+    CAN_HandleTypeDef* h = can_of(ctx, bus);
+    mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
+    if (!h) return MCS_HAL_ENOTSUP;
+    if (cfg->tx != -1 || cfg->rx != -1 || cfg->opts.n) return MCS_HAL_ENOTSUP; /* CubeMX owns AF wiring */
+    if (cfg->mode > MCS_CAN_LOOPBACK) return MCS_HAL_EINVAL;
+    uint32_t clock = b->can_clock_hz[bus] ? b->can_clock_hz[bus] : HAL_RCC_GetPCLK1Freq();
+    mcs_can_timing_t t = { 0 };
+    if (!mcs_can_timing(clock, cfg->bitrate, 1024, 16, 8, 1, &t)) return MCS_HAL_EINVAL;
+    int r = st_can_close(ctx, bus);
     if (r) return r;
-    if (HAL_CAN_GetState(h) == HAL_CAN_STATE_LISTENING) return 0;
+    h->Init.Prescaler = t.prescaler;
+    h->Init.SyncJumpWidth = CAN_SJW_1TQ;
+    h->Init.TimeSeg1 = (uint32_t)(t.seg1 - 1) << 16;
+    h->Init.TimeSeg2 = (uint32_t)(t.seg2 - 1) << 20;
+    h->Init.Mode = cfg->mode == MCS_CAN_LOOPBACK ? CAN_MODE_LOOPBACK : cfg->mode == MCS_CAN_LISTEN_ONLY ? CAN_MODE_SILENT : CAN_MODE_NORMAL;
+    h->Init.AutoBusOff = ENABLE;
+    if ((r = st_err(HAL_CAN_Init(h)))) return r;
+    CAN_FilterTypeDef f;
+    memset(&f, 0, sizeof f);
+    /* CAN3 (where present) owns separate banks; CAN1/CAN2 share 0..27. */
+#if defined(CAN2)
+    f.FilterBank = h->Instance == CAN2 ? 14 : 0;
+#endif
+    f.FilterMode = CAN_FILTERMODE_IDMASK; f.FilterScale = CAN_FILTERSCALE_32BIT;
+    f.FilterFIFOAssignment = CAN_RX_FIFO0; f.FilterActivation = ENABLE; f.SlaveStartFilterBank = 14;
+    if ((r = st_err(HAL_CAN_ConfigFilter(h, &f)))) return r;
     return st_err(HAL_CAN_Start(h));
+}
+static int st_can_open(void* ctx, int bus, uint32_t rate) {
+    mcs_can_config_t cfg; mcs_can_config_init(&cfg, rate); return st_can_configure(ctx, bus, &cfg);
 }
 static int st_can_send(void* ctx, int bus, const mcs_can_frame_t* fr, uint32_t timeout_ms) {
     CAN_HandleTypeDef* h = can_of(ctx, bus);
@@ -864,14 +888,49 @@ static FDCAN_HandleTypeDef* can_of(void* ctx, int bus) {
 }
 static const uint32_t fd_dlc[9] = { FDCAN_DLC_BYTES_0, FDCAN_DLC_BYTES_1, FDCAN_DLC_BYTES_2, FDCAN_DLC_BYTES_3,
     FDCAN_DLC_BYTES_4, FDCAN_DLC_BYTES_5, FDCAN_DLC_BYTES_6, FDCAN_DLC_BYTES_7, FDCAN_DLC_BYTES_8 };
-static int st_can_open(void* ctx, int bus, uint32_t bitrate) {
+static int st_can_close(void* ctx, int bus) {
     FDCAN_HandleTypeDef* h = can_of(ctx, bus);
-    (void)bitrate;
     if (!h) return MCS_HAL_ENOTSUP;
-    if (h->State == HAL_FDCAN_STATE_BUSY) return 0;
-    int r = st_err(HAL_FDCAN_ConfigGlobalFilter(h, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
-                                                FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE));
-    return r ? r : st_err(HAL_FDCAN_Start(h));
+    return h->State == HAL_FDCAN_STATE_BUSY ? st_err(HAL_FDCAN_Stop(h)) : 0;
+}
+static int st_can_configure(void* ctx, int bus, const mcs_can_config_t* cfg) {
+    FDCAN_HandleTypeDef* h = can_of(ctx, bus);
+    mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
+    if (!h) return MCS_HAL_ENOTSUP;
+    if (cfg->tx != -1 || cfg->rx != -1 || cfg->opts.n) return MCS_HAL_ENOTSUP;
+    if (cfg->mode > MCS_CAN_LOOPBACK) return MCS_HAL_EINVAL;
+    uint32_t clock = b->can_clock_hz[bus];
+#if defined(RCC_PERIPHCLK_FDCAN)
+    if (!clock) clock = HAL_RCCEx_GetPeriphCLKFreq(RCC_PERIPHCLK_FDCAN);
+#endif
+    /* G4-style HALs put the shared divider in Init; H7 owns it in the
+     * clock calibration unit instead. Do not assume identically named macros
+     * imply an identical InitTypeDef across families. */
+    uint32_t divider = 0;
+#if defined(FDCAN_CONFIG) && defined(FDCAN_CKDIV_PDIV)
+    divider = h->Init.ClockDivider;
+#elif defined(FDCAN_CCU) && defined(FDCANCCU_CCFG_CDIV)
+    divider = (FDCAN_CCU->CCFG & FDCANCCU_CCFG_CDIV) >> FDCANCCU_CCFG_CDIV_Pos;
+#endif
+    if (divider) {
+        if (divider > 15) return MCS_HAL_EINVAL;
+        clock /= divider * 2u;
+    }
+    mcs_can_timing_t t = { 0 };
+    if (!mcs_can_timing(clock, cfg->bitrate, 512, 256, 128, 1, &t)) return MCS_HAL_EINVAL;
+    int r = st_can_close(ctx, bus);
+    if (r) return r;
+    h->Init.FrameFormat = FDCAN_FRAME_CLASSIC;
+    h->Init.Mode = cfg->mode == MCS_CAN_LOOPBACK ? FDCAN_MODE_INTERNAL_LOOPBACK : cfg->mode == MCS_CAN_LISTEN_ONLY ? FDCAN_MODE_BUS_MONITORING : FDCAN_MODE_NORMAL;
+    h->Init.NominalPrescaler = t.prescaler; h->Init.NominalSyncJumpWidth = 1;
+    h->Init.NominalTimeSeg1 = t.seg1; h->Init.NominalTimeSeg2 = t.seg2;
+    if ((r = st_err(HAL_FDCAN_Init(h)))) return r;
+    if ((r = st_err(HAL_FDCAN_ConfigGlobalFilter(h, FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_ACCEPT_IN_RX_FIFO0,
+                                                FDCAN_FILTER_REMOTE, FDCAN_FILTER_REMOTE)))) return r;
+    return st_err(HAL_FDCAN_Start(h));
+}
+static int st_can_open(void* ctx, int bus, uint32_t rate) {
+    mcs_can_config_t cfg; mcs_can_config_init(&cfg, rate); return st_can_configure(ctx, bus, &cfg);
 }
 static int st_can_send(void* ctx, int bus, const mcs_can_frame_t* fr, uint32_t timeout_ms) {
     FDCAN_HandleTypeDef* h = can_of(ctx, bus);
@@ -901,6 +960,7 @@ static int st_can_recv(void* ctx, int bus, mcs_can_frame_t* fr, uint32_t timeout
     uint8_t data[64];
     int r = st_err(HAL_FDCAN_GetRxMessage(h, FDCAN_RX_FIFO0, &hd, data));
     if (r) return r;
+    if (hd.FDFormat != FDCAN_CLASSIC_CAN) return MCS_HAL_ENOTSUP;
     fr->extended = hd.IdType == FDCAN_EXTENDED_ID;
     fr->id = hd.Identifier;
     fr->rtr = hd.RxFrameType == FDCAN_REMOTE_FRAME;
@@ -1170,6 +1230,8 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     hal->qspi_command = st_qspi_command;
 #endif
 #if defined(MCS_STM32_HAS_CAN) || defined(MCS_STM32_HAS_FDCAN)
+    hal->can_configure = st_can_configure;
+    hal->can_close = st_can_close;
     hal->can_open = st_can_open;
     hal->can_send = st_can_send;
     hal->can_recv = st_can_recv;

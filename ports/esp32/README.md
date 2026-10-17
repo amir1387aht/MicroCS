@@ -6,6 +6,13 @@ HTTPS) — see [NETWORK.md](../../docs/NETWORK.md). Chips without Wi-Fi (H2, P4)
 port without it. BLE-capable release targets include NimBLE; S2 and P4 have no onboard BLE.
 See [Bluetooth LE](../../docs/BLE.md).
 
+ESP32-C6 example builds enable ESP-IDF's `-msave-restore` size optimization
+(`sdkconfig.defaults.esp32c6`) so Wi-Fi, TLS, BLE and CAN fit the existing 2 MB app
+partition. This adds small register-save/restore call overhead; no features are
+removed and the script-storage partition stays at its existing offset. For an
+already configured project, enable `CONFIG_COMPILER_SAVE_RESTORE_LIBCALLS` in
+menuconfig or regenerate `sdkconfig` after backing up custom settings.
+
 ## Quick start — MicroCS as the whole firmware
 
 [`example/`](example) is a complete ESP-IDF project. Copy it, put MicroCS in
@@ -132,7 +139,7 @@ mcs_esp32_hal_init(&hal, &pins);
 | `LedStrip` | `ws2812` driver (menuconfig → MicroCS → *WS2812 / NeoPixel driver*): RMT TX on any GPIO (up to 2 strips; none on ESP32-C2); `"NEOPIXEL"` = on-board RGB LED (S3 GPIO48, C3/C6/H2 GPIO8, override `MCS_ESP32_RGB_LED`) |
 | `Timer` | `gptimer` |
 | `I2S` | `i2s_std` |
-| `CAN` | Legacy TWAI (not CAN-FD-only chips such as C5; the new TWAI driver is not wrapped yet) |
+| `CAN` | Classic CAN through legacy TWAI or IDF 5.5+ TWAI nodes (including C5); native pins/modes in `CanConfig`, or external MCP2515 over SPI ([setup](../../docs/CAN.md)) |
 | `Watchdog` | task watchdog |
 | `RTC` | `gettimeofday` / `settimeofday` |
 | `Hal.UniqueId` | eFuse MAC |

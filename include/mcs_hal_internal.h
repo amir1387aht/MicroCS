@@ -5,6 +5,7 @@
 #ifndef MCS_HAL_INTERNAL_H
 #define MCS_HAL_INTERNAL_H
 #include "mcs_hal.h"
+#include "mcs_mcp2515.h"
 #if MCS_ENABLE_HAL
 
 #define NATIVE(name) static mcs_value_t name(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv)
@@ -41,6 +42,13 @@ typedef struct {
 } mcs__hal_cb_t;
 
 typedef struct {
+    mcs_mcp2515_t mcp;
+    mcs_can_frame_t pending;
+    uint8_t backend;                  /* 0 closed, 1 native, 2 MCP2515 */
+    uint8_t ready, notified, subscribed, mode;
+} mcs__can_bus_t;
+
+typedef struct {
     const mcs_hal_t* hal;
     int self_pin;                     /* pinned userdata holding this struct */
     int cb_pin;                       /* pinned List: MCS__REF_COUNT references */
@@ -50,6 +58,7 @@ typedef struct {
     int16_t spi_cs[MCS_HAL_MAX_BUSES];    /* default chip select from SpiConfig.Cs, -1 = none */
     uint8_t spi_cs_high[MCS_HAL_MAX_BUSES];
     uint8_t i2s_bits[MCS_HAL_MAX_BUSES];
+    mcs__can_bus_t can[MCS_HAL_MAX_BUSES];
     int wake_pin;
     uint8_t wake_high;
     uint8_t polling;
@@ -69,11 +78,17 @@ bool mcs__check_callable(mcs_vm_t* vm, mcs_value_t fn);
 extern uint32_t mcs__spi_half;
 int mcs__spi_raw(const mcs_hal_t* h, int bus, const uint8_t* tx, uint8_t* rx, size_t n);
 
+void mcs__can_open(mcs_vm_t* vm);
+void mcs__can_close_all(mcs_vm_t* vm);
+int mcs__can_event(mcs_vm_t* vm, int bus, mcs_hal_event_t* ev);
+void mcs__can_subscribe(mcs_vm_t* vm, int bus, bool enabled);
+mcs_value_t mcs__can_onreceive(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv);
+
 void mcs__power_open(mcs_vm_t* vm);
 bool mcs__hal_pin_has_irq(mcs_vm_t* vm, int pin);
 
 /* config classes (mcs_hal_cfg.c) */
-enum { MCS__CFG_GPIO = 1, MCS__CFG_UART, MCS__CFG_I2C, MCS__CFG_SPI, MCS__CFG_QSPI, MCS__CFG_PWM, MCS__CFG_ADC };
+enum { MCS__CFG_GPIO = 1, MCS__CFG_UART, MCS__CFG_I2C, MCS__CFG_SPI, MCS__CFG_QSPI, MCS__CFG_PWM, MCS__CFG_ADC, MCS__CFG_CAN };
 /* the C struct inside a config object of `kind`, or NULL (no exception) */
 void* mcs__cfg_get(mcs_value_t v, int kind);
 void mcs__cfg_open(mcs_vm_t* vm, const mcs_hal_t* h);

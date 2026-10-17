@@ -352,6 +352,9 @@
 #ifndef MCS_ENABLE_HAL_DMA
 #define MCS_ENABLE_HAL_DMA MCS_ENABLE_HAL /* C# DmaBuffer, Dma, DmaTransfer and the ...Async calls (~11 KB) */
 #endif
+#ifndef MCS_ENABLE_MCP2515
+#define MCS_ENABLE_MCP2515 MCS_ENABLE_HAL /* optional external SPI CAN controller */
+#endif
 #ifndef MCS_ENABLE_SCHED
 #define MCS_ENABLE_SCHED 1         /* job scheduler                 */
 #endif

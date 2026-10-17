@@ -130,6 +130,10 @@ if(ESP_PLATFORM)
         set(_mcs_mdns mdns)
     endif()
     list(APPEND _mcs_net_reqs ${_mcs_mdns})
+    # FD-capable TWAI nodes (e.g. C5) use the public IDF 5.5 driver.
+    if(IDF_VERSION_MAJOR GREATER 5 OR (IDF_VERSION_MAJOR EQUAL 5 AND IDF_VERSION_MINOR GREATER_EQUAL 5))
+        list(APPEND _mcs_net_reqs esp_driver_twai)
+    endif()
     idf_component_register(
         SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}

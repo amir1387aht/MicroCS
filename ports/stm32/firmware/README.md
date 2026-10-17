@@ -39,13 +39,18 @@ everything (`auto` profile from the chip's memory).
 | `new Pin("LED")` | PA5 (LD2) | PB0 (LD1) | PC13 (lights when low) |
 | any `new Pin("PB3")` … | every GPIO, with interrupts | every GPIO | every GPIO |
 | `I2C.Open(1, …)` | PB8 = SCL (D15), PB9 = SDA (D14) | PB8 / PB9 (D15 / D14) | PB6 = SCL, PB7 = SDA |
+| `SPI.Open(0, …)` / external MCP2515 | SPI2: PB13 SCK, PB14 MISO, PB15 MOSI; CS chosen in script | same | same |
+| `CAN.Open(0, …)` | F446/L476: CAN1 PA11 RX / PA12 TX; G474: FDCAN1 PA11 RX / PA12 TX; **none on F401/F411** | FDCAN1 PD0 RX / PD1 TX | no native CAN |
 | `PWM.Set(0..3, …)`, `Servo(0..3)` | TIM3: PA6 (D12), PA7 (D11), PB0 (A3), PB1 | TIM3: PA6, PB5, PC8, PC9 | TIM3: PA6, PA7, PB0, PB1 |
 | `UART.Open(n)` / console | 2 (G474: 1 = LPUART1) | 3 | 1 |
 | `Watchdog`, `Hal.Board`, `Hal.Millis`, files, scheduler, ws2812 (bit-banged on any pin) | ✓ | ✓ | ✓ |
 
 The four PWM pins start as timer outputs (low); `new Pin(...)` on one of them turns it back
-into a GPIO. SPI, ADC, DAC, CAN and the other peripherals need their pins and clocks chosen
-for your hardware — use the [CubeMX route](../README.md) (`example_main.c`) for those.
+into a GPIO. Native CAN needs an external transceiver; F401/F411 need an MCP2515 controller
+and transceiver on SPI2. See [CAN setup](../../../docs/CAN.md). The CAN controller starts
+only when a script calls `CAN.Open`; bitrate, listen-only and loopback are configurable.
+SPI2 uses board wiring: use `SPI.Open(0, 1000000, 0)` rather than overriding SPI pins.
+ADC, DAC and other peripheral/pin mappings still use the [CubeMX route](../README.md).
 
 Clocks run from the internal HSI oscillator + PLL (no crystal needed): F401 84 MHz, F411 100 MHz,
 F446 168 MHz, G474 170 MHz, L476 80 MHz, H743 400 MHz.

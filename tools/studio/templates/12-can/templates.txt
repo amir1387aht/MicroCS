@@ -7,4 +7,16 @@ requires: none
 
 [can.cs] CAN bus send and receive
 requires: CAN, Board
-Send frames and print received ones (TWAI on ESP32).
+Send frames and print receive callbacks on a native CAN controller (TWAI, STM32 or Zephyr). Board wiring and a transceiver are required.
+
+[mcp2515.cs] MCP2515 external CAN (Pico / any SPI board)
+requires: CAN.Mcp2515, SPI
+Add classic CAN using an MCP2515 module and transceiver; adapt SPI pins and crystal frequency. No native CAN required.
+
+[loopback.cs] Native CAN loopback and remote request
+requires: CAN, CAN.Configure
+Check standard/extended CAN and RTR handling in loopback. Legacy TWAI needs TX-to-RX bench wiring.
+
+[listen.cs] CAN listen-only monitor
+requires: CAN, CAN.Configure
+Observe frames without transmitting or acknowledging. Requires a transceiver and matching bus bitrate.

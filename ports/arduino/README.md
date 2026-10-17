@@ -76,7 +76,7 @@ mcs_arduino_i2s_pins(0, 26, 25, 22, 35);               // I2S.Open(0, ...): bclk
 | `PWM` | `analogWrite` + frequency (12-bit duty on ESP32, 16-bit on RP2040 / Teensy) |
 | `LedStrip` | `ws2812` driver (`tools/make_arduino.py --no-ws2812` leaves it out): WS2812 on any pin: RMT (ESP32 core 3), PIO (Arduino-Pico), otherwise Adafruit_NeoPixel when the sketch includes `<Adafruit_NeoPixel.h>`; `"NEOPIXEL"` = `PIN_NEOPIXEL` / `PIN_RGB_LED` |
 | `I2S` | ESP32 (IDF standard-mode driver, TX / RX / duplex), RP2040 (`I2S` library, WS = BCLK + 1) |
-| `CAN` | ESP32 TWAI (25 k … 1 Mbit/s) |
+| `CAN` | Native classic CAN on ESP32 TWAI; external MCP2515 over SPI/GPIO on other cores ([setup](../../docs/CAN.md)) |
 | `Watchdog` | ESP32 task watchdog, RP2040, AVR |
 | `Timer` | software timers, run from the REPL loop / `Hal.Poll()` |
 | `RTC` | software clock from `millis()` |

@@ -1,0 +1,4 @@
+# Keep Wi-Fi + TLS + NimBLE + classic CAN inside the existing 2 MB app partition.
+# ESP-IDF's RISC-V register save/restore helpers trade a little call overhead for
+# code size. Do not move storage: users' uploaded scripts must keep their offset.
+CONFIG_COMPILER_SAVE_RESTORE_LIBCALLS=y

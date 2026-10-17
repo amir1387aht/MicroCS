@@ -31,8 +31,8 @@ optional power callbacks/masks; all v3 peripheral/DMA members remain unchanged.
 * **Pins** are numbers or names. Names are resolved by the port (`"PA5"`, `"GPIO21"`,
   `"GP15"`, `"P0.13"`, `"LED"`, `"A0"`), so the same script reads naturally on each board.
   `GPIO.Pin("PC13")` returns the number.
-* **Only what exists is registered.** If the board has no CAN, there is no `CAN` class and
-  `Hal.Has("CAN")` is false — scripts can adapt: `if (Hal.Has("DAC")) DAC.Write(0, 2048);`.
+* **Only what exists is registered.** If the board has neither native CAN nor the MCP2515 SPI/GPIO transport, there is no `CAN` class.
+  `Hal.Has("CAN")` queries native CAN; `Hal.Has("CAN.Mcp2515")` queries external-controller transport. Native CAN is false on MCUs without a controller — scripts can adapt: `if (Hal.Has("DAC")) DAC.Write(0, 2048);`.
   Names for `Has`: `GPIO GPIO.IRQ UART I2C SPI ADC DAC PWM Timer I2S QSPI CAN Watchdog RTC`,
   `GPIO.Configure` `UART.Configure` `I2C.Configure` `SPI.Configure` `QSPI.Configure`
   `PWM.Configure` `ADC.Configure` (full configuration objects), `DMA` `DMA.Memory` `DMA.SPI`
@@ -203,7 +203,8 @@ pan.MoveTo(180, 1000);             // sweep in 1 s
 | `QSPI.Read(bus, instr, address, n[, dummy, dataLines, addrBytes])` · `QSPI.Write(bus, instr, address, data[, dataLines, addrBytes])` | address `-1` = no address phase |
 | `QSPI.Transfer(bus, instr, instrLines, address, addrBytes, addrLines, dummy, dataLines, bytes or count)` | every phase explicit (OSPI, displays, PSRAM) |
 | `CAN.Open(bus[, bitrate = 500000])` · `CAN.Send(bus, id, data[, extended])` · `CAN.Send(bus, frame)` | classic CAN / TWAI |
-| `CAN.Receive(bus[, timeoutMs])` → `CanFrame` or `null` · `CAN.OnReceive(bus, fn(int pending))` | |
+| `CAN.Receive(bus[, timeoutMs])` → `CanFrame` or `null` · `CAN.OnReceive(bus, fn(int pending))` | callbacks on every backend |
+| `CAN.Open(bus, CanConfig)` · `CAN.OpenMcp2515(bus, spiBus, csPin[, oscillatorHz[, bitrate[, mode]]])` · `CAN.Close(bus)` | [native / external CAN setup](CAN.md), listen-only, loopback and RTR |
 | `new CanFrame(id, data[, extended])` | `Id`, `Extended`, `Remote`, `Length`, `Data`, `ToString()` |
 
 ### Byte helpers

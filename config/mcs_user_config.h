@@ -266,6 +266,9 @@
 #ifndef MCS_U8G2_I2C_BUF
 #define MCS_U8G2_I2C_BUF          34    /* I2C transfer buffer per display (bytes) */
 #endif
+#ifndef MCS_ENABLE_MCP2515
+#define MCS_ENABLE_MCP2515        MCS_ENABLE_HAL    /* external MCP2515 CAN controller (native CAN is independent) */
+#endif
 #ifndef MCS_ENABLE_SCHED
 #define MCS_ENABLE_SCHED          1    /* job scheduler */
 #endif

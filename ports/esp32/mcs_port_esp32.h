@@ -18,7 +18,7 @@
  * C# pin numbers are GPIO numbers ("GPIO5", "IO5" and "5" all work).
  * ADC.Read(n) takes the GPIO number of an ADC-capable pin, and ReadMillivolts()
  * uses the chip's eFuse calibration. DAC exists on ESP32 / ESP32-S2 only;
- * I2S and TWAI (CAN) are compiled only where the chip has them (not on the
+ * I2S and TWAI (classic CAN, including FD-capable nodes on IDF 5.5+) are compiled only where the chip has them (not on the
  * ESP32-C2, which has 2 UARTs, 1 I2C bus, 1 SPI bus, 6 LEDC channels and one
  * gptimer).
  * Interrupts go through a FreeRTOS queue, so they are safe on dual-core chips.

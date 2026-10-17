@@ -101,13 +101,20 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **Timer** | static | — | `Start(·, ·, ·)` `Once(·, ·, ·)` `Stop(·)` | periods in microseconds |
 | **I2S** | static | — | `Open(…)` `Write(…)` `Read(…)` `WriteSamples(…)` `ReadSamples(…)` `Close(·)` | consts `Tx Rx Duplex` |
 | **QSPI** | static | — | `Open(…)` `Command(…)` `Read(…)` `Write(…)` `Transfer(·, ·, ·, ·, ·, ·, ·, ·, ·)` `ReadAsync(…)` `WriteAsync(…)` | address `-1` = no address phase |
-| **CAN** | static | — | `Open(…)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` |  |
-| **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended])` |
+| **CanConfig** | instance | `Bitrate` `Tx` `Rx` `Mode` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | native CAN settings; [CAN](CAN.md) |
+| **CAN** | static | — | `Open(…)` `OpenMcp2515(…)` `Close(·)` `Send(…)` `Receive(…)` `OnReceive(·, ·)` | classic CAN / MCP2515; [setup and support](CAN.md) |
+| **CanFrame** | instance | `Id` `Extended` `Remote` `Length` `Data` | `ToString()` | `new CanFrame(id, data[, extended[, remote]])` |
 | **Watchdog** | static | — | `Start(·)` `Feed()` |  |
 | **RTC** | static | `Now` | `Set(·)` | Unix seconds |
 | **DmaBuffer** | instance | `Length` `Busy` | `Fill(…)` `CopyFrom(…)` `ToArray(…)` `GetString(…)` `ToString()` | `new DmaBuffer(size or bytes)` — DMA-capable memory, indexer `buf[i]` ([DMA](DMA.md)) |
 | **DmaTransfer** | instance | `IsCompleted` `Succeeded` `Error` `Result` `Id` | `Wait(…)` `OnComplete(·)` `Cancel()` | returned by every `…Async` call |
 | **Dma** | static | `Pending` `Available` `Channels` `Alignment` `MaxTransfers` | `Copy(…)` `CopyAsync(…)` `Fill(…)` `FillAsync(…)` `WaitAll(…)` | memory-to-memory DMA, transfers in flight |
+| **GpioConfig** | instance | `Mode` `Pull` `Speed` `DriveMilliamps` `Schmitt` `Hold` `Invert` `Initial` `Alternate` `FilterNs` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
+| **I2cConfig** | instance | `Frequency` `Sda` `Scl` `PullUps` `Dma` `TimeoutMs` `GlitchFilter` `AnalogFilter` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
+| **SpiConfig** | instance | `Frequency` `Mode` `Bits` `LsbFirst` `Sck` `Mosi` `Miso` `Cs` `CsActiveHigh` `ThreeWire` `Dma` `InputDelayNs` `MaxTransfer` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
+| **QspiConfig** | instance | `Frequency` `Mode` `Ddr` `Dma` `CsHighCycles` `SampleShift` `FlashSizeLog2` `Sck` `Cs` `Io0` `Io1` `Io2` `Io3` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
+| **PwmConfig** | instance | `Frequency` `Pin` `ResolutionBits` `Inverted` `CenterAligned` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
+| **AdcConfig** | instance | `ResolutionBits` `Attenuation` `Oversample` `SampleTime` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | peripheral settings object |
 
 ## Drivers (modules/drivers)
 
@@ -166,7 +173,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **BleRemoteService** | instance | `Uuid` `Name` `Handle` `EndHandle` | `Characteristics()` `Characteristic(·)` `ToString()` | GATT client: `BleConnection.Services()` |
 | **BleRemoteCharacteristic** | instance | `Uuid` `Name` `Handle` `Properties` `CanRead` `CanWrite` `CanNotify` `CanIndicate` | `Read()` `ReadString()` `Write(…)` `Subscribe(…)` `Unsubscribe()` `Descriptors()` `ToString()` | GATT client |
 | **BleRemoteDescriptor** | instance | `Uuid` `Name` `Handle` | `Read()` `Write(·)` `ToString()` | GATT client |
-| **BleUart** | instance | `Available` `Connected` | `Write(·)` `WriteLine(…)` `Read()` `ReadString()` `ReadLine()` `OnReceive(·)` `Start(…)` | `new BleUart([name])` — Nordic UART Service |
+| **BleUart** | instance | `Baud` `DataBits` `Parity` `StopBits` `FlowControl` `Tx` `Rx` `Rts` `Cts` `RxBuffer` `TxBuffer` `InvertTx` `InvertRx` `Rs485` `Dma` `RxTimeout` | `Set(·, ·)` `Get(·)` `Reset()` `ToString()` | `new BleUart([name])` — Nordic UART Service |
 | **BleUuid** | static | — | `Normalize(·)` `ToLong(·)` `Equals(·, ·)` `IsValid(·)` `Name(·)` | UUID helpers |
 
 ## Threads (modules/threads)
@@ -195,4 +202,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1327 members in 110 tables._
+_1425 members in 117 tables._
