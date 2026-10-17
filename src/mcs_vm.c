@@ -2072,6 +2072,11 @@ mcs_result_t mcs_check_source(mcs_vm_t* vm, const char* name, const char* src) {
 mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_BEGIN(vm);
     vm->error[0] = 0;
+    /* Compilation pauses GC while building its temporary graph. On a small
+     * pool, dead objects from the previous run can otherwise exhaust the heap
+     * before execution gets to its first GC safepoint. Only collect at an idle
+     * top-level entry; nested native callers may have unrooted C temporaries. */
+    if (!vm->run_depth) mcs_collect(vm);
     mcs_function_t* fn = mcs_compile(vm, name, src);
     if (!fn) { GUARD_END(vm); return MCS_ERR_COMPILE; }
     vm->gc_pause++;

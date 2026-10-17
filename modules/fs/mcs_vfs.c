@@ -208,13 +208,25 @@ int mcs_vfs_read_file(mcs_vfs_t* vfs, const char* path, char** data, size_t* len
     mcs_vfs_file_t f;
     if ((e = mcs_vfs_open(vfs, path, MCS_VFS_READ, &f))) return e;
     size_t cap = st.size, n = 0;
+    if (cap == SIZE_MAX) { mcs_vfs_close(&f); return MCS_VFS_ENOMEM; }
     char* buf = (char*)vfs_alloc(vfs, NULL, 0, cap + 1);
     if (!buf) { mcs_vfs_close(&f); return MCS_VFS_ENOMEM; }
     for (;;) {
-        if (n == cap) {  /* file grew since stat (POSIX backends) */
-            char* nb = (char*)vfs_alloc(vfs, buf, cap + 1, cap * 2 + 65);
+        if (n == cap) {
+            /* Use the terminator byte to probe for EOF. A file of exactly the
+             * stat size must not need a second, twice-as-large allocation. */
+            int r = mcs_vfs_read(&f, buf + n, 1);
+            if (r <= 0) {
+                if (r < 0) { vfs_alloc(vfs, buf, cap + 1, 0); mcs_vfs_close(&f); return r; }
+                break;
+            }
+            if (cap > (SIZE_MAX - 65) / 2) {
+                vfs_alloc(vfs, buf, cap + 1, 0); mcs_vfs_close(&f); return MCS_VFS_ENOMEM;
+            }
+            size_t next = cap * 2 + 64;
+            char* nb = (char*)vfs_alloc(vfs, buf, cap + 1, next + 1);
             if (!nb) { vfs_alloc(vfs, buf, cap + 1, 0); mcs_vfs_close(&f); return MCS_VFS_ENOMEM; }
-            buf = nb; cap = cap * 2 + 64;
+            buf = nb; cap = next; n++;
         }
         int r = mcs_vfs_read(&f, buf + n, cap - n);
         if (r < 0) { vfs_alloc(vfs, buf, cap + 1, 0); mcs_vfs_close(&f); return r; }
@@ -224,8 +236,8 @@ int mcs_vfs_read_file(mcs_vfs_t* vfs, const char* path, char** data, size_t* len
     mcs_vfs_close(&f);
     if (n != cap) {
         char* nb = (char*)vfs_alloc(vfs, buf, cap + 1, n + 1);
-        if (nb) buf = nb;
-        else { /* keep the larger block; record its real size for mcs_vfs_free */ n = cap; }
+        if (!nb) { vfs_alloc(vfs, buf, cap + 1, 0); return MCS_VFS_ENOMEM; }
+        buf = nb;   /* len stays the bytes read, never uninitialized capacity */
     }
     buf[n] = 0;
     *data = buf; *len = n;

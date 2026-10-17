@@ -10,7 +10,7 @@ d.SetFont("helvB10_tr");
 string title = "Centred";
 int w = d.GetStrWidth(title);
 d.DrawStr((d.Width - w) / 2, 12, title);           // y = baseline by default
-Console.WriteLine($"{d.Font}: ascent {d.Ascent}, descent {d.Descent}, max {d.MaxCharWidth}x{d.MaxCharHeight}, width('{title}') = {w}");
+Console.WriteLine($"{d.Font}: ascent {d.GetAscent()}, descent {d.GetDescent()}, max {d.GetMaxCharWidth()}x{d.GetMaxCharHeight()}, width('{title}') = {w}");
 
 d.SetFont("6x10_tf");
 d.DrawUTF8(0, 26, "UTF-8: 25°C ±1 µs");             // _tf fonts have Latin-1 characters

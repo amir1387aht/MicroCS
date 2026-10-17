@@ -17,7 +17,7 @@ d.DrawBox(90, 34, 20, 12);
 d.SetDrawColor(U8g2.ColorSet);
 d.DrawTriangle(4, 60, 14, 50, 24, 60);
 d.SendBuffer();
-Console.WriteLine($"width={d.GetStrWidth("Hello MicroCS")} ascent={d.Ascent} descent={d.Descent} maxh={d.MaxCharHeight}");
+Console.WriteLine($"width={d.GetStrWidth("Hello MicroCS")} ascent={d.GetAscent()} descent={d.GetDescent()} maxh={d.GetMaxCharHeight()}");
 Console.WriteLine($"pixels: {d.GetPixel(0, 16)} {d.GetPixel(1, 17)} {d.GetPixel(60, 40)} {d.GetPixel(100, 40)}");
 string pbm = d.WriteBufferPBM();
 Console.WriteLine(pbm.Substring(0, 9).Replace("\n", "|") + " len=" + pbm.Length);
@@ -39,3 +39,6 @@ Console.WriteLine($"{spi.Display} {spi.Bus}");
 spi.Begin(); spi.ClearBuffer(); spi.DrawBox(0, 0, 8, 8); spi.SendBuffer();
 spi.Dispose();
 try { spi.Clear(); } catch (ObjectDisposedException) { Console.WriteLine("disposed"); }
+
+// Old properties stay source-compatible and report the same upstream metrics.
+if (d.Ascent != d.GetAscent() || d.Descent != d.GetDescent() || d.MaxCharHeight != d.GetMaxCharHeight() || d.MaxCharWidth != d.GetMaxCharWidth()) throw new Exception("metric aliases differ");

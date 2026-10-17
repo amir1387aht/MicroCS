@@ -1,5 +1,5 @@
 /* Release-size fixed pools, not a malloc-backed --heap accounting limit.
- * Run the real caps command and the actual Studio benchmark, including reruns.
+ * Run the real caps command and the actual Studio benchmark, including repeated runs.
  * Host pointers/values are larger than RP2040's, so this is conservative. */
 #include "mcs_runtime.h"
 #include <stdio.h>
@@ -71,9 +71,11 @@ int main(void) {
             /* 96 KB is a single-run smoke test: compiling a second source while
              * the prior function is still global needs more room with host-sized
              * pointers. The reported RP2040 (128 KB) also tests repeated runs. */
-            int repeats = sizes[i] == 96 * 1024 ? 1 : 2;
+            int repeats = sizes[i] == 96 * 1024 ? 1 : 20;
             for (int repeat = 0; repeat < repeats; repeat++) {
-                reset_output(); mcs_gc(rt.vm);
+                /* No host-forced GC: Studio/shell runs must recover the prior
+                 * run's garbage themselves before the next compilation. */
+                reset_output();
                 rc = mcs_exec_source(rt.vm, "bench_cpu.cs", uploaded);
                 if (rc != MCS_OK) fprintf(stderr, "%s\n%s\n", output, mcs_last_error(rt.vm));
                 CHECK(rc == MCS_OK);
