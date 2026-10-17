@@ -345,6 +345,7 @@ int mcs_sched_load_config(mcs_sched_t* s, const char* text) {
 }
 
 int mcs_sched_start_project(mcs_sched_t* s, const char* text) {
+#if MCS_ENABLE_FS && MCS_ENABLE_COMPILER
     if (s->busy || mcs_running(s->vm)) { mcs_fail(s->vm, MCS_ERR_RUNTIME, "stop the running script before starting a project"); return -1; }
     mcs_sched_t staged;
     memset(&staged, 0, sizeof staged);
@@ -361,11 +362,7 @@ int mcs_sched_start_project(mcs_sched_t* s, const char* text) {
         if (!s->vfs || j->path[0] != '/' || len < 3 || strcmp(j->path + len - 3, ".cs")) {
             mcs_fail(s->vm, MCS_ERR_RUNTIME, "project jobs require absolute .cs paths: '%s'", j->path); return -1;
         }
-#if MCS_ENABLE_COMPILER
         if (mcs_check_file(s->vm, s->vfs, j->path) != MCS_OK) return -1;
-#else
-        mcs_fail(s->vm, MCS_ERR_RUNTIME, "project requires a source compiler"); return -1;
-#endif
     }
     uint32_t elapsed = now(s) - prepared_at;
     for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) staged.jobs[i].next_due += elapsed;
@@ -373,6 +370,11 @@ int mcs_sched_start_project(mcs_sched_t* s, const char* text) {
     memcpy(s->jobs, staged.jobs, sizeof s->jobs);
     s->next_id = staged.next_id;
     return count;
+#else
+    (void)text;
+    mcs_fail(s->vm, MCS_ERR_RUNTIME, "project requires filesystem and source compiler support");
+    return -1;
+#endif
 }
 
 /* ------------------------------------------------------------ C# API */
