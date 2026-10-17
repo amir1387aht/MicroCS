@@ -126,6 +126,7 @@ NATIVE(can_open) {
     ST()->can[bus].backend = 1; ST()->can[bus].mode = cfg.mode;
     return mcs_null();
 }
+#if MCS_ENABLE_MCP2515
 NATIVE(can_mcp_open) {
     if (!arity(vm, argc, 3, 6) || !main_vm(vm)) return mcs_null();
     int bus = bus_arg(vm, argv[0]); int spi = number(vm, argv[1], 0, MCS_HAL_MAX_BUSES - 1, "SPI bus");
@@ -149,6 +150,7 @@ NATIVE(can_mcp_open) {
     b->backend = 2; b->mode = (uint8_t)mode;
     return mcs_null();
 }
+#endif
 NATIVE(can_close) {
     if (!main_vm(vm)) return mcs_null();
     int bus = bus_arg(vm, argv[0]); if (bus < 0) return mcs_null();
@@ -202,8 +204,11 @@ NATIVE(can_recv) {
     ((canframe_t*)mcs_userdata(obj))->f = f; return obj;
 }
 static const mcs_reg_t can_fns[] = {
-    MCS_FN("Open", can_open, -1), MCS_FN("OpenMcp2515", can_mcp_open, -1), MCS_FN("Close", can_close, 1),
-    MCS_FN("Send", can_send, -1), MCS_FN("Receive", can_recv, -1), MCS_FN("OnReceive", mcs__can_onreceive, 2), MCS_REG_END
+    MCS_FN("Open", can_open, -1),
+#if MCS_ENABLE_MCP2515
+    MCS_FN("OpenMcp2515", can_mcp_open, -1),
+#endif
+    MCS_FN("Close", can_close, 1), MCS_FN("Send", can_send, -1), MCS_FN("Receive", can_recv, -1), MCS_FN("OnReceive", mcs__can_onreceive, 2), MCS_REG_END
 };
 static const mcs_const_t can_consts[] = {
     MCS_CONST("Normal", MCS_CAN_NORMAL), MCS_CONST("ListenOnly", MCS_CAN_LISTEN_ONLY), MCS_CONST("Loopback", MCS_CAN_LOOPBACK), MCS_CONST_END

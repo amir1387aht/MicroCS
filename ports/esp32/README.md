@@ -6,6 +6,13 @@ HTTPS) — see [NETWORK.md](../../docs/NETWORK.md). Chips without Wi-Fi (H2, P4)
 port without it. BLE-capable release targets include NimBLE; S2 and P4 have no onboard BLE.
 See [Bluetooth LE](../../docs/BLE.md).
 
+ESP32-C6 example builds enable ESP-IDF's `-msave-restore` size optimization
+(`sdkconfig.defaults.esp32c6`) so Wi-Fi, TLS, BLE and CAN fit the existing 2 MB app
+partition. This adds small register-save/restore call overhead; no features are
+removed and the script-storage partition stays at its existing offset. For an
+already configured project, enable `CONFIG_COMPILER_SAVE_RESTORE_LIBCALLS` in
+menuconfig or regenerate `sdkconfig` after backing up custom settings.
+
 ## Quick start — MicroCS as the whole firmware
 
 [`example/`](example) is a complete ESP-IDF project. Copy it, put MicroCS in

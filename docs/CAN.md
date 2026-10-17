@@ -26,6 +26,12 @@ Capabilities are side-effect-free:
   and microsecond delay. This does **not** probe for an attached MCP2515. Studio
   shows the external-controller template using this capability, even without native CAN.
 
+The external backend is enabled by default with the HAL. Flash-constrained custom
+firmware can set `MCS_ENABLE_MCP2515=0` to omit its driver and `OpenMcp2515` method;
+`CAN.Mcp2515` then reports false. Native CAN remains available independently. The
+256 KB Cortex-M0 emulator reference targets use this option because they have no
+physical MCP2515; released MCU firmware keeps the external backend enabled.
+
 The CAN class is registered if either native CAN or the MCP2515 transport is
 available. `CAN.Open` never silently switches to an external controller.
 

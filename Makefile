@@ -372,6 +372,8 @@ build/test_can: tests/c/test_can.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) tests/c/test_can.c -o $@ $(LDLIBS)
 can-test: build/test_can
 	./build/test_can
+	$(CC) $(CFLAGS) -DMCS_ENABLE_MCP2515=0 $(SRC) $(MOD_SRC) tests/c/test_can_nomcp.c -o build/test_can_nomcp $(LDLIBS)
+	./build/test_can_nomcp
 	@for v in 0 1; do \
 	  $(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can && ./build/test_esp_can || exit 1; \
 	  $(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Iinclude -Itests/c/can_sdk -DCAN_VARIANT=$$v tests/c/test_esp_can.c -o build/test_esp_can_cpp && ./build/test_esp_can_cpp || exit 1; done

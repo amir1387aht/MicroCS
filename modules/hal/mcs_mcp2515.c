@@ -3,6 +3,7 @@
 #include "mcs_mcp2515.h"
 #include "mcs_can_timing.h"
 #if MCS_ENABLE_HAL
+#if MCS_ENABLE_MCP2515
 #include <string.h>
 static int transfer(mcs_mcp2515_t* d, const uint8_t* tx, uint8_t* rx, size_t n) {
     const mcs_hal_t* h = d->hal;
@@ -119,4 +120,15 @@ int mcs_mcp2515_try_recv(mcs_mcp2515_t* d, mcs_can_frame_t* f) {
     if (!f->rtr) memcpy(f->data, b + 5, f->len);
     return 0;
 }
-#endif
+#else
+/* Keep the native backend linkable when the optional SPI controller is omitted. */
+int mcs_mcp2515_open(mcs_mcp2515_t* d, const mcs_hal_t* h, int bus, int cs,
+                    uint32_t oscillator, uint32_t rate, int mode) {
+    (void)d; (void)h; (void)bus; (void)cs; (void)oscillator; (void)rate; (void)mode;
+    return MCS_HAL_ENOTSUP;
+}
+int mcs_mcp2515_close(mcs_mcp2515_t* d) { (void)d; return MCS_HAL_ENOTSUP; }
+int mcs_mcp2515_try_send(mcs_mcp2515_t* d, const mcs_can_frame_t* f) { (void)d; (void)f; return MCS_HAL_ENOTSUP; }
+int mcs_mcp2515_try_recv(mcs_mcp2515_t* d, mcs_can_frame_t* f) { (void)d; (void)f; return MCS_HAL_ENOTSUP; }
+#endif /* MCS_ENABLE_MCP2515 */
+#endif /* MCS_ENABLE_HAL */

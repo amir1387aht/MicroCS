@@ -303,6 +303,8 @@ jobs:
           # The non-BLE release targets still ship real threads.
           case "${{ matrix.target }}" in esp32s2|esp32p4) echo CONFIG_MICROCS_THREADS=y >> sdkconfig.defaults ;; esac
           idf.py set-target ${{ matrix.target }}
+          # C6 needs its target defaults to keep Wi-Fi + BLE + CAN in the 2 MB app slot.
+          if [ "${{ matrix.target }}" = esp32c6 ]; then grep -qx 'CONFIG_COMPILER_SAVE_RESTORE_LIBCALLS=y' sdkconfig; fi
           idf.py build
           # Kconfig must not silently drop BLE, including on low-RAM C2 and BLE-only H2.
           if [ "${{ matrix.fs }}" = ble ]; then
