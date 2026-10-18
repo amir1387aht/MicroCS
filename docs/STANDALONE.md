@@ -122,6 +122,8 @@ output, so an application printing the same text remains visible.
 | `get <f>` | `\x04DATA <len>`, raw bytes, `\x04OK` |
 | `rm`, `mkdir`, `mv` | file management |
 | `run <f>` | run a source or image file (NOEXEC mounts refused) |
+| `check <source.cs>` | compile source without executing it (requires compiler; NOEXEC mounts refused) |
+| `project <jobs.cfg>` | validate config and its absolute `.cs` job sources, then replace all jobs without rebooting (requires compiler and scheduler); empty configs rejected |
 | `exec <code>` | compile + run one line |
 | `jobs`, `every <ms> <f>`, `after <ms> <f>` | scheduler: list jobs (`<id> <state> every\|once <ms> runs=<n> <file or <delegate>>`), add file jobs |
 | `cancel <id>` / `cancel all` / `cancel scripts` / `cancel files` | cancel one job, every job, the delegate jobs scripts started, or the file jobs (`jobs.cfg`, `every`/`after`); bulk forms print `cancelled <n>` |
@@ -166,12 +168,19 @@ Dark (Light via the theme button).
   *Run at boot* (copies a script to `/main.cs`). The bar at the bottom shows free space
   (`df`) and the VM heap (`mem`).
 * **Editor** — tabs, C# highlighting with Visual Studio's colours, auto-indent and bracket
-  pairs, `Ctrl+/` comments. `Ctrl+S` saves to the device; `F5` / `Ctrl+Enter` saves and runs,
+  pairs, `Ctrl+/` comments. `Ctrl+S` saves/uploads all open C# files and compile-checks by default; `F5` saves/builds
+  and runs the file or Project jobs. `Ctrl+Enter` explicitly runs the active file,
   streaming the output; compile errors and exceptions mark the line and are clickable in the
   console. `Ctrl+Shift+Enter` runs only the selection. Binary files (`.mcsb`) open in a hex
   view. Find / replace (`Ctrl+F` / `Ctrl+H`, match case, whole word, regex), go to line
   (`Ctrl+G`), format document (`Shift+Alt+F`), move / copy lines (`Alt+↑↓`), bracket matching.
+  Automatic line/paste formatting and format-on-save are on by default (independent ⋯ settings).
   Unsaved files are kept in the browser and come back after a reload.
+* **Projects** — Project… chooses a device folder containing `jobs.cfg`. F5 / Run project
+  saves the open project sources/config, checks every discovered project source, then schedules
+  only the configured jobs. Ctrl+S does not launch them; Run file remains independent. Requires
+  updated firmware with `check` and `project`. See [Studio workflows](../tools/studio/README.md#project-mode)
+  for limits, defaults, legacy opt-out and non-atomic project-upload caveats.
 * **IntelliSense** — every library member has a signature and a one-line doc
   ([`docs.js`](../tools/studio/docs.js)). Typing `GPIO.` lists the members with their return
   types and a doc panel; typing `(` or `,` shows parameter info with the active parameter,

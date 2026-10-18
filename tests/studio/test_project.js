@@ -1,0 +1,117 @@
+// Local Chromium + real host firmware over fake Web Serial: no hardware needed.
+let chromium; try { ({chromium} = require('playwright')); } catch { ({chromium} = require('playwright-core')); }
+const { spawn } = require('child_process');
+const fs = require('fs'), path = require('path'), assert = require('assert');
+const root = path.resolve('build/studio-project-fs');
+fs.rmSync(root, { recursive:true, force:true }); fs.mkdirSync(root, {recursive:true});
+const a = 'File.AppendAllText("/ran-a", "A");', b = 'File.WriteAllText("/ran-b", "B updated");';
+fs.writeFileSync(root+'/a.cs', a); fs.writeFileSync(root+'/b.cs', '// old');
+const proc = spawn(path.resolve(process.argv[2] || './mcs'), ['--shell','--sim','--fs',root]);
+let browser, page, errors = [], chain = Promise.resolve();
+(async () => {
+  browser = await chromium.launch({ executablePath:process.env.CHROME || '/usr/bin/chromium', args:['--no-sandbox'] });
+  page = await browser.newPage({viewport:{width:1400,height:900}});
+  page.on('pageerror', e=>errors.push(e.message));
+  await page.exposeFunction('__write', arr => {proc.stdin.write(Buffer.from(arr));});
+  proc.stdout.on('data', data=>{chain=chain.then(()=>page.evaluate(a=>window.__push?.(a), [...data]).catch(()=>{}));});
+  await page.addInitScript(() => {
+    let ctl;
+    const port={ async open(){ port.readable=new ReadableStream({start(c){ctl=c;}}); port.writable=new WritableStream({write(a){return window.__write([...a]);}}); }, async close(){}, async setSignals(){} };
+    window.__push=a=>ctl?.enqueue(new Uint8Array(a));
+    Object.defineProperty(navigator,'serial',{value:{requestPort:async()=>port,getPorts:async()=>[port],addEventListener(){}}});
+  });
+  await page.goto('file://'+path.resolve('tools/studio/index.html'));
+  await page.click('#btnConnect');
+  await page.waitForFunction(()=>document.querySelector('#connText').textContent.startsWith('MicroCS'),null,{timeout:10000});
+  await page.evaluate(({a,b})=>{
+    App.openTab({path:'/a.cs',text:a,saved:a});
+    App.openTab({path:'/jobs.cfg',text:'startup /a.cs\n',saved:null});
+    App.openTab({path:'/b.cs',text:b,saved:'// old'});
+  },{a,b});
+  await page.selectOption('#runMode','project');
+  await page.click('#cin'); await page.keyboard.press('F5');
+  await page.waitForFunction(()=>App.projectRunning && !App.workflowBusy,null,{timeout:15000});
+  await page.waitForTimeout(200);
+  assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A');
+  assert(!fs.existsSync(root+'/ran-b'),'unlisted b.cs must not execute during Project F5');
+  assert(fs.readFileSync(root+'/b.cs','utf8').includes('B updated'),'all open scripts uploaded');
+  assert.strictEqual(fs.readFileSync(root+'/jobs.cfg','utf8'),'startup /a.cs\n');
+  console.log('PASS F5 outside editor: upload/build all, start jobs.cfg only');
+  await page.click('#btnRunFile');
+  await page.waitForFunction(()=>!App.workflowBusy,null,{timeout:15000});
+  assert.strictEqual(fs.readFileSync(root+'/ran-b','utf8'),'B updated');
+  console.log('PASS explicit Run file remains independent in Project mode');
+  await page.fill('#ta', 'File.WriteAllText("/ran-b", "saved by CtrlS");');
+  await page.evaluate(()=>App.activate(App.tabs.find(t=>t.path==='/a.cs').id));
+  await page.waitForTimeout(50); await page.keyboard.press('Control+s');
+  await page.waitForFunction(()=>!App.workflowBusy,null,{timeout:15000});
+  assert(fs.readFileSync(root+'/b.cs','utf8').includes('saved by CtrlS'));
+  console.log('PASS Ctrl+S saves/builds other open C# files too');
+  await page.evaluate(()=>App.activate(App.tabs.find(t=>t.path==='/b.cs').id));
+  await page.fill('#ta','int broken = ;'); await page.keyboard.press('F5');
+  await page.waitForFunction(()=>!App.workflowBusy,null,{timeout:15000});
+  assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A','failed compilation must not launch jobs');
+  assert((await page.innerText('#term')).includes('Build failed: /b.cs'));
+  console.log('PASS build error blocks Project launch');
+  await page.fill('#ta', b);
+  fs.mkdirSync(root+'/sub', {recursive:true}); fs.writeFileSync(root+'/sub/closed.cs', 'int closed = ;');
+  await page.keyboard.press('F5');
+  await page.waitForFunction(()=>!App.workflowBusy,null,{timeout:15000});
+  assert((await page.innerText('#term')).includes('Build failed: /sub/closed.cs'));
+  assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A');
+  fs.unlinkSync(root+'/sub/closed.cs');
+  console.log('PASS closed project sources are discovered and compile errors block launch');
+  const uploadFailed = await page.evaluate(async()=>{
+    const original = App.putReliable;
+    App.putReliable = async()=>{throw new Error('test upload failure');};
+    try { return await App.runCurrent(false); } finally { App.putReliable = original; }
+  });
+  assert.strictEqual(uploadFailed,false);
+  assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A');
+  const lock = await page.evaluate(async()=>{
+    let release; const gate = new Promise(r=>release=r);
+    const first = App.workflow(()=>gate); let duplicate = false;
+    const result = await App.workflow(()=>{duplicate=true;});
+    release(true); await first; return {duplicate,result};
+  });
+  assert.deepStrictEqual(lock,{duplicate:false,result:false});
+  console.log('PASS failed upload prevents launch; duplicate actions are locked');
+  await page.selectOption('#runMode','file');
+  await page.fill('#ta', 'Thread.Sleep(60000);'); await page.keyboard.press('F5');
+  await page.waitForFunction(()=>dev.running && App.workflowBusy,null,{timeout:15000});
+  await page.evaluate(()=>{
+    const original = App.save;
+    window.__saveFinished = false;
+    App.save = function(...args) {
+      const result = original.apply(this,args);
+      result.then(ok=>{window.__saveSucceeded=ok;window.__saveFinished=true;});
+      App.save = original; return result;
+    };
+  });
+  await page.fill('#ta', b); await page.keyboard.press('Control+s');
+  await page.waitForFunction(()=>window.__saveFinished,null,{timeout:15000});
+  assert.strictEqual(await page.evaluate(()=>window.__saveSucceeded),true,'interrupted-run save must complete successfully');
+  assert.strictEqual(await page.evaluate(()=>!!App.workflowBusy || dev.running),false);
+  assert(fs.readFileSync(root+'/b.cs','utf8').includes('B updated'));
+  console.log('PASS Save interrupts a foreground F5 run before uploading/building');
+  // Leave project mode for editor-only interaction tests.
+  await page.selectOption('#runMode','file');
+  await page.fill('#ta','GPIO.Write'); await page.keyboard.press('End'); await page.keyboard.type('(');
+  await page.waitForSelector('.sighelp',{state:'visible'});
+  await page.click('#btnMore'); assert(!(await page.isVisible('.sighelp'))); await page.keyboard.press('Escape');
+  await page.focus('#ta'); await page.evaluate(()=>{const ta=document.querySelector('#ta');ta.setSelectionRange(ta.value.indexOf('(')+1,ta.value.indexOf('(')+1);}); await page.keyboard.press('Control+Shift+Space');
+  await page.waitForSelector('.sighelp',{state:'visible'});
+  await page.click('.sig-close'); assert(!(await page.isVisible('.sighelp')));
+  await page.keyboard.press('Control+Shift+Space'); await page.keyboard.press('Escape'); assert(!(await page.isVisible('.sighelp')));
+  await page.keyboard.press('Control+Shift+Space');
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur'))); assert(!(await page.isVisible('.sighelp')));
+  console.log('PASS parameter popup: outside click, close button, Escape and focus loss');
+  await page.fill('#ta','if(true)\n{\nx=1'); await page.keyboard.press('End'); await page.keyboard.type(';');
+  assert.strictEqual(await page.inputValue('#ta'),'if(true)\n{\n    x = 1;');
+  await page.fill('#ta','var s="a,b=1"; // untouched, =');
+  await page.keyboard.press('Shift+Alt+F');
+  assert((await page.inputValue('#ta')).includes('"a,b=1"; // untouched, ='));
+  console.log('PASS automatic line formatting and protected literal/comment contents');
+  assert.deepStrictEqual(errors,[]);
+  console.log('PASS Studio Project integration');
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{proc.kill();if(browser)await browser.close();});

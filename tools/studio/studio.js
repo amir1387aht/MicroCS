@@ -668,6 +668,7 @@ class Editor {
     const ta = this.ta;
     ta.addEventListener("input", (e) => {
       this.refresh(); this.onChange();
+      this.autoFormat(e);
       const ch = e.data || "";
       if (e.inputType === "insertText" && /[\w.]/.test(ch)) this.suggest(false);
       else if (e.inputType === "insertText" && ch === " " && /\b(new|using)\s$/.test(ta.value.slice(Math.max(0, ta.selectionStart - 7), ta.selectionStart))) this.suggest(true);
@@ -686,10 +687,18 @@ class Editor {
     this.sigEl = document.createElement("div"); this.sigEl.className = "sighelp"; $("code").appendChild(this.sigEl);
     this.docEl = document.createElement("div"); this.docEl.className = "cdoc"; $("code").appendChild(this.docEl);
     this.marks = $("marks");
-    this.sigEl.addEventListener("mousedown", (e) => { e.preventDefault(); const a = e.target.closest("[data-d]"); if (a && this.sig) { this.sig.ov = (this.sig.ov + +a.dataset.d + this.sig.list.length) % this.sig.list.length; this.sig.pinned = true; this.sigDraw(); } });
+    this.sigEl.addEventListener("mousedown", (e) => { e.preventDefault(); if (e.target.closest("[data-close]")) { this.sigHide(); return; } const a = e.target.closest("[data-d]"); if (a && this.sig) { this.sig.ov = (this.sig.ov + +a.dataset.d + this.sig.list.length) % this.sig.list.length; this.sig.pinned = true; this.sigDraw(); } });
     ta.addEventListener("mousemove", (e) => this.hoverMove(e));
     ta.addEventListener("mouseleave", () => this.hoverHide());
-    ta.addEventListener("mousedown", () => this.hoverHide());
+    ta.addEventListener("mousedown", () => { this.hoverHide(); this.sigHide(); });
+    document.addEventListener("pointerdown", e => {
+      if (!this.sigEl.contains(e.target)) this.sigHide();
+      if (!this.box.contains(e.target)) this.hideComplete();
+      if (!this.tip.contains(e.target)) this.hoverHide();
+    }, true);
+    document.addEventListener("keydown", e => { if (e.key === "Escape") { this.sigHide(); this.hoverHide(); this.hideComplete(); } }, true);
+    addEventListener("blur", () => { this.sigHide(); this.hoverHide(); this.hideComplete(); });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) { this.sigHide(); this.hoverHide(); this.hideComplete(); } });
     this.box.addEventListener("mousedown", (e) => { const d = e.target.closest("div[data-i]"); if (d) { e.preventDefault(); this.sel = +d.dataset.i; this.accept(); } });
     new ResizeObserver(() => this.syncScroll()).observe(ta);
     this.measure();
@@ -772,6 +781,7 @@ class Editor {
     if (this.curGut !== g) { this.curGut?.classList.remove("cur"); g?.classList.add("cur"); this.curGut = g; }
     this.onCursor(row + 1, col + 1);
     this.drawMarks();
+    if (this.sig) this.sigUpdate(false);
   }
   /* ---- overlay marks: find matches + matching bracket */
   blanked() { const v = this.ta.value; if (this._bv !== v) { this._bv = v; this._b = Lang.blank(v); } return this._b; }
@@ -839,7 +849,9 @@ class Editor {
   insert(text, selStart, selEnd) {
     const ta = this.ta;
     if (selStart != null) ta.setSelectionRange(selStart, selEnd);
-    if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
+    const previous = this.programmaticEdit; this.programmaticEdit = true;
+    try { if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end"); }
+    finally { this.programmaticEdit = previous; }
     this.refresh();
   }
   lineRange() {
@@ -957,54 +969,32 @@ class Editor {
     ta.setSelectionRange(Math.min(from, ta.value.length), Math.min(from, ta.value.length));
   }
   /* re-indent by braces / parentheses (4 spaces), trim trailing white space */
-  formatDocument() {
-    const ta = this.ta, v = ta.value;
-    const out = Editor.format(v);
-    if (out === v) { toast("Already formatted"); return; }
-    const row = this.caret().row;
-    this.insert(out, 0, v.length);
-    const lines = out.split("\n"); let p = 0; for (let i = 0; i < row && i < lines.length; i++) p += lines[i].length + 1;
-    p += /^\s*/.exec(lines[row] || "")[0].length;
-    ta.setSelectionRange(p, p); this.cursorMoved();
+  formatDocument(quiet = false) {
+    if (!this.tab || this.ta.readOnly || this.tab.binary || !/\.cs$/i.test(this.tab.path || this.tab.name || "")) return;
+    const ta = this.ta, v = ta.value, start = ta.selectionStart, end = ta.selectionEnd;
+    const out = Editor.format(v, { reflow: true });
+    if (out === v) { if (!quiet) toast("Already formatted"); return; }
+    this.formatting = true;
+    try { this.insert(out, 0, v.length); ta.setSelectionRange(StudioFormat.mapOffset(v, out, start), StudioFormat.mapOffset(v, out, end)); }
+    finally { this.formatting = false; }
+    this.refresh(); this.onChange(); this.cursorMoved();
   }
-  static format(src) {
-    const lines = src.split("\n"), bl = Lang.blank(src).split("\n");
-    const out = [], stack = [];          // open brackets: { ch, ind (inner indent), at (indent of the opening line), line, sw }
-    let single = -1, inComment = false;
-    for (let i = 0; i < lines.length; i++) {
-      const raw = lines[i], t = raw.trim(), b = bl[i].trim();
-      if (inComment) { out.push(raw.replace(/\s+$/, "")); if (/\*\//.test(raw)) inComment = false; continue; }
-      if (!t) { out.push(""); continue; }
-      if (/^#/.test(t)) { out.push(t); continue; }
-      const top = stack[stack.length - 1];
-      let ind = top ? top.ind : 0;
-      if (/^[}\])]/.test(b) && top) ind = top.at;                                  // closing line
-      else if (b[0] === "{" && top && top.ch !== "{") ind = top.at;               // lambda body inside a call
-      else {
-        if (top && top.sw && !/^(case\b|default\s*:)/.test(b)) ind++;             // statements under a case label
-        if (single >= 0 && b[0] !== "{") ind = Math.max(ind, single);
-        else if (/^(\.(?!\.)|\?\?|&&|\|\||\?(?![.\[])|:(?!:))/.test(b) && !(top && top.sw)) ind++;   // continuation
-      }
-      const orig = /^[ \t]*/.exec(raw)[0].replace(/\t/g, "    ").length;
-      let col = 4 * Math.max(0, ind);
-      if (top && (top.ch !== "{" || top.inline) && !/^[}\])]/.test(b) && orig > col) col = orig;  // keep manual alignment inside ( ) [ ] and { a, b,'s
-      out.push(" ".repeat(col) + t);
-      const lineInd = col / 4 | 0;
-      /* brackets on this line */
-      for (let k = 0; k < b.length; k++) {
-        const c = b[k];
-        if (c === "{" || c === "(" || c === "[") {
-          const prev = stack[stack.length - 1];
-          let inner = lineInd + 1;
-          if (c !== "{" && prev && prev.line === i && prev.ch !== "{") inner = prev.ind;   // f(g( on one line: one level
-          const sw = c === "{" && (/\bswitch\s*\(/.test(b.slice(0, k)) || k === 0 && /\bswitch\s*\(/.test(bl[i - 1] || ""));
-          stack.push({ ch: c, ind: inner, at: lineInd, line: i, sw, inline: c === "{" && /\S/.test(b.slice(k + 1).replace(/[}\])]+[;,]?\s*$/, "")) });
-        } else if (c === "}" || c === ")" || c === "]") stack.pop();
-      }
-      single = /^(if|else|for|foreach|while|using|lock)\b/.test(b) && !/[;{}]$/.test(b) && !/\)\s*\S.*;$/.test(b) || /^else$/.test(b) ? lineInd + 1 : -1;
-      if (/^\/\*/.test(t) && !/\*\//.test(t)) inComment = true;
-    }
-    return out.join("\n");
+  static format(src, options = { reflow: true }) { return StudioFormat.format(src, options); }
+  autoFormat(e) {
+    if (this.formatting || this.programmaticEdit || e.isComposing || this.ta.readOnly || !store.get("formatOnType", true) || !/\.cs$/i.test(this.tab?.path || this.tab?.name || "")) return;
+    const pasted = e.inputType === "insertFromPaste";
+    if (!pasted && !(e.inputType === "insertText" && /^[;}]$/.test(e.data || ""))) return;
+    const ta = this.ta, v = ta.value, p = ta.selectionStart;
+    if (!pasted && StudioFormat.lex(v).mask[p - 1] !== v[p - 1]) return;
+    const out = Editor.format(v, { reflow: false }), row = v.slice(0, p).split("\n").length - 1;
+    const lines = v.split("\n"), formatted = out.split("\n");
+    if (!pasted) for (let i = 0; i < lines.length; i++) if (i !== row) formatted[i] = lines[i];
+    const result = formatted.join("\n");
+    if (v === result) return;
+    this.formatting = true;
+    try { this.insert(result, 0, v.length); const to = StudioFormat.mapOffset(v, result, p); ta.setSelectionRange(to, to); }
+    finally { this.formatting = false; }
+    this.refresh(); this.onChange();
   }
   inString(p) {
     const line = this.ta.value.slice(this.ta.value.lastIndexOf("\n", p - 1) + 1, p);
@@ -1172,7 +1162,7 @@ class Editor {
   /* ---- signature help: parameter info while typing a call ("(" and ",", Ctrl+Shift+Space) */
   sigUpdate(trigger) {
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
-    if (p !== ta.selectionEnd || this.inString(p) && !trigger) { if (!this.inString(p)) this.sigHide(); return; }
+    if (p !== ta.selectionEnd) return this.sigHide();
     const ctx = Lang.callContext(v, p);
     if (!ctx) return this.sigHide();
     if (!trigger && !this.sig) return;
@@ -1196,9 +1186,10 @@ class Editor {
     let active = s.arg;
     const ps = m.params || [];
     if (active >= ps.length && ps.length && /^params /.test(ps[ps.length - 1].type)) active = ps.length - 1;
+    const close = `<button class="sig-close" aria-label="Close parameter info" title="Close (Escape)" data-close>×</button>`;
     const nav = s.list.length > 1 ? `<span class="ov"><a data-d="-1">▲</a>${s.ov + 1} of ${s.list.length}<a data-d="1">▼</a></span>` : "";
     const pdoc = ps[active] ? `<div class="pd"><b>${esc(ps[active].name)}</b>: ${typeHtml(ps[active].type)}${ps[active].def ? ` <span class="dim">(optional, default ${esc(ps[active].def)})</span>` : ""}${paramHint(m, ps[active])}</div>` : "";
-    this.sigEl.innerHTML = `<div class="sg">${nav}<code>${sigHtml(m, own, active, s.owner)}</code></div>${m.doc ? `<div class="sd">${esc(m.doc)}</div>` : ""}${pdoc}`;
+    this.sigEl.innerHTML = `<div class="sg">${close}${nav}<code>${sigHtml(m, own, active, s.owner)}</code></div>${m.doc ? `<div class="sd">${esc(m.doc)}</div>` : ""}${pdoc}`;
     this.sigEl.style.display = "block";
     this.sigPlace();
   }
@@ -1212,7 +1203,7 @@ class Editor {
     this.sigEl.style.left = Math.max(4, Math.min(x, this.ta.clientWidth - this.sigEl.offsetWidth - 8)) + "px";
     this.sigEl.style.top = (yTop - h - 4 >= 0 ? yTop - h - 4 : yTop + this.lh + (this.box.style.display === "block" ? 236 : 4)) + "px";
   }
-  sigHide() { if (this.sig) { this.sig = null; this.sigEl.style.display = "none"; } }
+  sigHide() { this.sig = null; if (this.sigEl) { this.sigEl.style.display = "none"; this.sigEl.innerHTML = ""; } }
 
   /* ---- find / replace (Ctrl+F, Ctrl+H, F3) */
   openFind(replace) {
@@ -1619,18 +1610,24 @@ const App = {
     for (const id of ["btnNewFile", "btnNewDir", "btnUpload", "btnRefresh", "btnReset", "btnCtrlC", "cin"]) $(id).disabled = !on;
     this.updateButtons();
     if ($("galleryBg").classList.contains("show")) this.galRender();
-    if (!on) { this.entries = []; this.renderFiles(); $("stText").textContent = "—"; $("stBar").style.width = "0"; $("memInfo").textContent = ""; }
+    if (!on) { this.projectRunning = false; this.entries = []; this.renderFiles(); $("stText").textContent = "—"; $("stBar").style.width = "0"; $("memInfo").textContent = ""; }
   },
   updateButtons() {
     const t = this.tab(), c = dev.connected;
-    $("btnSave").disabled = !t || t.readOnly || (!t.dirty && t.path && !t.local) || (!c && !t.local);
-    $("btnRun").disabled = !c || !t || t.binary && extOf(t.path || "") !== "mcsb";
-    $("btnStop").disabled = !c || !dev.running;
-    $("sbBusy").textContent = dev.running ? "▶ running" : dev.pending ? "● working…" : "Ready";
+    const busy = !!this.workflowBusy && !dev.running, project = store.get("projectMode", false);
+    $("btnSave").disabled = busy || (!t && !project) || (!c && !t?.local);
+    $("btnRun").disabled = busy || !c || (!project && (!t || t.binary && extOf(t.path || "") !== "mcsb"));
+    $("btnRunFile").disabled = busy || !c || !t || (t.binary && extOf(t.path || "") !== "mcsb");
+    $("btnRun").innerHTML = icon("play") + (project ? "Run project" : "Run");
+    $("btnRun").title = project ? "Save/upload and compile the project; start only jobs.cfg jobs (F5)" : "Save/build all open C# files and run the active file (F5)";
+    $("btnStop").disabled = !c || !(dev.running || this.projectRunning);
+    $("runMode").disabled = busy; $("btnProject").disabled = busy;
+    $("sbBusy").textContent = busy && !dev.running ? "● save / build…" : this.projectRunning && !dev.running ? "▶ project jobs loaded" : dev.running ? "▶ running" : dev.pending ? "● working…" : "Ready";
     document.querySelector("footer").classList.toggle("run", !!(c && dev.running));     // orange while a script runs, like debugging in VS
   },
   async reset() {
     if (!dev.connected) return;
+    this.projectRunning = false;
     term.line("— resetting the board —", "sys");
     if (dev.running) {                                   // the run holds the line: stop it first
       dev.stop();
@@ -1733,7 +1730,7 @@ const App = {
           `<button data-a="mv" title="Rename / move">${icon("edit")}</button><button data-a="rm" class="del" title="Delete">${icon("trash")}</button></span>`);
       row.onclick = (e) => {
         const a = e.target.closest("button")?.dataset.a;
-        if (a === "run") this.runPath(path);
+        if (a === "run") this.runFilePath(path);
         else if (a === "dl") this.downloadPath(path);
         else if (a === "mv") this.rename(path);
         else if (a === "rm") this.remove(path, it.dir);
@@ -1749,7 +1746,7 @@ const App = {
     if (it.dir) items.push({ label: "Open folder", icon: "folder", run: () => this.cd(path) });
     else {
       items.push({ label: "Open in editor", icon: "edit", run: () => this.openPath(path, it.size) });
-      if (kind === "cs" || kind === "img") items.push({ label: "Run", icon: "play", run: () => this.runPath(path) });
+      if (kind === "cs" || kind === "img") items.push({ label: "Run file", icon: "play", run: () => this.runFilePath(path) });
       if (kind === "cs" && path !== "/main.cs") items.push({ label: "Run at boot (copy to /main.cs)", icon: "boot", run: () => this.copyTo(path, "/main.cs") });
       items.push({ label: "Download", icon: "download", run: () => this.downloadPath(path) });
       items.push({ label: "Duplicate", icon: "copy", run: () => this.duplicate(path) });
@@ -1768,7 +1765,7 @@ const App = {
   /* a new file must not silently replace one on the device (Add template -> Save as main.cs) */
   async confirmReplace(path) {
     let list = null;
-    try { list = dirName(path) === this.cwd ? this.entries : await dev.op(() => dev.ls(dirName(path))); } catch { return true; }   // folder missing: put creates the file
+    try { list = await dev.op(() => dev.ls(dirName(path))); } catch { return true; }   // folder missing: put creates the file
     const e = (list || []).find((x) => x.name === baseName(path));
     if (!e) return true;
     if (e.dir) { toast(`${path} is a folder`, "err"); return false; }
@@ -1971,7 +1968,7 @@ const App = {
     const name = tpl ? tpl.file : `untitled-${this.untitled++}.cs`;
     this.openTab({ name, text: tpl ? tpl.text : "", saved: null });
   },
-  async save(t = this.tab()) {
+  async saveOne(t = this.tab(), options = {}) {
     if (!t || t.binary) return false;
     ed.stash();
     if (t.local && !dev.connected) { download(t.name || "file.cs", enc.encode(t.text)); t.saved = t.text; this.renderTabs(); return true; }
@@ -1979,12 +1976,14 @@ const App = {
     try { await this.stopForUpload(); }
     catch (e) { toast(e.message, "err", 6000); return false; }
     if (!t.path || t.local) {
-      const sug = joinPath(this.cwd, (t.name || "app.cs").replace(/\s+/g, "_"));
+      const sug = joinPath(options.project ? this.projectRoot() : this.cwd, (t.name || "app.cs").replace(/\s+/g, "_"));
       const ext = extOf(sug);
       const p = await dialog({ title: "Save to device", text: "Path on the device", value: sug, select: [sug.lastIndexOf("/") + 1, sug.length - (ext ? ext.length + 1 : 0)], ok: "Save" });
       if (!p) return false;
       const path = normPath(p.startsWith("/") ? p : joinPath(this.cwd, p));
       if (!this.checkName(path)) return false;
+      if (this.tabs.some(other => other !== t && !other.local && other.path === path)) { toast("That path is already open in another tab: " + path, "err"); return false; }
+      if (options.project && !this.inProject(path)) { toast("Save project files inside " + this.projectRoot(), "err"); return false; }
       if (!(await this.confirmReplace(path))) return false;
       t.path = path; t.local = false; t.name = null;
     }
@@ -1993,30 +1992,159 @@ const App = {
       await this.transfer(`↑ ${baseName(t.path)}`, (prog) => this.putReliable(t.path, enc.encode(text), prog));
       t.saved = text;
       this.renderTabs();
-      $("sbFile").textContent = t.path;
-      if (dirName(t.path) === this.cwd) this.refresh(true);
+      $("sbFile").textContent = this.tab()?.path || t.path;
+      if (options.refresh !== false && dirName(t.path) === this.cwd) this.refresh(true);
       return true;
     } catch (e) { toast("Save failed: " + e.message, "err", 6000); return false; }
   },
 
-  /* ---------- running */
-  async runCurrent(selectionOnly) {
-    const t = this.tab();
-    if (!t || !dev.connected) return;
-    ed.stash();
-    if (selectionOnly) {
-      const s = ed.ta.selectionStart, e = ed.ta.selectionEnd;
-      const code = s !== e ? ed.ta.value.slice(s, e) : ed.ta.value.slice(ed.lineRange()[0], ed.lineRange()[1]);
-      const tmp = "/.studio_run.cs";
+  projectRoot() { return normPath(store.get("projectRoot", "/")); },
+  projectConfig() { return joinPath(this.projectRoot(), "jobs.cfg"); },
+  inProject(path) { const root = this.projectRoot(); return !!path && (root === "/" || path.startsWith(root + "/")); },
+  async configureProject() {
+    const root = await dialog({ title: "Project settings", text: "Device project folder. It must contain jobs.cfg with absolute .cs paths. F5 runs only those configured jobs; Run file stays independent.", value: this.projectRoot(), ok: "Use project" });
+    if (root === null || root === false || !root) return;
+    const path = normPath(root.startsWith("/") ? root : "/" + root);
+    if (!this.checkName(path === "/" ? "/jobs.cfg" : path)) return;
+    store.set("projectRoot", path); store.set("projectMode", true); $("runMode").value = "project";
+    this.updateButtons(); toast("Project: " + this.projectConfig());
+  },
+  async workflow(action) {
+    if (this.workflowHandoff || this.workflowBusy && !dev.running) {
+      toast("A save/build/run action is already in progress."); return false;
+    }
+    if (this.workflowBusy) {
+      // Reserve the next action before interrupting the run. Keep busy true until
+      // that action takes ownership: polling the old flag exposed a false-idle gap.
+      this.workflowHandoff = true;
+      const previous = this.workflowDone;
       try {
+        await this.stopForUpload();
+        if (previous) await previous;
+      } catch (e) {
+        this.workflowHandoff = false;
+        this.workflowBusy = !!this.workflowDone;
+        this.updateButtons(); toast(e.message, "err"); return false;
+      }
+      this.workflowHandoff = false;
+    }
+    let complete;
+    this.workflowDone = new Promise(resolve => { complete = resolve; });
+    this.workflowCancelled = false;
+    this.workflowBusy = true; this.updateButtons(); ed.sigHide(); ed.hoverHide(); ed.hideComplete();
+    try { return await action(); }
+    catch (e) { toast(e.message, "err", 7000); term.line("✗ " + e.message, "err"); return false; }
+    finally {
+      this.workflowDone = null;
+      this.workflowBusy = !!this.workflowHandoff;
+      this.updateButtons(); complete();
+    }
+  },
+  async checkScripts(paths) {
+    if (!paths.length) return;
+    term.line(`— compiling ${paths.length} script${paths.length === 1 ? "" : "s"} (no execution) —`, "sys");
+    for (const path of [...new Set(paths)].sort()) {
+      if (this.workflowCancelled) throw new Error("Save/build cancelled.");
+      const r = await dev.op(() => dev.cmd("check " + path, { idle: 0 }));
+      if (r.status !== "OK") {
+        const detail = new TextDecoder().decode(r.out).trim();
+        if (/unknown command/i.test(r.status)) throw new Error("Firmware update required: compile-only 'check' is unavailable. Update MicroCS or turn off Save/upload all C# files for legacy single-file saves.");
+        const tab = this.tabs.find(t => !t.local && t.path === path);
+        if (tab) { this.activate(tab.id); const m = /\((\d+),\d+\)/.exec(detail + r.status); if (m) ed.setError(+m[1]); }
+        throw new Error("Build failed: " + path + "\n" + (detail || r.status.replace(/^ERR /, "")));
+      }
+    }
+    term.line("✓ build checks passed", "ok");
+  },
+  async projectScripts() {
+    const result = [], dirs = [this.projectRoot()], seen = new Set();
+    while (dirs.length) {
+      const dir = dirs.shift(); if (seen.has(dir)) continue; seen.add(dir);
+      if (seen.size > 128) throw new Error("Project has too many folders (limit 128).");
+      for (const f of await dev.op(() => dev.ls(dir))) {
+        if (!f.name || f.name === "." || f.name === ".." || /[\/\\\r\n]/.test(f.name)) continue;
+        const path = joinPath(dir, f.name);
+        if (f.dir) { if (!f.name.startsWith(".")) dirs.push(path); }
+        else if (/\.cs$/i.test(path) && !f.name.startsWith(".studio")) result.push(path);
+        if (result.length > 512) throw new Error("Project has too many C# files (limit 512).");
+      }
+    }
+    return result;
+  },
+  async saveBuild(target = this.tab(), project = false) {
+    ed.stash();
+    if (!dev.connected) {
+      if (project || !target?.local) throw new Error("Connect a device before building/saving a project.");
+      if (store.get("formatOnSave", true) && /\.cs$/i.test(target.path || target.name || "")) {
+        if (ed.tab === target) ed.formatDocument(true);
+        else target.text = Editor.format(target.text);
+      }
+      return this.saveOne(target);
+    }
+    await this.stopForUpload();
+    const all = project || store.get("saveAllCs", true);
+    const candidates = this.tabs.filter(t => !t.binary && !t.readOnly &&
+      (t === target || all && /\.cs$/i.test(t.path || t.name || "") && (!project || !t.path || t.local || this.inProject(t.path)) || project && ((!t.local && t.path === this.projectConfig()) || (!t.path || t.local) && t.name === "jobs.cfg")));
+    // Freeze membership, but saveOne snapshots each text only when its upload begins.
+    const paths = new Set();
+    for (const t of candidates) {
+      if (store.get("formatOnSave", true) && /\.cs$/i.test(t.path || t.name || "")) {
+        if (ed.tab === t) ed.formatDocument(true);
+        else { t.text = Editor.format(t.text); t.dirty = t.saved !== t.text; }
+      }
+      // Re-upload every open C# source, including unchanged tabs, so the board matches the editor.
+      if (!(await this.saveOne(t, { refresh: false, project }))) return false;
+      if (paths.has(t.path)) throw new Error("Two open files target the same device path: " + t.path);
+      paths.add(t.path);
+    }
+    const sources = project ? await this.projectScripts() : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
+    await this.checkScripts(sources);
+    ed.stash();
+    if (this.workflowCancelled) throw new Error("Save/build cancelled.");
+    if (candidates.some(t => t.text !== t.saved)) throw new Error("A file changed during the build. Save/build again before running.");
+    this.refresh(true);
+    return true;
+  },
+  async save(t = this.tab()) {
+    return this.workflow(() => this.saveBuild(t, store.get("projectMode", false)));
+  },
+  async runFilePath(path) {
+    if (!dev.connected) return;
+    return this.workflow(async () => {
+      if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false))) return false;
+      await this.runPath(path); return true;
+    });
+  },
+
+  /* ---------- running */
+  async runCurrent(selectionOnly, forceFile = false) {
+    const t = this.tab();
+    if (!dev.connected || (!t && (forceFile || !store.get("projectMode", false)))) return;
+    return this.workflow(async () => {
+      ed.stash();
+      if (selectionOnly) {
+        if (!t || t.binary) return false;
+        const s = ed.ta.selectionStart, e = ed.ta.selectionEnd;
+        const code = s !== e ? ed.ta.value.slice(s, e) : ed.ta.value.slice(ed.lineRange()[0], ed.lineRange()[1]);
+        const tmp = "/.studio_run.cs";
         await this.stopForUpload();
         await dev.op(() => dev.put(tmp, enc.encode(code)));
         await this.runPath(tmp, "selection", async () => { try { await dev.check("rm " + tmp); } catch {} });
-      } catch (e) { toast(e.message, "err"); }
-      return;
-    }
-    if (!t.binary && (t.dirty || !t.path || t.local)) { if (!(await this.save(t))) return; }
-    await this.runPath(t.path);
+        return true;
+      }
+      const project = !forceFile && store.get("projectMode", false);
+      if (!(await this.saveBuild(project ? null : t, project))) return false;
+      if (project) {
+        await this.stopForUpload();
+        const config = this.projectConfig();
+        const r = await dev.op(() => dev.cmd("project " + config, { idle: 0 }));
+        if (r.status !== "OK") throw new Error("Cannot start " + config + ": " + r.status.replace(/^ERR /, "") + " (Project mode needs current MicroCS firmware.)");
+        this.projectRunning = true;
+        term.line("▶ project " + config + " — only jobs.cfg jobs were scheduled", "info");
+        term.write(new TextDecoder().decode(r.out)); this.updateButtons();
+      } else if (t?.path) await this.runPath(t.path);
+      return true;
+    });
   },
   async runPath(path, label, after) {
     if (dev.running) { toast("A script is still running - Stop it first.", "err"); return; }
@@ -2054,7 +2182,15 @@ const App = {
     }
     this.refresh(true);
   },
-  stop() { dev.stop(); term.line("^C", "warn"); },
+  async stop() {
+    this.workflowCancelled = true;
+    dev.stop(); term.line("^C", "warn");
+    if (this.projectRunning && dev.connected) {
+      try { await this.stopForUpload(); await dev.op(() => dev.check("cancel all")); this.projectRunning = false; term.line("■ project jobs stopped", "warn"); }
+      catch (e) { toast("Stop project: " + e.message, "err"); }
+      this.updateButtons();
+    }
+  },
 
   /* ---------- console */
   setConsMode(m) {
@@ -2296,12 +2432,17 @@ const App = {
       { label: "Insert template at cursor…", icon: "code", disabled: !t || !!t.binary, run: () => this.gallery(true) },
       { label: "Open from this computer…", icon: "open", run: () => $("openLocal").click() },
       { label: "Download to this computer", icon: "download", disabled: !t, run: () => download(t.path ? baseName(t.path) : t.name || "file.cs", t.binary || enc.encode(t.text)) },
-      { label: "Save as… (device)", icon: "save", disabled: !t || !!t.binary || !dev.connected, run: async () => { const old = t.path; t.path = null; if (!(await this.save(t))) t.path = old; } },
+      { label: "Save as… (device)", icon: "save", disabled: !t || !!t.binary || !dev.connected, run: async () => { const old = t.path; t.path = null; if (!(await this.save(t)) && !t.path) t.path = old; } },
       "-",
       { label: "Find / Replace…  Ctrl+H", icon: "edit", disabled: !t || !!t.binary, run: () => ed.openFind(true) },
       { label: "Go to line…  Ctrl+G", icon: "edit", disabled: !t || !!t.binary, run: () => this.gotoLineDialog() },
       { label: "Format document  Shift+Alt+F", icon: "code", disabled: !t || !!t.binary || t.readOnly, run: () => ed.formatDocument() },
       "-",
+      { label: "Run active file  Ctrl+Enter", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(false, true) },
+      { label: "Project settings…", icon: "folder", run: () => this.configureProject() },
+      { label: (store.get("saveAllCs", true) ? "✓ " : "") + "Save/upload all open C# files and compile", icon: "save", run: () => { store.set("saveAllCs", !store.get("saveAllCs", true)); toast("Project mode always builds the whole project. File mode: " + (store.get("saveAllCs", true) ? "save/upload all enabled" : "single-file saving enabled")); } },
+      { label: (store.get("formatOnType", true) ? "✓ " : "") + "Automatic format while typing/pasting", icon: "code", run: () => store.set("formatOnType", !store.get("formatOnType", true)) },
+      { label: (store.get("formatOnSave", true) ? "✓ " : "") + "Format C# on save", icon: "code", run: () => store.set("formatOnSave", !store.get("formatOnSave", true)) },
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
       { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
       { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
@@ -2392,6 +2533,10 @@ const App = {
     };
     $("btnSave").onclick = () => this.save();
     $("btnRun").onclick = () => this.runCurrent(false);
+    $("btnRunFile").onclick = () => this.runCurrent(false, true);
+    $("runMode").value = store.get("projectMode", false) ? "project" : "file";
+    $("runMode").onchange = e => { store.set("projectMode", e.target.value === "project"); this.updateButtons(); };
+    $("btnProject").onclick = () => this.configureProject();
     $("btnStop").onclick = () => this.stop();
     $("btnCtrlC").onclick = () => this.stop();
     $("btnClear").onclick = () => { if (this.view === "plot") plot.clear(); else term.clear(); };
@@ -2411,7 +2556,7 @@ const App = {
     addEventListener("keydown", (e) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
-      else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod); }
+      else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod, mod); }
       else if (mod && e.key === "`") { e.preventDefault(); $("cin").focus(); }
       else if (e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); this.newScratch(); }
       else if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); this.gallery(); }
