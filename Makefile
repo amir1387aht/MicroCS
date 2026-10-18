@@ -386,7 +386,7 @@ project-test: build/test_project
 	@for defs in "-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_COMPILER=0" "-DMCS_ENABLE_FS=0 -DMCS_ENABLE_COMPILER=0"; do \
 	  $(CC) $(CFLAGS) -Werror $$defs -c modules/sched/mcs_sched.c -o build/project_flags.o || exit 1; done
 	./build/test_project
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_upload_stop.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)

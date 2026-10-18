@@ -2010,17 +2010,35 @@ const App = {
     this.updateButtons(); toast("Project: " + this.projectConfig());
   },
   async workflow(action) {
-    if (this.workflowBusy && dev.running) {
-      try { await this.stopForUpload(); } catch (e) { toast(e.message, "err"); return false; }
-      const end = Date.now() + 1000;
-      while (this.workflowBusy && Date.now() < end) await sleep(20);
+    if (this.workflowHandoff || this.workflowBusy && !dev.running) {
+      toast("A save/build/run action is already in progress."); return false;
     }
-    if (this.workflowBusy) { toast("A save/build/run action is already in progress."); return false; }
+    if (this.workflowBusy) {
+      // Reserve the next action before interrupting the run. Keep busy true until
+      // that action takes ownership: polling the old flag exposed a false-idle gap.
+      this.workflowHandoff = true;
+      const previous = this.workflowDone;
+      try {
+        await this.stopForUpload();
+        if (previous) await previous;
+      } catch (e) {
+        this.workflowHandoff = false;
+        this.workflowBusy = !!this.workflowDone;
+        this.updateButtons(); toast(e.message, "err"); return false;
+      }
+      this.workflowHandoff = false;
+    }
+    let complete;
+    this.workflowDone = new Promise(resolve => { complete = resolve; });
     this.workflowCancelled = false;
     this.workflowBusy = true; this.updateButtons(); ed.sigHide(); ed.hoverHide(); ed.hideComplete();
     try { return await action(); }
     catch (e) { toast(e.message, "err", 7000); term.line("✗ " + e.message, "err"); return false; }
-    finally { this.workflowBusy = false; this.updateButtons(); }
+    finally {
+      this.workflowDone = null;
+      this.workflowBusy = !!this.workflowHandoff;
+      this.updateButtons(); complete();
+    }
   },
   async checkScripts(paths) {
     if (!paths.length) return;

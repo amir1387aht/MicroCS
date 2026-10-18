@@ -79,8 +79,19 @@ let browser, page, errors = [], chain = Promise.resolve();
   await page.selectOption('#runMode','file');
   await page.fill('#ta', 'Thread.Sleep(60000);'); await page.keyboard.press('F5');
   await page.waitForFunction(()=>dev.running && App.workflowBusy,null,{timeout:15000});
+  await page.evaluate(()=>{
+    const original = App.save;
+    window.__saveFinished = false;
+    App.save = function(...args) {
+      const result = original.apply(this,args);
+      result.then(ok=>{window.__saveSucceeded=ok;window.__saveFinished=true;});
+      App.save = original; return result;
+    };
+  });
   await page.fill('#ta', b); await page.keyboard.press('Control+s');
-  await page.waitForFunction(()=>!App.workflowBusy && !dev.running,null,{timeout:15000});
+  await page.waitForFunction(()=>window.__saveFinished,null,{timeout:15000});
+  assert.strictEqual(await page.evaluate(()=>window.__saveSucceeded),true,'interrupted-run save must complete successfully');
+  assert.strictEqual(await page.evaluate(()=>!!App.workflowBusy || dev.running),false);
   assert(fs.readFileSync(root+'/b.cs','utf8').includes('B updated'));
   console.log('PASS Save interrupts a foreground F5 run before uploading/building');
   // Leave project mode for editor-only interaction tests.
