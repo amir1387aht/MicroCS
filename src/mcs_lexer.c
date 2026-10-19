@@ -8,7 +8,10 @@
 void* arena_alloc(arena_t* a, size_t n) {
     n = (n + 7) & ~(size_t)7;
     if (!a->head || a->head->used + n > a->head->cap) {
-        size_t cap = n > 8192 ? n : 8192;
+        /* Small fixed pools need room for live app state alongside the AST.
+         * 4 KB chunks reduce the final unused tail and contiguous-block demand;
+         * unusually large individual allocations still get their exact size. */
+        size_t cap = n > 4096 ? n : 4096;
         arena_chunk_t* c = (arena_chunk_t*)mcs_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
         c->next = a->head; c->used = 0; c->cap = cap; a->head = c;
     }

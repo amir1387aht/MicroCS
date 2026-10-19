@@ -1501,6 +1501,8 @@ const store = {
   set(k, v) { try { localStorage.setItem("mcs-studio." + k, JSON.stringify(v)); } catch {} },
 };
 const App = {
+  projectMode: !!store.get("projectMode", false),
+  projectFolder: store.get("projectRoot", "/"),
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
   capabilities: null, capabilitiesKnown: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
@@ -1614,7 +1616,7 @@ const App = {
   },
   updateButtons() {
     const t = this.tab(), c = dev.connected;
-    const busy = !!this.workflowBusy && !dev.running, project = store.get("projectMode", false);
+    const busy = !!this.workflowBusy && !dev.running, project = this.projectMode;
     $("btnSave").disabled = busy || (!t && !project) || (!c && !t?.local);
     $("btnRun").disabled = busy || !c || (!project && (!t || t.binary && extOf(t.path || "") !== "mcsb"));
     $("btnRunFile").disabled = busy || !c || !t || (t.binary && extOf(t.path || "") !== "mcsb");
@@ -1998,7 +2000,14 @@ const App = {
     } catch (e) { toast("Save failed: " + e.message, "err", 6000); return false; }
   },
 
-  projectRoot() { return normPath(store.get("projectRoot", "/")); },
+  setProjectMode(project) {
+    this.projectMode = !!project;
+    store.set("projectMode", this.projectMode); // best effort; never the live authority
+    $("runMode").value = this.projectMode ? "project" : "file";
+    this.updateButtons();
+    // Switching controls future actions, not already scheduled jobs. Stop is explicit.
+  },
+  projectRoot() { return normPath(this.projectFolder); },
   projectConfig() { return joinPath(this.projectRoot(), "jobs.cfg"); },
   inProject(path) { const root = this.projectRoot(); return !!path && (root === "/" || path.startsWith(root + "/")); },
   async configureProject() {
@@ -2006,7 +2015,7 @@ const App = {
     if (root === null || root === false || !root) return;
     const path = normPath(root.startsWith("/") ? root : "/" + root);
     if (!this.checkName(path === "/" ? "/jobs.cfg" : path)) return;
-    store.set("projectRoot", path); store.set("projectMode", true); $("runMode").value = "project";
+    this.projectFolder = path; store.set("projectRoot", path); this.setProjectMode(true);
     this.updateButtons(); toast("Project: " + this.projectConfig());
   },
   async workflow(action) {
@@ -2092,8 +2101,21 @@ const App = {
         if (ed.tab === t) ed.formatDocument(true);
         else { t.text = Editor.format(t.text); t.dirty = t.saved !== t.text; }
       }
-      // Re-upload every open C# source, including unchanged tabs, so the board matches the editor.
-      if (!(await this.saveOne(t, { refresh: false, project }))) return false;
+      // Verify against this device, not t.saved: reconnects, scripts and console
+      // commands can replace/delete files without changing the editor's saved text.
+      const text = t.text;
+      let same = false;
+      if (project && t.path && !t.local) {
+        try {
+          const data = await dev.op(() => dev.get(t.path));
+          const wanted = enc.encode(text);
+          same = data.length === wanted.length && data.every((v, i) => v === wanted[i]);
+        } catch (e) {
+          if (!/no such|not found|enoent/i.test(e.message)) throw e;
+        }
+      }
+      if (same) { t.saved = text; t.dirty = t.text !== text; this.renderTabs(); }
+      else if (!(await this.saveOne(t, { refresh: false, project }))) return false;
       if (paths.has(t.path)) throw new Error("Two open files target the same device path: " + t.path);
       paths.add(t.path);
     }
@@ -2106,7 +2128,8 @@ const App = {
     return true;
   },
   async save(t = this.tab()) {
-    return this.workflow(() => this.saveBuild(t, store.get("projectMode", false)));
+    const project = this.projectMode; // snapshot before a possible run -> Save handoff
+    return this.workflow(() => this.saveBuild(t, project));
   },
   async runFilePath(path) {
     if (!dev.connected) return;
@@ -2118,8 +2141,8 @@ const App = {
 
   /* ---------- running */
   async runCurrent(selectionOnly, forceFile = false) {
-    const t = this.tab();
-    if (!dev.connected || (!t && (forceFile || !store.get("projectMode", false)))) return;
+    const t = this.tab(), project = !forceFile && this.projectMode;
+    if (!dev.connected || (!t && !project)) return;
     return this.workflow(async () => {
       ed.stash();
       if (selectionOnly) {
@@ -2132,7 +2155,6 @@ const App = {
         await this.runPath(tmp, "selection", async () => { try { await dev.check("rm " + tmp); } catch {} });
         return true;
       }
-      const project = !forceFile && store.get("projectMode", false);
       if (!(await this.saveBuild(project ? null : t, project))) return false;
       if (project) {
         await this.stopForUpload();
@@ -2534,8 +2556,8 @@ const App = {
     $("btnSave").onclick = () => this.save();
     $("btnRun").onclick = () => this.runCurrent(false);
     $("btnRunFile").onclick = () => this.runCurrent(false, true);
-    $("runMode").value = store.get("projectMode", false) ? "project" : "file";
-    $("runMode").onchange = e => { store.set("projectMode", e.target.value === "project"); this.updateButtons(); };
+    $("runMode").value = this.projectMode ? "project" : "file";
+    $("runMode").onchange = e => this.setProjectMode(e.target.value === "project");
     $("btnProject").onclick = () => this.configureProject();
     $("btnStop").onclick = () => this.stop();
     $("btnCtrlC").onclick = () => this.stop();

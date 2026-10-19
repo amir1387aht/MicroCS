@@ -37,6 +37,58 @@ let browser, page, errors = [], chain = Promise.resolve();
   assert(fs.readFileSync(root+'/b.cs','utf8').includes('B updated'),'all open scripts uploaded');
   assert.strictEqual(fs.readFileSync(root+'/jobs.cfg','utf8'),'startup /a.cs\n');
   console.log('PASS F5 outside editor: upload/build all, start jobs.cfg only');
+  // Observe real protocol writes, not button labels or a mocked upload result.
+  await page.evaluate(()=>{
+    const write=dev.write;
+    window.__commands=[];
+    dev.write=function(data){if(typeof data==='string' && /^(put|get|check|run|project) /.test(data)) window.__commands.push(data.trim());return write.call(this,data);};
+  });
+  const saveProject=async()=>{
+    await page.evaluate(()=>{window.__commands=[];});
+    assert.strictEqual(await page.evaluate(()=>App.save()),true);
+    return page.evaluate(()=>window.__commands);
+  };
+  let commands=await saveProject();
+  assert(!commands.some(c=>c.startsWith('put ')),'unchanged device files must not upload');
+  assert(commands.includes('check /a.cs')&&commands.includes('check /b.cs'),'checks still run without transfers');
+  await page.fill('#ta', b+'\n// reverted'); await page.fill('#ta',await page.evaluate(()=>App.tab().saved));
+  commands=await saveProject();assert(!commands.some(c=>c.startsWith('put ')),'reverted text must not upload');
+  await page.fill('#ta','File.WriteAllText("/ran-b","B updated");');
+  commands=await saveProject();
+  assert(!commands.some(c=>c.startsWith('put ')),'formatting that returns to device text must not upload');
+  fs.unlinkSync(root+'/b.cs');
+  commands=await saveProject();assert(commands.some(c=>c.startsWith('put /b.cs ')),'deleted device source must upload even if editor is saved');
+  fs.writeFileSync(root+'/b.cs','// changed on current or replacement device');
+  commands=await saveProject();assert(commands.some(c=>c.startsWith('put /b.cs ')),'saved text is not device proof');
+  await page.evaluate(()=>{const t=App.tabs.find(t=>t.path==='/jobs.cfg');t.text='startup /a.cs\n# updated config\n';});
+  commands=await saveProject();assert(commands.some(c=>c.startsWith('put /jobs.cfg ')),'changed config must upload');
+  assert(!commands.some(c=>c.startsWith('put /a.cs ')),'unchanged source must remain untouched');
+  const savedConfig=await page.evaluate(()=>App.tabs.find(t=>t.path==='/jobs.cfg').saved);
+  assert.strictEqual(fs.readFileSync(root+'/jobs.cfg','utf8'),savedConfig);
+  await page.fill('#ta','File.WriteAllText("/ran-b","B updated"); // formatting change');
+  commands=await saveProject();
+  assert(commands.some(c=>c.startsWith('put /b.cs ')),'formatting-induced changes count as changed');
+  assert(fs.readFileSync(root+'/b.cs','utf8').includes(', "B updated"'),'formatted text reaches device');
+  await page.evaluate(()=>{
+    App.newScratch({file:'fresh.cs',text:'int fresh = 42;'});
+    window.__commands=[];window.__newSaved=false;
+    App.save().then(ok=>window.__newSaved=ok);
+  });
+  await page.waitForSelector('#dlgIn',{state:'visible'});
+  await page.fill('#dlgIn','/fresh.cs');await page.click('#dlgOk');
+  await page.waitForFunction(()=>window.__newSaved && !App.workflowBusy,null,{timeout:15000});
+  commands=await page.evaluate(()=>window.__commands);
+  assert(commands.some(c=>c.startsWith('put /fresh.cs ')),'new local file must upload');
+  assert(fs.existsSync(root+'/fresh.cs'));
+  await page.evaluate(()=>App.closeTab(App.tab().id));
+  await page.evaluate(()=>App.activate(App.tabs.find(t=>t.path==='/b.cs').id));
+  // Persistence can fail (private browsing/quota); live UI and action must agree.
+  await page.evaluate(()=>{Storage.prototype.setItem=function(){throw Error('storage blocked');};Storage.prototype.getItem=function(){throw Error('storage blocked');};});
+  await page.selectOption('#runMode','file');
+  assert.strictEqual(await page.evaluate(()=>App.projectMode),false);
+  await page.selectOption('#runMode','project');
+  assert.strictEqual(await page.evaluate(()=>App.projectMode),true);
+  console.log('PASS incremental Project protocol: unchanged, reverted, formatting, deleted/replaced device files, jobs.cfg; blocked storage mode switching');
   await page.click('#btnRunFile');
   await page.waitForFunction(()=>!App.workflowBusy,null,{timeout:15000});
   assert.strictEqual(fs.readFileSync(root+'/ran-b','utf8'),'B updated');
@@ -61,12 +113,14 @@ let browser, page, errors = [], chain = Promise.resolve();
   assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A');
   fs.unlinkSync(root+'/sub/closed.cs');
   console.log('PASS closed project sources are discovered and compile errors block launch');
+  await page.fill('#ta', b + '\n// changed before failed upload');
   const uploadFailed = await page.evaluate(async()=>{
     const original = App.putReliable;
     App.putReliable = async()=>{throw new Error('test upload failure');};
     try { return await App.runCurrent(false); } finally { App.putReliable = original; }
   });
   assert.strictEqual(uploadFailed,false);
+  assert.strictEqual(await page.evaluate(()=>App.tab().text===App.tab().saved),false,'failed upload must not mark text saved');
   assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A');
   const lock = await page.evaluate(async()=>{
     let release; const gate = new Promise(r=>release=r);

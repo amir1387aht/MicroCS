@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -386,7 +386,7 @@ project-test: build/test_project
 	@for defs in "-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_COMPILER=0" "-DMCS_ENABLE_FS=0 -DMCS_ENABLE_COMPILER=0"; do \
 	  $(CC) $(CFLAGS) -Werror $$defs -c modules/sched/mcs_sched.c -o build/project_flags.o || exit 1; done
 	./build/test_project
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_upload_stop.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_upload_stop.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
@@ -394,3 +394,16 @@ build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
 .PHONY: fs-memory-test
 fs-memory-test: build/test_fs_memory
 	./build/test_fs_memory
+
+# Fixed-pool realloc properties and compiler allocation-failure cleanup.
+build/test_smallheap: tests/c/test_smallheap.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+.PHONY: smallheap-test
+smallheap-test: build/test_smallheap
+	./build/test_smallheap
+
+# User display/font configuration, real library + simulated I2C, 100 KB VM heap.
+oled-smallheap-test: mcs-u8g2
+	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_smallheap.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_smallheap $(LDLIBS)
+	./build/test_oled_smallheap
+.PHONY: oled-smallheap-test
