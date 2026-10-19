@@ -39,6 +39,9 @@ int main(void) {
         CHECK(mcs_check_source(vm, "recovered.cs", "int recovered = 1;") == MCS_OK);
         CHECK(mcs_exec_source(vm, "state.cs", "retained += 0;") == MCS_OK);
     }
+    CHECK(mcs_exec_source(vm, "display.cs", "class Display { public enum Font { Title=7, Text=9 } }") == MCS_OK);
+    CHECK(mcs_exec_source(vm, "app.cs", "int font = Display.Font.Text;") == MCS_OK);
+    CHECK(mcs_to_int(vm, mcs_get_global(vm, "font")) == 9);
     put(&vfs, "/one.cs", "File.AppendAllText(\"/log\", \"one\");");
     put(&vfs, "/two.cs", "File.AppendAllText(\"/log\", \"two\");");
     put(&vfs, "/bad.cs", "int a = ;");

@@ -30,6 +30,48 @@ every other switch below goes into the same header or onto the command line
 | **16 KB RAM, 64 KB flash** | `profiles/mcs_profile_min.h` | reduced stdlib, tiny printf, no libm — whole firmware 63.0 KB (`m0-64k`; superinstructions, inline caches and computed goto off, runs `-O0` images) |
 | < 16 KB RAM or < 64 KB flash | not supported | the auto profile and the STM32 device table stop the build (`MCS_ALLOW_SMALL_TARGET=1` to try anyway) |
 
+## ESP32: a 100 KB VM pool is not the SDK heap or task stack
+
+With `size_t heap_size = 100 * 1024, reserve = 32 * 1024;`, the VM target is **100 KB**,
+regardless of an older “192 KB” comment. The VM fixed pool holds live script objects,
+compiler tokens/AST/workspaces and source buffers. A failed startup can leave legitimate live
+classes, instances and GPIO callbacks: a cold compile may fit while a check after that failure
+does not. GC cannot reclaim reachable state, and the largest contiguous free block matters.
+
+The pool allocator returns large shrink tails and can grow into its following free block.
+Compiler local/capture workspaces grow from eight entries instead of reserving 256 entries
+per function; function-state recycling reuses their capacity. String decoding reserves at most
+the source literal's byte length plus its terminator. AST arena chunks use 4 KB rather than
+8 KB to reduce contiguous-block demand and unused tails beside live application state. Compiler panic cleanup owns mutable
+arena/token bookkeeping outside the `setjmp` stack frame and releases it after allocation failure.
+Nested types are also exposed as static members of their containing type, so a later script
+can access `Display.Font.Text` after `oled.cs` has executed. Historical flat type names remain;
+this is not a linker or full namespace/type-name isolation.
+These reduce transient pressure; they do not promise arbitrary programs fit in 100 KB.
+
+Keep these budgets separate:
+
+- **VM pool**: `cfg.heap_size`/your fixed buffer, not all remaining ESP32 memory.
+- **Main task stack**: e.g. 16384 bytes in ESP-IDF; increasing it does not enlarge the VM pool.
+- **ESP-IDF/SDK heap**: Bluetooth/NimBLE, Wi-Fi, native driver buffers and RTOS tasks.
+  The example's BLE reserve is outside the pool; custom glue must preserve its own native
+  headroom. Two BLE connections and MTU 247 still need SDK memory with Wi-Fi disabled.
+
+`tests/projects/oled_menu` is a representative reconstructed fixture, not the user's exact
+source. It runs the two-file menu on the real U8g2 library with simulated GPIO/I2C and a fixed
+100 KB host VM pool, including checks after a missing-`Display` partial startup. Run:
+
+```sh
+make fetch-u8g2
+make oled-smallheap-test \
+  U8G2_DISPLAYS="ssd1312_i2c_120x28 ssd1306_i2c_128x32_univision" \
+  U8G2_FONTS="helvR08_tf streamline_all_t ncenB08_te"
+```
+
+This is **host simulation**, not physical ESP32 validation. Pointer layouts and native SDK
+allocations differ. For split scripts, `using App.Display;` does not load `oled.cs`; put
+`startup /oled.cs` before `startup /app.cs` in `jobs.cfg` (see [Studio](../tools/studio/README.md#project-mode)).
+
 ## Measured configurations (Cortex-M0, emulated)
 
 | Firmware | Flash | RAM | Heap after `mcs_new` | Workload | Pool peak |

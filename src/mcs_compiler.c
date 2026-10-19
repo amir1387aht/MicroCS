@@ -26,9 +26,11 @@ typedef struct fcomp {
     struct fcomp* enc;
     mcs_function_t* fn;
     int kind;
-    local_t locals[256];
+    local_t* locals;
+    int locals_cap;
     int nlocals, depth, max_locals;
-    upv_t upv[256];
+    upv_t* upv;
+    int upv_cap;
     int nupv;
     classdecl_t* cls;
     bool is_static;
@@ -56,7 +58,7 @@ typedef struct {
     uint8_t arr_conv;     /* element conversion for array literals */
     bool force_global;    /* top-level var whose initializer declares pattern locals */
     bool outvar_global;   /* top-level statement: `out var x` declares a global */
-    struct fcomp* fc_free; /* recycled function-compiler states (each is ~4-6 KB) */
+    struct fcomp* fc_free; /* recycled states retain their arena-backed workspaces */
     uint32_t last_store;  /* code offset of the last SET_LOCAL/SET_GLOBAL emitted (peephole) */
     mcs_function_t* last_store_fn;
 } comp_t;
@@ -167,6 +169,12 @@ static bool name_eq(const char* a, uint32_t al, const char* b, uint32_t bl) { re
 static int declare_local(comp_t* c, const char* name, uint32_t len, uint8_t pt, uint8_t conv) {
     fcomp_t* f = c->fc;
     if (f->nlocals >= 255) cerr(c, 0, "too many local variables in function");
+    if (f->nlocals == f->locals_cap) {
+        int cap = f->locals_cap ? f->locals_cap * 2 : 8;
+        local_t* locals = (local_t*)arena_alloc(c->ctx->arena, sizeof(local_t) * (size_t)cap);
+        if (f->nlocals) memcpy(locals, f->locals, sizeof(local_t) * (size_t)f->nlocals);
+        f->locals = locals; f->locals_cap = cap;
+    }
     local_t* l = &f->locals[f->nlocals];
     l->name = name; l->len = len; l->depth = f->depth; l->captured = false; l->pt = pt; l->conv = conv;
     f->nlocals++;
@@ -197,6 +205,12 @@ static int resolve_local(fcomp_t* f, const char* name, uint32_t len) {
 static int add_upvalue(comp_t* c, fcomp_t* f, uint8_t index, bool is_local) {
     for (int i = 0; i < f->nupv; i++) if (f->upv[i].index == index && f->upv[i].is_local == is_local) return i;
     if (f->nupv >= 255) cerr(c, 0, "too many captured variables");
+    if (f->nupv == f->upv_cap) {
+        int cap = f->upv_cap ? f->upv_cap * 2 : 8;
+        upv_t* upv = (upv_t*)arena_alloc(c->ctx->arena, sizeof(upv_t) * (size_t)cap);
+        if (f->nupv) memcpy(upv, f->upv, sizeof(upv_t) * (size_t)f->nupv);
+        f->upv = upv; f->upv_cap = cap;
+    }
     f->upv[f->nupv].index = index; f->upv[f->nupv].is_local = is_local;
     return f->nupv++;
 }
@@ -1492,7 +1506,14 @@ static bool class_needs_init(classdecl_t* d);
 static void emit_closure(comp_t* c, funcdecl_t* f, int kind, classdecl_t* cls, const char* name, uint32_t nlen, member_t* ctor) {
     fcomp_t* prev = c->fc;
     fcomp_t* fc = c->fc_free;
-    if (fc) { c->fc_free = fc->enc; memset(fc, 0, sizeof *fc); }
+    if (fc) {
+        c->fc_free = fc->enc;
+        local_t* locals = fc->locals; int locals_cap = fc->locals_cap;
+        upv_t* upv = fc->upv; int upv_cap = fc->upv_cap;
+        memset(fc, 0, sizeof *fc);
+        fc->locals = locals; fc->locals_cap = locals_cap;
+        fc->upv = upv; fc->upv_cap = upv_cap;
+    }
     else fc = (fcomp_t*)arena_alloc(c->ctx->arena, sizeof(fcomp_t));
     fc->enc = (kind == FK_LAMBDA || kind == FK_FUNC) ? prev : NULL;
     fc->kind = kind; fc->cls = cls; fc->exc_slot = -1; fc->ret = f->ret;
@@ -1807,9 +1828,13 @@ static void topo_visit(comp_t* c, classdecl_t* d, classdecl_t** out, int* n) {
 }
 
 mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
-    arena_t arena = { vm, NULL };
-    front_ctx_t ctx = { vm, &arena, name, 0, NULL, 0 };
-    program_t prog; memset(&prog, 0, sizeof prog);
+    /* Mutable cleanup state must survive longjmp. A non-volatile stack arena
+     * or token owner modified after setjmp would have indeterminate values. */
+    typedef struct { arena_t arena; front_ctx_t ctx; program_t prog; } workspace_t;
+    workspace_t* w = (workspace_t*)mcs_realloc(vm, NULL, 0, sizeof(workspace_t));
+    memset(w, 0, sizeof *w);
+    w->arena.vm = vm;
+    w->ctx = (front_ctx_t){ vm, &w->arena, name, 0, NULL, 0 };
     vm->gc_pause++;
     mcs_function_t* volatile result = NULL;
     /* an out-of-memory panic during compilation must not leak the AST arena:
@@ -1819,20 +1844,21 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
     vm->panic = &pjb;
     if ((pcode = setjmp(pjb)) != 0) {
         vm->panic = prev_panic;
-        mcs_front_free_tokens(&ctx);
-        arena_free(&arena);
+        mcs_front_free_tokens(&w->ctx);
+        arena_free(&w->arena);
+        mcs_realloc(vm, w, sizeof *w, 0);
         vm->gc_pause--;
         if (prev_panic) longjmp(*prev_panic, pcode);
         mcs_report_error(vm, "fatal: %s\n", vm->error);
         abort();
     }
-    if (!mcs_parse(&ctx, src, &prog)) goto done;
+    if (!mcs_parse(&w->ctx, src, &w->prog)) goto done;
     {
-        comp_t* c = (comp_t*)arena_alloc(&arena, sizeof(comp_t));
-        c->ctx = &ctx; c->vm = vm; c->prog = &prog; c->arr_conv = 0xff; c->gvars = NULL;
+        comp_t* c = (comp_t*)arena_alloc(&w->arena, sizeof(comp_t));
+        c->ctx = &w->ctx; c->vm = vm; c->prog = &w->prog; c->arr_conv = 0xff; c->gvars = NULL;
         c->src_name = mcs_intern_c(vm, name);
         if (setjmp(c->jb)) goto done;
-        fcomp_t* mainfc = (fcomp_t*)arena_alloc(&arena, sizeof(fcomp_t));
+        fcomp_t* mainfc = (fcomp_t*)arena_alloc(&w->arena, sizeof(fcomp_t));
         mainfc->kind = FK_MAIN; mainfc->exc_slot = -1;
         mainfc->fn = mcs_new_function(vm);
         mainfc->fn->name = mcs_intern_c(vm, "<main>");
@@ -1842,19 +1868,29 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
         declare_local(c, "", 0, PT_ANY, 0xff);
         resolve_classes(c);
         int ncls = 0;
-        for (classdecl_t* d = prog.classes; d; d = d->next) ncls++;
-        classdecl_t** order = (classdecl_t**)arena_alloc(&arena, sizeof(classdecl_t*) * (size_t)(ncls + 1));
+        for (classdecl_t* d = w->prog.classes; d; d = d->next) ncls++;
+        classdecl_t** order = (classdecl_t**)arena_alloc(&w->arena, sizeof(classdecl_t*) * (size_t)(ncls + 1));
         int n = 0;
-        for (classdecl_t* d = prog.classes; d; d = d->next) topo_visit(c, d, order, &n);
+        for (classdecl_t* d = w->prog.classes; d; d = d->next) topo_visit(c, d, order, &n);
         for (int i = 0; i < n; i++) emit_class(c, order[i]);
+        /* The parser keeps historical flat global type names, but qualified
+         * runtime access (including a separately compiled script) must work too.
+         * Link after all declarations, independent of inheritance/topo order. */
+        for (classdecl_t* d = w->prog.classes; d; d = d->next) {
+            if (!d->outer) continue;
+            emit_class_ref(c, d->outer);
+            emit_class_ref(c, d);
+            emit_def(c, OP_STATIC, d->name, d->len, 0);
+            emit_op(c, OP_POP);
+        }
         /* declared types of top-level variables, needed by the hoisted functions
          * compiled before the declarations (implicit conversions on assignment) */
-        for (node_t* s = prog.stmts; s; s = s->next) {
+        for (node_t* s = w->prog.stmts; s; s = s->next) {
             if (s->kind == N_VAR) pre_gvar(c, s);
             else if (s->kind == N_BLOCK && s->flag == 1) for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR) pre_gvar(c, v);
         }
         /* hoisted top-level functions */
-        for (node_t* s = prog.stmts; s; s = s->next) {
+        for (node_t* s = w->prog.stmts; s; s = s->next) {
             if (s->kind != N_LOCAL_FUNC) continue;
             c->line = s->line;
             emit_closure(c, s->fn, FK_FUNC, NULL, s->name, s->len, NULL);
@@ -1863,7 +1899,7 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
         }
         for (int i = 0; i < n; i++) emit_static_inits(c, order[i]);
         bool has_code = false;
-        for (node_t* s = prog.stmts; s; s = s->next) {
+        for (node_t* s = w->prog.stmts; s; s = s->next) {
             if (s->kind != N_LOCAL_FUNC && s->kind != N_EMPTY) has_code = true;
             compile_stmt(c, s);
         }
@@ -1885,7 +1921,9 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
     }
 done:
     vm->panic = prev_panic;
-    arena_free(&arena);
+    mcs_front_free_tokens(&w->ctx);
+    arena_free(&w->arena);
+    mcs_realloc(vm, w, sizeof *w, 0);
     vm->gc_pause--;
     return result;
 }

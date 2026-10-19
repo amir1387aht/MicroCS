@@ -55,7 +55,8 @@ The ⋯ menu has three independent options, **on by default**:
   ambiguous operators/generic brackets alone and preserves strings and comments byte-for-byte.
   Documents with multiline literals/comments retain their line structure.
 * **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file upload every
-  editable open C# tab, even unchanged ones, plus the explicitly saved file. New/local tabs
+  editable open C# tab in **File mode**, even unchanged ones, plus the explicitly saved file.
+  **Project mode** uploads only new/changed device files (see below). New/local tabs
   ask for a device path; duplicate open paths are rejected. Compile-only checks never execute
   scripts. A cancelled/failed upload or compilation prevents the requested run.
 
@@ -78,7 +79,8 @@ out of the call; it should not block other controls.
 
 2. Click **Project…** and choose `/demo`. The toolbar mode changes to Project; the choice
    and folder are remembered in this browser.
-3. **F5 / Run project** saves all open project C# tabs and an open project `jobs.cfg`, then
+3. **F5 / Run project** formats open project C# tabs and considers them plus an open project
+   `jobs.cfg` for saving. Only new/changed files are uploaded, then it
    recursively compile-checks the device folder's `.cs` files, including closed files.
    New/local C# tabs must be saved inside the project folder. Other device projects are left
    alone. Hidden subfolders and `.studio` temporary scripts are excluded from discovery
@@ -91,11 +93,31 @@ out of the call; it should not block other controls.
 **Ctrl+S** in Project mode saves/builds without launching/reloading jobs. **Run file / Ctrl+Enter**
 remains an explicit single-file action, even in Project mode; it uses the normal open-C# save
 option and retains existing file jobs. Switch the toolbar back to File for single-file F5.
-The Stop button cancels all jobs after a project launch; ⋯ → Stop all jobs is also available.
+Changing the selector controls the **next** Save/F5 action; it does not terminate jobs already
+running. Mode is held in memory and only best-effort persisted, so blocked browser storage
+cannot make the selector disagree with the action. Each action snapshots mode before waiting
+for a foreground run to stop. The Stop button cancels all jobs after a project launch;
+⋯ → Stop all jobs is also available.
+
+Project saves compare formatted editor bytes with the actual device file before skipping a
+transfer. An unchanged or reverted file sends no `put`; unchanged sources are still compile-checked.
+A missing/changed file is uploaded even when the tab says saved. No previous-device cache is
+trusted across reconnect/reset (or even between saves). This needs a read per candidate but
+avoids flash writes for identical files. Communication/read failures block launch; successful
+upload/verification is required before marking the text saved. Local files still ask for a path.
 
 Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
 individual scripts, not a linked multi-file assembly or persistent `.mcsb` output. There is no
-implicit cross-file initialization: list required startup jobs in `jobs.cfg`. Runtime errors
+implicit cross-file initialization: `using` and `namespace` are accepted/ignored, not loaders.
+For a two-file display app, list the dependency first:
+
+```text
+startup /oled.cs
+startup /app.cs
+```
+
+`startup /app.cs` alone cannot define `Display` from `oled.cs`. A successful compile check
+only checks each script, not cross-file type availability. List required startup jobs in order. Runtime errors
 and actual device-resource availability are still determined at execution time.
 
 Each file upload is atomic, **not the entire project**. Failed checks retain the previous job

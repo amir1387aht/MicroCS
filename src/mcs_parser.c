@@ -74,7 +74,8 @@ static void utf8_put(char* out, size_t* n, uint32_t cp) {
 
 /* decode literal text (escapes, "" in verbatim, {{ }} in interpolated) */
 static char* decode_str(parser_t* P, const char* s, size_t len, bool verbatim, bool interp, uint32_t* out_len) {
-    char* out = (char*)arena_alloc(P->A, len * 4 + 1);
+    /* Escape decoding cannot produce more UTF-8 bytes than its source. */
+    char* out = (char*)arena_alloc(P->A, len + 1);
     size_t n = 0;
     const char* e = s + len;
     while (s < e) {
@@ -1537,7 +1538,7 @@ static const char* operator_name(int tk, int nparams) {
     }
 }
 
-static void parse_type_decl(parser_t* P, uint8_t mods);
+static classdecl_t* parse_type_decl(parser_t* P, uint8_t mods);
 
 static funcdecl_t* parse_accessor_body(parser_t* P, uint32_t line) {
     funcdecl_t* f = new_fn(P, line);
@@ -1604,7 +1605,8 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
         if (c->kind == C_INTERFACE) mods |= MOD_ABSTRACT;
         if (check(P, TK_CLASS) || check(P, TK_STRUCT) || check(P, TK_INTERFACE) || check(P, TK_ENUM) || is_word(CUR, "record")) {
             const char* sc = P->cur_class; uint32_t sl = P->cur_class_len;
-            parse_type_decl(P, mods);
+            classdecl_t* nested = parse_type_decl(P, mods);
+            nested->outer = c;
             P->cur_class = sc; P->cur_class_len = sl;
             continue;
         }
@@ -1759,7 +1761,7 @@ static classdecl_t* find_class(program_t* prog, const char* name, uint32_t len) 
     return NULL;
 }
 
-static void parse_type_decl(parser_t* P, uint8_t mods) {
+static classdecl_t* parse_type_decl(parser_t* P, uint8_t mods) {
     token_t* kt = adv(P);
     int kind = kt->type == TK_CLASS ? C_CLASS : kt->type == TK_STRUCT ? C_STRUCT : kt->type == TK_INTERFACE ? C_INTERFACE :
                kt->type == TK_ENUM ? C_ENUM : C_CLASS;
@@ -1813,6 +1815,7 @@ static void parse_type_decl(parser_t* P, uint8_t mods) {
         if (!P->prog->classes) P->prog->classes = c;
         else { classdecl_t* x = P->prog->classes; while (x->next) x = x->next; x->next = c; }
     }
+    return c;
 }
 
 static void parse_namespace_members(parser_t* P, bool braced) {

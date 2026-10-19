@@ -193,6 +193,8 @@ jobs:
         run: make fetch-u8g2 u8g2-test
       - name: Studio U8g2 / U8x8 templates on the simulated OLED
         run: node tests/studio/test_templates.js build/mcs_u8g2 --only=u8g2
+      - name: 100 KB OLED/menu runtime, partial startup recovery and ordered project cycles
+        run: make oled-smallheap-test U8G2_DISPLAYS="ssd1312_i2c_120x28 ssd1306_i2c_128x32_univision" U8G2_FONTS="helvR08_tf streamline_all_t ncenB08_te"
       - name: tools/u8g2.py (lists, config lines)
         run: |
           python3 tools/u8g2.py displays ssd1306 | head -5

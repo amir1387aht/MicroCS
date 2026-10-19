@@ -149,6 +149,7 @@ typedef struct typename_list { struct typename_list* next; const char* name; uin
 enum { C_CLASS, C_STRUCT, C_INTERFACE, C_ENUM };
 typedef struct classdecl {
     struct classdecl* next;
+    struct classdecl* outer; /* nested type exposed as a static member after declarations */
     uint8_t kind;
     uint8_t is_static;
     uint32_t line;

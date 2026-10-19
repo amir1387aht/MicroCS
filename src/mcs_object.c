@@ -122,6 +122,7 @@ static void pool_free(mcs_pool_t* pool, void* ptr) {
 }
 
 static void* pool_alloc(mcs_pool_t* pool, size_t n) {
+    if (n > SIZE_MAX - POOL_HDR - (POOL_ALIGN - 1)) return NULL;
     size_t need = POOL_ROUND(n + POOL_HDR);
     if (need < sizeof(pool_blk_t)) need = sizeof(pool_blk_t);
     pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
@@ -145,9 +146,36 @@ static void* pool_alloc(mcs_pool_t* pool, size_t n) {
 void* mcs_pool_realloc(void* ud, void* ptr, size_t old, size_t nsz) {
     mcs_pool_t* pool = (mcs_pool_t*)ud;
     if (nsz == 0) { if (ptr) pool_free(pool, ptr); return NULL; }
+    if (nsz > SIZE_MAX - POOL_HDR - (POOL_ALIGN - 1)) return NULL;
     if (ptr) {
         pool_blk_t* b = (pool_blk_t*)((uint8_t*)ptr - POOL_HDR);
-        if (b->size - POOL_HDR >= nsz) return ptr;
+        size_t need = POOL_ROUND(nsz + POOL_HDR);
+        if (need < sizeof(pool_blk_t)) need = sizeof(pool_blk_t);
+        if (need <= b->size) {
+            if (b->size - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
+                pool_blk_t* tail = (pool_blk_t*)((uint8_t*)b + need);
+                tail->size = b->size - need; b->size = need;
+                /* pool_free subtracts the returned tail and coalesces it. */
+                pool_free(pool, (uint8_t*)tail + POOL_HDR);
+            }
+            return ptr;
+        }
+        pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
+        while (*pp && (uint8_t*)*pp < (uint8_t*)b + b->size) pp = &(*pp)->next;
+        pool_blk_t* next = *pp;
+        if (next && (uint8_t*)next == (uint8_t*)b + b->size && next->size >= need - b->size) {
+            size_t total = b->size + next->size;
+            pool_blk_t* after = next->next;
+            size_t previous = b->size;
+            if (total - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
+                pool_blk_t* rest = (pool_blk_t*)((uint8_t*)b + need);
+                rest->size = total - need; rest->next = after; *pp = rest;
+                b->size = need;
+            } else { *pp = after; b->size = total; }
+            pool->used += b->size - previous;
+            if (pool->used > pool->peak) pool->peak = pool->used;
+            return ptr;
+        }
     }
     void* n = pool_alloc(pool, nsz);
     if (!n) return NULL;
