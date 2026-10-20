@@ -67,7 +67,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
-  check(/VM heap/.test(await page.textContent('#memInfo')), 'mem: ' + await page.textContent('#memInfo'));
+  check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem: ' + await page.textContent('#memInfo'));
 
   // REPL
   await page.fill('#cin', 'var x = 21;'); await page.press('#cin', 'Enter');
