@@ -7,6 +7,9 @@ The original `heap ... bytes in use, peak ...` line is retained for older client
 New firmware also reports:
 
 - `vm_limit`: the VM allocator's logical allocation limit, not physical capacity.
+- `stack` / `frames`: live entries, currently allocated capacity, peak live entries
+  and configured maximum. Idle snapshots normally show zero live entries, not
+  zero capacity. Capacity bytes are already included in the VM/pool totals.
 - `pool`: actual aligned fixed-pool capacity, occupied bytes including block
   headers/alignment, successful-allocation high-water mark, total free bytes and
   largest allocatable contiguous payload. This includes the VM allocation itself,
@@ -37,14 +40,14 @@ static uint8_t heap[40 * 1024];
 mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
 cfg.heap = heap;
 cfg.heap_size = sizeof heap;
-cfg.stack_slots = 128;
-cfg.max_frames = 16;
+// Leave stack_slots/max_frames at their defaults: these are ceilings.
 ```
 
-These are explicit application resource limits, **not** a reduced build profile.
+Only the application pool is bounded; stack and frame limits use ordinary
+profile defaults. This is **not** a reduced build profile.
 Compiler, libraries, display/fonts, diagnostics and numeric precision are not
 removed. Public stack/frame defaults are unchanged. Deeper/larger applications
-may require larger limits and more RAM; 40 KiB is not a guarantee for arbitrary
+may require more RAM and eventually larger safety ceilings; 40 KiB is not a guarantee for arbitrary
 C# source, the user's unavailable original scripts, or all firmware RAM.
 The gate counts source/read buffers in the physical pool and checks that shutdown
 returns its usage to zero. It does not measure C call stacks, the static runtime
@@ -54,13 +57,13 @@ For the ESP-IDF **example** firmware set these menuconfig options under MicroCS:
 
 ```text
 CONFIG_MICROCS_VM_HEAP_KB=40
-CONFIG_MICROCS_VM_STACK_SLOTS=128
-CONFIG_MICROCS_VM_MAX_FRAMES=16
+CONFIG_MICROCS_VM_STACK_SLOTS=0
+CONFIG_MICROCS_VM_MAX_FRAMES=0
 ```
 
 Use a flash filesystem for this budget: a RAM filesystem consumes the same pool.
 The example keeps its 192 KiB ceiling and uses zero (profile defaults) for
-stack/frame tuning: 1024 / 64 with the default full profile, 512 / 64 with
+stack/frame ceilings: 1024 / 64 with the default full profile, 512 / 64 with
 the embedded profile. Existing profile-specific defaults are preserved. The
 configured pool is a ceiling; preserving driver reserves may make it smaller.
 Startup prints the actual allocated pool and ceiling and fails closed if it
@@ -81,10 +84,19 @@ remain additional device costs, not part of the 40 KiB VM pool.
   selected by the existing build configuration.
 - Completed methods release bytecode/constant/line-buffer slack before their
   siblings compile; growth can fall back to exact required capacity.
-- Idle compilation temporarily returns large value-stack and call-frame
-  reservations and disposable field/method caches. Configured execution capacity
-  is restored before execution; live/reentrant stacks are never moved. Small
-  reservations stay in place to avoid restoration fragmentation.
+- Value slots start at 32 (or a smaller configured maximum), and call frames
+  start at one. Both grow geometrically only when needed, bounded by the existing
+  profile/configured maxima. Optional growth slack falls back to exact demand if
+  it cannot fit. Deep expressions check their pushes too; they do not rely on an
+  estimated fixed operand margin. No manual sizing/rebuild loop is needed for
+  normal execution within the default ceilings.
+- Live growth rebases frames, open captures and all suspended interpreter views.
+  Native arguments stay in separately rooted, stable pool blocks throughout
+  callbacks, including constructors. Those blocks are counted in memory usage
+  and cleaned up after OOM unwinding; they are not moved to an uncounted C VLA.
+- Idle compilation trims execution capacity back to 32 slots / one frame and
+  discards disposable field/method caches; execution never eagerly restores the
+  maximum. Capacity is retained during execution to avoid shrink/grow churn.
 - Internal symbol tables use string pointers instead of full tagged keys. User
   Dictionary semantics are unchanged. Optional inline caches fail gracefully
   under memory pressure. Pool best-fit placement preserves larger holes.
@@ -92,3 +104,13 @@ remain additional device costs, not part of the 40 KiB VM pool.
 Memory exhaustion is still a valid bounded-resource error, not evidence that
 all free bytes were usable. Compare pool free **and largest block**, the requested
 allocation, and device heap separately when diagnosing it.
+
+## Limits are safety ceilings, not promises of free memory
+
+The full profile still permits up to 1024 value slots and 64 call frames;
+the embedded profile permits 512 / 64. Increasing demand consumes additional
+pool RAM automatically. Reaching a configured execution ceiling raises a
+catchable `StackOverflowException`; exhausting the allocator reports an OOM and
+unwinds safely. Dynamic storage cannot guarantee that an arbitrarily large
+application fits a 40 KiB pool. Studio reports observed peaks so an exceptional
+need to raise a safety ceiling is visible, not something users must guess.

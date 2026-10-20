@@ -324,9 +324,9 @@ Studio/recovery precautions. Unsupported modes throw; they do not fall back to d
 ### VM pool ceiling and device memory
 
 The example firmware exposes `MICROCS_VM_HEAP_KB`, `MICROCS_VM_STACK_SLOTS` and
-`MICROCS_VM_MAX_FRAMES` in menuconfig. The pool ceiling remains 192 KiB; zero stack/frame settings
-preserve profile defaults (full: 1024/64, embedded: 512/64). For the representative 40 KiB OLED/menu Project use **40 / 128 / 16**
-and a flash filesystem. This changes resource limits, not the build profile.
+`MICROCS_VM_MAX_FRAMES` in menuconfig. The pool ceiling remains 192 KiB; slots and frames grow on demand. Zero stack/frame settings
+preserve profile defaults (full: 1024/64, embedded: 512/64). For the representative 40 KiB OLED/menu Project use **40 / 0 / 0**
+and a flash filesystem. This bounds the pool while retaining normal profile execution ceilings, not a smaller build profile.
 The example prints actual pool capacity, never exceeds its ceiling and stops
 startup if pool allocation fails instead of silently falling back to malloc.
 Custom entrypoints must set/check these values themselves. HAL initialization

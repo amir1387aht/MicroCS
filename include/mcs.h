@@ -152,8 +152,8 @@ typedef struct {
     mcs_hook_fn hook_fn;        /* periodic hook, may be NULL      */
     void* user_data;            /* passed to I/O + hook callbacks  */
     void* alloc_ud;             /* passed to realloc_fn            */
-    uint32_t stack_slots;       /* value stack size                */
-    uint16_t max_frames;        /* call depth                      */
+    uint32_t stack_slots;       /* maximum value slots; grows on demand */
+    uint16_t max_frames;        /* maximum call depth; grows on demand */
     size_t heap_limit;          /* 0 = unlimited; else GC hard cap */
     uint8_t stdlib;             /* MCS_LIB_* bitmask of libraries  */
     uint8_t alloc_overhead;     /* allocator bytes per block (header); 0 = count
@@ -309,7 +309,10 @@ int mcs_pin(mcs_vm_t* vm, mcs_value_t v);   /* returns handle id or -1 */
 mcs_value_t mcs_pinned(mcs_vm_t* vm, int handle);
 void mcs_unpin(mcs_vm_t* vm, int handle);
 void mcs_gc(mcs_vm_t* vm);
-typedef struct { size_t bytes_in_use; size_t peak_bytes; size_t next_gc; uint32_t objects; uint32_t collections; size_t heap_limit; } mcs_mem_stats_t;
+typedef struct { size_t bytes_in_use; size_t peak_bytes; size_t next_gc; uint32_t objects; uint32_t collections; size_t heap_limit;
+    uint32_t stack_used, stack_capacity, stack_peak, stack_limit;
+    uint16_t frames_used, frame_capacity, frames_peak, frame_limit;
+} mcs_mem_stats_t;
 /* Allocator footprint, not just GC objects. A device heap includes any reserved
  * VM pool: never add the two totals. Device peak may be an SDK low-water bound. */
 typedef struct { size_t total, used, peak, free, largest_free; } mcs_heap_stats_t;

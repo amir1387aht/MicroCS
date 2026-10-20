@@ -981,6 +981,8 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
 }
 
 static void mark_roots(mcs_vm_t* vm) {
+    for (mcs_native_args_t* a = vm->native_args; a; a = a->prev)
+        for (int i = 0; i < a->count; i++) mark_val(vm, a->values[i]);
     for (mcs_value_t* v = vm->stack; v < vm->sp; v++) mark_val(vm, *v);
     for (int i = 0; i < vm->frame_count; i++) mark_obj(vm, (mcs_obj_t*)vm->frames[i].closure);
     for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) mark_obj(vm, (mcs_obj_t*)u);

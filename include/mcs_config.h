@@ -653,7 +653,7 @@
 #endif
 
 #ifndef MCS_STACK_MARGIN
-#define MCS_STACK_MARGIN 32        /* operand-stack headroom per frame */
+#define MCS_STACK_MARGIN 32        /* legacy source compatibility; pushes now grow/check individually */
 #endif
 
 #endif

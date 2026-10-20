@@ -11,26 +11,26 @@ menu "MicroCS"
             Hard ceiling for ports/esp32/example/main/main.c. The actual pool
             can be smaller if the device cannot preserve its driver reserve.
             Allocation failure stops startup; it never falls back to malloc.
-            For the small OLED Project regression use 40, 128 stack slots and 16 frames.
+            For the small OLED Project regression use 40 and leave execution ceilings at defaults.
             SDK/FreeRTOS, static RAM and task stacks are outside this pool.
 
     config MICROCS_VM_STACK_SLOTS
-        int "Example firmware: VM value stack slots (0 = profile default)"
+        int "Example firmware: maximum VM value stack slots (0 = profile default)"
         range 0 65535
         default 0
         help
-            Execution resource limit, not a feature/profile switch. Set 128
-            with a 40 KiB pool and 16 frames for the representative OLED/menu application.
-            Larger/deeper applications may need more slots and a larger pool.
+            Execution ceiling, not an upfront reservation or feature/profile switch.
+            Starts at up to 32 slots and grows automatically as needed.
+            Zero preserves the profile ceiling; no manual sizing is needed
+            for normal applications within that ceiling.
 
 
     config MICROCS_VM_MAX_FRAMES
-        int "Example firmware: VM call frames (0 = profile default)"
+        int "Example firmware: maximum VM call frames (0 = profile default)"
         range 0 65535
         default 0
         help
-            Execution call-depth limit. Set 16 with a 40 KiB pool and 128
-            stack slots for the representative OLED/menu application.
+            Execution call-depth ceiling. Starts at one frame and grows automatically.
             Zero preserves the selected profile's call-depth limit.
 
     config MICROCS_USER_CONFIG_FILE

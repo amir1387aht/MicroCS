@@ -33,6 +33,10 @@ static void print_memory(mcs_shell_t* sh) {
     outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
          (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
     outf(sh, "vm_limit %u\n", (unsigned)st.heap_limit);
+    outf(sh, "stack %u used, %u allocated, %u peak, %u limit\n",
+        (unsigned)st.stack_used, (unsigned)st.stack_capacity, (unsigned)st.stack_peak, (unsigned)st.stack_limit);
+    outf(sh, "frames %u used, %u allocated, %u peak, %u limit\n",
+        (unsigned)st.frames_used, (unsigned)st.frame_capacity, (unsigned)st.frames_peak, (unsigned)st.frame_limit);
     mcs_shell_memory_t ms; memset(&ms, 0, sizeof ms);
     if (sh->memory_info) sh->memory_info(sh->memory_ud, &ms);
     if (ms.has_pool) outf(sh, "pool %u total, %u used, %u peak, %u free, %u largest\n",

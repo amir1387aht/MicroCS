@@ -6,7 +6,7 @@ function methods(start,end,deps={}) {
  return new Function(...Object.keys(deps),'return ({'+source.slice(a,b)+'});')(...Object.values(deps));
 }
 (async()=>{
- const node={textContent:'old stale value',title:''};let report={status:'OK',out:new TextEncoder().encode('heap 16384 bytes in use, peak 54272, 50 objects, 3 collections\nvm_limit 38912\npool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest\ndevice_heap 200000 total, 150000 used, 50000 free, 40000 minimum_free, 30000 largest\n')};
+ const node={textContent:'old stale value',title:''};let report={status:'OK',out:new TextEncoder().encode('heap 16384 bytes in use, peak 54272, 50 objects, 3 collections\nvm_limit 38912\nstack 0 used, 64 allocated, 43 peak, 1024 limit\nframes 0 used, 8 allocated, 6 peak, 64 limit\npool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest\ndevice_heap 200000 total, 150000 used, 50000 free, 40000 minimum_free, 30000 largest\n')};
  const dev={connected:true,running:false,op:fn=>fn(),cmd:async()=>report};
  const app=methods('memoryText(text)','renderFiles()',{$:()=>node,dev,TextDecoder});
  await app.refreshMemory();
@@ -16,6 +16,8 @@ function methods(start,end,deps={}) {
  assert(node.textContent.includes('VM tracked: 16,384 B · peak: 54,272 B'));
  assert(node.textContent.includes('Device heap: 150,000 B / 200,000 B'));
  assert(node.textContent.includes('not additive'));
+ assert(node.textContent.includes('Stack slots: 0 used · 64 allocated · peak 43 · max 1024'));
+ assert(node.textContent.includes('Call frames: 0 used · 8 allocated · peak 6 · max 64'));
  assert(node.title.includes('not static RAM'));
  const old=app.memoryText('heap 16384 bytes in use, peak 54272');
  assert(old.includes('capacity unavailable'));assert(old.includes('Device heap unavailable'));

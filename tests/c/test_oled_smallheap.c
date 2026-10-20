@@ -24,12 +24,11 @@ int main(void) {
     mcs_sim_oled_t oled; memset(&oled,0,sizeof oled); oled.height=32; mcs_hal_sim_attach_oled(&sim,&oled);
     mcs_posixfs_t fs; if(mcs_posixfs_init(&fs,"tests/projects/oled_menu"))return 1;
     mcs_runtime_t rt; mcs_runtime_cfg_t cfg=MCS_RUNTIME_DEFAULTS;
-#ifdef OLED_BUDGET
-    cfg.stack_slots=128; cfg.max_frames=16; /* explicit small-device budget; public defaults/limits unchanged */
-#endif
     cfg.heap=heap;cfg.heap_size=sizeof heap;cfg.hal=&hal;cfg.fs_ops=&mcs_posixfs_ops;cfg.fs_ctx=&fs;
     cfg.run_boot_scripts=false;cfg.mode=MCS_RUNTIME_HEADLESS;cfg.console.write=quiet;cfg.ticks=ticks;cfg.delay=delay;
     if(mcs_runtime_start(&rt,&cfg))return 1;
+    mcs_mem_stats_t memory; mcs_mem_stats(rt.vm,&memory);
+    CHECK(memory.stack_limit==MCS_DEFAULT_STACK); CHECK(memory.frame_limit==MCS_DEFAULT_FRAMES);
     CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
 #ifndef OLED_BUDGET
     CHECK(mcs_exec_file(rt.vm,&rt.vfs,"/app.cs")==MCS_ERR_RUNTIME);
