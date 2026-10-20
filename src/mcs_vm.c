@@ -1050,7 +1050,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, pushed_)) THROWN(); } while (0)
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
-#define SYNC() do { vm->sp = sp; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); } while (0)
+#define SYNC() (vm->sp = sp)
     if (vm->run_depth == 0) {
         vm->steps_used = 0;
         /* a budget overrun detected inside a native of the previous run must not leak into this one */
@@ -1595,7 +1595,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
             PUSH(AS_LIST(*pa_)->items[pi_->as.i]); ip += 2; DISPATCH();
         }
-        sp[0] = *pa_; sp[1] = *pi_; sp += 2; ip += 2;
+        sp[0] = *pa_; sp[1] = *pi_; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
         CHECKCALL(get_index_op(vm));
         DISPATCH();
@@ -1606,7 +1606,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
             AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; MCS_LIST_TOUCH(AS_LIST(*pa_)); sp--; ip += 2; DISPATCH();
         }
-        b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; ip += 2;
+        b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
         if (!index_set_stmt(vm)) THROWN();
         sp = vm->sp;
@@ -2112,15 +2112,35 @@ static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
     return r;
 }
 
-/* protects against OOM panics */
-#define GUARD_BEGIN(vm) jmp_buf _jb; jmp_buf* _prev = (vm)->panic; size_t _spoff = (size_t)((vm)->sp - (vm)->stack); int _fc = (vm)->frame_count; \
-    int _hc = (vm)->handler_count; int _gp = (vm)->gc_pause; int _rd = (vm)->run_depth; int _rc = (vm)->root_count; int _code; \
-    mcs_exec_view_t* _views = (vm)->exec_views; mcs_native_args_t* _args = (vm)->native_args; \
-    (vm)->panic = &_jb; \
-    if ((_code = setjmp(_jb)) != 0) { (vm)->exec_views = _views; native_args_restore(vm, _args); (vm)->panic = _prev; (vm)->sp = (vm)->stack + _spoff; (vm)->frame_count = _fc; (vm)->handler_count = _hc; \
-        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; (vm)->root_count = _rc; close_upvalues(vm, (vm)->stack + _spoff); (vm)->has_exc = false; \
-        mcs_report_error(vm, "fatal: %s\n", (vm)->error); return (mcs_result_t)_code; }
-#define GUARD_END(vm) (vm)->panic = _prev
+/* Protect OOM boundaries without duplicating the full unwind in every API.
+ * Immutable saved offsets survive both relocation and setjmp/longjmp. */
+typedef struct {
+    jmp_buf* panic;
+    size_t spoff;
+    int frames, handlers, gc_pause, run_depth, roots;
+    mcs_exec_view_t* views;
+    mcs_native_args_t* args;
+} mcs_guard_state_t;
+static void guard_save(mcs_vm_t* vm, mcs_guard_state_t* saved) {
+    saved->panic = vm->panic; saved->spoff = (size_t)(vm->sp - vm->stack);
+    saved->frames = vm->frame_count; saved->handlers = vm->handler_count;
+    saved->gc_pause = vm->gc_pause; saved->run_depth = vm->run_depth; saved->roots = vm->root_count;
+    saved->views = vm->exec_views; saved->args = vm->native_args;
+}
+static void guard_recover(mcs_vm_t* vm, const mcs_guard_state_t* saved) {
+    vm->exec_views = saved->views;
+    native_args_restore(vm, saved->args);
+    vm->panic = saved->panic;
+    vm->sp = vm->stack + saved->spoff;
+    vm->frame_count = saved->frames; vm->handler_count = saved->handlers;
+    vm->gc_pause = saved->gc_pause; vm->run_depth = saved->run_depth; vm->root_count = saved->roots;
+    close_upvalues(vm, vm->stack + saved->spoff); vm->has_exc = false;
+    mcs_report_error(vm, "fatal: %s\n", vm->error);
+}
+#define GUARD_BEGIN(vm) jmp_buf _jb; int _code; mcs_guard_state_t _guard; \
+    guard_save(vm, &_guard); (vm)->panic = &_jb; \
+    if ((_code = setjmp(_jb)) != 0) { guard_recover(vm, &_guard); return (mcs_result_t)_code; }
+#define GUARD_END(vm) (vm)->panic = _guard.panic
 
 mcs_result_t mcs_call_value(mcs_vm_t* vm, mcs_value_t callee, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
