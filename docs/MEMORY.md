@@ -29,7 +29,7 @@ Studio to get the new protocol; no device capacity is inferred from a VM peak.
 ## A hard 40 KiB application pool
 
 The 32-bit `oled-budget` CI job runs the representative two-file source Project
-in `tests/projects/oled_menu` with real U8g2, a simulated 128x32 SSD1306, three
+in `tests/projects/oled_menu` with 8-byte numeric alignment, real U8g2, a simulated 128x32 SSD1306, three
 fonts, source checks, 20 Project restarts and GPIO redraw callbacks. It uses:
 
 ```c
