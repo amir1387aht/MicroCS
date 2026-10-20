@@ -259,6 +259,23 @@ static void native_args_restore(mcs_vm_t* vm, mcs_native_args_t* prev) {
     }
 }
 
+/* One shared push slow path instead of duplicating growth/peak bookkeeping at
+ * every bytecode handler (important to the unchanged 64 KiB Cortex-M0 build).
+ * The value is copied before entering: it may have come from movable storage. */
+static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, mcs_value_t value) {
+    mcs_value_t* sp = *view->sp;
+    if (sp == vm->stack_end) {
+        (*view->frame)->ip = ip;
+        vm->sp = sp;
+        if (!stack_need(vm, (size_t)(sp - vm->stack) + 1)) return false;
+        sp = *view->sp;
+    }
+    *sp++ = value;
+    *view->sp = sp;
+    if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack);
+    return true;
+}
+
 /* ================================================================ calls */
 #define PUSH(v) do { *vm->sp++ = (v); if ((size_t)(vm->sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(vm->sp - vm->stack); } while (0)
 #define POP() (*--vm->sp)
@@ -1030,7 +1047,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef POP
 #undef PEEK
 #define ENSURE(n) do { if ((size_t)(vm->stack_end - sp) < (size_t)(n)) { SAVE(); if (!stack_need(vm, (size_t)(sp - vm->stack) + (n))) THROWN(); } } while (0)
-#define PUSH(v) do { mcs_value_t pushed_ = (v); ENSURE(1); *sp++ = pushed_; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); } while (0)
+#define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, pushed_)) THROWN(); } while (0)
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
 #define SYNC() do { vm->sp = sp; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); } while (0)
