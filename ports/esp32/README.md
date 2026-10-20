@@ -320,3 +320,17 @@ ESP32-C3 and ESP32-C6 — Wi-Fi and networking included.
 See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
 `Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
 Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
+
+### VM pool ceiling and device memory
+
+The example firmware exposes `MICROCS_VM_HEAP_KB`, `MICROCS_VM_STACK_SLOTS` and
+`MICROCS_VM_MAX_FRAMES` in menuconfig. Defaults remain 192 KiB, 1024 slots and
+64 frames. For the representative 40 KiB OLED/menu Project use **40 / 128 / 16**
+and a flash filesystem. This changes resource limits, not the build profile.
+The example prints actual pool capacity, never exceeds its ceiling and stops
+startup if pool allocation fails instead of silently falling back to malloc.
+Custom entrypoints must set/check these values themselves. HAL initialization
+also installs device-heap telemetry for the shell/Studio automatically.
+See [memory budgets](../../docs/MEMORY.md): the device heap includes the reserved
+pool and SDK costs, but is not total physical SRAM. No ESP32 hardware measurement
+or arbitrary-app 40 KiB guarantee is implied by the host regression.

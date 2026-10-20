@@ -410,6 +410,9 @@ typedef struct mcs_hal {
     /* v5: classic CAN settings and deterministic controller teardown. */
     int (*can_configure)(void* ctx, int bus, const mcs_can_config_t* cfg);
     int (*can_close)(void* ctx, int bus);
+    /* Optional whole-device allocatable 8-bit heap (not static/physical SRAM).
+     * Includes SDK/driver/task allocations and any reserved VM pool. */
+    bool (*memory_info)(void* ctx, mcs_heap_stats_t* st);
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the

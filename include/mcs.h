@@ -309,7 +309,10 @@ int mcs_pin(mcs_vm_t* vm, mcs_value_t v);   /* returns handle id or -1 */
 mcs_value_t mcs_pinned(mcs_vm_t* vm, int handle);
 void mcs_unpin(mcs_vm_t* vm, int handle);
 void mcs_gc(mcs_vm_t* vm);
-typedef struct { size_t bytes_in_use; size_t peak_bytes; size_t next_gc; uint32_t objects; uint32_t collections; } mcs_mem_stats_t;
+typedef struct { size_t bytes_in_use; size_t peak_bytes; size_t next_gc; uint32_t objects; uint32_t collections; size_t heap_limit; } mcs_mem_stats_t;
+/* Allocator footprint, not just GC objects. A device heap includes any reserved
+ * VM pool: never add the two totals. Device peak may be an SDK low-water bound. */
+typedef struct { size_t total, used, peak, free, largest_free; } mcs_heap_stats_t;
 void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st);
 
 #if MCS_ENABLE_POOL_HEAP
@@ -319,6 +322,10 @@ void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st);
  *   cfg.realloc_fn = mcs_pool_realloc; cfg.alloc_ud = &pool; */
 typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_t peak; } mcs_pool_t;
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
+/* Free is unallocated pool space; largest_free is allocatable payload (header
+ * excluded). Caller must
+ * synchronize with concurrent allocations, just like mcs_pool_realloc. */
+void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st);
 void* mcs_pool_realloc(void* pool, void* ptr, size_t old_size, size_t new_size);
 /* per-block header of the pool allocator (for cfg.alloc_overhead when
  * mcs_pool_realloc is wrapped by another function) */

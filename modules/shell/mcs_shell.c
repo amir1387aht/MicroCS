@@ -25,6 +25,23 @@ static void outf(mcs_shell_t* sh, const char* fmt, ...) {
     va_end(ap);
     if (n > 0) sh->t.write(sh->t.ud, buf, (size_t)n < sizeof buf ? (size_t)n : sizeof buf - 1);
 }
+/* Keep the legacy first line for old clients; versioned extra lines describe
+ * physical allocator use/capacity and whole-device heap separately. No GC here:
+ * reading telemetry must not hide the state immediately after an OOM. */
+static void print_memory(mcs_shell_t* sh) {
+    mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
+    outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
+         (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+    outf(sh, "vm_limit %u\n", (unsigned)st.heap_limit);
+    mcs_shell_memory_t ms; memset(&ms, 0, sizeof ms);
+    if (sh->memory_info) sh->memory_info(sh->memory_ud, &ms);
+    if (ms.has_pool) outf(sh, "pool %u total, %u used, %u peak, %u free, %u largest\n",
+        (unsigned)ms.pool.total, (unsigned)ms.pool.used, (unsigned)ms.pool.peak, (unsigned)ms.pool.free, (unsigned)ms.pool.largest_free);
+    if (ms.has_device) outf(sh, "device_heap %u total, %u used, %u free, %u minimum_free, %u largest\n",
+        (unsigned)ms.device.total, (unsigned)ms.device.used, (unsigned)ms.device.free,
+        (unsigned)(ms.device.total - ms.device.peak), (unsigned)ms.device.largest_free);
+}
+
 static void ok(mcs_shell_t* sh) { out(sh, EOT "OK\n"); }
 static void err(mcs_shell_t* sh, const char* msg) { outf(sh, EOT "ERR %s\n", msg); }
 
@@ -455,9 +472,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         if (argc < 2) { err(sh, "usage: run <path>"); return; }
         report(sh, run_file(sh, argv[1]));
     } else if (!strcmp(c, "mem")) {
-        mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
-        outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
-             (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+        print_memory(sh);
         ok(sh);
     } else if (!strcmp(c, "caps")) {
         size_t count;
@@ -531,9 +546,7 @@ static void repl_command(mcs_shell_t* sh, char* line) {
             else { sh->t.write(sh->t.ud, d, n); if (n && d[n - 1] != '\n') out(sh, "\n"); mcs_vfs_free(sh->vfs, d, n); }
         } else if (!strcmp(c, "rm")) { if ((e = mcs_vfs_remove(sh->vfs, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
         else if (!strcmp(c, "mem")) {
-            mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
-            outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
-                 (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
+            print_memory(sh);
         } else if (!strcmp(c, "info")) outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));
 #if MCS_ENABLE_SCHED
         else if (!strcmp(c, "cancel") && sh->sched) {

@@ -26,9 +26,19 @@ void app_main(void) {
     /* files on flash; without a "storage" partition: a RAM disk (lost on reset) */
     bool on_flash = mcs_esp32_flash_fs("storage", &cfg.fs_ops, &cfg.fs_ctx);
 
-    /* VM heap: up to 192 KB, leaving 32 KB for the drivers and FreeRTOS
-     * (+ menuconfig > MicroCS > Wi-Fi > RAM kept free for the Wi-Fi driver, and the same for BLE) */
-    size_t heap_size = 192 * 1024, reserve = 32 * 1024;
+    /* Hard pool ceiling, not a promise about total ESP32 RAM consumption. */
+#ifdef CONFIG_MICROCS_VM_HEAP_KB
+    size_t target = (size_t)CONFIG_MICROCS_VM_HEAP_KB * 1024;
+#else
+    size_t target = 192 * 1024;
+#endif
+#ifdef CONFIG_MICROCS_VM_STACK_SLOTS
+    cfg.stack_slots = CONFIG_MICROCS_VM_STACK_SLOTS;
+#endif
+#ifdef CONFIG_MICROCS_VM_MAX_FRAMES
+    cfg.max_frames = CONFIG_MICROCS_VM_MAX_FRAMES;
+#endif
+    size_t heap_size = target, reserve = 32 * 1024;
 #if MCS_ESP32_WIFI && defined(CONFIG_MICROCS_WIFI_RESERVE_KB)
     reserve += (size_t)CONFIG_MICROCS_WIFI_RESERVE_KB * 1024;
 #endif
@@ -37,13 +47,24 @@ void app_main(void) {
 #endif
     size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
     size_t total = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-    if (heap_size + reserve > total) heap_size = total > reserve + 64 * 1024 ? total - reserve : total / 2;
-    if (heap_size + 8 * 1024 > largest) heap_size = largest > 72 * 1024 ? largest - 8 * 1024 : largest / 2;
+    size_t available = total > reserve ? total - reserve : 0;
+    size_t contiguous = largest > 8 * 1024 ? largest - 8 * 1024 : 0;
+    if (heap_size > available) heap_size = available;
+    if (heap_size > contiguous) heap_size = contiguous;
     heap_size &= ~(size_t)1023;
+    if (heap_size < 16 * 1024) {
+        printf("MicroCS: insufficient heap for a bounded VM pool\n");
+        return;
+    }
     uint8_t* heap = heap_caps_malloc(heap_size, MALLOC_CAP_8BIT);
-
+    if (!heap) {
+        printf("MicroCS: VM pool allocation failed (%u bytes); startup stopped\n", (unsigned)heap_size);
+        return; /* Never silently replace a failed fixed pool with unbounded malloc. */
+    }
+    printf("MicroCS: VM pool %u bytes, ceiling %u bytes, driver reserve %u bytes\n",
+           (unsigned)heap_size, (unsigned)target, (unsigned)reserve);
     cfg.heap = heap;
-    cfg.heap_size = heap ? heap_size : 0;
+    cfg.heap_size = heap_size;
     if (!on_flash) cfg.ramfs_size = heap_size / 6;     /* RAM disk, taken from the heap */
     mcs_vfs_statfs_t sf;
     if (on_flash && cfg.fs_ops->statfs && cfg.fs_ops->statfs(cfg.fs_ctx, &sf) == 0)

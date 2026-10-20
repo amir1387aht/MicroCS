@@ -904,7 +904,8 @@ static int hook_tick(mcs_vm_t* vm) {
 static void fcache_put(mcs_vm_t* vm, mcs_function_t* fn, uint32_t k, mcs_class_t* cls, uint32_t slot) {
     if (!fn->fcache) {
         if (vm->cfg.heap_limit && vm->bytes_allocated + fn->const_count * sizeof(mcs_fcache_t) > vm->cfg.heap_limit) return; /* cache is optional */
-        fn->fcache = MCS_ALLOC(vm, mcs_fcache_t, fn->const_count);
+        fn->fcache = mcs_try_realloc(vm, NULL, 0, fn->const_count * sizeof(mcs_fcache_t));
+        if (!fn->fcache) return;
         fn->fcache_n = fn->const_count;
         for (uint32_t i = 0; i < fn->fcache_n; i++) { fn->fcache[i].cls = NULL; fn->fcache[i].u.slot = 0; }
     }
@@ -1911,8 +1912,46 @@ on_abort:
 #define POP() (*--vm->sp)
 #define PEEK(n) (vm->sp[-1 - (n)])
 
+/* Idle source compilation does not use the value stack. Return its large
+ * reservation to the pool while token/AST storage is live, then restore the
+ * SAME configured execution capacity before entering any script/native call.
+ * Never move a live stack: native argv pointers, frames and open upvalues remain
+ * stable for the entire (possibly reentrant) execution. */
+static void stack_reserve_idle(mcs_vm_t* vm, uint32_t cap) {
+    if (vm->run_depth || vm->frame_count || vm->sp != vm->stack || vm->open_upvalues || cap == vm->stack_cap) return;
+    mcs_value_t* stack = MCS_GROW(vm, mcs_value_t, vm->stack, vm->stack_cap, cap);
+    vm->stack = vm->sp = stack; vm->stack_end = stack + cap; vm->stack_cap = cap;
+}
+static void frames_reserve_idle(mcs_vm_t* vm, uint16_t cap) {
+    if (vm->run_depth || vm->frame_count || cap == vm->frame_cap) return;
+    mcs_frame_t* frames = MCS_GROW(vm, mcs_frame_t, vm->frames, vm->frame_cap, cap);
+    vm->frames = frames; vm->frame_cap = cap;
+}
+#if MCS_ENABLE_COMPILER
+static void stack_for_compile(mcs_vm_t* vm) {
+    if (vm->run_depth || vm->frame_count || vm->sp != vm->stack || vm->open_upvalues) return;
+    /* Small reservations stay put to avoid fragmenting their restoration. */
+    uint32_t cap = vm->cfg.stack_slots <= 256 ? vm->cfg.stack_slots : 32;
+    stack_reserve_idle(vm, cap);
+    frames_reserve_idle(vm, vm->cfg.max_frames <= 16 ? vm->cfg.max_frames : 1);
+#if MCS_FIELD_CACHE
+    /* An idle build is about to replace types. Inline caches are disposable
+     * accelerators, not roots that should keep superseded project graphs alive
+     * beside tokens/AST. Rebuild them lazily on the next execution. */
+    for (mcs_obj_t* o = vm->objects; o; o = o->next) if (o->kind == MCS_O_FUNCTION) {
+        mcs_function_t* fn = (mcs_function_t*)o;
+        if (fn->fcache) MCS_FREE(vm, mcs_fcache_t, fn->fcache, fn->fcache_n);
+        fn->fcache = NULL; fn->fcache_n = 0; fn->fc_epoch = 0;
+    }
+#endif
+    mcs_collect(vm);
+}
+#endif
+
 /* ================================================================ calling from C */
 mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
+    stack_reserve_idle(vm, vm->cfg.stack_slots);
+    frames_reserve_idle(vm, vm->cfg.max_frames);
     if (vm->sp + argc + 1 + MCS_STACK_MARGIN >= vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return MCS_ERR_RUNTIME; }
     mcs_value_t* base = vm->sp;
     int base_frame = vm->frame_count;
@@ -1985,11 +2024,11 @@ static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
 }
 
 /* protects against OOM panics */
-#define GUARD_BEGIN(vm) jmp_buf _jb; jmp_buf* _prev = (vm)->panic; mcs_value_t* _sp = (vm)->sp; int _fc = (vm)->frame_count; \
+#define GUARD_BEGIN(vm) jmp_buf _jb; jmp_buf* _prev = (vm)->panic; size_t _spoff = (size_t)((vm)->sp - (vm)->stack); int _fc = (vm)->frame_count; \
     int _hc = (vm)->handler_count; int _gp = (vm)->gc_pause; int _rd = (vm)->run_depth; int _rc = (vm)->root_count; int _code; \
     (vm)->panic = &_jb; \
-    if ((_code = setjmp(_jb)) != 0) { (vm)->panic = _prev; (vm)->sp = _sp; (vm)->frame_count = _fc; (vm)->handler_count = _hc; \
-        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; (vm)->root_count = _rc; close_upvalues(vm, _sp); (vm)->has_exc = false; \
+    if ((_code = setjmp(_jb)) != 0) { (vm)->panic = _prev; (vm)->sp = (vm)->stack + _spoff; (vm)->frame_count = _fc; (vm)->handler_count = _hc; \
+        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; (vm)->root_count = _rc; close_upvalues(vm, (vm)->stack + _spoff); (vm)->has_exc = false; \
         mcs_report_error(vm, "fatal: %s\n", (vm)->error); return (mcs_result_t)_code; }
 #define GUARD_END(vm) (vm)->panic = _prev
 
@@ -2027,6 +2066,8 @@ mcs_result_t mcs_call(mcs_vm_t* vm, const char* name, int argc, const mcs_value_
 
 mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
+    stack_reserve_idle(vm, vm->cfg.stack_slots);
+    frames_reserve_idle(vm, vm->cfg.max_frames);
     mcs_string_t* nm = mcs_intern_c(vm, name);
     mcs_value_t* base = vm->sp;
     int base_frame = vm->frame_count;
@@ -2062,9 +2103,12 @@ mcs_result_t mcs_run_closure(mcs_vm_t* vm, mcs_closure_t* cl) {
 mcs_result_t mcs_check_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_BEGIN(vm);
     vm->error[0] = 0;
-    if (!vm->run_depth) mcs_collect(vm);
+    if (!vm->run_depth) stack_for_compile(vm);
     mcs_function_t* fn = mcs_compile(vm, name, src);
     mcs_result_t result = fn ? MCS_OK : MCS_ERR_COMPILE;
+    /* Checks return no executable artifact. Do not carry their dead function
+     * graph into the next source-file read or transactional Project launch. */
+    if (!vm->run_depth) mcs_collect(vm);
     GUARD_END(vm);
     return result;
 }
@@ -2076,7 +2120,7 @@ mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
      * pool, dead objects from the previous run can otherwise exhaust the heap
      * before execution gets to its first GC safepoint. Only collect at an idle
      * top-level entry; nested native callers may have unrooted C temporaries. */
-    if (!vm->run_depth) mcs_collect(vm);
+    if (!vm->run_depth) stack_for_compile(vm);
     mcs_function_t* fn = mcs_compile(vm, name, src);
     if (!fn) { GUARD_END(vm); return MCS_ERR_COMPILE; }
     vm->gc_pause++;
@@ -2277,7 +2321,7 @@ void mcs_unpin(mcs_vm_t* vm, int h) { if (h >= 0 && h < MCS_MAX_PINS) vm->pins[h
 void mcs_gc(mcs_vm_t* vm) { mcs_collect(vm); }
 void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st) {
     st->bytes_in_use = vm->bytes_allocated; st->peak_bytes = vm->peak_bytes; st->next_gc = vm->next_gc;
-    st->objects = vm->object_count; st->collections = vm->gc_count;
+    st->objects = vm->object_count; st->collections = vm->gc_count; st->heap_limit = vm->cfg.heap_limit;
 }
 
 mcs_value_t mcs_get_field(mcs_vm_t* vm, mcs_value_t obj, const char* name) {
@@ -2335,9 +2379,11 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->panic = &jb;
     if (setjmp(jb)) { vm->panic = NULL; mcs_free(vm); return NULL; }
     vm->gc_pause++;
-    vm->stack = MCS_ALLOC(vm, mcs_value_t, cfg.stack_slots);
+    vm->stack_cap = cfg.stack_slots;
+    vm->stack = MCS_ALLOC(vm, mcs_value_t, vm->stack_cap);
     vm->sp = vm->stack; vm->stack_end = vm->stack + cfg.stack_slots;
-    vm->frames = MCS_ALLOC(vm, mcs_frame_t, cfg.max_frames);
+    vm->frame_cap = cfg.max_frames;
+    vm->frames = MCS_ALLOC(vm, mcs_frame_t, vm->frame_cap);
     vm->s_ctor = mcs_intern_c(vm, ".ctor");
     vm->s_init = mcs_intern_c(vm, "$init");
     vm->s_tostring = mcs_intern_c(vm, "ToString");
@@ -2364,8 +2410,8 @@ void mcs_free(mcs_vm_t* vm) {
     mcs_table_free(vm, &vm->tuple_classes);
     MCS_FREE(vm, mcs_value_t, vm->globals, vm->global_cap);
     MCS_FREE(vm, mcs_string_t*, vm->global_names, vm->global_cap);
-    if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->cfg.stack_slots);
-    if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->cfg.max_frames);
+    if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->stack_cap);
+    if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->frame_cap);
     if (vm->roots_more) MCS_FREE(vm, mcs_value_t, vm->roots_more, vm->roots_more_cap);
     if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, vm, sizeof(mcs_vm_t), 0);
     else mcs_sys_realloc(NULL, vm, sizeof(mcs_vm_t), 0);

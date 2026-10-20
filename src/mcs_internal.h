@@ -39,7 +39,9 @@ typedef struct mcs_string_s {
     char chars[1]; /* flexible, NUL terminated */
 } mcs_string_t;
 
-typedef struct { mcs_value_t key; mcs_value_t value; } mcs_entry_t;
+/* Internal tables are symbol tables, not Dictionary storage. Keys are always
+ * strings, so do not spend a full tagged value on each name. */
+typedef struct { mcs_string_t* key; mcs_value_t value; } mcs_entry_t;
 /* weak set of interned strings: one pointer per slot instead of a full
  * key/value entry (4 B vs 16-32 B per slot on 32-bit targets) */
 typedef struct { uint32_t count, cap; struct mcs_string_s** slots; } mcs_strset_t;
@@ -239,7 +241,9 @@ struct mcs_vm {
     mcs_value_t* stack;
     mcs_value_t* sp;
     mcs_value_t* stack_end;
+    uint32_t stack_cap;       /* actual reservation; cfg.stack_slots stays the execution limit */
     mcs_frame_t* frames;
+    uint16_t frame_cap;
     int frame_count;
     mcs_handler_t handlers[MCS_MAX_HANDLERS];
     int handler_count;
@@ -439,6 +443,8 @@ static inline bool is_intlike_v(mcs_value_t v) { return v.type == MCS_T_INT || v
 static inline mcs_value_t mcs_undef(void) { mcs_value_t v; v.type = MCS_T_UNDEF; v.as.i = 0; return v; }
 
 /* memory (mcs_object.c) */
+/* Non-panicking attempt for optional capacity; failed requests do not count. */
+void* mcs_try_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
 void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg);
 mcs_value_t* mcs_root_slot(mcs_vm_t* vm, int i); /* i-th temporary root (mcs_push_root) */
@@ -552,6 +558,7 @@ uint32_t mcs_line_of(mcs_function_t* fn, uint32_t pc);
 mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src);
 #endif
 /* bytecode (mcs_bytecode.c) */
+void mcs_fn_trim(mcs_vm_t* vm, mcs_function_t* fn);
 void mcs_fn_emit(mcs_vm_t* vm, mcs_function_t* fn, uint8_t byte, uint32_t line);
 uint32_t mcs_fn_add_const(mcs_vm_t* vm, mcs_function_t* fn, mcs_value_t v);
 #if MCS_ENABLE_DISASM

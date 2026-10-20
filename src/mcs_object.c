@@ -59,7 +59,7 @@ static size_t acct_size(const mcs_vm_t* vm, size_t n) {
     return b < 2 * sizeof(void*) ? 2 * sizeof(void*) : b;
 }
 
-void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+static void* realloc_impl(mcs_vm_t* vm, void* p, size_t old, size_t nsz, bool fatal) {
     /* The collector never runs from inside an allocation: native code may hold
      * unrooted objects in C locals. Allocation only *requests* a collection,
      * which the interpreter performs at its next safepoint (instruction
@@ -69,12 +69,12 @@ void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
     if (an > ao) {
         vm->bytes_allocated += an - ao;
         if (vm->bytes_allocated > vm->next_gc) vm->gc_wanted = true;
-        if (vm->bytes_allocated > vm->peak_bytes) vm->peak_bytes = vm->bytes_allocated;
 #if MCS_GC_STRESS
         vm->gc_wanted = true; /* torture test: collect at every safepoint */
 #endif
         if (vm->cfg.heap_limit && vm->bytes_allocated > vm->cfg.heap_limit) {
             vm->bytes_allocated -= an - ao;
+            if (!fatal) return NULL;
             char m[64]; snprintf(m, sizeof m, "out of memory (heap limit %u bytes)", (unsigned)vm->cfg.heap_limit);
             mcs_panic(vm, MCS_ERR_MEMORY, m);
         }
@@ -84,10 +84,20 @@ void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
     void* r = raw_realloc(vm, p, old, nsz);
     if (r == NULL && nsz > 0) {
         vm->bytes_allocated -= an - ao;
+        if (!fatal) return NULL;
         char m[64]; snprintf(m, sizeof m, "out of memory (allocation of %u bytes failed)", (unsigned)nsz);
         mcs_panic(vm, MCS_ERR_MEMORY, m);
     }
+    /* A failed request is not RAM that was ever in use. */
+    if (vm->bytes_allocated > vm->peak_bytes) vm->peak_bytes = vm->bytes_allocated;
     return r;
+}
+
+void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+    return realloc_impl(vm, p, old, nsz, true);
+}
+void* mcs_try_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+    return realloc_impl(vm, p, old, nsz, false);
 }
 
 void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size) {
@@ -105,6 +115,16 @@ void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size) {
     pool->base = (uint8_t*)a; pool->size = size; pool->used = 0; pool->peak = 0;
     pool_blk_t* b = (pool_blk_t*)a; b->size = size; b->next = NULL;
     pool->free_list = b;
+}
+
+void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st) {
+    memset(st, 0, sizeof *st);
+    st->total = pool->size; st->used = pool->used; st->peak = pool->peak;
+    st->free = pool->size - pool->used;
+    for (const pool_blk_t* b = (const pool_blk_t*)pool->free_list; b; b = b->next) {
+        size_t payload = b->size > POOL_HDR ? b->size - POOL_HDR : 0;
+        if (payload > st->largest_free) st->largest_free = payload;
+    }
 }
 
 static void pool_free(mcs_pool_t* pool, void* ptr) {
@@ -125,20 +145,24 @@ static void* pool_alloc(mcs_pool_t* pool, size_t n) {
     if (n > SIZE_MAX - POOL_HDR - (POOL_ALIGN - 1)) return NULL;
     size_t need = POOL_ROUND(n + POOL_HDR);
     if (need < sizeof(pool_blk_t)) need = sizeof(pool_blk_t);
-    pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
-    while (*pp) {
-        pool_blk_t* b = *pp;
-        if (b->size >= need) {
-            if (b->size - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
-                pool_blk_t* rest = (pool_blk_t*)((uint8_t*)b + need);
-                rest->size = b->size - need; rest->next = b->next;
-                *pp = rest; b->size = need;
-            } else *pp = b->next;
-            pool->used += b->size;
-            if (pool->used > pool->peak) pool->peak = pool->used;
-            return (uint8_t*)b + POOL_HDR;
+    /* Preserve larger contiguous holes for source buffers and execution stacks. */
+    pool_blk_t** best = NULL;
+    for (pool_blk_t** pp = (pool_blk_t**)&pool->free_list; *pp; pp = &(*pp)->next) {
+        if ((*pp)->size >= need && (!best || (*pp)->size < (*best)->size)) {
+            best = pp;
+            if ((*pp)->size == need) break;
         }
-        pp = &b->next;
+    }
+    if (best) {
+        pool_blk_t* b = *best;
+        if (b->size - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
+            pool_blk_t* rest = (pool_blk_t*)((uint8_t*)b + need);
+            rest->size = b->size - need; rest->next = b->next;
+            *best = rest; b->size = need;
+        } else *best = b->next;
+        pool->used += b->size;
+        if (pool->used > pool->peak) pool->peak = pool->used;
+        return (uint8_t*)b + POOL_HDR;
     }
     return NULL;
 }
@@ -730,26 +754,26 @@ bool mcs_values_same(mcs_value_t a, mcs_value_t b) {
     return false;
 }
 
-static mcs_entry_t* find_entry(mcs_entry_t* entries, uint32_t cap, mcs_value_t key) {
-    uint32_t idx = mcs_value_hash(key) & (cap - 1);
+static mcs_entry_t* find_entry(mcs_entry_t* entries, uint32_t cap, mcs_string_t* key) {
+    uint32_t idx = key->hash & (cap - 1);
     mcs_entry_t* tomb = NULL;
     for (;;) {
         mcs_entry_t* e = &entries[idx];
-        if (e->key.type == MCS_T_NULL) {
+        if (e->key == NULL) {
             if (e->value.type == MCS_T_NULL) return tomb ? tomb : e;
             if (!tomb) tomb = e;
-        } else if (mcs_values_same(e->key, key)) return e;
+        } else if (e->key == key || (e->key->hash == key->hash && e->key->len == key->len && !memcmp(e->key->chars, key->chars, key->len))) return e;
         idx = (idx + 1) & (cap - 1);
     }
 }
 
 static void adjust_cap(mcs_vm_t* vm, mcs_table_t* t, uint32_t cap) {
     mcs_entry_t* ne = MCS_ALLOC(vm, mcs_entry_t, cap);
-    for (uint32_t i = 0; i < cap; i++) { ne[i].key = mcs_null(); ne[i].value = mcs_null(); }
+    for (uint32_t i = 0; i < cap; i++) { ne[i].key = NULL; ne[i].value = mcs_null(); }
     t->count = 0;
     for (uint32_t i = 0; i < t->cap; i++) {
         mcs_entry_t* e = &t->entries[i];
-        if (e->key.type == MCS_T_NULL) continue;
+        if (e->key == NULL) continue;
         mcs_entry_t* d = find_entry(ne, cap, e->key);
         d->key = e->key; d->value = e->value; t->count++;
     }
@@ -759,42 +783,43 @@ static void adjust_cap(mcs_vm_t* vm, mcs_table_t* t, uint32_t cap) {
 
 
 bool mcs_table_get(const mcs_table_t* t, mcs_value_t key, mcs_value_t* out) {
-    if (t->count == 0) return false;
-    mcs_entry_t* e = find_entry(t->entries, t->cap, key);
-    if (e->key.type == MCS_T_NULL) return false;
+    if (t->count == 0 || !IS_STRING(key)) return false;
+    mcs_entry_t* e = find_entry(t->entries, t->cap, AS_STRING(key));
+    if (e->key == NULL) return false;
     if (out) *out = e->value;
     return true;
 }
 
 bool mcs_table_set(mcs_vm_t* vm, mcs_table_t* t, mcs_value_t key, mcs_value_t v) {
+    if (!IS_STRING(key)) mcs_panic(vm, MCS_ERR_RUNTIME, "internal symbol key is not a string");
     if ((t->count + 1) * TABLE_MAX_LOAD_DEN > t->cap * TABLE_MAX_LOAD_NUM) {
         /* count includes tombstones: when at least half of the used slots are
          * tombstones (weak intern table after a GC, Dictionary.Remove churn)
          * rehash in place instead of doubling, so the table does not grow forever */
         uint32_t live = 0, nc = t->cap < MCS_TABLE_MIN_CAP ? MCS_TABLE_MIN_CAP : t->cap * 2;
-        for (uint32_t i = 0; i < t->cap; i++) live += t->entries[i].key.type != MCS_T_NULL;
+        for (uint32_t i = 0; i < t->cap; i++) live += t->entries[i].key != NULL;
         if (t->cap >= MCS_TABLE_MIN_CAP && live * 2 <= t->count) nc = t->cap;
         adjust_cap(vm, t, nc);
     }
-    mcs_entry_t* e = find_entry(t->entries, t->cap, key);
-    bool is_new = e->key.type == MCS_T_NULL;
+    mcs_entry_t* e = find_entry(t->entries, t->cap, AS_STRING(key));
+    bool is_new = e->key == NULL;
     if (is_new && e->value.type == MCS_T_NULL) t->count++;
-    e->key = key; e->value = v;
+    e->key = AS_STRING(key); e->value = v;
     return is_new;
 }
 
 bool mcs_table_delete(mcs_table_t* t, mcs_value_t key) {
-    if (t->count == 0) return false;
-    mcs_entry_t* e = find_entry(t->entries, t->cap, key);
-    if (e->key.type == MCS_T_NULL) return false;
-    e->key = mcs_null(); e->value = mcs_bool(true);
+    if (t->count == 0 || !IS_STRING(key)) return false;
+    mcs_entry_t* e = find_entry(t->entries, t->cap, AS_STRING(key));
+    if (e->key == NULL) return false;
+    e->key = NULL; e->value = mcs_bool(true);
     return true;
 }
 
 void mcs_table_copy(mcs_vm_t* vm, const mcs_table_t* from, mcs_table_t* to) {
     for (uint32_t i = 0; i < from->cap; i++) {
         mcs_entry_t* e = &from->entries[i];
-        if (e->key.type != MCS_T_NULL) mcs_table_set(vm, to, e->key, e->value);
+        if (e->key != NULL) mcs_table_set(vm, to, OBJ_VAL(e->key), e->value);
     }
 }
 
@@ -803,10 +828,10 @@ mcs_string_t* mcs_table_find_string(const mcs_table_t* t, const char* s, size_t 
     uint32_t idx = hash & (t->cap - 1);
     for (;;) {
         mcs_entry_t* e = &t->entries[idx];
-        if (e->key.type == MCS_T_NULL) {
+        if (e->key == NULL) {
             if (e->value.type == MCS_T_NULL) return NULL;
         } else {
-            mcs_string_t* k = AS_STRING(e->key);
+            mcs_string_t* k = e->key;
             if (k->len == len && k->hash == hash && memcmp(k->chars, s, len) == 0) return k;
         }
         idx = (idx + 1) & (t->cap - 1);
@@ -827,7 +852,7 @@ static void mark_obj(mcs_vm_t* vm, mcs_obj_t* o) {
 }
 static inline void mark_val(mcs_vm_t* vm, mcs_value_t v) { if (IS_OBJ(v)) mark_obj(vm, v.as.o); }
 static void mark_table(mcs_vm_t* vm, mcs_table_t* t) {
-    for (uint32_t i = 0; i < t->cap; i++) { mark_val(vm, t->entries[i].key); mark_val(vm, t->entries[i].value); }
+    for (uint32_t i = 0; i < t->cap; i++) { mark_obj(vm, (mcs_obj_t*)t->entries[i].key); mark_val(vm, t->entries[i].value); }
 }
 
 static void blacken(mcs_vm_t* vm, mcs_obj_t* o) {

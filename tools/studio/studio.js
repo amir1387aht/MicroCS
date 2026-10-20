@@ -1700,10 +1700,37 @@ const App = {
         $("stBarWrap").classList.toggle("full", pct > 90);
         this.storage = { dir: this.cwd, free: total - used };
       } else { $("stLabel").textContent = "Storage"; $("stText").textContent = "size unknown"; this.storage = null; }
-      const mm = await dev.op(() => dev.cmd("mem"));
-      const ms = /heap (\d+) bytes in use, peak (\d+)/.exec(new TextDecoder().decode(mm.out));
-      $("memInfo").textContent = ms ? `VM heap: ${fmtBytes(+ms[1])} in use · peak ${fmtBytes(+ms[2])}` : "";
     } catch {}
+    // Filesystem failure must not suppress memory telemetry.
+    await this.refreshMemory();
+  },
+  memoryText(text) {
+    const logical = /^heap (\d+) bytes in use, peak (\d+)/m.exec(text);
+    const pool = /^pool (\d+) total, (\d+) used, (\d+) peak, (\d+) free, (\d+) largest/m.exec(text);
+    const device = /^device_heap (\d+) total, (\d+) used, (\d+) free, (\d+) minimum_free, (\d+) largest/m.exec(text);
+    const limit = /^vm_limit (\d+)/m.exec(text);
+    if (!logical && !pool && !device) return "Memory report unavailable";
+    const bytes = n => `${Number(n).toLocaleString("en-US")} B`;
+    const lines = ["Memory snapshot"];
+    if (pool) {
+      lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
+    } else lines.push("VM pool capacity unavailable (legacy/custom firmware)");
+    if (logical) lines.push(`VM tracked: ${bytes(logical[1])} · peak: ${bytes(logical[2])}`);
+    if (limit) lines.push(`VM allocation limit: ${+limit[1] ? bytes(limit[1]) : "unlimited"}`);
+    if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
+    else lines.push("Device heap unavailable on this firmware");
+    return lines.join("\n");
+  },
+  async refreshMemory() {
+    if (!dev.connected) return;
+    try {
+      const mm = await dev.op(() => dev.cmd("mem"));
+      if (!dev.connected) return;
+      $("memInfo").textContent = mm.status === "OK" ? this.memoryText(new TextDecoder().decode(mm.out)) : "Memory report unavailable";
+      $("memInfo").title = "Snapshot: " + new Date().toLocaleTimeString() + ". Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+    } catch {
+      if (dev.connected) { $("memInfo").textContent = "Memory report unavailable (refresh failed)"; $("memInfo").title = ""; }
+    }
   },
   renderFiles() {
     const crumbs = $("crumbs");
@@ -2044,6 +2071,9 @@ const App = {
     try { return await action(); }
     catch (e) { toast(e.message, "err", 7000); term.line("✗ " + e.message, "err"); return false; }
     finally {
+      // Also resample after failed check/build/OOM and cancelled actions. A
+      // success-only refresh left the previous (often much lower) peak visible.
+      if (dev.connected && !dev.running) await this.refreshMemory?.();
       this.workflowDone = null;
       this.workflowBusy = !!this.workflowHandoff;
       this.updateButtons(); complete();
@@ -2242,6 +2272,7 @@ const App = {
         if (r.status.startsWith("ERR")) term.line(r.status.slice(4), "err");
         if (/^(rm|mv|mkdir|put)\b/.test(text)) this.refresh(true);
       } catch (e) { term.line(e.message, "err"); }
+      finally { await this.refreshMemory(); }
       return;
     }
     const lines = text.split("\n");

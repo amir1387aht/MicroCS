@@ -50,6 +50,11 @@ typedef struct {
     void* ud;
 } mcs_transport_t;
 
+typedef struct {
+    bool has_pool, has_device;
+    mcs_heap_stats_t pool, device;
+} mcs_shell_memory_t;
+
 struct mcs_vfs;
 struct mcs_sched;
 typedef struct mcs_shell {
@@ -57,6 +62,9 @@ typedef struct mcs_shell {
     struct mcs_vfs* vfs;
     struct mcs_sched* sched;    /* may be NULL */
     mcs_transport_t t;
+    /* Optional allocator/platform telemetry. It must not allocate from the VM. */
+    void (*memory_info)(void* ud, mcs_shell_memory_t* st);
+    void* memory_ud;
     char line[MCS_SHELL_LINE_MAX];
     size_t len;
     uint8_t in[256];            /* input queue: all received bytes pass through it */

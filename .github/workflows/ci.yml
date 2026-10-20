@@ -43,6 +43,21 @@ jobs:
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER
           python3 tools/fuzz.py ./mcs 400 $GITHUB_RUN_NUMBER --image
 
+  oled-budget:
+    name: 32-bit OLED · hard 40 KiB pool
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: 32-bit C runtime and real U8g2
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib
+      - run: make fetch-u8g2
+      - name: Repeated source checks, Project launches and GPIO redraws within 40960 bytes
+        run: >-
+          make oled-smallheap-test CC="gcc -m32"
+          CFLAGS="-O2 -g -DOLED_HEAP_KB=40 -DOLED_BUDGET=1"
+          U8G2_DISPLAYS="ssd1306_i2c_128x32_univision"
+          U8G2_FONTS="helvR08_tf streamline_all_t ncenB08_te"
+
   threads:
     name: OS threads (POSIX + ThreadSanitizer, FreeRTOS simulator, CMake)
     runs-on: ubuntu-24.04

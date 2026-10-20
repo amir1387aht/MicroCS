@@ -6,17 +6,28 @@
 
 /* ------------------------------------------------------------ arena */
 void* arena_alloc(arena_t* a, size_t n) {
-    n = (n + 7) & ~(size_t)7;
-    if (!a->head || a->head->used + n > a->head->cap) {
+    size_t alignment = offsetof(struct { char pad; uint64_t value; }, value);
+    n = (n + alignment - 1) & ~(alignment - 1);
+    arena_chunk_t* chunk = a->head;
+    /* Reuse earlier tails instead of abandoning each when a larger record
+     * becomes the head allocation. Small AST leaves fit those holes. */
+    while (chunk && chunk->cap - chunk->used < n) chunk = chunk->next;
+    if (!chunk) {
         /* Small fixed pools need room for live app state alongside the AST.
-         * 4 KB chunks reduce the final unused tail and contiguous-block demand;
+         * 256-byte chunks reduce the final unused tail and contiguous-block demand;
          * unusually large individual allocations still get their exact size. */
-        size_t cap = n > 4096 ? n : 4096;
-        arena_chunk_t* c = (arena_chunk_t*)mcs_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
-        c->next = a->head; c->used = 0; c->cap = cap; a->head = c;
+        size_t cap = n > 256 ? n : 256;
+        arena_chunk_t* c = (arena_chunk_t*)mcs_try_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
+        if (!c) {
+            /* A fragmented pool may have room for this record, not a full
+             * default chunk. Optional spare capacity must not cause an OOM. */
+            cap = n;
+            c = (arena_chunk_t*)mcs_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
+        }
+        c->next = a->head; c->used = 0; c->cap = cap; a->head = chunk = c;
     }
-    void* p = a->head->data + a->head->used;
-    a->head->used += n;
+    void* p = (uint8_t*)chunk->data + chunk->used;
+    chunk->used += n;
     memset(p, 0, n);
     return p;
 }
@@ -77,27 +88,23 @@ typedef char mcs_tok_type_fits_u8[(TK_KW_LAST < 256) ? 1 : -1]; /* token_t.type 
 static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t len) {
     toklist_t* t = L->out;
     if (t->count == t->cap) {
-        /* first chunk sized from the remaining source (~1 token per 5 bytes) so the
-         * arena rarely holds abandoned copies of a doubled token array */
-        uint32_t nc = (uint32_t)((L->end - start) / 5) + 32;
-        if (t->cap) {
-            /* grow by the token density seen so far instead of doubling: the
-             * token array is the largest single block while parsing */
-            size_t done = (size_t)(start - L->src) + 1, left = (size_t)(L->end - start);
-            size_t more = (size_t)t->count * left / done;
-            nc = t->cap + (uint32_t)(more + more / 8) + 32;
-        }
-        if (t->heap) {   /* main token list: VM heap, so the compiler phase does not carry it */
-            token_t* nt = (token_t*)mcs_realloc(L->ctx->vm, t->toks, sizeof(token_t) * t->cap, sizeof(token_t) * nc);
-            t->toks = nt; t->cap = nc;
-            L->ctx->heap_toks = nt; L->ctx->heap_cap = nc;
+        uint32_t pages = t->cap / MCS_TOK_PAGE;
+        token_t** index;
+        if (t->heap) {
+            index = MCS_GROW(L->ctx->vm, token_t*, t->pages, pages, pages + 1);
         } else {
-            token_t* nt = (token_t*)arena_alloc(L->ctx->arena, sizeof(token_t) * nc);
-            if (t->count) memcpy(nt, t->toks, sizeof(token_t) * t->count);
-            t->toks = nt; t->cap = nc;
+            index = arena_alloc(L->ctx->arena, (pages + 1) * sizeof(token_t*));
+            if (pages) memcpy(index, t->pages, pages * sizeof(token_t*));
         }
+        index[pages] = NULL;
+        t->pages = index; t->cap += MCS_TOK_PAGE;
+        if (t->heap) L->ctx->heap_tokens = *t;
+        token_t* page = t->heap ? MCS_ALLOC(L->ctx->vm, token_t, MCS_TOK_PAGE) :
+            arena_alloc(L->ctx->arena, MCS_TOK_PAGE * sizeof(token_t));
+        t->pages[pages] = page;
+        if (t->heap) L->ctx->heap_tokens = *t;
     }
-    token_t* k = &t->toks[t->count++];
+    token_t* k = mcs_tok_at(t, t->count++);
     memset(k, 0, sizeof *k);
     k->start = start; k->len = (uint32_t)len;
     k->type = (uint8_t)type; k->line = L->line & 0xFFFFF; { size_t col = (size_t)(start - L->line_start + 1); k->col = col > 4095 ? 4095 : (uint32_t)col; }
@@ -136,9 +143,28 @@ static void skip_space(lexer_t* L) {
     }
 }
 
+/* Tokenization validates and retains the source span. Numeric conversion is
+ * deferred until the parser consumes the token, avoiding an 8-byte payload in
+ * every token. Keep the same bounded conversion buffer and suffix semantics. */
+static size_t number_text(const token_t* t, char buf[80], int* base) {
+    const char* p = t->start; const char* end = p + t->len;
+    *base = 10;
+    if (end - p >= 2 && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) { *base = 16; p += 2; }
+    else if (end - p >= 2 && p[0] == '0' && (p[1] == 'b' || p[1] == 'B')) { *base = 2; p += 2; }
+    size_t n = 0;
+    for (; p < end; p++) {
+        char c = *p;
+        if (c == '_') continue;
+        bool digit = c >= '0' && c <= '9';
+        if (*base == 16) digit = digit || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        if (!digit && !(*base == 10 && (c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-'))) break;
+        if (n < 78) buf[n++] = c;
+    }
+    buf[n] = 0; return n;
+}
+
 static void lex_number(lexer_t* L) {
     const char* s = L->p;
-    char buf[80]; size_t n = 0;
     bool is_float = false; int base = 10;
     if (*L->p == '0' && L->p + 1 < L->end && (L->p[1] == 'x' || L->p[1] == 'X')) { base = 16; L->p += 2; }
     else if (*L->p == '0' && L->p + 1 < L->end && (L->p[1] == 'b' || L->p[1] == 'B')) { base = 2; L->p += 2; }
@@ -146,47 +172,38 @@ static void lex_number(lexer_t* L) {
         char c = *L->p;
         if (c == '_') { L->p++; continue; }
         if (base == 16 ? ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
-                       : (c >= '0' && c <= '9')) { if (n < 78) buf[n++] = c; L->p++; continue; }
-        if (base == 10 && c == '.' && L->p + 1 < L->end && L->p[1] >= '0' && L->p[1] <= '9' && !is_float) { is_float = true; buf[n++] = c; L->p++; continue; }
+                       : (c >= '0' && c <= '9')) { L->p++; continue; }
+        if (base == 10 && c == '.' && L->p + 1 < L->end && L->p[1] >= '0' && L->p[1] <= '9' && !is_float) { is_float = true; L->p++; continue; }
         if (base == 10 && (c == 'e' || c == 'E')) {
             const char* q = L->p + 1;
             if (q < L->end && (*q == '+' || *q == '-')) q++;
             if (q < L->end && *q >= '0' && *q <= '9') {
-                is_float = true; buf[n++] = 'e'; L->p++;
-                if (*L->p == '+' || *L->p == '-') buf[n++] = *L->p++;
+                is_float = true; L->p++;
+                if (*L->p == '+' || *L->p == '-') L->p++;
                 continue;
             }
         }
         break;
     }
-    buf[n] = 0;
-    uint8_t f32 = 0;
-    /* suffixes */
     while (L->p < L->end) {
         char c = *L->p;
-        if (base == 10 && (c == 'f' || c == 'F')) { is_float = true; f32 = 1; L->p++; }
-        else if (base == 10 && (c == 'd' || c == 'D' || c == 'm' || c == 'M')) { is_float = true; L->p++; }
+        if (base == 10 && (c == 'f' || c == 'F' || c == 'd' || c == 'D' || c == 'm' || c == 'M')) { is_float = true; L->p++; }
         else if (c == 'u' || c == 'U' || c == 'l' || c == 'L') L->p++;
         else break;
     }
-    (void)f32;
     if (L->p < L->end && is_ident(*L->p)) { lex_err(L, "invalid numeric literal"); while (L->p < L->end && is_ident(*L->p)) L->p++; }
-    token_t* t;
-    if (is_float) {
-#if MCS_ENABLE_FLOAT
-        t = push_tok(L, TK_FLOAT, s, (size_t)(L->p - s));
-        t->v.f = (mcs_float_t)strtod(buf, NULL);
-        t->is_float32 = f32;
-#else
-        lex_err(L, "floating point support is disabled");
-        t = push_tok(L, TK_INT, s, (size_t)(L->p - s));
+#if !MCS_ENABLE_FLOAT
+    if (is_float) { lex_err(L, "floating point support is disabled"); is_float = false; }
 #endif
-    } else {
-        t = push_tok(L, TK_INT, s, (size_t)(L->p - s));
-        unsigned long long v = strtoull(buf, NULL, base);
-        t->v.i = (mcs_int_t)(mcs_uint_t)v;
-    }
+    push_tok(L, is_float ? TK_FLOAT : TK_INT, s, (size_t)(L->p - s));
 }
+
+#if MCS_ENABLE_FLOAT
+mcs_float_t mcs_token_float(const token_t* t) {
+    char buf[80]; int base; number_text(t, buf, &base);
+    return (mcs_float_t)strtod(buf, NULL);
+}
+#endif
 
 /* scan a quoted literal; returns false on error */
 static bool scan_string(lexer_t* L, bool verbatim, bool interp) {
@@ -243,25 +260,34 @@ uint32_t mcs_decode_escape(const char** pp, const char* end) {
     return cp;
 }
 
+mcs_int_t mcs_token_int(const token_t* t) {
+    if (t->type != TK_CHAR) {
+        char buf[80]; int base; number_text(t, buf, &base);
+        return (mcs_int_t)(mcs_uint_t)strtoull(buf, NULL, base);
+    }
+    const char* p = t->start + 1; const char* end = t->start + t->len;
+    if (p < end && *p == '\\') { p++; return (mcs_int_t)mcs_decode_escape(&p, end); }
+    uint8_t c = p < end ? (uint8_t)*p++ : 0;
+    uint32_t cp = c;
+    if (c >= 0x80) {
+        int n = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : 1;
+        cp = c & (0x3F >> n);
+        while (n-- && p < end) cp = (cp << 6) | ((uint8_t)*p++ & 0x3F);
+    }
+    return (mcs_int_t)cp;
+}
+
 static void lex_char(lexer_t* L) {
-    const char* s = L->p;
-    L->p++;
-    uint32_t cp = 0;
-    if (L->p + 1 < L->end && *L->p == '\\') { L->p++; cp = mcs_decode_escape(&L->p, L->end); }
-    else if (L->p < L->end && *L->p == '\\') L->p++; /* backslash at the end of the source */
+    const char* s = L->p++;
+    if (L->p + 1 < L->end && *L->p == '\\') { L->p++; (void)mcs_decode_escape(&L->p, L->end); }
+    else if (L->p < L->end && *L->p == '\\') L->p++;
     else if (L->p < L->end) {
         uint8_t c = (uint8_t)*L->p++;
-        if (c < 0x80) cp = c;
-        else { /* UTF-8 decode */
-            int n = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : 1;
-            cp = c & (0x3F >> n);
-            while (n-- && L->p < L->end) cp = (cp << 6) | ((uint8_t)*L->p++ & 0x3F);
-        }
+        if (c >= 0x80) { int n = c >= 0xF0 ? 3 : c >= 0xE0 ? 2 : 1; while (n-- && L->p < L->end) L->p++; }
     }
     if (L->p >= L->end || *L->p != '\'') { lex_err(L, "invalid character literal"); return; }
     L->p++;
-    token_t* t = push_tok(L, TK_CHAR, s, (size_t)(L->p - s));
-    t->v.i = (mcs_int_t)cp;
+    push_tok(L, TK_CHAR, s, (size_t)(L->p - s));
 }
 
 bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, toklist_t* out) {
