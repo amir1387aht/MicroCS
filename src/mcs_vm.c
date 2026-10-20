@@ -2050,16 +2050,10 @@ static void stack_for_compile(mcs_vm_t* vm) {
 #endif
 
 /* ================================================================ calling from C */
-mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
-    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) return MCS_ERR_RUNTIME;
-    size_t base = (size_t)(vm->sp - vm->stack);
-    int base_frame = vm->frame_count;
-    int base_handlers = vm->handler_count;
-    PUSH(self.type == MCS_T_NULL ? callee : self);
-    for (int i = 0; i < argc; i++) PUSH(argv[i]);
-    int st;
-    if (self.type != MCS_T_NULL) st = call_method(vm, callee, argc);
-    else st = call_value(vm, callee, argc);
+/* Both C entry points must restore handlers and propagate nested cancellation
+ * identically; Stop must never become a catchable script exception. */
+static mcs_result_t complete_call(mcs_vm_t* vm, int st, size_t base, int base_frame,
+                                  int base_handlers, mcs_value_t* result) {
     mcs_result_t res = MCS_OK;
     if (st == CALL_FRAME) res = run(vm, base_frame);
     else if (st == CALL_ERR) res = MCS_ERR_RUNTIME;
@@ -2079,6 +2073,19 @@ mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t sel
         vm->hook_counter = 1;
     }
     return res;
+}
+
+mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
+    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) return MCS_ERR_RUNTIME;
+    size_t base = (size_t)(vm->sp - vm->stack);
+    int base_frame = vm->frame_count;
+    int base_handlers = vm->handler_count;
+    PUSH(self.type == MCS_T_NULL ? callee : self);
+    for (int i = 0; i < argc; i++) PUSH(argv[i]);
+    int st;
+    if (self.type != MCS_T_NULL) st = call_method(vm, callee, argc);
+    else st = call_value(vm, callee, argc);
+    return complete_call(vm, st, base, base_frame, base_handlers, result);
 }
 
 static void report_uncaught(mcs_vm_t* vm) {
@@ -2186,19 +2193,15 @@ mcs_result_t mcs_call(mcs_vm_t* vm, const char* name, int argc, const mcs_value_
 
 mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
-    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) { GUARD_END(vm); return MCS_ERR_RUNTIME; }
+    mcs_result_t r = MCS_ERR_RUNTIME;
+    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) goto done;
     mcs_string_t* nm = mcs_intern_c(vm, name);
     size_t base = (size_t)(vm->sp - vm->stack);
-    int base_frame = vm->frame_count;
+    int base_frame = vm->frame_count, base_handlers = vm->handler_count;
     PUSH(recv);
     for (int i = 0; i < argc; i++) PUSH(argv[i]);
-    int st = invoke_op(vm, nm, argc);
-    mcs_result_t r = MCS_OK;
-    if (st == CALL_FRAME) r = run(vm, base_frame);
-    else if (st == CALL_ERR) r = MCS_ERR_RUNTIME;
-    if (result) *result = r == MCS_OK ? vm->sp[-1] : mcs_null();
-    if (r != MCS_OK) { close_upvalues(vm, vm->stack + base); vm->frame_count = base_frame; }
-    vm->sp = vm->stack + base;
+    r = complete_call(vm, invoke_op(vm, nm, argc), base, base_frame, base_handlers, result);
+done:
     GUARD_END(vm);
     if (vm->run_depth > 0) return r;
     return finish(vm, r);

@@ -8,10 +8,12 @@ static unsigned checks, failures;
 #define CHECK(x) do { checks++; if (!(x)) { failures++; fprintf(stderr,"FAIL dynamic %d: %s\n",__LINE__,#x); } } while(0)
 static size_t outstanding;
 static bool deny_growth;
+static int fail_after=-1;
 static void* moving(void* ud,void* p,size_t old,size_t n) {
  (void)ud;
  if(!n) { free(p);outstanding-=old;return NULL; }
  if(deny_growth && n>old)return NULL;
+ if(n>old && fail_after>=0){if(!fail_after)return NULL;fail_after--;}
  void* q=malloc(n);if(!q)return NULL;
  if(p)memcpy(q,p,old<n?old:n);
  free(p);outstanding=outstanding-old+n;return q;
@@ -36,6 +38,13 @@ static const mcs_class_def_t native_class={"NativeBox",1,userdata_ctor,NULL,NULL
 static mcs_value_t wrong_arity(mcs_vm_t* vm,mcs_value_t self,int argc,mcs_value_t* argv) {
  (void)self;(void)argc;(void)argv;mcs_value_t n=mcs_int(1);
  CHECK(mcs_call(vm,"Grow",1,&n,NULL)==MCS_ERR_RUNTIME);return mcs_null();
+}
+static mcs_value_t request_abort(mcs_vm_t* vm,mcs_value_t self,int argc,mcs_value_t* argv) {
+ (void)self;(void)argc;(void)argv;mcs_request_abort(vm);return mcs_null();
+}
+static mcs_value_t invoke_abort(mcs_vm_t* vm,mcs_value_t self,int argc,mcs_value_t* argv) {
+ (void)self;CHECK(argc==1);CHECK(mcs_invoke(vm,argv[0],"Stop",0,NULL,NULL)==MCS_ERR_ABORTED);
+ return mcs_null();
 }
 static bool in_hook;
 static int reentry_hook(mcs_vm_t* vm,void* ud) {
@@ -66,6 +75,7 @@ int main(void) {
  mcs_register_function(vm,"Bounce",bounce,2);
  mcs_register_function(vm,"WrongArity",wrong_arity,0);
  mcs_register_function(vm,"FailNative",fail_native,1);
+ mcs_register_function(vm,"RequestAbort",request_abort,0);mcs_register_function(vm,"InvokeAbort",invoke_abort,1);
  mcs_register_class(vm,&native_class);
  mcs_class_t* factory=mcs_new_class(vm,mcs_intern_c(vm,"NativeFactory"),CLS_BUILTIN);
  factory->native_ctor=bounce;mcs_set_global(vm,"NativeFactory",OBJ_VAL(factory));
@@ -85,17 +95,41 @@ int main(void) {
  CHECK(mcs_check_source(vm,"trim.cs","int noop=0;")==MCS_OK);CHECK(vm->stack_cap==32);CHECK(vm->frame_cap==1);
  deny_growth=true;CHECK(mcs_call(vm,"Grow",0,NULL,NULL)==MCS_ERR_MEMORY);deny_growth=false;
  CHECK(!vm->exec_views);CHECK(!vm->native_args);run_test(vm,"Grow",239);
+ /* Sweep allocation failure through recursive frame/slot growth. Every OOM
+  * must restore suspended views and leave the VM usable for another call. */
+ unsigned failed_calls=0,successful_calls=0;
+ for(int fault=0;fault<24;fault++) {
+  CHECK(mcs_check_source(vm,"trim.cs","int noop=0;")==MCS_OK);
+  fail_after=fault;mcs_result_t code=mcs_call(vm,"Rec",1,&n,&r);fail_after=-1;
+  CHECK(code==MCS_OK || code==MCS_ERR_MEMORY);
+  if(code==MCS_OK){successful_calls++;CHECK(mcs_to_int(vm,r)==275);}else failed_calls++;
+  CHECK(!vm->native_args);CHECK(!vm->exec_views);CHECK(vm->sp==vm->stack);
+  CHECK(!vm->frame_count);CHECK(!vm->handler_count);CHECK(!mcs_has_exception(vm));
+  CHECK(mcs_call(vm,"Grow",0,NULL,&r)==MCS_OK);CHECK(mcs_to_int(vm,r)==239);
+ }
+ CHECK(failed_calls>0);CHECK(successful_calls>0);
  /* A hook reenters while the outer dispatch loop holds live register caches. */
  CHECK(mcs_check_source(vm,"trim.cs","int noop=0;")==MCS_OK);
  vm->cfg.hook_fn=reentry_hook;vm->hook_counter=1;
  CHECK(mcs_exec_source(vm,"hook.cs","int outer=7;for(int i=0;i<10000;i++)outer++; int hookAnswer=outer;")==MCS_OK);
  CHECK(mcs_to_int(vm,mcs_get_global(vm,"hookAnswer"))==10007);vm->cfg.hook_fn=NULL;
  mcs_mem_stats_t st;mcs_mem_stats(vm,&st);CHECK(st.stack_peak>32);CHECK(st.frames_peak>16);CHECK(st.stack_limit==cfg.stack_slots);
+ CHECK(mcs_exec_source(vm,"invoke-abort.cs","class AbortTarget{public void Stop(){try{RequestAbort();}finally{int x=1;}}} int afterAbort=0; try{InvokeAbort(new AbortTarget());}catch(Exception){afterAbort=1;} afterAbort=2;")==MCS_ERR_ABORTED);
+ CHECK(mcs_to_int(vm,mcs_get_global(vm,"afterAbort"))==0);CHECK(!vm->handler_count);
+ CHECK(!vm->native_args);CHECK(!vm->exec_views);run_test(vm,"Grow",239);
  mcs_free(vm);CHECK(outstanding==0);
  /* Exhaust slots before frames as a separate catchable ceiling, then recover. */
  cfg.stack_slots=96;vm=mcs_new(&cfg);CHECK(vm!=NULL);if(!vm)return 1;
  CHECK(mcs_exec_source(vm,"slotlimit.cs","int Rec(int n){return 1+Rec(n+1);} int Catch(){try{Rec(0);}catch(StackOverflowException){return 42;}return 0;}")==MCS_OK);
  run_test(vm,"Catch",42);CHECK(vm->stack_cap<=96);CHECK(vm->frame_peak<cfg.max_frames);
+ /* A top-level invocation rejected before dispatch must finish the exception,
+  * rather than leaving it pending to poison the next independent API call. */
+ mcs_value_t many[96];for(int i=0;i<96;i++)many[i]=mcs_null();
+ CHECK(mcs_invoke(vm,mcs_null(),"Missing",96,many,&r)==MCS_ERR_RUNTIME);
+ CHECK(!mcs_has_exception(vm));CHECK(vm->sp==vm->stack);CHECK(!vm->frame_count);
+ CHECK(mcs_exec_source(vm,"after-invoke.cs","int afterInvoke=42;")==MCS_OK);
+ CHECK(mcs_to_int(vm,mcs_get_global(vm,"afterInvoke"))==42);
+
  mcs_free(vm);CHECK(outstanding==0);
  printf("%s dynamic execution storage: %u checks, %u failures\n",failures?"FAIL":"PASS",checks,failures);return failures!=0;
 }
