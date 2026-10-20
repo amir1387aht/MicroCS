@@ -33,6 +33,10 @@ static void userdata_ctor(mcs_vm_t* vm,mcs_value_t self,int argc,mcs_value_t* ar
  (void)bounce(vm,self,argc,argv);
 }
 static const mcs_class_def_t native_class={"NativeBox",1,userdata_ctor,NULL,NULL,NULL};
+static mcs_value_t wrong_arity(mcs_vm_t* vm,mcs_value_t self,int argc,mcs_value_t* argv) {
+ (void)self;(void)argc;(void)argv;mcs_value_t n=mcs_int(1);
+ CHECK(mcs_call(vm,"Grow",1,&n,NULL)==MCS_ERR_RUNTIME);return mcs_null();
+}
 static bool in_hook;
 static int reentry_hook(mcs_vm_t* vm,void* ud) {
  (void)ud;if(in_hook)return 0;in_hook=true;
@@ -60,11 +64,15 @@ int main(void) {
  mcs_vm_t* vm=mcs_new(&cfg);CHECK(vm!=NULL);if(!vm)return 1;
  CHECK(vm->stack_cap==32);CHECK(vm->frame_cap==1);CHECK(vm->cfg.stack_slots==MCS_DEFAULT_STACK);CHECK(vm->cfg.max_frames==MCS_DEFAULT_FRAMES);
  mcs_register_function(vm,"Bounce",bounce,2);
+ mcs_register_function(vm,"WrongArity",wrong_arity,0);
  mcs_register_function(vm,"FailNative",fail_native,1);
  mcs_register_class(vm,&native_class);
  mcs_class_t* factory=mcs_new_class(vm,mcs_intern_c(vm,"NativeFactory"),CLS_BUILTIN);
  factory->native_ctor=bounce;mcs_set_global(vm,"NativeFactory",OBJ_VAL(factory));
  char src[16384];fixture(src,sizeof src);mcs_result_t built=mcs_exec_source(vm,"dynamic.cs",src);CHECK(built==MCS_OK);if(built!=MCS_OK){fprintf(stderr,"%s\n",mcs_last_error(vm));mcs_free(vm);return 1;}
+ CHECK(vm->frame_peak==1);
+ CHECK(mcs_exec_source(vm,"arity.cs","try{WrongArity();}catch(ArgumentException){}")==MCS_OK);
+ CHECK(vm->frame_peak==1);CHECK(vm->frame_cap==1);
  run_test(vm,"Test",246);CHECK(vm->stack_cap>=240);CHECK(vm->stack_cap<cfg.stack_slots);
  CHECK(mcs_exec_source(vm,"capture.cs","var captured=Make(); int a=captured(); int b=captured();")==MCS_OK);
  CHECK(mcs_to_int(vm,mcs_get_global(vm,"a"))==42);CHECK(mcs_to_int(vm,mcs_get_global(vm,"b"))==43);

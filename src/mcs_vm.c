@@ -239,7 +239,6 @@ static bool frame_need(mcs_vm_t* vm) {
         for (mcs_exec_view_t* v = vm->exec_views; v; v = v->prev)
             *v->frame = frames + ((uintptr_t)*v->frame - old) / sizeof(*frames);
     }
-    if (vm->frame_count + 1 > vm->frame_peak) vm->frame_peak = (uint16_t)(vm->frame_count + 1);
     return true;
 }
 static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc) {
@@ -262,7 +261,7 @@ static void native_args_restore(mcs_vm_t* vm, mcs_native_args_t* prev) {
 /* One shared push slow path instead of duplicating growth/peak bookkeeping at
  * every bytecode handler (important to the unchanged 64 KiB Cortex-M0 build).
  * The value is copied before entering: it may have come from movable storage. */
-static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, mcs_value_t value) {
+static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, const mcs_value_t* value) {
     mcs_value_t* sp = *view->sp;
     if (sp == vm->stack_end) {
         (*view->frame)->ip = ip;
@@ -270,7 +269,7 @@ static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, mcs_value
         if (!stack_need(vm, (size_t)(sp - vm->stack) + 1)) return false;
         sp = *view->sp;
     }
-    *sp++ = value;
+    *sp++ = *value;
     *view->sp = sp;
     if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack);
     return true;
@@ -292,13 +291,11 @@ static const char* callee_name(mcs_value_t f) {
 static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
     mcs_function_t* fn = cl->fn;
     int orig = argc;
-    size_t depth = (size_t)(vm->sp - vm->stack);
-    size_t extra = argc < fn->arity ? (size_t)(fn->arity - argc) : 0;
-    if (!stack_need(vm, depth + extra + 1) || !frame_need(vm)) return CALL_ERR;
     bool pass_array = argc == fn->arity && (IS_KIND(PEEK(0), MCS_O_ARRAY) || mcs_is_null(PEEK(0)));
     if (argc != fn->arity || ((fn->flags & FN_HAS_PARAMS) && !pass_array)) {
         if ((fn->flags & FN_HAS_PARAMS) && argc >= fn->arity - 1 && !pass_array) {
             int extra = argc - (fn->arity - 1);
+            if (!stack_need(vm, (size_t)(vm->sp - vm->stack) - (size_t)extra + 1)) return CALL_ERR;
             mcs_list_t* arr = mcs_new_listobj(vm, MCS_O_ARRAY, (uint32_t)extra);
             for (int i = 0; i < extra; i++) arr->items[i] = vm->sp[-extra + i];
             vm->sp -= extra;
@@ -306,14 +303,16 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
             argc = fn->arity;
             orig = argc;
         } else if (argc >= fn->min_arity && argc < fn->arity) {
+            if (!stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)(fn->arity - argc))) return CALL_ERR;
             while (argc < fn->arity) { PUSH(mcs_null()); argc++; }
         } else {
             mcs_throw(vm, EXC_ARGUMENT, "No overload for method '%s' takes %d arguments", callee_name(OBJ_VAL(cl)), argc);
             return CALL_ERR;
         }
     }
-    if (!stack_need(vm, (size_t)(vm->sp - vm->stack - argc - 1) + fn->max_slots + 1)) return CALL_ERR;
+    if (!frame_need(vm) || !stack_need(vm, (size_t)(vm->sp - vm->stack - argc - 1) + fn->max_slots + 1)) return CALL_ERR;
     mcs_frame_t* f = &vm->frames[vm->frame_count++];
+    if (vm->frame_count > vm->frame_peak) vm->frame_peak = (uint16_t)vm->frame_count;
     f->closure = cl; f->ip = fn->code; f->slots = vm->sp - argc - 1; f->argc = (uint8_t)orig;
     return CALL_FRAME;
 }
@@ -1047,7 +1046,8 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef POP
 #undef PEEK
 #define ENSURE(n) do { if ((size_t)(vm->stack_end - sp) < (size_t)(n)) { SAVE(); if (!stack_need(vm, (size_t)(sp - vm->stack) + (n))) THROWN(); } } while (0)
-#define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, pushed_)) THROWN(); } while (0)
+#define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, &pushed_)) THROWN(); } while (0)
+#define PUSH_DISPATCH(v) do { r = (v); goto push_dispatch; } while (0)
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
 #define SYNC() (vm->sp = sp)
@@ -1069,6 +1069,12 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define CHECKCALL(res) do { int _r = (res); sp = vm->sp; if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) LOAD(); } while (0)
 /* push a frame for closure CL called with ARGC arguments and continue in it,
  * when the call needs no adjustment (exact arity, no params array, room left) */
+/* In size-optimized firmware share call setup instead of emitting the same
+ * inline fast entry at every call opcode. Speed builds retain the fast entry;
+ * both paths use the same limits, frames, language semantics and capabilities. */
+#if defined(__OPTIMIZE_SIZE__)
+#define ENTER_FAST(CL, ARGC) do { (void)(CL); (void)(ARGC); } while (0)
+#else
 #define ENTER_FAST(CL, ARGC) do { \
         mcs_function_t* fn_ = (CL)->fn; \
         if ((ARGC) == fn_->arity && !(fn_->flags & FN_HAS_PARAMS) && vm->frame_count < vm->frame_cap && \
@@ -1079,6 +1085,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             DISPATCH(); \
         } \
     } while (0)
+#endif
 #define GCPOINT() do { if (vm->gc_wanted) { SAVE(); mcs_collect(vm); } } while (0)
 #define SAFEPOINT() do { \
         if (vm->gc_wanted) { SYNC(); mcs_collect(vm); } \
@@ -1104,14 +1111,14 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 
     LOAD(); sp = vm->sp; vm->exec_views = &view;
     DISPATCH_START()
-    CASE(CONST) { uint16_t k = READ16(); PUSH(consts[k]); DISPATCH(); }
-    CASE(NULL) PUSH(mcs_null()); DISPATCH();
-    CASE(TRUE) PUSH(mcs_bool(true)); DISPATCH();
-    CASE(FALSE) PUSH(mcs_bool(false)); DISPATCH();
-    CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH(mcs_int(v)); DISPATCH(); }
+    CASE(CONST) { uint16_t k = READ16(); PUSH_DISPATCH(consts[k]); }
+    CASE(NULL) PUSH_DISPATCH(mcs_null());
+    CASE(TRUE) PUSH_DISPATCH(mcs_bool(true));
+    CASE(FALSE) PUSH_DISPATCH(mcs_bool(false));
+    CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH_DISPATCH(mcs_int(v)); }
     CASE(POP) sp--; DISPATCH();
-    CASE(DUP) { a = PEEK(0); PUSH(a); DISPATCH(); }
-    CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH(b); DISPATCH(); }
+    CASE(DUP) { a = PEEK(0); PUSH_DISPATCH(a); }
+    CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH_DISPATCH(b); }
     CASE(SWAP) { a = PEEK(0); sp[-1] = sp[-2]; sp[-2] = a; DISPATCH(); }
     CASE(ROT) {
         int n = READ8();
@@ -1120,14 +1127,14 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         sp[-n - 1] = a;
         DISPATCH();
     }
-    CASE(GET_LOCAL) PUSH(slots[READ8()]); DISPATCH();
+    CASE(GET_LOCAL) PUSH_DISPATCH(slots[READ8()]);
     CASE(SET_LOCAL) slots[READ8()] = PEEK(0); DISPATCH();
-    CASE(GET_UPVAL) PUSH(*frame->closure->upvalues[READ8()]->location); DISPATCH();
+    CASE(GET_UPVAL) PUSH_DISPATCH(*frame->closure->upvalues[READ8()]->location);
     CASE(SET_UPVAL) *frame->closure->upvalues[READ8()]->location = PEEK(0); DISPATCH();
     CASE(GET_GLOBAL) {
         uint16_t s = GSLOT(READ16());
         const mcs_value_t* gv = &vm->globals[s];
-        if (gv->type != MCS_T_UNDEF) { PUSH(*gv); DISPATCH(); }
+        if (gv->type != MCS_T_UNDEF) { PUSH_DISPATCH(*gv); }
         a = *gv;
         if (a.type == MCS_T_UNDEF) {   /* first use of a built-in / registered class */
             SAVE();
@@ -1135,8 +1142,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             if (mcs_lazy_resolve(vm, gn->chars, gn->len)) a = vm->globals[s];
         }
         if (a.type == MCS_T_UNDEF) { SAVE(); mcs_throw(vm, EXC_MISSINGMEMBER, "The name '%s' does not exist in the current context", vm->global_names[s]->chars); THROWN(); }
-        PUSH(a);
-        DISPATCH();
+        PUSH_DISPATCH(a);
     }
     CASE(SET_GLOBAL) { uint16_t g = READ16(); vm->globals[GSLOT(g)] = PEEK(0); DISPATCH(); }
     CASE(SET_LOCAL_POP) { uint8_t s = READ8(); slots[s] = POP(); DISPATCH(); }
@@ -1352,7 +1358,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LI_FORM(O) \
     CASE(LI_##O) { \
         const mcs_value_t* pa_ = &slots[ip[0]]; mcs_int_t y_ = (int8_t)ip[1]; \
-        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { PUSH(mcs_int(BXE_##O(pa_->as.i, y_))); ip += 2; DISPATCH(); } \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { r = mcs_int(BXE_##O(pa_->as.i, y_)); ip += 2; goto push_dispatch; } \
         sop = OP_##O; goto li_slow; \
     }
     BX_EACH(LI_FORM)
@@ -1360,7 +1366,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         const mcs_value_t* pa_ = &slots[ip[0]];
         b = mcs_int((int8_t)ip[1]); ip += 2; SAVE();
         if (!arith(vm, sop, *pa_, b, &r)) THROWN();
-        PUSH(r); DISPATCH();
+        PUSH_DISPATCH(r);
     }
     /* SI_<op> i: top = top <op> i */
 #define SI_FORM(O) \
@@ -1511,8 +1517,8 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (!arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)) THROWN(); \
         PUTV(r); DISPATCH(); \
     }
-#define PUT_PUSH(v) PUSH(mcs_int(v))
-#define PUTV_PUSH(v) PUSH(v)
+#define PUT_PUSH(v) PUSH_DISPATCH(mcs_int(v))
+#define PUTV_PUSH(v) PUSH_DISPATCH(v)
 #define PUT_TOP(v) do { sp[-1].type = MCS_T_INT; sp[-1].as.i = (v); } while (0)
 #define PUTV_TOP(v) (sp[-1] = (v))
 #define PUT_SLOT(v) do { slots[d_].type = MCS_T_INT; slots[d_].as.i = (v); } while (0)
@@ -1593,7 +1599,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         ENSURE(2);
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
-            PUSH(AS_LIST(*pa_)->items[pi_->as.i]); ip += 2; DISPATCH();
+            r = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; goto push_dispatch;
         }
         sp[0] = *pa_; sp[1] = *pi_; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
@@ -1825,8 +1831,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_list_t* l = mcs_new_listobj(vm, MCS_O_ARRAY, n);
         for (uint16_t i = 0; i < n; i++) l->items[i] = sp[-(int)n + i];
         sp -= n;
-        PUSH(OBJ_VAL(l));
-        DISPATCH();
+        PUSH_DISPATCH(OBJ_VAL(l));
     }
     CASE(NEW_ARRAY) { GCPOINT();
         uint8_t kind = READ8();
@@ -1887,8 +1892,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         for (int i = n; i >= 1; i--) { mcs_string_t* s = AS_STRING(sp[-i]); memcpy(buf + off, s->chars, s->len); off += s->len; }
         mcs_string_t* res = mcs_take_buffer(vm, buf, total, total + 1);
         sp -= n;
-        PUSH(OBJ_VAL(res));
-        DISPATCH();
+        PUSH_DISPATCH(OBJ_VAL(res));
     }
     CASE(IS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
     CASE(AS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) sp[-1] = mcs_null(); DISPATCH(); }
@@ -1979,6 +1983,11 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     DISPATCH_END()
 
+/* Terminal stack-producing opcodes share their checked push and dispatch. */
+push_dispatch:
+    PUSH(r);
+    DISPATCH();
+
 on_exception:
     /* a native stopped early because the run must end (time limit, Ctrl-C, hook) and the
      * script then tripped over its result: report the abort, not the follow-up error */
@@ -2002,6 +2011,7 @@ on_abort:
 #undef PEEK
 #undef SYNC
 #undef ENSURE
+#undef PUSH_DISPATCH
 #define PUSH(v) do { *vm->sp++ = (v); if ((size_t)(vm->sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(vm->sp - vm->stack); } while (0)
 #define POP() (*--vm->sp)
 #define PEEK(n) (vm->sp[-1 - (n)])
