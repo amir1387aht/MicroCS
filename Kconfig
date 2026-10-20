@@ -15,9 +15,9 @@ menu "MicroCS"
             SDK/FreeRTOS, static RAM and task stacks are outside this pool.
 
     config MICROCS_VM_STACK_SLOTS
-        int "Example firmware: VM value stack slots"
-        range 64 65535
-        default 1024
+        int "Example firmware: VM value stack slots (0 = profile default)"
+        range 0 65535
+        default 0
         help
             Execution resource limit, not a feature/profile switch. Set 128
             with a 40 KiB pool and 16 frames for the representative OLED/menu application.
@@ -25,13 +25,13 @@ menu "MicroCS"
 
 
     config MICROCS_VM_MAX_FRAMES
-        int "Example firmware: VM call frames"
-        range 8 65535
-        default 64
+        int "Example firmware: VM call frames (0 = profile default)"
+        range 0 65535
+        default 0
         help
             Execution call-depth limit. Set 16 with a 40 KiB pool and 128
             stack slots for the representative OLED/menu application.
-            Public core defaults are unchanged.
+            Zero preserves the selected profile's call-depth limit.
 
     config MICROCS_USER_CONFIG_FILE
         string "Project config header (mcs_user_config.h)"

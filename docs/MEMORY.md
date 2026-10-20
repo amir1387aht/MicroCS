@@ -59,7 +59,9 @@ CONFIG_MICROCS_VM_MAX_FRAMES=16
 ```
 
 Use a flash filesystem for this budget: a RAM filesystem consumes the same pool.
-Example defaults stay 192 KiB / 1024 slots / 64 frames for compatibility. The
+The example keeps its 192 KiB ceiling and uses zero (profile defaults) for
+stack/frame tuning: 1024 / 64 with the default full profile, 512 / 64 with
+the embedded profile. Existing profile-specific defaults are preserved. The
 configured pool is a ceiling; preserving driver reserves may make it smaller.
 Startup prints the actual allocated pool and ceiling and fails closed if it
 cannot allocate a usable pool. A failed pool must never silently enable malloc.
