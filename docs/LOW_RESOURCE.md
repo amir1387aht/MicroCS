@@ -69,8 +69,9 @@ make oled-smallheap-test \
 ```
 
 This is **host simulation**, not physical ESP32 validation. Pointer layouts and native SDK
-allocations differ. For split scripts, `using App.Display;` does not load `oled.cs`; put
-`startup /oled.cs` before `startup /app.cs` in `jobs.cfg` (see [Studio](../tools/studio/README.md#project-mode)).
+allocations differ. For compiler-enabled VFS runs, `using App.Display;` resolves source files
+anywhere in the mounted VFS declaring `namespace App.Display`; their declarations load without running their
+top-level statements. Only `app.cs` needs to be listed as the startup job.
 
 ## Measured configurations (Cortex-M0, emulated)
 

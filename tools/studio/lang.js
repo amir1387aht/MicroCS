@@ -107,6 +107,12 @@
     for (let i = open; i < b.length; i++) { if (b[i] === "{") d++; else if (b[i] === "}" && --d === 0) return i; }
     return b.length;
   }
+  function declaredNamespaces(src) {
+    const out = new Set(), b = blank(src);
+    for (const m of b.matchAll(/\bnamespace\s+([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*(?=[{;])/g))
+      out.add(m[1].replace(/\s+/g, ""));
+    return [...out];
+  }
   const TYPE_RE = String.raw`(?:[A-Za-z_][\w.]*(?:\s*<[^<>;(){}=]*(?:<[^<>;(){}=]*>[^<>;(){}=]*)*>)?(?:\[[,\s]*\])*\??|\([^()]*\))`;
   let cacheSrc = null, cache = null;
   function symbols(src) {
@@ -436,6 +442,6 @@
     return `${mem.ret || ""} ${own}.${mem.name} { get; }`.trim();
   }
 
-  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, blank, symbols, classInfo, isClassName, membersOf, ctorsOf,
+  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, blank, declaredNamespaces, symbols, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();

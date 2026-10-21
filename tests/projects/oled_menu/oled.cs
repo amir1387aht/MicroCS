@@ -17,3 +17,5 @@ namespace App.Display {
         }
     }
 }
+// Dependency loading must install the declarations above without executing this.
+int oledDependencyTopLevelMustNotRun = 1;

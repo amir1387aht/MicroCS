@@ -850,7 +850,13 @@ class Editor {
     const ta = this.ta;
     if (selStart != null) ta.setSelectionRange(selStart, selEnd);
     const previous = this.programmaticEdit; this.programmaticEdit = true;
-    try { if (!document.execCommand("insertText", false, text)) ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end"); }
+    try {
+      /* execCommand follows the browser's focused selection, not necessarily the
+       * textarea range set above. Toolbar actions run while a button has focus,
+       * so using it there could insert a formatted document at the old caret. */
+      if (document.activeElement !== ta || !document.execCommand("insertText", false, text))
+        ta.setRangeText(text, ta.selectionStart, ta.selectionEnd, "end");
+    }
     finally { this.programmaticEdit = previous; }
     this.refresh();
   }
@@ -1010,9 +1016,11 @@ class Editor {
     ta.setSelectionRange(a, a + out.length);
   }
 
-  /* ---- completion (Lang: docs.js signatures + symbols of this file) */
+  /* ---- completion (Lang: docs.js signatures + symbols of open C# files) */
+  model(src) { return App.languageSource(src, this.tab); }
   suggest(explicit) {
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
+    const model = this.model(v);
     if (p !== ta.selectionEnd) return this.hideComplete();
     const line = v.slice(v.lastIndexOf("\n", p - 1) + 1, p);
     if (this.inString(p) || /\/\//.test(line.replace(/"(?:[^"\\]|\\.)*"/g, ""))) return this.hideComplete();
@@ -1023,17 +1031,17 @@ class Editor {
     const mm = !um && /\.\s*(\w*)$/.exec(line);
     if (um) {
       prefix = um[2];
-      for (const n of Lang.NAMESPACES) add({ label: n, kind: "n", detail: "namespace" });
+      for (const n of new Set([...Lang.NAMESPACES, ...App.workspaceNamespaces()])) add({ label: n, kind: "n", detail: "namespace" });
       if (um[1]) for (const c of Object.keys(Lang.classes)) if (!/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: "class" });
     } else if (mm) {
       prefix = mm[1]; member = true;
       const dot = p - mm[0].length;
       const recv = Lang.receiverBefore(v, dot);
       if (!recv || /^\d+$/.test(recv)) return this.hideComplete();
-      const type = Lang.typeOfExpr(recv, v, dot);
-      const stat = !!(type && /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, v) && !Lang.varType(recv, v, dot));
+      const type = Lang.typeOfExpr(recv, model, dot);
+      const stat = !!(type && /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, dot));
       if (type) {
-        const mem = Lang.membersOf(type, stat, v), own = Lang.splitType(type)?.base || type;
+        const mem = Lang.membersOf(type, stat, model), own = Lang.splitType(type)?.base || type;
         for (const name in mem) {
           const ov = mem[name], m0 = ov[0];
           if (stat && m0.kind === "m" && m0.inst) continue;
@@ -1050,22 +1058,22 @@ class Editor {
       const w = /([A-Za-z_]\w*)$/.exec(line);
       prefix = w ? w[1] : "";
       const afterNew = /\bnew\s+\w*$/.test(line);
-      if (!explicit && prefix.length < 2 && !afterNew) return this.hideComplete();
+      if (!explicit && prefix.length < 2 && !afterNew && !/^[A-Z]$/.test(prefix)) return this.hideComplete();
       if (/^\d/.test(prefix)) return this.hideComplete();
-      const sy = Lang.symbols(v);
+      const sy = Lang.symbols(model);
       if (afterNew) {
         for (const c of Object.keys(sy.user)) add({ label: c, kind: "c", detail: sy.user[c].kind, cls: c });
         for (const c of Object.keys(Lang.classes)) if (Lang.classes[c].ctors.length) add({ label: c, kind: "c", detail: "class", cls: c });
         for (const c of ["List<int>", "List<string>", "Dictionary<string, int>", "Dictionary<string, string>", "HashSet<int>", "Queue<string>", "Stack<int>", "byte[]", "int[]", "string[]"]) add({ label: c, kind: "c", detail: "type" });
       } else {
-        for (const [name, type] of Lang.locals(v, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, v, p) || "var"), local: true });
+        for (const [name, type] of Lang.locals(model, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, model, p) || "var"), local: true });
         for (const name of Object.keys(sy.funcs)) add({ label: name, kind: "m", detail: sy.funcs[name][0].ret, mems: sy.funcs[name], owner: "" });
         for (const name of Object.keys(sy.user)) add({ label: name, kind: "c", detail: sy.user[name].kind, cls: name });
         for (const name of Object.keys(sy.enums)) add({ label: name, kind: "e", detail: "enum" });
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });
         for (const c of new Set([...Object.keys(Lang.classes), ...Object.keys(API)])) if (c !== "*" && !/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: Lang.classes[c] ? "class" : "class", cls: c });
         for (const k of KEYWORDS) add({ label: k, kind: "k", detail: "keyword" });
-        for (const id of new Set(v.match(/[A-Za-z_]\w{2,}/g) || [])) if (id !== prefix && !KEYWORDS.has(id) && !API[id] && !Lang.classes[id]) add({ label: id, kind: "w", detail: "" });
+        for (const id of new Set(model.match(/[A-Za-z_]\w{2,}/g) || [])) if (id !== prefix && !KEYWORDS.has(id) && !API[id] && !Lang.classes[id]) add({ label: id, kind: "w", detail: "" });
       }
     }
     const lp = prefix.toLowerCase();
@@ -1089,7 +1097,7 @@ class Editor {
     if (prevLabel) { const k = list.findIndex((x) => x.label === prevLabel); if (k >= 0 && list[k].label.toLowerCase().startsWith(lp)) this.sel = k; }
     this.drawBox(); this.placeBox();
   }
-  typeOf(name, src) { return Lang.varType(name, src, this.ta.selectionStart); }
+  typeOf(name, src) { return Lang.varType(name, this.model(src), this.ta.selectionStart); }
   drawBox() {
     const tag = { k: "K", c: "C", m: "M", w: "ab", s: "⇥", p: "P", f: "#", l: "L", e: "E", n: "{}" };
     this.box.innerHTML = this.items.map((it, i) => `<div data-i="${i}" class="${i === this.sel ? "on" : ""}"><i class="${it.kind}">${tag[it.kind]}</i>${esc(it.label)}<em>${esc(it.detail || "")}</em></div>`).join("");
@@ -1162,11 +1170,12 @@ class Editor {
   /* ---- signature help: parameter info while typing a call ("(" and ",", Ctrl+Shift+Space) */
   sigUpdate(trigger) {
     const ta = this.ta, v = ta.value, p = ta.selectionStart;
+    const model = this.model(v);
     if (p !== ta.selectionEnd) return this.sigHide();
     const ctx = Lang.callContext(v, p);
     if (!ctx) return this.sigHide();
     if (!trigger && !this.sig) return;
-    const list = Lang.signaturesFor(ctx, v);
+    const list = Lang.signaturesFor(ctx, model);
     if (!list.length) return this.sigHide();
     const same = this.sig && this.sig.open === ctx.open;
     let ov = same ? this.sig.ov : 0;
@@ -1176,7 +1185,7 @@ class Editor {
       ov = fit >= 0 ? fit : 0;
       if (same && this.sig.ov < list.length && (list[this.sig.ov].params || []).length > ctx.arg) ov = this.sig.ov;
     }
-    this.sig = { open: ctx.open, list, ov: Math.min(ov, list.length - 1), arg: ctx.arg, pinned: same && this.sig.pinned, owner: ctx.recv ? Lang.typeOfExpr(ctx.recv, v, ctx.open) : null, isNew: ctx.isNew, name: ctx.name };
+    this.sig = { open: ctx.open, list, ov: Math.min(ov, list.length - 1), arg: ctx.arg, pinned: same && this.sig.pinned, owner: ctx.recv ? Lang.typeOfExpr(ctx.recv, model, ctx.open) : null, isNew: ctx.isNew, name: ctx.name };
     this.sigDraw();
   }
   sigDraw() {
@@ -1335,28 +1344,29 @@ class Editor {
   }
   describe(v, w) {
     const word = w.word;
+    const model = this.model(v);
     let d = w.a; while (d > 0 && v[d - 1] === " ") d--;
     if (v[d - 1] === ".") {
       const recv = Lang.receiverBefore(v, d - 1);
-      const type = recv && Lang.typeOfExpr(recv, v, d - 1);
+      const type = recv && Lang.typeOfExpr(recv, model, d - 1);
       if (!type) return "";
-      const stat = /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, v) && !Lang.varType(recv, v, d - 1);
-      const ov = Lang.membersOf(type, stat, v)[word];
+      const stat = /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, d - 1);
+      const ov = Lang.membersOf(type, stat, model)[word];
       if (!ov) return "";
       const own = Lang.splitType(type)?.base || type;
       const doc = ov.find((m) => m.doc)?.doc || "";
       return ov.slice(0, 5).map((m) => `<code>${sigHtml(m, own === "Array_i" ? type : own, -1, type)}</code>`).join("") + (ov.length > 5 ? `<small>+${ov.length - 5} overloads</small>` : "") + (doc ? `<p>${esc(doc)}</p>` : "");
     }
     if (/\bnew\s+$/.test(v.slice(Math.max(0, w.a - 8), w.a))) {
-      const ct = Lang.ctorsOf(word, v);
-      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, v)?.doc ? `<p>${esc(Lang.classInfo(word, v)?.doc || ct[0].doc)}</p>` : "");
+      const ct = Lang.ctorsOf(word, model);
+      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, model)?.doc ? `<p>${esc(Lang.classInfo(word, model)?.doc || ct[0].doc)}</p>` : "");
     }
-    const sy = Lang.symbols(v);
+    const sy = Lang.symbols(model);
     if (sy.funcs[word] && /^\s*\(/.test(v.slice(w.b))) return sy.funcs[word].map((m) => `<code>${sigHtml(m, "", -1)}</code>`).join("");
-    const vt = Lang.varType(word, v, w.a + word.length + 1);
+    const vt = Lang.varType(word, model, w.a + word.length + 1);
     if (vt) return `<code>(variable) ${typeHtml(vt === "var" ? "var" : vt)} <span class="t-loc">${esc(word)}</span></code>`;
-    if (Lang.isClassName(word, v)) {
-      const c = Lang.classInfo(word, v);
+    if (Lang.isClassName(word, model)) {
+      const c = Lang.classInfo(word, model);
       if (sy.enums[word]) return `<code><span class="t-kw">enum</span> <span class="t-if">${esc(word)}</span></code><p>${esc(sy.enums[word].join(", "))}</p>`;
       return `<code><span class="t-kw">${esc(c?.kind || "class")}</span> <span class="t-ty">${esc(word)}</span></code>${c?.doc ? `<p>${esc(c.doc)}</p>` : ""}`;
     }
@@ -1960,6 +1970,17 @@ const App = {
   },
 
   /* ---------- tabs */
+  languageSource(primary, active) {
+    const extra = this.tabs.filter(t => t !== active && !t.binary && /\.cs$/i.test(t.path || t.name || ""))
+      .map(t => t.text).filter(Boolean);
+    return extra.length ? primary + "\n" + extra.join("\n") : primary;
+  },
+  workspaceNamespaces() {
+    const out = new Set();
+    for (const t of this.tabs) if (!t.binary && /\.cs$/i.test(t.path || t.name || ""))
+      for (const ns of Lang.declaredNamespaces(t.text)) out.add(ns);
+    return [...out];
+  },
   tab() { return this.tabs.find((t) => t.id === this.active) || null; },
   openTab({ path = null, text = "", saved = null, binary = null, local = false, name = null }) {
     const t = { id: Math.random().toString(36).slice(2), path, name, text, saved, binary, local, readOnly: !!binary, dirty: saved === null || saved !== text };
@@ -2242,7 +2263,6 @@ const App = {
   async runPath(path, label, after) {
     if (dev.running) { toast("A script is still running - Stop it first.", "err"); return; }
     ed.setError(0);
-    term.line(`▶ run ${label || path}`, "info");
     const t0 = performance.now();
     const dec = new TextDecoder();
     dev.running = true; this.updateButtons();
@@ -2257,6 +2277,7 @@ const App = {
             if (n) term.line(`— stopped ${n} job${n > 1 ? "s" : ""} left running by an earlier script —`, "sys");
           } catch (e) { if (e instanceof TimeoutError) throw e; }
         }
+        term.line(`▶ run ${label || path}`, "info");
         const r = await dev.cmd("run " + path, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
         if (after) await after();
         return r;

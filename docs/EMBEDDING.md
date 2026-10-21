@@ -25,6 +25,7 @@ targets: [LOW_RESOURCE.md](LOW_RESOURCE.md).
 | Call | Input |
 |---|---|
 | `mcs_exec_source(vm, name, src)` | C# source (needs `MCS_ENABLE_COMPILER`) |
+| `mcs_exec_declarations(vm, name, src)` | install source types/static initialization without top-level statements or implicit `Main` |
 | `mcs_exec_image(vm, img, len)` | `.mcsb` image, e.g. a const array in flash (code is copied to the heap) |
 | `mcs_exec_image_xip(vm, img, len)` | same, but bytecode is executed in place: `img` must stay valid until `mcs_free` |
 | `mcs_exec_auto(vm, name, buf, len)` | either, detected by the image magic |
@@ -33,6 +34,11 @@ targets: [LOW_RESOURCE.md](LOW_RESOURCE.md).
 
 Results: `MCS_OK`, `MCS_ERR_COMPILE`, `MCS_ERR_RUNTIME` (uncaught exception),
 `MCS_ERR_MEMORY`, `MCS_ERR_BYTECODE`, `MCS_ERR_ABORTED`. The message is in `mcs_last_error(vm)`.
+
+For compiler-enabled `.cs` files, `mcs_exec_file` treats `using A.B;` as a dependency hint:
+files anywhere in the mounted VFS declaring `namespace A.B` contribute declarations first,
+transitively, regardless of project folder layout.
+Their top-level statements and implicit `Main` methods do not run.
 
 ## 3. Limits and abort
 ```c

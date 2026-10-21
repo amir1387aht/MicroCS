@@ -2256,6 +2256,24 @@ mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_END(vm);
     return r;
 }
+
+mcs_result_t mcs_exec_declarations(mcs_vm_t* vm, const char* name, const char* src) {
+    GUARD_BEGIN(vm);
+    vm->error[0] = 0;
+    if (!vm->run_depth) stack_for_compile(vm);
+    mcs_function_t* fn = mcs_compile_declarations(vm, name, src);
+    if (!fn) { GUARD_END(vm); return MCS_ERR_COMPILE; }
+    vm->gc_pause++;
+#if MCS_ENABLE_OPTIMIZER && MCS_OPTIMIZE_SOURCE
+    mcs_optimize(vm, fn, 0);
+#endif
+    mcs_push_root(vm, OBJ_VAL(fn));
+    vm->gc_pause--;
+    mcs_result_t r = exec_function(vm, fn);
+    mcs_pop_root(vm, 1);
+    GUARD_END(vm);
+    return r;
+}
 #if MCS_ENABLE_DISASM
 mcs_result_t mcs_disassemble_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_BEGIN(vm);

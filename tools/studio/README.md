@@ -67,6 +67,14 @@ only the selected file. Selection-run is an explicit exception: it executes just
 Parameter info closes on outside pointer clicks, Escape, its × button, focus loss and moving
 out of the call; it should not block other controls.
 
+IntelliSense combines the symbols from all open C# tabs, so a variable whose type is declared
+in another open file offers that class's fields and methods. Built-in class completion also
+opens for a single capital letter (`P` includes `Path`). The firmware compiler resolves source
+dependencies: when a `.cs` file uses `using App.Display;`, file execution scans the same device
+folder for `.cs` files declaring `namespace App.Display` and installs their type declarations
+before compiling/running the requested file. It follows transitive dependencies once and breaks
+namespace cycles. Dependency top-level statements and implicit `Main` methods do not run.
+
 ## Project mode
 
 1. Create a device folder (or use `/`), with C# scripts and a `jobs.cfg` file. Use the existing
@@ -107,18 +115,17 @@ avoids flash writes for identical files. Communication/read failures block launc
 upload/verification is required before marking the text saved. Local files still ask for a path.
 
 Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
-individual scripts, not a linked multi-file assembly or persistent `.mcsb` output. There is no
-implicit cross-file initialization: `using` and `namespace` are accepted/ignored, not loaders.
-For a two-file display app, list the dependency first:
+individual scripts and their namespace dependencies across the mounted VFS, not a persistent linked `.mcsb`
+assembly. Dependency resolution happens inside each VM, including isolated delayed/periodic job
+VMs. For a two-file display app, only the application needs to be a job:
 
 ```text
-startup /oled.cs
 startup /app.cs
 ```
 
-`startup /app.cs` alone cannot define `Display` from `oled.cs`. A successful compile check
-only checks each script, not cross-file type availability. List required startup jobs in order. Runtime errors
-and actual device-resource availability are still determined at execution time.
+If `app.cs` contains `using App.Display;` and `oled.cs` declares `namespace App.Display`,
+`oled.cs` contributes declarations automatically without executing its top-level statements.
+Runtime errors and actual device-resource availability are still determined at execution time.
 
 Each file upload is atomic, **not the entire project**. Failed checks retain the previous job
 configuration, not previous file contents; old file jobs may observe uploaded changes before

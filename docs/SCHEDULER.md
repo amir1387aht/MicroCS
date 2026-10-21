@@ -37,9 +37,11 @@ all old jobs, installs exactly the new file jobs, and starts relative delays fro
 point; the next scheduler poll runs due entries. The VM must be idle. Unlike the boot loader,
 this explicit launch does not skip `startup /main.cs`.
 
-This replaces jobs, not the filesystem or VM global state, and is not a multi-file linker.
-Source checks cannot guarantee runtime success. Uploads happen before this command, one file
-at a time; stop old jobs before deployment if they must not observe partially updated files.
+This replaces jobs, not the filesystem or VM global state, and does not produce a persistent
+multi-file artifact. Each file check/run resolves namespace providers across the mounted VFS referenced
+by `using`; dependency declarations load in that job's VM without executing dependency
+top-level statements. Source checks still cannot guarantee runtime success. Uploads happen
+before this command, one file at a time; stop old jobs before deployment if they must not observe partially updated files.
 See [Studio Project mode](../tools/studio/README.md#project-mode) for editor controls.
 
 ## C# API
