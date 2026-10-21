@@ -573,6 +573,7 @@ uint32_t mcs_line_of(mcs_function_t* fn, uint32_t pc);
 /* compiler (mcs_compiler.c) */
 #if MCS_ENABLE_COMPILER
 mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src);
+mcs_function_t* mcs_compile_declarations(mcs_vm_t* vm, const char* name, const char* src);
 #endif
 /* bytecode (mcs_bytecode.c) */
 void mcs_fn_trim(mcs_vm_t* vm, mcs_function_t* fn);

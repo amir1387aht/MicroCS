@@ -175,8 +175,9 @@ Dark (Light via the theme button).
   view. Find / replace (`Ctrl+F` / `Ctrl+H`, match case, whole word, regex), go to line
   (`Ctrl+G`), format document (`Shift+Alt+F`), move / copy lines (`Alt+↑↓`), bracket matching.
   Automatic line/paste formatting and format-on-save are on by default (independent ⋯ settings).
-  Run file resolves `using` directives to source files declaring that namespace in the same
-  device folder and loads them first.
+  File execution resolves `using` directives in the firmware compiler to same-folder source
+  files declaring that namespace. Only dependency declarations/static initialization load;
+  dependency top-level statements and implicit `Main` methods do not run.
   Unsaved files are kept in the browser and come back after a reload.
 * **Projects** — Project… chooses a device folder containing `jobs.cfg`. F5 / Run project
   saves the open project sources/config, checks every discovered project source, then schedules

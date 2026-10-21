@@ -124,9 +124,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   });
   check(crossItems.includes('Center_Width') && crossItems.includes('DrawCentered'), 'members from another open source file: ' + crossItems.slice(0, 5));
   await page.click('#btnRun');
-  await page.waitForFunction(() => !App.workflowBusy, null, { timeout: 10000 });
+  await page.waitForFunction(() => !App.workflowBusy && !dev.pending, null, { timeout: 10000 });
   tt = await page.innerText('#term');
-  check(/▶ load \/studio-ns-lib\.cs[\s\S]*▶ run \/studio-ns-app\.cs[\s\S]*\n3\n/.test(tt), 'using App.Display loads the provider before the app');
+  check(!/▶ load \/studio-ns-lib\.cs/.test(tt) && /▶ run \/studio-ns-app\.cs[\s\S]*\n3\n/.test(tt),
+    'compiler resolves using App.Display without Studio running the provider');
   await page.evaluate(() => App.activate(App.tabs.find(t => t.path === '/hello.cs').id));
 
   await page.evaluate(() => store.set('saveAllCs', false));

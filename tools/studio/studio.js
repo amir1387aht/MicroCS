@@ -2172,42 +2172,6 @@ const App = {
     }
     return result;
   },
-  async namespaceDependencies(path) {
-    const paths = new Set();
-    const dir = dirName(path);
-    for (const f of await dev.op(() => dev.ls(dir))) {
-      if (!f.dir && /\.cs$/i.test(f.name || "") && !f.name.startsWith(".studio")) paths.add(joinPath(dir, f.name));
-    }
-    for (const t of this.tabs)
-      if (t.path && !t.local && !t.binary && /\.cs$/i.test(t.path) && dirName(t.path) === dir)
-        paths.add(t.path);
-    paths.add(path);
-    const sources = new Map();
-    for (const p of paths) {
-      const tab = this.tabs.find(t => !t.local && !t.binary && t.path === p);
-      if (tab) sources.set(p, tab.text);
-      else {
-        try { sources.set(p, new TextDecoder().decode(await dev.op(() => dev.get(p)))); }
-        catch { /* a file removed after listing is handled by the later run/check */ }
-      }
-    }
-    const providers = new Map();
-    for (const [p, src] of sources) for (const ns of Lang.declaredNamespaces(src)) {
-      const list = providers.get(ns) || []; list.push(p); providers.set(ns, list);
-    }
-    const order = [], state = new Map();
-    const visit = p => {
-      if ((state.get(p) || 0) === 2) return;
-      if (state.get(p) === 1) return; // namespace cycle: each file still loads once
-      state.set(p, 1);
-      for (const ns of Lang.usedNamespaces(sources.get(p) || ""))
-        for (const dep of (providers.get(ns) || []).slice().sort()) if (dep !== p) visit(dep);
-      state.set(p, 2);
-      if (p !== path) order.push(p);
-    };
-    visit(path);
-    return order;
-  },
   async saveBuild(target = this.tab(), project = false) {
     ed.stash();
     if (!dev.connected) {
@@ -2263,7 +2227,7 @@ const App = {
     if (!dev.connected) return;
     return this.workflow(async () => {
       if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false))) return false;
-      await this.runPath(path, null, null, await this.namespaceDependencies(path)); return true;
+      await this.runPath(path); return true;
     });
   },
 
@@ -2292,11 +2256,11 @@ const App = {
         this.projectRunning = true;
         term.line("▶ project " + config + " — only jobs.cfg jobs were scheduled", "info");
         term.write(new TextDecoder().decode(r.out)); this.updateButtons();
-      } else if (t?.path) await this.runPath(t.path, null, null, await this.namespaceDependencies(t.path));
+      } else if (t?.path) await this.runPath(t.path);
       return true;
     });
   },
-  async runPath(path, label, after, dependencies = []) {
+  async runPath(path, label, after) {
     if (dev.running) { toast("A script is still running - Stop it first.", "err"); return; }
     ed.setError(0);
     const t0 = performance.now();
@@ -2312,11 +2276,6 @@ const App = {
             const n = c.status === "OK" ? +((/cancelled (\d+)/.exec(new TextDecoder().decode(c.out)) || [])[1] || 0) : 0;
             if (n) term.line(`— stopped ${n} job${n > 1 ? "s" : ""} left running by an earlier script —`, "sys");
           } catch (e) { if (e instanceof TimeoutError) throw e; }
-        }
-        for (const dep of dependencies) {
-          term.line(`▶ load ${dep}`, "info");
-          const loaded = await dev.cmd("run " + dep, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
-          if (loaded.status !== "OK") return loaded;
         }
         term.line(`▶ run ${label || path}`, "info");
         const r = await dev.cmd("run " + path, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });

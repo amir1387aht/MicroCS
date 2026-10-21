@@ -184,6 +184,9 @@ void* mcs_user_data(mcs_vm_t* vm);
 mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src);
 /* Compile without executing top-level code; catches allocation failures. */
 mcs_result_t mcs_check_source(mcs_vm_t* vm, const char* name, const char* src);
+/* Install type declarations and static initializers without running top-level
+ * statements or an implicit static Main method. */
+mcs_result_t mcs_exec_declarations(mcs_vm_t* vm, const char* name, const char* src);
 #endif
 #if MCS_ENABLE_COMPILER && MCS_ENABLE_BYTECODE_SAVE
 /* Compile source to a portable bytecode image (free with mcs_free_image). */

@@ -1829,7 +1829,7 @@ static void topo_visit(comp_t* c, classdecl_t* d, classdecl_t** out, int* n) {
     out[(*n)++] = d;
 }
 
-mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
+static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char* src, bool declarations_only) {
     /* Mutable cleanup state must survive longjmp. A non-volatile stack arena
      * or token owner modified after setjmp would have indeterminate values. */
     typedef struct { arena_t arena; front_ctx_t ctx; program_t prog; } workspace_t;
@@ -1885,27 +1885,30 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
             emit_def(c, OP_STATIC, d->name, d->len, 0);
             emit_op(c, OP_POP);
         }
-        /* declared types of top-level variables, needed by the hoisted functions
-         * compiled before the declarations (implicit conversions on assignment) */
-        for (node_t* s = w->prog.stmts; s; s = s->next) {
-            if (s->kind == N_VAR) pre_gvar(c, s);
-            else if (s->kind == N_BLOCK && s->flag == 1) for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR) pre_gvar(c, v);
-        }
-        /* hoisted top-level functions */
-        for (node_t* s = w->prog.stmts; s; s = s->next) {
-            if (s->kind != N_LOCAL_FUNC) continue;
-            c->line = s->line;
-            emit_closure(c, s->fn, FK_FUNC, NULL, s->name, s->len, NULL);
-            emit_op16(c, OP_SET_GLOBAL, global_slot(c, s->name, s->len));
-            emit_op(c, OP_POP);
-        }
-        for (int i = 0; i < n; i++) emit_static_inits(c, order[i]);
         bool has_code = false;
-        for (node_t* s = w->prog.stmts; s; s = s->next) {
-            if (s->kind != N_LOCAL_FUNC && s->kind != N_EMPTY) has_code = true;
-            compile_stmt(c, s);
-        }
-        if (!has_code) {
+        if (!declarations_only) {
+            /* declared types of top-level variables, needed by the hoisted functions
+             * compiled before the declarations (implicit conversions on assignment) */
+            for (node_t* s = w->prog.stmts; s; s = s->next) {
+                if (s->kind == N_VAR) pre_gvar(c, s);
+                else if (s->kind == N_BLOCK && s->flag == 1)
+                    for (node_t* v = s->a; v; v = v->next) if (v->kind == N_VAR) pre_gvar(c, v);
+            }
+            /* hoisted top-level functions */
+            for (node_t* s = w->prog.stmts; s; s = s->next) {
+                if (s->kind != N_LOCAL_FUNC) continue;
+                c->line = s->line;
+                emit_closure(c, s->fn, FK_FUNC, NULL, s->name, s->len, NULL);
+                emit_op16(c, OP_SET_GLOBAL, global_slot(c, s->name, s->len));
+                emit_op(c, OP_POP);
+            }
+            for (int i = 0; i < n; i++) emit_static_inits(c, order[i]);
+            for (node_t* s = w->prog.stmts; s; s = s->next) {
+                if (s->kind != N_LOCAL_FUNC && s->kind != N_EMPTY) has_code = true;
+                compile_stmt(c, s);
+            }
+        } else for (int i = 0; i < n; i++) emit_static_inits(c, order[i]);
+        if (!declarations_only && !has_code) {
             for (int i = 0; i < n; i++) {
                 member_t* m = find_member(order[i], "Main", 4, NULL);
                 if (m && m->kind == M_METHOD && (m->mods & MOD_STATIC) && m->fn->body) {
@@ -1929,5 +1932,13 @@ done:
     mcs_realloc(vm, w, sizeof *w, 0);
     vm->gc_pause--;
     return result;
+}
+
+mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
+    return compile_source(vm, name, src, false);
+}
+
+mcs_function_t* mcs_compile_declarations(mcs_vm_t* vm, const char* name, const char* src) {
+    return compile_source(vm, name, src, true);
 }
 #endif

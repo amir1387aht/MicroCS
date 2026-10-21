@@ -24,9 +24,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   focus loss and leaving the call context.
 * **Save/build** — default-on upload of all editable open C# tabs and compile-only checks
   before Save/F5/Run file; individual toggles, duplicate-path protection and action locking.
-* **Multi-file editing** — IntelliSense combines all open C# tabs and Run file loads same-folder
-  namespace providers referenced by `using`, including transitive dependencies. Single-capital
-  completion now offers built-in classes such as `Path`.
+* **Multi-file source** — IntelliSense combines all open C# tabs. Firmware file execution resolves
+  same-folder namespace providers referenced by `using`, including transitive dependencies and
+  isolated job VMs, while suppressing dependency top-level statements and implicit `Main`.
+  Single-capital completion now offers built-in classes such as `Path`.
 * **Editor safety** — toolbar format-on-save replaces the document even while the toolbar has
   focus instead of inserting the formatted text at the previous editor caret.
 * **Project mode** — remembered device folder, required `jobs.cfg`, recursive source checks,

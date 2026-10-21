@@ -3,7 +3,6 @@
 #if MCS_ENABLE_FS
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 void mcs_vfs_init(mcs_vfs_t* vfs) { memset(vfs, 0, sizeof *vfs); }
 
@@ -293,24 +292,278 @@ const char* mcs_vfs_strerror(int e) {
 }
 
 #if MCS_ENABLE_COMPILER
-mcs_result_t mcs_check_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path) {
-    char* data; size_t len;
-    int e = (mcs_vfs_flags(vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
-            : mcs_vfs_read_file(vfs, path, &data, &len);
-    if (e) return mcs_fail(vm, MCS_ERR_RUNTIME, "cannot check '%s': %s", path, mcs_vfs_strerror(e));
-    mcs_result_t r = mcs_check_source(vm, path, data);
-    mcs_vfs_free(vfs, data, len);
+typedef struct {
+    char path[MCS_VFS_PATH_MAX];
+    uint8_t state;             /* 0 unseen, 1 visiting, 2 loaded/checked */
+} source_file_t;
+typedef struct {
+    mcs_vm_t* vm;
+    mcs_vfs_t* vfs;
+    source_file_t* files;
+    size_t count, cap, root;
+    bool check;
+    int list_error;
+    char dir[MCS_VFS_PATH_MAX];
+} source_set_t;
+typedef struct { char* data; size_t len, cap; } name_list_t;
+
+static bool cs_id0(char c) { return c == '_' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); }
+static bool cs_id(char c) { return cs_id0(c) || (c >= '0' && c <= '9'); }
+static bool cs_extension(const char* path) {
+    size_t n = strlen(path);
+    return n >= 3 && path[n - 3] == '.' && (path[n - 2] == 'c' || path[n - 2] == 'C')
+        && (path[n - 1] == 's' || path[n - 1] == 'S');
+}
+static const char* cs_space(const char* p) {
+    for (;;) {
+        while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+        if (p[0] == '/' && p[1] == '/') { p += 2; while (*p && *p != '\n') p++; continue; }
+        if (p[0] == '/' && p[1] == '*') {
+            p += 2; while (*p && !(p[0] == '*' && p[1] == '/')) p++;
+            if (*p) p += 2;
+            continue;
+        }
+        return p;
+    }
+}
+static const char* cs_string(const char* p, bool verbatim) {
+    char q = *p++;
+    if (q == '"' && p[0] == '"' && p[1] == '"') {
+        p += 2;
+        while (*p && !(p[0] == '"' && p[1] == '"' && p[2] == '"')) p++;
+        return *p ? p + 3 : p;
+    }
+    while (*p) {
+        if (*p == q) {
+            if (verbatim && q == '"' && p[1] == '"') { p += 2; continue; }
+            return p + 1;
+        }
+        if (!verbatim && *p == '\\' && p[1]) p += 2; else p++;
+    }
+    return p;
+}
+static bool cs_word(const char* p, const char* word) {
+    size_t n = strlen(word);
+    for (size_t i = 0; i < n; i++) if (p[i] != word[i]) return false;
+    return !cs_id(p[n]);
+}
+/* Finds the next namespace name after `using` or `namespace`. Strings and
+ * comments are ignored; aliases and `using static` are not source imports. */
+static bool next_namespace(const char* src, size_t* off, bool declarations, char* out, size_t cap) {
+    const char* p = src + *off;
+    while (*p) {
+        if (p[0] == '/' && (p[1] == '/' || p[1] == '*')) { p = cs_space(p); continue; }
+        if (*p == '"' || *p == '\'') {
+            bool verbatim = *p == '"' && ((p > src && p[-1] == '@') ||
+                (p - src > 1 && p[-1] == '$' && p[-2] == '@'));
+            p = cs_string(p, verbatim); continue;
+        }
+        if (!cs_id0(*p)) { p++; continue; }
+        const char* w = p++; while (cs_id(*p)) p++;
+        size_t wn = (size_t)(p - w);
+        const char* keyword = declarations ? "namespace" : "using";
+        size_t kn = strlen(keyword);
+        if (wn != kn || memcmp(w, keyword, kn)) continue;
+        p = cs_space(p);
+        if (!declarations && (cs_word(p, "static") || cs_word(p, "var"))) continue;
+        if (!cs_id0(*p)) continue;       /* using (...), using var, malformed */
+        size_t n = 0;
+        for (;;) {
+            const char* id = p++; while (cs_id(*p)) p++;
+            size_t ilen = (size_t)(p - id);
+            if (n && n + 1 < cap) out[n++] = '.';
+            if (n + ilen >= cap) { n = 0; break; }
+            memcpy(out + n, id, ilen); n += ilen;
+            p = cs_space(p);
+            if (*p != '.') break;
+            p = cs_space(p + 1);
+            if (!cs_id0(*p)) { n = 0; break; }
+        }
+        if (!n || (declarations ? (*p != '{' && *p != ';') : *p != ';')) continue;
+        out[n] = 0; *off = (size_t)(p - src) + 1;
+        return true;
+    }
+    *off = (size_t)(p - src);
+    return false;
+}
+static bool declares_namespace(const char* src, const char* wanted) {
+    char name[MCS_VFS_PATH_MAX]; size_t off = 0;
+    while (next_namespace(src, &off, true, name, sizeof name))
+        if (!strcmp(name, wanted)) return true;
+    return false;
+}
+static int add_name(mcs_vfs_t* vfs, name_list_t* list, const char* name) {
+    size_t n = strlen(name) + 1;
+    if (list->len > SIZE_MAX - n) return MCS_VFS_ENOMEM;
+    if (list->len + n > list->cap) {
+        size_t cap = list->cap ? list->cap * 2 : 64;
+        if (cap < list->cap) return MCS_VFS_ENOMEM;
+        while (cap < list->len + n) {
+            if (cap > SIZE_MAX / 2) return MCS_VFS_ENOMEM;
+            cap *= 2;
+        }
+        char* p = (char*)vfs_alloc(vfs, list->data, list->cap, cap);
+        if (!p) return MCS_VFS_ENOMEM;
+        list->data = p; list->cap = cap;
+    }
+    memcpy(list->data + list->len, name, n); list->len += n;
+    return MCS_VFS_OK;
+}
+static int collect_usings(mcs_vfs_t* vfs, const char* src, name_list_t* list) {
+    char name[MCS_VFS_PATH_MAX]; size_t off = 0;
+    while (next_namespace(src, &off, false, name, sizeof name)) {
+        bool duplicate = false;
+        for (size_t i = 0; i < list->len; i += strlen(list->data + i) + 1)
+            if (!strcmp(list->data + i, name)) { duplicate = true; break; }
+        if (!duplicate) { int e = add_name(vfs, list, name); if (e) return e; }
+    }
+    return MCS_VFS_OK;
+}
+static int add_source(source_set_t* set, const char* path) {
+    for (size_t i = 0; i < set->count; i++) if (!strcmp(set->files[i].path, path)) return (int)i;
+    if (set->count == set->cap) {
+        if (set->cap > SIZE_MAX / 2 / sizeof(*set->files)) return MCS_VFS_ENOMEM;
+        size_t cap = set->cap ? set->cap * 2 : 4;
+        source_file_t* p = (source_file_t*)vfs_alloc(set->vfs, set->files,
+            set->cap * sizeof(*p), cap * sizeof(*p));
+        if (!p) return MCS_VFS_ENOMEM;
+        set->files = p; set->cap = cap;
+    }
+    source_file_t* f = &set->files[set->count];
+    memset(f, 0, sizeof *f);
+    if (strlen(path) >= sizeof f->path) return MCS_VFS_ENAMETOOLONG;
+    strcpy(f->path, path);
+    return (int)set->count++;
+}
+static int collect_source(void* ud, const char* name, const mcs_vfs_stat_t* st) {
+    source_set_t* set = (source_set_t*)ud;
+    if (st->is_dir || !cs_extension(name) || !strncmp(name, ".studio", 7)) return 0;
+    char path[MCS_VFS_PATH_MAX];
+    size_t dl = strlen(set->dir), nl = strlen(name);
+    size_t slash = dl == 1 ? 0 : 1;
+    if (dl + slash + nl >= sizeof path) { set->list_error = MCS_VFS_ENAMETOOLONG; return 1; }
+    memcpy(path, set->dir, dl);
+    if (slash) path[dl++] = '/';
+    memcpy(path + dl, name, nl + 1);
+    int e = add_source(set, path);
+    if (e < 0) { set->list_error = e; return 1; }
+    return 0;
+}
+static mcs_result_t source_error(source_set_t* set, const char* action, const char* path, int e) {
+    return mcs_fail(set->vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
+                    "cannot %s '%s': %s", action, path, mcs_vfs_strerror(e));
+}
+static mcs_result_t visit_source(source_set_t* set, size_t at) {
+    source_file_t* file = &set->files[at];
+    if (file->state == 2 || file->state == 1) return MCS_OK; /* loaded or a namespace cycle */
+    file->state = 1;
+    char* src; size_t len;
+    int e = (mcs_vfs_flags(set->vfs, file->path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+            : mcs_vfs_read_file(set->vfs, file->path, &src, &len);
+    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
+    name_list_t uses = {0};
+    e = collect_usings(set->vfs, src, &uses);
+    mcs_vfs_free(set->vfs, src, len);
+    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
+    for (size_t u = 0; u < uses.len; u += strlen(uses.data + u) + 1) {
+        for (size_t i = 0; i < set->count; i++) {
+            if (i == at) continue;
+            char* candidate; size_t clen;
+            e = mcs_vfs_read_file(set->vfs, set->files[i].path, &candidate, &clen);
+            if (e) {
+                if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
+                return source_error(set, set->check ? "check" : "run", set->files[i].path, e);
+            }
+            bool provider = declares_namespace(candidate, uses.data + u);
+            mcs_vfs_free(set->vfs, candidate, clen);
+            if (provider) {
+                mcs_result_t r = visit_source(set, i);
+                if (r != MCS_OK) {
+                    if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
+                    return r;
+                }
+            }
+        }
+    }
+    if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
+    e = mcs_vfs_read_file(set->vfs, file->path, &src, &len);
+    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
+    mcs_result_t r = set->check ? mcs_check_source(set->vm, file->path, src)
+        : at == set->root ? mcs_exec_source(set->vm, file->path, src)
+                          : mcs_exec_declarations(set->vm, file->path, src);
+    mcs_vfs_free(set->vfs, src, len);
+    if (r == MCS_OK) file->state = 2;
     return r;
+}
+static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path, bool check) {
+    source_set_t set;
+    memset(&set, 0, sizeof set);
+    set.vm = vm; set.vfs = vfs; set.check = check;
+    char norm[MCS_VFS_PATH_MAX];
+    int e = mcs_vfs_normalize(path, norm, sizeof norm);
+    if (e) return mcs_fail(vm, MCS_ERR_RUNTIME, "cannot %s '%s': %s",
+                           check ? "check" : "run", path, mcs_vfs_strerror(e));
+    char* root_src; size_t root_len;
+    e = (mcs_vfs_flags(vfs, norm) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+        : mcs_vfs_read_file(vfs, norm, &root_src, &root_len);
+    if (e) return mcs_fail(vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
+                           "cannot %s '%s': %s", check ? "check" : "run", norm, mcs_vfs_strerror(e));
+    if (!check && mcs_is_image(root_src, root_len)) {
+        mcs_result_t r = mcs_exec_auto(vm, norm, root_src, root_len);
+        mcs_vfs_free(vfs, root_src, root_len);
+        return r;
+    }
+    name_list_t root_uses = {0};
+    e = collect_usings(vfs, root_src, &root_uses);
+    if (e) {
+        mcs_vfs_free(vfs, root_src, root_len);
+        return mcs_fail(vm, MCS_ERR_MEMORY, "cannot %s '%s': %s",
+                        check ? "check" : "run", norm, mcs_vfs_strerror(e));
+    }
+    if (!root_uses.len) {
+        mcs_result_t r = check ? mcs_check_source(vm, norm, root_src)
+                               : mcs_exec_source(vm, norm, root_src);
+        if (root_uses.data) vfs_alloc(vfs, root_uses.data, root_uses.cap, 0);
+        mcs_vfs_free(vfs, root_src, root_len);
+        return r;
+    }
+    vfs_alloc(vfs, root_uses.data, root_uses.cap, 0);
+    mcs_vfs_free(vfs, root_src, root_len);
+    strcpy(set.dir, norm);
+    char* slash = strrchr(set.dir, '/');
+    if (slash == set.dir) set.dir[1] = 0; else *slash = 0;
+    e = mcs_vfs_list(vfs, set.dir, collect_source, &set);
+    if (!e) e = set.list_error;
+    if (e) {
+        if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
+        return mcs_fail(vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
+                        "cannot scan '%s': %s", set.dir, mcs_vfs_strerror(e));
+    }
+    int root = add_source(&set, norm);
+    if (root < 0) {
+        if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
+        return mcs_fail(vm, root == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
+                        "cannot scan '%s': %s", set.dir, mcs_vfs_strerror(root));
+    }
+    set.root = (size_t)root;
+    mcs_result_t r = visit_source(&set, set.root);
+    if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
+    return r;
+}
+
+mcs_result_t mcs_check_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path) {
+    return resolve_source_file(vm, vfs, path, true);
 }
 #endif
 
 mcs_result_t mcs_exec_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path) {
+#if MCS_ENABLE_COMPILER
+    if (cs_extension(path)) return resolve_source_file(vm, vfs, path, false);
+#endif
     char* data; size_t len;
-    int e;
-    if (mcs_vfs_flags(vfs, path) & MCS_VFS_NOEXEC) e = MCS_VFS_EACCES;
-    else e = mcs_vfs_read_file(vfs, path, &data, &len);
+    int e = (mcs_vfs_flags(vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+            : mcs_vfs_read_file(vfs, path, &data, &len);
     if (e) return mcs_fail(vm, MCS_ERR_RUNTIME, "cannot run '%s': %s", path, mcs_vfs_strerror(e));
-    /* the buffer is NUL-terminated, so source runs without a copy */
     mcs_result_t r = mcs_exec_auto(vm, path, data, mcs_is_image(data, len) ? len : len + 1);
     mcs_vfs_free(vfs, data, len);
     return r;

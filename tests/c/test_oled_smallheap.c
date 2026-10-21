@@ -30,20 +30,14 @@ int main(void) {
     mcs_mem_stats_t memory; mcs_mem_stats(rt.vm,&memory);
     CHECK(memory.stack_limit==MCS_DEFAULT_STACK); CHECK(memory.frame_limit==MCS_DEFAULT_FRAMES);
     CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
-#ifndef OLED_BUDGET
-    CHECK(mcs_exec_file(rt.vm,&rt.vfs,"/app.cs")==MCS_ERR_RUNTIME);
-    CHECK(strstr(mcs_last_error(rt.vm),"Display")!=NULL);
-    for(int i=0;i<3;i++) CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
-#endif
-    CHECK(mcs_exec_file(rt.vm,&rt.vfs,"/oled.cs")==MCS_OK);
     for(int i=0;i<OLED_REPEATS;i++) {
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/oled.cs")==MCS_OK);
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
-        CHECK(mcs_sched_start_project(&rt.sched,"startup /oled.cs\nstartup /app.cs\n")==2);
+        CHECK(mcs_sched_start_project(&rt.sched,"startup /app.cs\n")==1);
         mcs_sched_poll(&rt.sched);
         CHECK(mcs_sched_active(&rt.sched)==0);
         CHECK(rt.sched.jobs[0].state==MCS_JOB_DONE);
-        CHECK(rt.sched.jobs[1].state==MCS_JOB_DONE);
+        CHECK(mcs_is_null(mcs_get_global(rt.vm,"oledDependencyTopLevelMustNotRun")));
         CHECK(mcs_exec_source(rt.vm,"button.cs","app.OnEnterButtonPressed(false);")==MCS_OK);
         uint32_t frames=oled.frames;
         mcs_hal_sim_set_input(&sim,8,1); mcs_hal_poll(rt.vm);

@@ -42,6 +42,38 @@ int main(void) {
     CHECK(mcs_exec_source(vm, "display.cs", "class Display { public enum Font { Title=7, Text=9 } }") == MCS_OK);
     CHECK(mcs_exec_source(vm, "app.cs", "int font = Display.Font.Text;") == MCS_OK);
     CHECK(mcs_to_int(vm, mcs_get_global(vm, "font")) == 9);
+    /* A file run resolves namespace providers in the same directory inside
+     * the compiler/runtime. Dependency top-level statements and Main methods
+     * must not execute; only their declarations and static initializers load. */
+    put(&vfs, "/helper.cs",
+        "namespace App.Helpers { public class Helper { public static int Number = 4; "
+        "public static int Value() { return Number; } "
+        "public static void Main() { File.WriteAllText(\"/must_not_run\", \"main\"); } } } "
+        "File.WriteAllText(\"/must_not_run\", \"top\");");
+    put(&vfs, "/oled.cs",
+        "using App.Helpers; namespace App.Display { public class Display { "
+        "public int Center_Width(string text) { return Helper.Value(); } } } "
+        "File.WriteAllText(\"/must_not_run\", \"oled\");");
+    put(&vfs, "/app.cs",
+        "using App.Display; var display = new Display(); int linked = display.Center_Width(\"hey\");");
+    mcs_result_t dep_result = mcs_check_file(vm, &vfs, "/app.cs");
+    if (dep_result != MCS_OK) fprintf(stderr, "dependency check: %s\n", mcs_last_error(vm));
+    CHECK(dep_result == MCS_OK);
+    CHECK(mcs_vfs_stat(&vfs, "/must_not_run", &st) == MCS_VFS_ENOENT);
+    dep_result = mcs_exec_file(vm, &vfs, "/app.cs");
+    if (dep_result != MCS_OK) fprintf(stderr, "dependency run: %s\n", mcs_last_error(vm));
+    CHECK(dep_result == MCS_OK);
+    CHECK(mcs_to_int(vm, mcs_get_global(vm, "linked")) == 4);
+    CHECK(mcs_vfs_stat(&vfs, "/must_not_run", &st) == MCS_VFS_ENOENT);
+    put(&vfs, "/ignored.cs",
+        "/* using App.Broken; */ string text = \"using App.Broken;\"; int scannerIgnored = 7;");
+    put(&vfs, "/broken-provider.cs", "namespace App.Broken { public class Broken { int x = ; } }");
+    CHECK(mcs_exec_file(vm, &vfs, "/ignored.cs") == MCS_OK);
+    CHECK(mcs_to_int(vm, mcs_get_global(vm, "scannerIgnored")) == 7);
+    put(&vfs, "/needs-broken.cs", "using App.Broken; int neverRuns = 1;");
+    dep_result = mcs_check_file(vm, &vfs, "/needs-broken.cs");
+    if (dep_result != MCS_ERR_COMPILE) fprintf(stderr, "broken dependency check (%d): %s\n", dep_result, mcs_last_error(vm));
+    CHECK(dep_result == MCS_ERR_COMPILE);
     put(&vfs, "/one.cs", "File.AppendAllText(\"/log\", \"one\");");
     put(&vfs, "/two.cs", "File.AppendAllText(\"/log\", \"two\");");
     put(&vfs, "/bad.cs", "int a = ;");
@@ -62,9 +94,11 @@ int main(void) {
     CHECK(mcs_vfs_stat(&vfs, "/log", &st) == MCS_VFS_ENOENT);
     mcs_sched_poll(&sched);
     char* data; size_t len;
-    CHECK(!mcs_vfs_read_file(&vfs, "/log", &data, &len)); CHECK(!strcmp(data, "one")); mcs_vfs_free(&vfs, data, len);
+    int read_status = mcs_vfs_read_file(&vfs, "/log", &data, &len);
+    CHECK(!read_status); if (!read_status) { CHECK(!strcmp(data, "one")); mcs_vfs_free(&vfs, data, len); }
     clock_ms = 1100; mcs_sched_poll(&sched);
-    CHECK(!mcs_vfs_read_file(&vfs, "/log", &data, &len)); CHECK(!strcmp(data, "onetwo")); mcs_vfs_free(&vfs, data, len);
+    read_status = mcs_vfs_read_file(&vfs, "/log", &data, &len);
+    CHECK(!read_status); if (!read_status) { CHECK(!strcmp(data, "onetwo")); mcs_vfs_free(&vfs, data, len); }
     CHECK(mcs_to_int(vm, mcs_get_global(vm, "retained")) == 43);
     mcs_sched_free(&sched); mcs_ramfs_free(&fs); mcs_free(vm);
     printf("%s project: %d checks, %d failures\n", failures ? "FAIL" : "PASS", checks, failures);

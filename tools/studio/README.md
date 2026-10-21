@@ -69,10 +69,11 @@ out of the call; it should not block other controls.
 
 IntelliSense combines the symbols from all open C# tabs, so a variable whose type is declared
 in another open file offers that class's fields and methods. Built-in class completion also
-opens for a single capital letter (`P` includes `Path`). When **Run file** sees
-`using App.Display;`, it scans the active file's device folder for `.cs` files declaring
-`namespace App.Display`, loads those providers first, and follows their `using` dependencies
-transitively. Each provider is loaded once per run; namespace cycles do not loop.
+opens for a single capital letter (`P` includes `Path`). The firmware compiler resolves source
+dependencies: when a `.cs` file uses `using App.Display;`, file execution scans the same device
+folder for `.cs` files declaring `namespace App.Display` and installs their type declarations
+before compiling/running the requested file. It follows transitive dependencies once and breaks
+namespace cycles. Dependency top-level statements and implicit `Main` methods do not run.
 
 ## Project mode
 
@@ -114,20 +115,17 @@ avoids flash writes for identical files. Communication/read failures block launc
 upload/verification is required before marking the text saved. Local files still ask for a path.
 
 Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
-individual scripts, not a linked multi-file assembly or persistent `.mcsb` output. There is no
-implicit cross-file initialization for **Project jobs**: `using` and `namespace` remain
-compile-time names there, because delayed/periodic jobs may execute in isolated VMs. The
-automatic same-folder loading described above applies to **Run file**, not `jobs.cfg`.
-For a two-file display app, list the dependency first:
+individual scripts and their same-folder namespace dependencies, not a persistent linked `.mcsb`
+assembly. Dependency resolution happens inside each VM, including isolated delayed/periodic job
+VMs. For a two-file display app, only the application needs to be a job:
 
 ```text
-startup /oled.cs
 startup /app.cs
 ```
 
-`startup /app.cs` alone cannot define `Display` from `oled.cs`. A successful compile check
-only checks each script, not cross-file type availability. List required startup jobs in order. Runtime errors
-and actual device-resource availability are still determined at execution time.
+If `app.cs` contains `using App.Display;` and `oled.cs` declares `namespace App.Display`,
+`oled.cs` contributes declarations automatically without executing its top-level statements.
+Runtime errors and actual device-resource availability are still determined at execution time.
 
 Each file upload is atomic, **not the entire project**. Failed checks retain the previous job
 configuration, not previous file contents; old file jobs may observe uploaded changes before
