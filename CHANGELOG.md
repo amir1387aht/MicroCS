@@ -2,6 +2,20 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — source discovery hardening
+
+* Discover providers at nested VFS mount roots even when no backing parent
+  directory exists; deduplicate files already reached through the root walk.
+* Replace recursive namespace-dependency visits with a growing, VFS-allocator-backed
+  traversal stack. Long chains no longer consume native stack per provider; all
+  scratch storage is released after success, compile errors, denied execution or OOM.
+* List every RAMFS directory entry using bounded scratch pages while preserving
+  creation order, rather than silently dropping entries after 64.
+* Grow sorted POSIX directory listings beyond 256 entries; fail explicitly and
+  clean up on allocation or enumeration errors rather than returning partial success.
+* Add nested-mount, no-execute, large-directory, moving-allocation, deep-cycle and
+  exhaustive scratch-allocation failure regressions to `make project-test`.
+
 ## Unreleased — bounded memory and accurate telemetry
 
 * Compact paged compiler tokens and AST storage; release consumed declarations,
@@ -11,8 +25,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   fallback. Runtime source/read buffers now count against the physical pool.
 * Shell/Studio report tracked VM allocations, full pool capacity/usage/peak/free/
   largest block and optional ESP32 device heap separately, including after OOM.
-* Add a 32-bit real-U8g2, fixed-40-KiB, 20-Project-cycle regression with explicit
-  128-slot/16-frame application limits; no feature/profile/precision reduction.
+* Add a 32-bit real-U8g2, fixed-40-KiB, 20-Project-cycle regression with
+  profile-default stack/frame ceilings; no feature/profile/precision reduction.
 * ESP32 example pool ceiling/stack/frame settings and fail-closed allocation;
   existing defaults remain unchanged. See `docs/MEMORY.md` for scope/exclusions.
 

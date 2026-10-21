@@ -194,18 +194,31 @@ static int r_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
         if (!d->dir) return MCS_VFS_ENOTDIR;
     }
     size_t dl = strlen(path);
-    /* nodes are kept newest-first; walk to report in creation order */
+    /* Nodes are newest-first. Page backwards through a bounded scratch
+     * window to preserve creation order without truncation or heap allocation. */
     node_t* items[64];
-    int count = 0;
+    size_t remaining = 0;
     for (node_t* n = fs->nodes; n; n = n->next) {
         if (!is_child_of(n, path, dl)) continue;
         const char* name = n->path + (dl == 1 ? 1 : dl + 1);
-        if (strchr(name, '/')) continue;
-        if (count < 64) items[count++] = n;
+        if (!strchr(name, '/')) remaining++;
     }
-    for (int i = count - 1; i >= 0; i--) {
-        mcs_vfs_stat_t st = { (uint32_t)items[i]->len, items[i]->dir };
-        if (cb(ud, items[i]->path + (dl == 1 ? 1 : dl + 1), &st)) break;
+    while (remaining) {
+        size_t first = remaining > 64 ? remaining - 64 : 0;
+        size_t index = 0, count = 0;
+        for (node_t* n = fs->nodes; n; n = n->next) {
+            if (!is_child_of(n, path, dl)) continue;
+            const char* name = n->path + (dl == 1 ? 1 : dl + 1);
+            if (strchr(name, '/')) continue;
+            if (index >= remaining) break;
+            if (index++ >= first) items[count++] = n;
+        }
+        while (count) {
+            node_t* n = items[--count];
+            mcs_vfs_stat_t st = { (uint32_t)n->len, n->dir };
+            if (cb(ud, n->path + (dl == 1 ? 1 : dl + 1), &st)) return MCS_VFS_OK;
+        }
+        remaining = first;
     }
     return MCS_VFS_OK;
 }
