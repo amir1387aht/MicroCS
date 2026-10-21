@@ -182,3 +182,13 @@ u8g2 build: `make fetch-u8g2 mcs-u8g2 && node tests/studio/test_templates.js bui
 `tests/studio/test_studio.js` tests the page in a headless browser.
 
 Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-browser-microcs-studio).
+
+### Memory snapshot
+
+The memory panel distinguishes VM-tracked allocations, full physical VM pool
+usage/capacity/peak/free/largest block, and optional ESP32 device heap telemetry.
+Values are exact bytes. Device heap already includes the reserved VM pool: the
+numbers are not additive. Older firmware explicitly shows missing capacity;
+Studio never guesses it from a VM peak. Failed workflows also refresh the
+snapshot. See [memory budgets](../../docs/MEMORY.md) for scope, exclusions and the
+40 KiB source-Project regression/configuration.

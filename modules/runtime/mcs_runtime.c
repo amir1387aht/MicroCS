@@ -62,6 +62,27 @@ static int rt_hook(mcs_vm_t* vm, void* ud) {
     return rt_has_input(rt) ? mcs_shell_poll_break(vm) : 0;
 }
 
+static void rt_memory_info(void* ud, mcs_shell_memory_t* st) {
+    mcs_runtime_t* rt = (mcs_runtime_t*)ud;
+    memset(st, 0, sizeof *st);
+#if MCS_ENABLE_POOL_HEAP
+    if (rt->cfg.heap && rt->cfg.heap_size) {
+#if MCS_ENABLE_THREADS
+        mcs_threads_heap_lock();
+#endif
+        mcs_pool_stats(&rt->pool, &st->pool);
+#if MCS_ENABLE_THREADS
+        mcs_threads_heap_unlock();
+#endif
+        st->has_pool = true;
+    }
+#endif
+#if MCS_ENABLE_HAL
+    if (rt->cfg.hal && rt->cfg.hal->memory_info)
+        st->has_device = rt->cfg.hal->memory_info(rt->cfg.hal->ctx, &st->device);
+#endif
+}
+
 int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     memset(rt, 0, sizeof *rt);
     rt->cfg = *cfg;
@@ -72,6 +93,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
         mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
         c.realloc_fn = rt_pool_realloc;
         c.alloc_ud = &rt->pool;
+        c.alloc_overhead = MCS_POOL_OVERHEAD; /* also when the allocator is thread-wrapped */
         size_t reserve = cfg->ramfs_size + 2048;   /* RAM fs + fragmentation slack */
         c.heap_limit = cfg->heap_size > reserve + 8192 ? cfg->heap_size - reserve : cfg->heap_size;
     }
@@ -93,6 +115,13 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     struct mcs_vfs* vfs = NULL;
 #if MCS_ENABLE_FS
     mcs_vfs_init(&rt->vfs);
+#if MCS_ENABLE_POOL_HEAP
+    if (cfg->heap && cfg->heap_size) {
+        /* Whole-file source/read buffers belong to the same physical budget,
+         * not a hidden malloc allocation outside the VM pool. */
+        rt->vfs.realloc_fn = rt_pool_realloc; rt->vfs.alloc_ud = &rt->pool;
+    }
+#endif
     int e = 1;
     if (cfg->fs_ops) e = mcs_vfs_mount(&rt->vfs, "/", cfg->fs_ops, cfg->fs_ctx, 0);
     else if (cfg->ramfs_size) {
@@ -144,6 +173,8 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
                    NULL,
 #endif
                    t);
+    rt->shell.memory_info = rt_memory_info;
+    rt->shell.memory_ud = rt;
     rt->shell.echo = cfg->echo;
     rt->shell.repl = cfg->mode == MCS_RUNTIME_REPL;
 #if MCS_ENABLE_XIP

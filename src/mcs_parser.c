@@ -7,7 +7,7 @@
 typedef struct {
     front_ctx_t* ctx;
     arena_t* A;
-    token_t* t;
+    toklist_t tokens;
     uint32_t n, pos;
     program_t* prog;
     jmp_buf jb;
@@ -29,8 +29,9 @@ typedef struct {
 uint32_t mcs_decode_escape(const char** pp, const char* end);
 
 /* ------------------------------------------------------------ utils */
-#define CUR (&P->t[P->pos])
-#define PEEK(k) (&P->t[P->pos + (k) < P->n ? P->pos + (k) : P->n - 1])
+#define TOK(i) mcs_tok_at(&P->tokens, (i))
+#define CUR TOK(P->pos)
+#define PEEK(k) TOK(P->pos + (k) < P->n ? P->pos + (k) : P->n - 1)
 #define TT (CUR->type)
 
 static void perr(parser_t* P, token_t* t, const char* fmt, ...) {
@@ -57,7 +58,9 @@ static bool is_word(token_t* t, const char* w) { size_t n = strlen(w); return t-
 static bool adjacent(token_t* a, token_t* b) { return a->start + a->len == b->start; }
 
 static node_t* mk(parser_t* P, int kind, token_t* at) {
-    node_t* n = (node_t*)arena_alloc(P->A, sizeof(node_t));
+    size_t size = !mcs_node_leaf(kind) ? sizeof(node_t) :
+        offsetof(node_t, a);
+    node_t* n = (node_t*)arena_alloc(P->A, size);
     n->kind = (uint8_t)kind; n->line = at ? at->line : CUR->line;
     return n;
 }
@@ -224,7 +227,7 @@ static node_t* parse_args(parser_t* P, int close) {
             token_t* kw = adv(P);
             a = mk(P, N_ARG_OUT, kw);
             a->flag = kw->type == TK_OUT ? 1 : 2;
-            a->ival = -1;                                  /* cell slot, assigned by the compiler's predeclare pass */
+            /* op stores the cell slot; flag bit 7 marks it assigned. */
             uint32_t save = P->pos;
             typeref_t* ty = NULL;
             if (a->flag == 1 && is_word(CUR, "_") && (PEEK(1)->type == TK_COMMA || PEEK(1)->type == close)) {
@@ -306,12 +309,12 @@ static typeref_t* tmem_find(parser_t* P, const char* name, uint32_t len) {
 /* `( T a, U b ) Name` followed by ; = { => : record Name -> "a,b" */
 static void prescan_tuple_members(parser_t* P) {
     for (uint32_t i = 0; i + 3 < P->n && P->ntmems < (int)(sizeof P->tmems / sizeof P->tmems[0]); i++) {
-        if (P->t[i].type != TK_LPAREN) continue;
+        if (TOK(i)->type != TK_LPAREN) continue;
         char nb[160]; uint32_t np = 0; bool named = false, ok = true;
         int depth = 0, angle = 0; uint32_t el_tokens = 0, j = i + 1, el_index = 0;
         token_t* last = NULL;
         for (; j < P->n && ok; j++) {
-            token_t* tk = &P->t[j];
+            token_t* tk = TOK(j);
             int ty = tk->type;
             if (ty == TK_LPAREN) depth++;
             else if (ty == TK_RPAREN && depth > 0) depth--;
@@ -332,8 +335,8 @@ static void prescan_tuple_members(parser_t* P) {
             el_tokens++; last = tk;
         }
         if (!ok || !named || el_index < 2 || j + 2 >= P->n) continue;   /* a tuple type has >= 2 elements */
-        token_t* nm = &P->t[j + 1];
-        int after = P->t[j + 2].type;
+        token_t* nm = TOK(j + 1);
+        int after = TOK(j + 2)->type;
         if (nm->type != TK_IDENT || !(after == TK_SEMI || after == TK_ASSIGN || after == TK_LBRACE || after == TK_ARROW)) continue;
         typeref_t* tr = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
         memset(tr, 0, sizeof *tr);
@@ -354,12 +357,12 @@ static bool pure_expr(node_t* e) {
 static bool paren_is_lambda(parser_t* P) {
     uint32_t i = P->pos; int depth = 0;
     for (; i < P->n; i++) {
-        int t = P->t[i].type;
+        int t = TOK(i)->type;
         if (t == TK_LPAREN) depth++;
         else if (t == TK_RPAREN) { if (--depth == 0) break; }
         else if (t == TK_SEMI || t == TK_LBRACE || t == TK_EOF) return false;
     }
-    return i + 1 < P->n && P->t[i + 1].type == TK_ARROW;
+    return i + 1 < P->n && TOK(i + 1)->type == TK_ARROW;
 }
 
 static node_t* parse_initializer(parser_t* P, node_t* target) {
@@ -500,17 +503,17 @@ static node_t* parse_interp(parser_t* P, token_t* tk) {
             const char* ae = colon ? colon : s;
             char tmp[16]; size_t an = (size_t)(ae - comma - 1); if (an > 15) an = 15;
             memcpy(tmp, comma + 1, an); tmp[an] = 0;
-            part->ival = (mcs_int_t)strtol(tmp, NULL, 10);
+            part->alignment = (int32_t)strtol(tmp, NULL, 10);
         }
         if (colon) { part->name = arena_strdup(P->A, colon + 1, (size_t)(s - colon - 1)); part->len = (uint32_t)(s - colon - 1); }
         /* sub-parse hole expression */
         toklist_t tl2 = {0};
         if (!mcs_lex(P->ctx, hs, (size_t)(he - hs), tk->line, &tl2)) longjmp(P->jb, 1);
-        token_t* st = P->t; uint32_t sn = P->n, sp = P->pos;
-        P->t = tl2.toks; P->n = tl2.count; P->pos = 0;
+        toklist_t st = P->tokens; uint32_t sn = P->n, sp = P->pos;
+        P->tokens = tl2; P->n = tl2.count; P->pos = 0;
         part->a = parse_expr(P);
         if (TT != TK_EOF) perr(P, CUR, "invalid expression in interpolated string");
-        P->t = st; P->n = sn; P->pos = sp;
+        P->tokens = st; P->n = sn; P->pos = sp;
         LIST_APPEND(h, tl, part);
         s++; lit = s;
     }
@@ -539,11 +542,11 @@ static node_t* parse_primary(parser_t* P) {
     token_t* t = CUR;
     node_t* n;
     switch (t->type) {
-    case TK_INT: adv(P); n = mk(P, N_INT, t); n->ival = t->v.i; return n;
+    case TK_INT: adv(P); n = mk(P, N_INT, t); n->ival = mcs_token_int(t); return n;
 #if MCS_ENABLE_FLOAT
-    case TK_FLOAT: adv(P); n = mk(P, N_FLOAT, t); n->fval = t->v.f; return n;
+    case TK_FLOAT: adv(P); n = mk(P, N_FLOAT, t); n->fval = mcs_token_float(t); return n;
 #endif
-    case TK_CHAR: adv(P); n = mk(P, N_CHAR, t); n->ival = t->v.i; return n;
+    case TK_CHAR: adv(P); n = mk(P, N_CHAR, t); n->ival = mcs_token_int(t); return n;
     case TK_STRING: adv(P); n = mk(P, N_STR, t); n->name = decode_str(P, t->start, t->len, t->verbatim, false, &n->len); return n;
     case TK_INTERP: adv(P); return parse_interp(P, t);
     case TK_TRUE: case TK_FALSE: adv(P); n = mk(P, N_BOOL, t); n->ival = t->type == TK_TRUE; return n;
@@ -1181,13 +1184,13 @@ static bool is_rt_call(node_t* n, const char* fn) {
 static bool paren_is_decon(parser_t* P, uint32_t i) {
     int depth = 0; bool comma = false;
     for (; i < P->n; i++) {
-        int t = P->t[i].type;
+        int t = TOK(i)->type;
         if (t == TK_LPAREN) depth++;
         else if (t == TK_RPAREN) { if (--depth == 0) break; }
         else if (t == TK_COMMA && depth == 1) comma = true;
         else if (t == TK_SEMI || t == TK_LBRACE || t == TK_EOF || t == TK_ASSIGN || t == TK_ARROW) return false;
     }
-    return comma && i + 1 < P->n && (P->t[i + 1].type == TK_ASSIGN || P->t[i + 1].type == TK_IN);
+    return comma && i + 1 < P->n && (TOK(i + 1)->type == TK_ASSIGN || TOK(i + 1)->type == TK_IN);
 }
 /* ( target, var x, int y, _ )   - all_var: `var (a, b)` form */
 static int parse_decon_targets(parser_t* P, decon_el_t* els, bool all_var) {
@@ -1592,11 +1595,29 @@ static member_t* new_member(parser_t* P, int kind, uint8_t mods, token_t* at) {
     return m;
 }
 
+/* Only declaration boundaries may reclaim the consumed prefix: no active
+ * expression/member parse may retain a token_t pointer or speculative index.
+ * AST/type/name spans refer to SOURCE text, never to token records. Nested
+ * type/namespace callers retain no token records across these boundaries. */
+static void reclaim_tokens(parser_t* P) {
+    if (!P->tokens.heap) return;
+    /* Keep indices stable for namespace/type callers; only whole consumed
+     * pages are released, and only at declaration boundaries. */
+    for (uint32_t i = 0; i < P->pos / MCS_TOK_PAGE; i++) {
+        token_t* page = P->tokens.pages[i];
+        if (page) {
+            MCS_FREE(P->ctx->vm, token_t, page, MCS_TOK_PAGE);
+            P->tokens.pages[i] = NULL;
+        }
+    }
+}
+
 static void parse_class_body(parser_t* P, classdecl_t* c) {
     expect(P, TK_LBRACE, "'{'");
     member_t *h = NULL, *tl = NULL;
 #define ADDM(m) do { if (!h) h = (m); else tl->next = (m); tl = (m); } while (0)
     while (!check(P, TK_RBRACE)) {
+        reclaim_tokens(P);
         if (check(P, TK_EOF)) perr(P, CUR, "expected '}'");
         if (match(P, TK_SEMI)) continue;
         skip_attributes(P);
@@ -1820,6 +1841,7 @@ static classdecl_t* parse_type_decl(parser_t* P, uint8_t mods) {
 
 static void parse_namespace_members(parser_t* P, bool braced) {
     for (;;) {
+        reclaim_tokens(P);
         if (braced && check(P, TK_RBRACE)) { adv(P); return; }
         if (check(P, TK_EOF)) { if (braced) perr(P, CUR, "expected '}'"); return; }
         if (check(P, TK_USING) && PEEK(1)->type != TK_LPAREN && !is_word(PEEK(1), "var")) {
@@ -1859,8 +1881,11 @@ static void parse_namespace_members(parser_t* P, bool braced) {
 }
 
 void mcs_front_free_tokens(front_ctx_t* ctx) {
-    if (ctx->heap_toks) mcs_realloc(ctx->vm, ctx->heap_toks, sizeof(token_t) * ctx->heap_cap, 0);
-    ctx->heap_toks = NULL; ctx->heap_cap = 0;
+    toklist_t* t = &ctx->heap_tokens;
+    for (uint32_t i = 0; i < t->cap / MCS_TOK_PAGE; i++)
+        if (t->pages[i]) MCS_FREE(ctx->vm, token_t, t->pages[i], MCS_TOK_PAGE);
+    if (t->pages) MCS_FREE(ctx->vm, token_t*, t->pages, t->cap / MCS_TOK_PAGE);
+    memset(t, 0, sizeof *t);
 }
 
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog) {
@@ -1870,7 +1895,7 @@ bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog) {
     parser_t P_;
     parser_t* P = &P_;
     memset(P, 0, sizeof *P);
-    P->ctx = ctx; P->A = ctx->arena; P->t = tl.toks; P->n = tl.count; P->pos = 0; P->prog = prog;
+    P->ctx = ctx; P->A = ctx->arena; P->tokens = tl; P->n = tl.count; P->pos = 0; P->prog = prog;
     if (setjmp(P->jb)) { mcs_front_free_tokens(ctx); return false; }
     prescan_tuple_members(P);
     parse_namespace_members(P, false);

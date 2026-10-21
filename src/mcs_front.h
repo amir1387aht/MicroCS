@@ -5,7 +5,7 @@
 #if MCS_ENABLE_COMPILER
 
 /* ---------------------------------------------------------- arena */
-typedef struct arena_chunk { struct arena_chunk* next; size_t used, cap; uint8_t data[1]; } arena_chunk_t;
+typedef struct arena_chunk { struct arena_chunk* next; size_t used, cap; uint64_t data[]; } arena_chunk_t;
 typedef struct { mcs_vm_t* vm; arena_chunk_t* head; } arena_t;
 void* arena_alloc(arena_t* a, size_t n);
 void arena_free(arena_t* a);
@@ -37,24 +37,27 @@ typedef enum {
     TK_KW_LAST
 } tok_type_t;
 
-/* 24 bytes on 32-bit targets (the whole token array is alive while parsing) */
+/* Source spans only: 16 bytes on 32-bit targets. Literal values are decoded
+ * when consumed, not reserved in every punctuation/identifier token. */
 typedef struct {
     uint8_t type;            /* tok_type_t (< 256) */
-    uint8_t is_float32;      /* 'f' suffix */
     uint8_t verbatim;
-    uint8_t spare;
+    uint8_t spare[2];
     uint32_t line : 20;      /* diagnostics only: lines beyond 1M wrap */
     uint32_t col : 12;       /* clamped to 4095 */
     const char* start;
     uint32_t len;
-    union { mcs_int_t i; mcs_float_t f; } v;
 } token_t;
 
 typedef struct {
-    token_t* toks;
+    token_t** pages;
     uint32_t count, cap;
     uint8_t heap;            /* toks lives on the VM heap (freed after parsing), else in the arena */
 } toklist_t;
+#define MCS_TOK_PAGE 32u
+static inline token_t* mcs_tok_at(const toklist_t* t, uint32_t i) {
+    return &t->pages[i / MCS_TOK_PAGE][i % MCS_TOK_PAGE];
+}
 
 /* ---------------------------------------------------------- types */
 typedef struct typeref {
@@ -97,14 +100,24 @@ typedef struct node {
     uint32_t line;
     uint32_t len;            /* length of name */
     struct node* next;       /* sibling in lists */
-    struct node *a, *b, *c, *d;
-    const char* name;
-    typeref_t* type;
-    struct funcdecl* fn;     /* lambdas, local functions */
-    union { mcs_int_t i; mcs_float_t f; } lit; /* N_FLOAT uses f, everything else i */
+    /* Leaves contain a value OR a name, never child pointers. Functions use
+     * the first child slot; generic walkers must not enter function bodies. */
+    union {
+        union { mcs_int_t i; mcs_float_t f; } lit;
+        struct {
+            const char* name;
+            union { typeref_t* type; int32_t alignment; };
+            union { struct node* a; struct funcdecl* fn; };
+            struct node *b, *c, *d;
+        };
+    };
 } node_t;
 #define ival lit.i
 #define fval lit.f
+static inline bool mcs_node_leaf(int kind) {
+    return kind == N_INT || kind == N_FLOAT || kind == N_CHAR || kind == N_BOOL ||
+           kind == N_NULL || kind == N_THIS || kind == N_BASE || kind == N_NAME || kind == N_STR;
+}
 
 /* member kinds */
 enum { M_FIELD, M_METHOD, M_CTOR, M_PROP, M_CONST, M_INDEXER, M_OPERATOR };
@@ -174,11 +187,15 @@ typedef struct {
     arena_t* arena;
     const char* src_name;
     int errors;
-    token_t* heap_toks; uint32_t heap_cap;   /* main token array, released as soon as parsing ends */
+    toklist_t heap_tokens; /* paged main tokens; owned even across allocation longjmp */
 } front_ctx_t;
 
 bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, toklist_t* out);
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog);
+mcs_int_t mcs_token_int(const token_t* t);
+#if MCS_ENABLE_FLOAT
+mcs_float_t mcs_token_float(const token_t* t);
+#endif
 void mcs_front_free_tokens(front_ctx_t* ctx);
 void mcs_front_error(front_ctx_t* ctx, uint32_t line, uint32_t col, const char* fmt, ...);
 uint8_t mcs_prim_of(const char* name, uint32_t len, uint8_t* conv);

@@ -196,8 +196,87 @@ static void close_upvalues(mcs_vm_t* vm, mcs_value_t* last) {
     }
 }
 
+/* Grow only what execution needs. Configured sizes are ceilings, not reservations.
+ * Rebase every suspended interpreter, frame and open capture. Native argv lives
+ * in separately rooted pool blocks, never in movable value-stack storage. */
+static bool stack_need(mcs_vm_t* vm, size_t need) {
+    if (need > vm->cfg.stack_slots) {
+        mcs_throw(vm, EXC_STACKOVF, "Value stack limit (%u slots) exceeded.", (unsigned)vm->cfg.stack_slots);
+        return false;
+    }
+    if (need > vm->stack_cap) {
+        uint32_t cap = vm->stack_cap;
+        while (cap < need) cap = cap > vm->cfg.stack_slots / 2 ? vm->cfg.stack_slots : cap * 2;
+        size_t depth = (size_t)(vm->sp - vm->stack);
+        uintptr_t old = (uintptr_t)vm->stack;
+        mcs_value_t* stack = mcs_try_realloc(vm, vm->stack, vm->stack_cap * sizeof(*stack), cap * sizeof(*stack));
+        if (!stack) {
+            cap = (uint32_t)need;
+            stack = MCS_GROW(vm, mcs_value_t, vm->stack, vm->stack_cap, cap);
+        }
+        vm->stack = stack; vm->stack_cap = cap; vm->stack_end = stack + cap; vm->sp = stack + depth;
+#define REBASE_VALUE(p) ((p) = stack + ((uintptr_t)(p) - old) / sizeof(*stack))
+        for (int i = 0; i < vm->frame_count; i++) REBASE_VALUE(vm->frames[i].slots);
+        for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) REBASE_VALUE(u->location);
+        for (mcs_exec_view_t* v = vm->exec_views; v; v = v->prev) {
+            REBASE_VALUE(*v->sp); REBASE_VALUE(*v->slots);
+        }
+#undef REBASE_VALUE
+    }
+    return true;
+}
+static bool frame_need(mcs_vm_t* vm) {
+    if (vm->frame_count >= vm->cfg.max_frames) {
+        mcs_throw(vm, EXC_STACKOVF, "Call frame limit (%u) exceeded.", (unsigned)vm->cfg.max_frames);
+        return false;
+    }
+    if (vm->frame_count == vm->frame_cap) {
+        uint16_t cap = vm->frame_cap > vm->cfg.max_frames / 2 ? vm->cfg.max_frames : (uint16_t)(vm->frame_cap * 2);
+        uintptr_t old = (uintptr_t)vm->frames;
+        mcs_frame_t* frames = mcs_try_realloc(vm, vm->frames, vm->frame_cap * sizeof(*frames), cap * sizeof(*frames));
+        if (!frames) { cap = (uint16_t)(vm->frame_count + 1); frames = MCS_GROW(vm, mcs_frame_t, vm->frames, vm->frame_cap, cap); }
+        vm->frames = frames; vm->frame_cap = cap;
+        for (mcs_exec_view_t* v = vm->exec_views; v; v = v->prev)
+            *v->frame = frames + ((uintptr_t)*v->frame - old) / sizeof(*frames);
+    }
+    return true;
+}
+static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc) {
+    if (!argc) return NULL;
+    size_t size = sizeof(mcs_native_args_t) + (size_t)argc * sizeof(mcs_value_t);
+    mcs_native_args_t* a = mcs_realloc(vm, NULL, 0, size);
+    a->prev = vm->native_args; a->count = argc;
+    memcpy(a->values, vm->sp - argc, (size_t)argc * sizeof(mcs_value_t));
+    vm->native_args = a;
+    return a->values;
+}
+static void native_args_restore(mcs_vm_t* vm, mcs_native_args_t* prev) {
+    while (vm->native_args != prev) {
+        mcs_native_args_t* a = vm->native_args;
+        vm->native_args = a->prev;
+        mcs_realloc(vm, a, sizeof(*a) + (size_t)a->count * sizeof(mcs_value_t), 0);
+    }
+}
+
+/* One shared push slow path instead of duplicating growth/peak bookkeeping at
+ * every bytecode handler (important to the unchanged 64 KiB Cortex-M0 build).
+ * The value is copied before entering: it may have come from movable storage. */
+static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, const mcs_value_t* value) {
+    mcs_value_t* sp = *view->sp;
+    if (sp == vm->stack_end) {
+        (*view->frame)->ip = ip;
+        vm->sp = sp;
+        if (!stack_need(vm, (size_t)(sp - vm->stack) + 1)) return false;
+        sp = *view->sp;
+    }
+    *sp++ = *value;
+    *view->sp = sp;
+    if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack);
+    return true;
+}
+
 /* ================================================================ calls */
-#define PUSH(v) (*vm->sp++ = (v))
+#define PUSH(v) do { *vm->sp++ = (v); if ((size_t)(vm->sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(vm->sp - vm->stack); } while (0)
 #define POP() (*--vm->sp)
 #define PEEK(n) (vm->sp[-1 - (n)])
 
@@ -216,6 +295,7 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
     if (argc != fn->arity || ((fn->flags & FN_HAS_PARAMS) && !pass_array)) {
         if ((fn->flags & FN_HAS_PARAMS) && argc >= fn->arity - 1 && !pass_array) {
             int extra = argc - (fn->arity - 1);
+            if (!stack_need(vm, (size_t)(vm->sp - vm->stack) - (size_t)extra + 1)) return CALL_ERR;
             mcs_list_t* arr = mcs_new_listobj(vm, MCS_O_ARRAY, (uint32_t)extra);
             for (int i = 0; i < extra; i++) arr->items[i] = vm->sp[-extra + i];
             vm->sp -= extra;
@@ -223,18 +303,16 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
             argc = fn->arity;
             orig = argc;
         } else if (argc >= fn->min_arity && argc < fn->arity) {
-            if (vm->sp + (fn->arity - argc) >= vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return CALL_ERR; }
+            if (!stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)(fn->arity - argc))) return CALL_ERR;
             while (argc < fn->arity) { PUSH(mcs_null()); argc++; }
         } else {
             mcs_throw(vm, EXC_ARGUMENT, "No overload for method '%s' takes %d arguments", callee_name(OBJ_VAL(cl)), argc);
             return CALL_ERR;
         }
     }
-    if (vm->frame_count >= vm->cfg.max_frames || vm->sp + fn->max_slots + MCS_STACK_MARGIN >= vm->stack_end) {
-        mcs_throw(vm, EXC_STACKOVF, "Stack overflow (call depth %d).", vm->frame_count);
-        return CALL_ERR;
-    }
+    if (!frame_need(vm) || !stack_need(vm, (size_t)(vm->sp - vm->stack - argc - 1) + fn->max_slots + 1)) return CALL_ERR;
     mcs_frame_t* f = &vm->frames[vm->frame_count++];
+    if (vm->frame_count > vm->frame_peak) vm->frame_peak = (uint16_t)vm->frame_count;
     f->closure = cl; f->ip = fn->code; f->slots = vm->sp - argc - 1; f->argc = (uint8_t)orig;
     return CALL_FRAME;
 }
@@ -244,8 +322,10 @@ static int call_native(mcs_vm_t* vm, mcs_native_t* nf, mcs_value_t self, int arg
         mcs_throw(vm, EXC_ARGUMENT, "No overload for method '%s' takes %d arguments", nf->name ? nf->name->chars : "?", argc);
         return CALL_ERR;
     }
-    mcs_value_t* args = vm->sp - argc;
+    mcs_native_args_t* prev = vm->native_args;
+    mcs_value_t* args = native_args_begin(vm, argc);
     mcs_value_t r = nf->fn(vm, self, argc, args);
+    native_args_restore(vm, prev);
     if (vm->abort_req) return CALL_ERR;  /* native waits can be the final statement */
     if (vm->has_exc) return CALL_ERR;
     vm->sp -= argc + 1;
@@ -322,14 +402,20 @@ static int call_value(mcs_vm_t* vm, mcs_value_t callee, int argc) {
                 mcs_userdata_t* u = mcs_new_userdata(vm, cls, cls->def->instance_size);
                 vm->sp[-argc - 1] = OBJ_VAL(u);
                 if (cls->def->ctor) {
-                    cls->def->ctor(vm, OBJ_VAL(u), argc, vm->sp - argc);
+                    mcs_native_args_t* prev = vm->native_args;
+                    mcs_value_t* args = native_args_begin(vm, argc);
+                    cls->def->ctor(vm, OBJ_VAL(u), argc, args);
+                    native_args_restore(vm, prev);
                     if (vm->has_exc) return CALL_ERR;
                 }
                 vm->sp -= argc;
                 return CALL_DONE;
             }
             if (cls->native_ctor) {
-                mcs_value_t r = cls->native_ctor(vm, callee, argc, vm->sp - argc);
+                mcs_native_args_t* prev = vm->native_args;
+                mcs_value_t* args = native_args_begin(vm, argc);
+                mcs_value_t r = cls->native_ctor(vm, callee, argc, args);
+                native_args_restore(vm, prev);
                 if (vm->has_exc) return CALL_ERR;
                 vm->sp -= argc + 1;
                 PUSH(r);
@@ -429,17 +515,17 @@ static int set_index_op(mcs_vm_t* vm);
 /* SET_INDEX_LL slow path: [obj, index, value] -> obj[index] = value, nothing
  * left on the stack; a user indexer runs to completion right here */
 static bool index_set_stmt(mcs_vm_t* vm) {
-    mcs_value_t* base = vm->sp - 3;
+    size_t base = (size_t)(vm->sp - vm->stack) - 3;
     int bf = vm->frame_count, bh = vm->handler_count;
     int rc = set_index_op(vm);
     if (rc == CALL_ERR) return false;
     if (rc == CALL_FRAME && run(vm, bf) != MCS_OK) {
-        close_upvalues(vm, base);
+        close_upvalues(vm, vm->stack + base);
         vm->frame_count = bf; vm->handler_count = bh;
-        vm->sp = base;
+        vm->sp = vm->stack + base;
         return false;
     }
-    vm->sp = base;
+    vm->sp = vm->stack + base;
     return true;
 }
 /* SETF_L slow path: obj.name = top-of-stack as a statement (the value is
@@ -462,6 +548,7 @@ static bool setf_slow(mcs_vm_t* vm, mcs_value_t obj, mcs_string_t* name) {
         vm->sp--;
         return mcs_call_internal(vm, v, obj, 1, &val, NULL) == MCS_OK;
     }
+    if (!stack_need(vm, (size_t)(vm->sp - vm->stack) + 1)) return false;
     vm->sp[-1] = obj; PUSH(val);   /* [obj, val] as SET_FIELD sees it */
     if (set_member_op(vm, name) == CALL_ERR) return false;
     vm->sp--;
@@ -868,6 +955,7 @@ static bool unwind(mcs_vm_t* vm, int base_frame) {
         close_upvalues(vm, nsp);
         vm->frame_count = h->frame + 1;
         vm->sp = nsp;
+        if (!stack_need(vm, (size_t)(vm->sp - vm->stack) + 1)) return false;
         PUSH(vm->exc_value);
         vm->has_exc = false;
         vm->exc_value = mcs_null();
@@ -904,7 +992,8 @@ static int hook_tick(mcs_vm_t* vm) {
 static void fcache_put(mcs_vm_t* vm, mcs_function_t* fn, uint32_t k, mcs_class_t* cls, uint32_t slot) {
     if (!fn->fcache) {
         if (vm->cfg.heap_limit && vm->bytes_allocated + fn->const_count * sizeof(mcs_fcache_t) > vm->cfg.heap_limit) return; /* cache is optional */
-        fn->fcache = MCS_ALLOC(vm, mcs_fcache_t, fn->const_count);
+        fn->fcache = mcs_try_realloc(vm, NULL, 0, fn->const_count * sizeof(mcs_fcache_t));
+        if (!fn->fcache) return;
         fn->fcache_n = fn->const_count;
         for (uint32_t i = 0; i < fn->fcache_n; i++) { fn->fcache[i].cls = NULL; fn->fcache[i].u.slot = 0; }
     }
@@ -948,6 +1037,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     /* the stack pointer lives in a register inside the loop; vm->sp is only
      * written back (SAVE/SYNC) before anything that may look at the stack */
     mcs_value_t* sp;
+    mcs_exec_view_t view = {vm->exec_views, &sp, &slots, &frame};
     uint16_t fk;
 #if MCS_ENABLE_SUPEROPS
     int sop;   /* operation of a superinstruction slow path */
@@ -955,7 +1045,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef PUSH
 #undef POP
 #undef PEEK
-#define PUSH(v) (*sp++ = (v))
+#define ENSURE(n) do { if ((size_t)(vm->stack_end - sp) < (size_t)(n)) { SAVE(); if (!stack_need(vm, (size_t)(sp - vm->stack) + (n))) THROWN(); } } while (0)
+#define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, &pushed_)) THROWN(); } while (0)
+#define PUSH_DISPATCH(v) do { r = (v); goto push_dispatch; } while (0)
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
 #define SYNC() (vm->sp = sp)
@@ -969,7 +1061,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     vm->run_depth++;
 
 #define LOAD() do { frame = &vm->frames[vm->frame_count - 1]; ip = frame->ip; slots = frame->slots; consts = frame->closure->fn->consts; LOAD_GMAP(frame->closure->fn); } while (0)
-#define SAVE() (frame->ip = ip, SYNC())
+#define SAVE() do { frame->ip = ip; SYNC(); } while (0)
 #define READ8() (*ip++)
 #define READ16() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define KSTR(i) AS_STRING(consts[i])
@@ -977,16 +1069,23 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define CHECKCALL(res) do { int _r = (res); sp = vm->sp; if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) LOAD(); } while (0)
 /* push a frame for closure CL called with ARGC arguments and continue in it,
  * when the call needs no adjustment (exact arity, no params array, room left) */
+/* In size-optimized firmware share call setup instead of emitting the same
+ * inline fast entry at every call opcode. Speed builds retain the fast entry;
+ * both paths use the same limits, frames, language semantics and capabilities. */
+#if defined(__OPTIMIZE_SIZE__)
+#define ENTER_FAST(CL, ARGC) do { (void)(CL); (void)(ARGC); } while (0)
+#else
 #define ENTER_FAST(CL, ARGC) do { \
         mcs_function_t* fn_ = (CL)->fn; \
-        if ((ARGC) == fn_->arity && !(fn_->flags & FN_HAS_PARAMS) && vm->frame_count < vm->cfg.max_frames && \
-            sp + fn_->max_slots + MCS_STACK_MARGIN < vm->stack_end) { \
-            frame = &vm->frames[vm->frame_count++]; \
+        if ((ARGC) == fn_->arity && !(fn_->flags & FN_HAS_PARAMS) && vm->frame_count < vm->frame_cap && \
+            (size_t)(vm->stack_end - sp) > fn_->max_slots) { \
+            frame = &vm->frames[vm->frame_count++]; if (vm->frame_count > vm->frame_peak) vm->frame_peak = (uint16_t)vm->frame_count; \
             frame->closure = (CL); frame->ip = ip = fn_->code; frame->slots = slots = sp - (ARGC) - 1; frame->argc = (uint8_t)(ARGC); \
             consts = fn_->consts; LOAD_GMAP(fn_); \
             DISPATCH(); \
         } \
     } while (0)
+#endif
 #define GCPOINT() do { if (vm->gc_wanted) { SAVE(); mcs_collect(vm); } } while (0)
 #define SAFEPOINT() do { \
         if (vm->gc_wanted) { SYNC(); mcs_collect(vm); } \
@@ -1010,16 +1109,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define DISPATCH_END() default: mcs_throw(vm, EXC_SYSTEM, "invalid opcode"); THROWN(); }
 #endif
 
-    LOAD(); sp = vm->sp;
+    LOAD(); sp = vm->sp; vm->exec_views = &view;
     DISPATCH_START()
-    CASE(CONST) { uint16_t k = READ16(); PUSH(consts[k]); DISPATCH(); }
-    CASE(NULL) PUSH(mcs_null()); DISPATCH();
-    CASE(TRUE) PUSH(mcs_bool(true)); DISPATCH();
-    CASE(FALSE) PUSH(mcs_bool(false)); DISPATCH();
-    CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH(mcs_int(v)); DISPATCH(); }
+    CASE(CONST) { uint16_t k = READ16(); PUSH_DISPATCH(consts[k]); }
+    CASE(NULL) PUSH_DISPATCH(mcs_null());
+    CASE(TRUE) PUSH_DISPATCH(mcs_bool(true));
+    CASE(FALSE) PUSH_DISPATCH(mcs_bool(false));
+    CASE(INT8) { int8_t v = (int8_t)READ8(); PUSH_DISPATCH(mcs_int(v)); }
     CASE(POP) sp--; DISPATCH();
-    CASE(DUP) { a = PEEK(0); PUSH(a); DISPATCH(); }
-    CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH(b); DISPATCH(); }
+    CASE(DUP) { a = PEEK(0); PUSH_DISPATCH(a); }
+    CASE(DUP2) { a = PEEK(1); b = PEEK(0); PUSH(a); PUSH_DISPATCH(b); }
     CASE(SWAP) { a = PEEK(0); sp[-1] = sp[-2]; sp[-2] = a; DISPATCH(); }
     CASE(ROT) {
         int n = READ8();
@@ -1028,14 +1127,14 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         sp[-n - 1] = a;
         DISPATCH();
     }
-    CASE(GET_LOCAL) PUSH(slots[READ8()]); DISPATCH();
+    CASE(GET_LOCAL) PUSH_DISPATCH(slots[READ8()]);
     CASE(SET_LOCAL) slots[READ8()] = PEEK(0); DISPATCH();
-    CASE(GET_UPVAL) PUSH(*frame->closure->upvalues[READ8()]->location); DISPATCH();
+    CASE(GET_UPVAL) PUSH_DISPATCH(*frame->closure->upvalues[READ8()]->location);
     CASE(SET_UPVAL) *frame->closure->upvalues[READ8()]->location = PEEK(0); DISPATCH();
     CASE(GET_GLOBAL) {
         uint16_t s = GSLOT(READ16());
         const mcs_value_t* gv = &vm->globals[s];
-        if (gv->type != MCS_T_UNDEF) { *sp++ = *gv; DISPATCH(); }
+        if (gv->type != MCS_T_UNDEF) { PUSH_DISPATCH(*gv); }
         a = *gv;
         if (a.type == MCS_T_UNDEF) {   /* first use of a built-in / registered class */
             SAVE();
@@ -1043,8 +1142,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             if (mcs_lazy_resolve(vm, gn->chars, gn->len)) a = vm->globals[s];
         }
         if (a.type == MCS_T_UNDEF) { SAVE(); mcs_throw(vm, EXC_MISSINGMEMBER, "The name '%s' does not exist in the current context", vm->global_names[s]->chars); THROWN(); }
-        PUSH(a);
-        DISPATCH();
+        PUSH_DISPATCH(a);
     }
     CASE(SET_GLOBAL) { uint16_t g = READ16(); vm->globals[GSLOT(g)] = PEEK(0); DISPATCH(); }
     CASE(SET_LOCAL_POP) { uint8_t s = READ8(); slots[s] = POP(); DISPATCH(); }
@@ -1260,7 +1358,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LI_FORM(O) \
     CASE(LI_##O) { \
         const mcs_value_t* pa_ = &slots[ip[0]]; mcs_int_t y_ = (int8_t)ip[1]; \
-        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { sp->as.i = BXE_##O(pa_->as.i, y_); sp->type = MCS_T_INT; sp++; ip += 2; DISPATCH(); } \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { r = mcs_int(BXE_##O(pa_->as.i, y_)); ip += 2; goto push_dispatch; } \
         sop = OP_##O; goto li_slow; \
     }
     BX_EACH(LI_FORM)
@@ -1268,7 +1366,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         const mcs_value_t* pa_ = &slots[ip[0]];
         b = mcs_int((int8_t)ip[1]); ip += 2; SAVE();
         if (!arith(vm, sop, *pa_, b, &r)) THROWN();
-        PUSH(r); DISPATCH();
+        PUSH_DISPATCH(r);
     }
     /* SI_<op> i: top = top <op> i */
 #define SI_FORM(O) \
@@ -1419,8 +1517,8 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (!arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)) THROWN(); \
         PUTV(r); DISPATCH(); \
     }
-#define PUT_PUSH(v) do { sp->type = MCS_T_INT; sp->as.i = (v); sp++; } while (0)
-#define PUTV_PUSH(v) PUSH(v)
+#define PUT_PUSH(v) PUSH_DISPATCH(mcs_int(v))
+#define PUTV_PUSH(v) PUSH_DISPATCH(v)
 #define PUT_TOP(v) do { sp[-1].type = MCS_T_INT; sp[-1].as.i = (v); } while (0)
 #define PUTV_TOP(v) (sp[-1] = (v))
 #define PUT_SLOT(v) do { slots[d_].type = MCS_T_INT; slots[d_].as.i = (v); } while (0)
@@ -1498,21 +1596,23 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     CASE(RETURN_LOCAL) { r = slots[READ8()]; goto do_return; }
     CASE(GET_INDEX_LL) {
+        ENSURE(2);
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
-            *sp++ = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; DISPATCH();
+            r = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; goto push_dispatch;
         }
-        sp[0] = *pa_; sp[1] = *pi_; sp += 2; ip += 2;
+        sp[0] = *pa_; sp[1] = *pi_; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
         CHECKCALL(get_index_op(vm));
         DISPATCH();
     }
     CASE(SET_INDEX_LL) {
+        ENSURE(2);
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
             AS_LIST(*pa_)->items[pi_->as.i] = sp[-1]; MCS_LIST_TOUCH(AS_LIST(*pa_)); sp--; ip += 2; DISPATCH();
         }
-        b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; ip += 2;
+        b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
         if (!index_set_stmt(vm)) THROWN();
         sp = vm->sp;
@@ -1679,7 +1779,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         vm->frame_count--;
         *slots = r;
         sp = slots + 1;
-        if (vm->frame_count <= base_frame) { SYNC(); vm->run_depth--; return MCS_OK; }
+        if (vm->frame_count <= base_frame) { SYNC(); vm->exec_views = view.prev; vm->run_depth--; return MCS_OK; }
         LOAD();
         DISPATCH();
     }
@@ -1731,8 +1831,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_list_t* l = mcs_new_listobj(vm, MCS_O_ARRAY, n);
         for (uint16_t i = 0; i < n; i++) l->items[i] = sp[-(int)n + i];
         sp -= n;
-        PUSH(OBJ_VAL(l));
-        DISPATCH();
+        PUSH_DISPATCH(OBJ_VAL(l));
     }
     CASE(NEW_ARRAY) { GCPOINT();
         uint8_t kind = READ8();
@@ -1793,8 +1892,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         for (int i = n; i >= 1; i--) { mcs_string_t* s = AS_STRING(sp[-i]); memcpy(buf + off, s->chars, s->len); off += s->len; }
         mcs_string_t* res = mcs_take_buffer(vm, buf, total, total + 1);
         sp -= n;
-        PUSH(OBJ_VAL(res));
-        DISPATCH();
+        PUSH_DISPATCH(OBJ_VAL(res));
     }
     CASE(IS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
     CASE(AS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) sp[-1] = mcs_null(); DISPATCH(); }
@@ -1885,17 +1983,22 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     DISPATCH_END()
 
+/* Terminal stack-producing opcodes share their checked push and dispatch. */
+push_dispatch:
+    PUSH(r);
+    DISPATCH();
+
 on_exception:
     /* a native stopped early because the run must end (time limit, Ctrl-C, hook) and the
      * script then tripped over its result: report the abort, not the follow-up error */
     if (vm->abort_req) { vm->abort_reason = vm->abort_hint ? vm->abort_hint : MCS_ABORT_REQUEST; vm->abort_hint = 0; goto on_abort; }
     if (unwind(vm, base_frame)) { LOAD(); sp = vm->sp; DISPATCH(); }
-    vm->run_depth--;
+    vm->exec_views = view.prev; vm->run_depth--;
     return MCS_ERR_RUNTIME;
 on_abort:
     SYNC();
     vm->abort_req = false;
-    vm->run_depth--;
+    vm->exec_views = view.prev; vm->run_depth--;
     mcs_throw(vm, EXC_SYSTEM, "Script aborted");
     vm->exc_value = mcs_null(); vm->has_exc = true;
     return MCS_ERR_ABORTED;
@@ -1907,32 +2010,61 @@ on_abort:
 #undef POP
 #undef PEEK
 #undef SYNC
-#define PUSH(v) (*vm->sp++ = (v))
+#undef ENSURE
+#undef PUSH_DISPATCH
+#define PUSH(v) do { *vm->sp++ = (v); if ((size_t)(vm->sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(vm->sp - vm->stack); } while (0)
 #define POP() (*--vm->sp)
 #define PEEK(n) (vm->sp[-1 - (n)])
 
+/* Give unused execution capacity back before idle compilation. Running stacks
+ * grow incrementally; these trims never restore the configured maximum. */
+#if MCS_ENABLE_COMPILER
+static void stack_reserve_idle(mcs_vm_t* vm, uint32_t cap) {
+    if (vm->run_depth || vm->frame_count || vm->sp != vm->stack || vm->open_upvalues || cap == vm->stack_cap) return;
+    mcs_value_t* stack = MCS_GROW(vm, mcs_value_t, vm->stack, vm->stack_cap, cap);
+    vm->stack = vm->sp = stack; vm->stack_end = stack + cap; vm->stack_cap = cap;
+}
+static void frames_reserve_idle(mcs_vm_t* vm, uint16_t cap) {
+    if (vm->run_depth || vm->frame_count || cap == vm->frame_cap) return;
+    mcs_frame_t* frames = MCS_GROW(vm, mcs_frame_t, vm->frames, vm->frame_cap, cap);
+    vm->frames = frames; vm->frame_cap = cap;
+}
+static void stack_for_compile(mcs_vm_t* vm) {
+    if (vm->run_depth || vm->frame_count || vm->sp != vm->stack || vm->open_upvalues) return;
+    /* No maximum-sized restoration before execution: growth is demand driven. */
+    uint32_t cap = vm->cfg.stack_slots < 32 ? vm->cfg.stack_slots : 32;
+    stack_reserve_idle(vm, cap);
+    frames_reserve_idle(vm, 1);
+#if MCS_FIELD_CACHE
+    /* An idle build is about to replace types. Inline caches are disposable
+     * accelerators, not roots that should keep superseded project graphs alive
+     * beside tokens/AST. Rebuild them lazily on the next execution. */
+    for (mcs_obj_t* o = vm->objects; o; o = o->next) if (o->kind == MCS_O_FUNCTION) {
+        mcs_function_t* fn = (mcs_function_t*)o;
+        if (fn->fcache) MCS_FREE(vm, mcs_fcache_t, fn->fcache, fn->fcache_n);
+        fn->fcache = NULL; fn->fcache_n = 0; fn->fc_epoch = 0;
+    }
+#endif
+    mcs_collect(vm);
+}
+#endif
+
 /* ================================================================ calling from C */
-mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
-    if (vm->sp + argc + 1 + MCS_STACK_MARGIN >= vm->stack_end) { mcs_throw(vm, EXC_STACKOVF, "Stack overflow."); return MCS_ERR_RUNTIME; }
-    mcs_value_t* base = vm->sp;
-    int base_frame = vm->frame_count;
-    int base_handlers = vm->handler_count;
-    PUSH(self.type == MCS_T_NULL ? callee : self);
-    for (int i = 0; i < argc; i++) PUSH(argv[i]);
-    int st;
-    if (self.type != MCS_T_NULL) st = call_method(vm, callee, argc);
-    else st = call_value(vm, callee, argc);
+/* Both C entry points must restore handlers and propagate nested cancellation
+ * identically; Stop must never become a catchable script exception. */
+static mcs_result_t complete_call(mcs_vm_t* vm, int st, size_t base, int base_frame,
+                                  int base_handlers, mcs_value_t* result) {
     mcs_result_t res = MCS_OK;
     if (st == CALL_FRAME) res = run(vm, base_frame);
     else if (st == CALL_ERR) res = MCS_ERR_RUNTIME;
     if (res == MCS_OK) { if (result) *result = vm->sp[-1]; }
     else if (result) *result = mcs_null();
     if (res != MCS_OK) {
-        close_upvalues(vm, base);
+        close_upvalues(vm, vm->stack + base);
         vm->frame_count = base_frame;
         vm->handler_count = base_handlers;
     }
-    vm->sp = base;
+    vm->sp = vm->stack + base;
     /* A callback can abort a nested interpreter run. Keep cancellation pending for
      * the outer run; it must not become a catchable handler exception. */
     if (res == MCS_ERR_ABORTED && vm->run_depth > 0) {
@@ -1941,6 +2073,19 @@ mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t sel
         vm->hook_counter = 1;
     }
     return res;
+}
+
+mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
+    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) return MCS_ERR_RUNTIME;
+    size_t base = (size_t)(vm->sp - vm->stack);
+    int base_frame = vm->frame_count;
+    int base_handlers = vm->handler_count;
+    PUSH(self.type == MCS_T_NULL ? callee : self);
+    for (int i = 0; i < argc; i++) PUSH(argv[i]);
+    int st;
+    if (self.type != MCS_T_NULL) st = call_method(vm, callee, argc);
+    else st = call_value(vm, callee, argc);
+    return complete_call(vm, st, base, base_frame, base_handlers, result);
 }
 
 static void report_uncaught(mcs_vm_t* vm) {
@@ -1984,14 +2129,35 @@ static mcs_result_t finish(mcs_vm_t* vm, mcs_result_t r) {
     return r;
 }
 
-/* protects against OOM panics */
-#define GUARD_BEGIN(vm) jmp_buf _jb; jmp_buf* _prev = (vm)->panic; mcs_value_t* _sp = (vm)->sp; int _fc = (vm)->frame_count; \
-    int _hc = (vm)->handler_count; int _gp = (vm)->gc_pause; int _rd = (vm)->run_depth; int _rc = (vm)->root_count; int _code; \
-    (vm)->panic = &_jb; \
-    if ((_code = setjmp(_jb)) != 0) { (vm)->panic = _prev; (vm)->sp = _sp; (vm)->frame_count = _fc; (vm)->handler_count = _hc; \
-        (vm)->gc_pause = _gp; (vm)->run_depth = _rd; (vm)->root_count = _rc; close_upvalues(vm, _sp); (vm)->has_exc = false; \
-        mcs_report_error(vm, "fatal: %s\n", (vm)->error); return (mcs_result_t)_code; }
-#define GUARD_END(vm) (vm)->panic = _prev
+/* Protect OOM boundaries without duplicating the full unwind in every API.
+ * Immutable saved offsets survive both relocation and setjmp/longjmp. */
+typedef struct {
+    jmp_buf* panic;
+    size_t spoff;
+    int frames, handlers, gc_pause, run_depth, roots;
+    mcs_exec_view_t* views;
+    mcs_native_args_t* args;
+} mcs_guard_state_t;
+static void guard_save(mcs_vm_t* vm, mcs_guard_state_t* saved) {
+    saved->panic = vm->panic; saved->spoff = (size_t)(vm->sp - vm->stack);
+    saved->frames = vm->frame_count; saved->handlers = vm->handler_count;
+    saved->gc_pause = vm->gc_pause; saved->run_depth = vm->run_depth; saved->roots = vm->root_count;
+    saved->views = vm->exec_views; saved->args = vm->native_args;
+}
+static void guard_recover(mcs_vm_t* vm, const mcs_guard_state_t* saved) {
+    vm->exec_views = saved->views;
+    native_args_restore(vm, saved->args);
+    vm->panic = saved->panic;
+    vm->sp = vm->stack + saved->spoff;
+    vm->frame_count = saved->frames; vm->handler_count = saved->handlers;
+    vm->gc_pause = saved->gc_pause; vm->run_depth = saved->run_depth; vm->root_count = saved->roots;
+    close_upvalues(vm, vm->stack + saved->spoff); vm->has_exc = false;
+    mcs_report_error(vm, "fatal: %s\n", vm->error);
+}
+#define GUARD_BEGIN(vm) jmp_buf _jb; int _code; mcs_guard_state_t _guard; \
+    guard_save(vm, &_guard); (vm)->panic = &_jb; \
+    if ((_code = setjmp(_jb)) != 0) { guard_recover(vm, &_guard); return (mcs_result_t)_code; }
+#define GUARD_END(vm) (vm)->panic = _guard.panic
 
 mcs_result_t mcs_call_value(mcs_vm_t* vm, mcs_value_t callee, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
@@ -2027,18 +2193,15 @@ mcs_result_t mcs_call(mcs_vm_t* vm, const char* name, int argc, const mcs_value_
 
 mcs_result_t mcs_invoke(mcs_vm_t* vm, mcs_value_t recv, const char* name, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
+    mcs_result_t r = MCS_ERR_RUNTIME;
+    if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) goto done;
     mcs_string_t* nm = mcs_intern_c(vm, name);
-    mcs_value_t* base = vm->sp;
-    int base_frame = vm->frame_count;
+    size_t base = (size_t)(vm->sp - vm->stack);
+    int base_frame = vm->frame_count, base_handlers = vm->handler_count;
     PUSH(recv);
     for (int i = 0; i < argc; i++) PUSH(argv[i]);
-    int st = invoke_op(vm, nm, argc);
-    mcs_result_t r = MCS_OK;
-    if (st == CALL_FRAME) r = run(vm, base_frame);
-    else if (st == CALL_ERR) r = MCS_ERR_RUNTIME;
-    if (result) *result = r == MCS_OK ? vm->sp[-1] : mcs_null();
-    if (r != MCS_OK) { close_upvalues(vm, base); vm->frame_count = base_frame; }
-    vm->sp = base;
+    r = complete_call(vm, invoke_op(vm, nm, argc), base, base_frame, base_handlers, result);
+done:
     GUARD_END(vm);
     if (vm->run_depth > 0) return r;
     return finish(vm, r);
@@ -2062,9 +2225,12 @@ mcs_result_t mcs_run_closure(mcs_vm_t* vm, mcs_closure_t* cl) {
 mcs_result_t mcs_check_source(mcs_vm_t* vm, const char* name, const char* src) {
     GUARD_BEGIN(vm);
     vm->error[0] = 0;
-    if (!vm->run_depth) mcs_collect(vm);
+    if (!vm->run_depth) stack_for_compile(vm);
     mcs_function_t* fn = mcs_compile(vm, name, src);
     mcs_result_t result = fn ? MCS_OK : MCS_ERR_COMPILE;
+    /* Checks return no executable artifact. Do not carry their dead function
+     * graph into the next source-file read or transactional Project launch. */
+    if (!vm->run_depth) mcs_collect(vm);
     GUARD_END(vm);
     return result;
 }
@@ -2076,7 +2242,7 @@ mcs_result_t mcs_exec_source(mcs_vm_t* vm, const char* name, const char* src) {
      * pool, dead objects from the previous run can otherwise exhaust the heap
      * before execution gets to its first GC safepoint. Only collect at an idle
      * top-level entry; nested native callers may have unrooted C temporaries. */
-    if (!vm->run_depth) mcs_collect(vm);
+    if (!vm->run_depth) stack_for_compile(vm);
     mcs_function_t* fn = mcs_compile(vm, name, src);
     if (!fn) { GUARD_END(vm); return MCS_ERR_COMPILE; }
     vm->gc_pause++;
@@ -2277,7 +2443,11 @@ void mcs_unpin(mcs_vm_t* vm, int h) { if (h >= 0 && h < MCS_MAX_PINS) vm->pins[h
 void mcs_gc(mcs_vm_t* vm) { mcs_collect(vm); }
 void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st) {
     st->bytes_in_use = vm->bytes_allocated; st->peak_bytes = vm->peak_bytes; st->next_gc = vm->next_gc;
-    st->objects = vm->object_count; st->collections = vm->gc_count;
+    st->objects = vm->object_count; st->collections = vm->gc_count; st->heap_limit = vm->cfg.heap_limit;
+    st->stack_used = (uint32_t)(vm->sp - vm->stack); st->stack_capacity = vm->stack_cap;
+    st->stack_peak = vm->stack_peak; st->stack_limit = vm->cfg.stack_slots;
+    st->frames_used = (uint16_t)vm->frame_count; st->frame_capacity = vm->frame_cap;
+    st->frames_peak = vm->frame_peak; st->frame_limit = vm->cfg.max_frames;
 }
 
 mcs_value_t mcs_get_field(mcs_vm_t* vm, mcs_value_t obj, const char* name) {
@@ -2335,9 +2505,11 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->panic = &jb;
     if (setjmp(jb)) { vm->panic = NULL; mcs_free(vm); return NULL; }
     vm->gc_pause++;
-    vm->stack = MCS_ALLOC(vm, mcs_value_t, cfg.stack_slots);
-    vm->sp = vm->stack; vm->stack_end = vm->stack + cfg.stack_slots;
-    vm->frames = MCS_ALLOC(vm, mcs_frame_t, cfg.max_frames);
+    vm->stack_cap = cfg.stack_slots < 32 ? cfg.stack_slots : 32;
+    vm->stack = MCS_ALLOC(vm, mcs_value_t, vm->stack_cap);
+    vm->sp = vm->stack; vm->stack_end = vm->stack + vm->stack_cap;
+    vm->frame_cap = 1;
+    vm->frames = MCS_ALLOC(vm, mcs_frame_t, vm->frame_cap);
     vm->s_ctor = mcs_intern_c(vm, ".ctor");
     vm->s_init = mcs_intern_c(vm, "$init");
     vm->s_tostring = mcs_intern_c(vm, "ToString");
@@ -2358,14 +2530,15 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
 void mcs_free(mcs_vm_t* vm) {
     if (!vm) return;
     vm->gc_pause++;
+    native_args_restore(vm, NULL);
     mcs_free_objects(vm);
     mcs_lazy_free(vm);
     mcs_strset_free(vm, &vm->strings);
     mcs_table_free(vm, &vm->tuple_classes);
     MCS_FREE(vm, mcs_value_t, vm->globals, vm->global_cap);
     MCS_FREE(vm, mcs_string_t*, vm->global_names, vm->global_cap);
-    if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->cfg.stack_slots);
-    if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->cfg.max_frames);
+    if (vm->stack) MCS_FREE(vm, mcs_value_t, vm->stack, vm->stack_cap);
+    if (vm->frames) MCS_FREE(vm, mcs_frame_t, vm->frames, vm->frame_cap);
     if (vm->roots_more) MCS_FREE(vm, mcs_value_t, vm->roots_more, vm->roots_more_cap);
     if (vm->cfg.realloc_fn) vm->cfg.realloc_fn(vm->cfg.alloc_ud, vm, sizeof(mcs_vm_t), 0);
     else mcs_sys_realloc(NULL, vm, sizeof(mcs_vm_t), 0);

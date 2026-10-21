@@ -294,8 +294,8 @@ static bool js_value(mcs_vm_t* vm, mcs_buf_t* b, mcs_value_t v, int indent, int 
         for (uint32_t slot = 0; slot < in->cls->field_count; slot++) {
             for (uint32_t e = 0; e < t->cap; e++) {
                 mcs_entry_t* en = &t->entries[e];
-                if (!IS_STRING(en->key) || en->value.type != MCS_T_INT || (uint32_t)en->value.as.i != slot) continue;
-                const char* name = AS_CSTR(en->key);
+                if (!en->key || en->value.type != MCS_T_INT || (uint32_t)en->value.as.i != slot) continue;
+                const char* name = en->key->chars;
                 if (name[0] == '_' || name[0] == '<' || name[0] == '$') break;
                 if (!js_key_value(vm, b, &first, mcs_null(), name, in->fields[slot], indent, depth)) return false;
                 break;

@@ -3,6 +3,36 @@
 # Every other option goes into the project config header mcs_user_config.h.
 menu "MicroCS"
 
+    config MICROCS_VM_HEAP_KB
+        int "Example firmware: VM pool ceiling (KiB)"
+        range 16 1024
+        default 192
+        help
+            Hard ceiling for ports/esp32/example/main/main.c. The actual pool
+            can be smaller if the device cannot preserve its driver reserve.
+            Allocation failure stops startup; it never falls back to malloc.
+            For the small OLED Project regression use 40 and leave execution ceilings at defaults.
+            SDK/FreeRTOS, static RAM and task stacks are outside this pool.
+
+    config MICROCS_VM_STACK_SLOTS
+        int "Example firmware: maximum VM value stack slots (0 = profile default)"
+        range 0 65535
+        default 0
+        help
+            Execution ceiling, not an upfront reservation or feature/profile switch.
+            Starts at up to 32 slots and grows automatically as needed.
+            Zero preserves the profile ceiling; no manual sizing is needed
+            for normal applications within that ceiling.
+
+
+    config MICROCS_VM_MAX_FRAMES
+        int "Example firmware: maximum VM call frames (0 = profile default)"
+        range 0 65535
+        default 0
+        help
+            Execution call-depth ceiling. Starts at one frame and grows automatically.
+            Zero preserves the selected profile's call-depth limit.
+
     config MICROCS_USER_CONFIG_FILE
         string "Project config header (mcs_user_config.h)"
         default ""

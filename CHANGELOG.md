@@ -2,6 +2,20 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — bounded memory and accurate telemetry
+
+* Compact paged compiler tokens and AST storage; release consumed declarations,
+  trim completed methods, and preserve configured execution limits while returning
+  large idle stack/frame reservations during compilation.
+* Compact internal symbol keys, best-fit fixed pools and optional cache allocation
+  fallback. Runtime source/read buffers now count against the physical pool.
+* Shell/Studio report tracked VM allocations, full pool capacity/usage/peak/free/
+  largest block and optional ESP32 device heap separately, including after OOM.
+* Add a 32-bit real-U8g2, fixed-40-KiB, 20-Project-cycle regression with explicit
+  128-slot/16-frame application limits; no feature/profile/precision reduction.
+* ESP32 example pool ceiling/stack/frame settings and fail-closed allocation;
+  existing defaults remain unchanged. See `docs/MEMORY.md` for scope/exclusions.
+
 ## Unreleased — Studio project workflow
 
 * **Studio formatting** — safe offline C# whitespace formatter, explicit document formatting,

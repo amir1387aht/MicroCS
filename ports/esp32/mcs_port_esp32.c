@@ -1394,11 +1394,22 @@ static int e_pin_lookup(void* ctx, const char* name) {
     if (!strcmp(name, "NEOPIXEL") || !strcmp(name, "RGB_LED") || !strcmp(name, "WS2812")) return MCS_ESP32_RGB_LED;
     return -1;                       /* -> generic parser: "GPIO5", "IO5", "5" */
 }
+static bool e_memory_info(void* ctx, mcs_heap_stats_t* st) {
+    (void)ctx;
+    multi_heap_info_t info; heap_caps_get_info(&info, MALLOC_CAP_8BIT);
+    st->total = info.total_allocated_bytes + info.total_free_bytes;
+    st->used = info.total_allocated_bytes; st->free = info.total_free_bytes;
+    st->peak = st->total - info.minimum_free_bytes;
+    st->largest_free = info.largest_free_block;
+    return true;
+}
+
 void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     static const mcs_esp32_cfg_t defaults = MCS_ESP32_CFG_DEFAULT;
     g_cfg = cfg ? *cfg : defaults;
     if (!g_events) g_events = xQueueCreate(MCS_ESP32_EVENT_QUEUE, sizeof(mcs_hal_event_t));
     memset(hal, 0, sizeof *hal);
+    hal->memory_info = e_memory_info;
     for (int i = 0; i < MCS_ESP32_I2C_BUSES; i++) { g_i2c_pins[i] = g_cfg.i2c[i]; g_i2c_pu[i] = 1; g_i2c_glitch[i] = 7; }
     for (int i = 0; i < MCS_ESP32_SPI_BUSES; i++) { g_spi_pins[i] = g_cfg.spi[i]; g_qspi_cs[i] = g_cfg.qspi_cs[i]; }
     for (int i = 0; i < MCS_ESP32_PWM_CHANNELS; i++) { g_pwm_timer[i] = -1; g_pwm_pin[i] = -1; }

@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -402,8 +402,19 @@ build/test_smallheap: tests/c/test_smallheap.c $(OBJ)
 smallheap-test: build/test_smallheap
 	./build/test_smallheap
 
-# User display/font configuration, real library + simulated I2C, 100 KB VM heap.
+# Real display/font configuration + simulated I2C; default execution ceilings.
 oled-smallheap-test: mcs-u8g2
 	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_smallheap.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_smallheap $(LDLIBS)
 	./build/test_oled_smallheap
 .PHONY: oled-smallheap-test
+
+# Allocator telemetry and bounded dynamic execution storage.
+build/test_memory: tests/c/test_memory.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+.PHONY: memory-test
+build/test_dynamic_stack: tests/c/test_dynamic_stack.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+memory-test: build/test_memory build/test_dynamic_stack
+	./build/test_memory
+	./build/test_dynamic_stack
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_memory.js; fi

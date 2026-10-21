@@ -62,7 +62,7 @@ typedef struct {
     /* called every loop iteration: feed a watchdog, yield to the RTOS ... */
     void (*idle)(void* ud);
     void* ud;
-    /* tuning (0 = default) */
+    /* execution ceilings, allocated on demand (0 = profile default) */
     uint32_t stack_slots;
     uint16_t max_frames;
     uint8_t stdlib;             /* MCS_LIB_* mask, 0 = MCS_LIB_ALL */

@@ -86,12 +86,15 @@ $(OUT)/m0-16k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefi
 	@$(SIZE) $@
 # ...and with the min profile (overrides the example header's lowram) on a 64 KB-flash / 16 KB-RAM part
 # (the linker fails if the firmware does not fit in 64 KB). No -u _printf_float.
-MIN_F := $(M0) -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+# Link-time optimization, like the other constrained M0 targets above: retain
+# all enabled language semantics while removing unreachable firmware code.
+# Keep the two newlib syscall symbols whose references can appear after LTO.
+MIN_F := $(M0) -flto -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 all: $(OUT)/m0-64k.elf
 $(OUT)/m0-64k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
 	@mkdir -p $(OUT)
 	$(CC) $(CFLAGS) $(MIN_F) -DNODE_HEAP_SIZE=12288 -I$(ROOT)/examples/lowram $(NODE_SRC) -o $@ \
-	  -Wl,--gc-sections -T cm.ld --specs=nano.specs --specs=nosys.specs -Wl,--no-warn-rwx-segments \
+	  -Wl,--gc-sections -Wl,-u,_kill,-u,_getpid -T cm.ld --specs=nano.specs --specs=nosys.specs -Wl,--no-warn-rwx-segments \
 	  -Wl,--defsym=FLASH_SIZE=64K -Wl,--defsym=RAM_SIZE=16K -Wl,--defsym=STACK_SIZE=2K -Wl,--defsym=SBRK_SIZE=512 -Wl,-Map=$(OUT)/m0-64k.map
 	@$(SIZE) $@
 

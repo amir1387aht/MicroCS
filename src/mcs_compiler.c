@@ -628,10 +628,10 @@ static int compile_args(comp_t* c, node_t* args) {
     for (node_t* a = args; a; a = a->next) {
         if (a->kind == N_ARG_OUT) {
             /* out/ref argument: pass a fresh 1-element cell; the caller copies cell[0] back after the call */
-            if (a->ival < 0) cerr(c, a->line, "out/ref arguments are not supported in this position (use them in a statement, declaration or condition)");
-            if (a->flag == 2) compile_expr(c, a->a); else emit_op(c, OP_NULL);
+            if (!(a->flag & 0x80)) cerr(c, a->line, "out/ref arguments are not supported in this position (use them in a statement, declaration or condition)");
+            if ((a->flag & 0x7f) == 2) compile_expr(c, a->a); else emit_op(c, OP_NULL);
             emit_op16(c, OP_ARRAY, 1);
-            emit_op8(c, OP_SET_LOCAL, (uint8_t)a->ival);
+            emit_op8(c, OP_SET_LOCAL, a->op);
         } else compile_expr(c, a);
         n++;
     }
@@ -646,7 +646,7 @@ static void emit_out_writeback(comp_t* c, node_t* args) {
         if (!tn) { tmp.kind = N_NAME; tmp.name = a->name; tmp.len = a->len; tmp.line = a->line; tn = &tmp; }
         target_t t;
         prepare_target(c, tn, &t);
-        emit_cell_read(c, (int)a->ival);
+        emit_cell_read(c, (int)a->op);
         target_set(c, &t);
         emit_op(c, OP_POP);
     }
@@ -850,10 +850,10 @@ static uint8_t compile_interp(comp_t* c, node_t* n) {
         if (p->kind == N_STR) { if (p->len == 0) continue; emit_op16(c, OP_CONST, kstr(c, p->name, p->len)); }
         else {
             uint8_t pt = compile_expr(c, p->a);
-            if (p->name || p->ival) {
+            if (p->name || p->alignment) {
                 char spec[96];
                 int k = 0;
-                if (p->ival) k = snprintf(spec, sizeof spec, ",%d", (int)p->ival);
+                if (p->alignment) k = snprintf(spec, sizeof spec, ",%d", (int)p->alignment);
                 if (p->name) k += snprintf(spec + k, sizeof spec - (size_t)k, ":%.*s", (int)p->len, p->name);
                 if (k < 0) k = 0;
                 if (k >= (int)sizeof spec) k = (int)sizeof spec - 1;   /* over-long format spec: truncated */
@@ -1031,7 +1031,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
 /* ------------------------------------------------------------ statements */
 static void predeclare(comp_t* c, node_t* n, bool follow) {
     for (; n; n = follow ? n->next : NULL) {
-        if (n->kind == N_LAMBDA) continue;
+        if (n->kind == N_LAMBDA || mcs_node_leaf(n->kind)) continue;
         if (n->kind == N_IS && n->name) {
             int l = resolve_local(c->fc, n->name, n->len);
             if (l < 0 || c->fc->locals[l].depth != c->fc->depth) {
@@ -1044,7 +1044,8 @@ static void predeclare(comp_t* c, node_t* n, bool follow) {
         }
         if (n->kind == N_ARG_OUT) {
             emit_op(c, OP_NULL);
-            n->ival = declare_local(c, "$cell", 5, PT_ANY, 0xff);
+            n->op = (uint8_t)declare_local(c, "$cell", 5, PT_ANY, 0xff);
+            n->flag |= 0x80;
             if (n->name) {
                 uint8_t pt = (n->type && !n->type->is_var) ? pt_of_type(n->type) : PT_ANY;
                 if (c->outvar_global) {
@@ -1066,7 +1067,7 @@ static void predeclare(comp_t* c, node_t* n, bool follow) {
 }
 static bool has_pattern(node_t* n, bool follow) {
     for (; n; n = follow ? n->next : NULL) {
-        if (n->kind == N_LAMBDA) continue;
+        if (n->kind == N_LAMBDA || mcs_node_leaf(n->kind)) continue;
         if ((n->kind == N_IS && n->name) || n->kind == N_ARG_OUT) return true;
         if (n->kind >= N_EXPR_STMT && n->kind != N_ARM) continue;
         if (has_pattern(n->a, true) || has_pattern(n->b, true) || has_pattern(n->c, true) || has_pattern(n->d, true)) return true;
@@ -1587,6 +1588,7 @@ static void emit_closure(comp_t* c, funcdecl_t* f, int kind, classdecl_t* cls, c
     } else emit_return_value(c);
     fn->upvalue_count = (uint8_t)fc->nupv;
     fn->max_slots = (uint16_t)fc->max_locals;
+    mcs_fn_trim(c->vm, fn); /* release completed method slack before its siblings */
     c->fc = prev;
     c->line = saved_line;
     emit_op16(c, OP_CLOSURE, konst(c, OBJ_VAL(fn)));
@@ -1834,7 +1836,7 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
     workspace_t* w = (workspace_t*)mcs_realloc(vm, NULL, 0, sizeof(workspace_t));
     memset(w, 0, sizeof *w);
     w->arena.vm = vm;
-    w->ctx = (front_ctx_t){ vm, &w->arena, name, 0, NULL, 0 };
+    w->ctx = (front_ctx_t){ .vm = vm, .arena = &w->arena, .src_name = name };
     vm->gc_pause++;
     mcs_function_t* volatile result = NULL;
     /* an out-of-memory panic during compilation must not leak the AST arena:
@@ -1920,9 +1922,10 @@ mcs_function_t* mcs_compile(mcs_vm_t* vm, const char* name, const char* src) {
         result = mainfc->fn;
     }
 done:
-    vm->panic = prev_panic;
     mcs_front_free_tokens(&w->ctx);
     arena_free(&w->arena);
+    if (result) mcs_fn_trim(vm, result);
+    vm->panic = prev_panic;
     mcs_realloc(vm, w, sizeof *w, 0);
     vm->gc_pause--;
     return result;

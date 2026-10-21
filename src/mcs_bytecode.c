@@ -25,11 +25,32 @@
 enum { K_NULL, K_FALSE, K_TRUE, K_INT, K_FLOAT, K_CHAR, K_STRING, K_FUNC, K_FLOAT32 };
 
 /* ------------------------------------------------------------ emitting */
+void mcs_fn_trim(mcs_vm_t* vm, mcs_function_t* fn) {
+    if (!(fn->flags & FN_XIP) && fn->code_cap > fn->code_len) {
+        fn->code = MCS_GROW(vm, uint8_t, fn->code, fn->code_cap, fn->code_len);
+        fn->code_cap = fn->code_len;
+    }
+    if (fn->const_cap > fn->const_count) {
+        fn->consts = MCS_GROW(vm, mcs_value_t, fn->consts, fn->const_cap, fn->const_count);
+        fn->const_cap = fn->const_count;
+    }
+    if (fn->line_cap > fn->line_count) {
+        fn->lines = MCS_GROW(vm, mcs_line_t, fn->lines, fn->line_cap, fn->line_count);
+        fn->line_cap = fn->line_count;
+    }
+    for (uint32_t i = 0; i < fn->const_count; i++)
+        if (IS_KIND(fn->consts[i], MCS_O_FUNCTION)) mcs_fn_trim(vm, AS_FUNCTION(fn->consts[i]));
+}
+
 void mcs_fn_emit(mcs_vm_t* vm, mcs_function_t* fn, uint8_t byte, uint32_t line) {
     if (fn->code_len == fn->code_cap) {
         uint32_t nc = fn->code_cap < 16 ? 16 : fn->code_cap * 2;
-        fn->code = MCS_GROW(vm, uint8_t, fn->code, fn->code_cap, nc);
-        fn->code_cap = nc;
+        uint8_t* code = mcs_try_realloc(vm, fn->code, fn->code_cap, nc);
+        if (!code) {
+            nc = fn->code_len + 1;
+            code = MCS_GROW(vm, uint8_t, fn->code, fn->code_cap, nc);
+        }
+        fn->code = code; fn->code_cap = nc;
     }
 #if MCS_ENABLE_LINES
     if (fn->line_count == 0 || fn->lines[fn->line_count - 1].line != line) {
@@ -38,8 +59,13 @@ void mcs_fn_emit(mcs_vm_t* vm, mcs_function_t* fn, uint8_t byte, uint32_t line) 
         } else {
             if (fn->line_count == fn->line_cap) {
                 uint32_t nc = fn->line_cap < 8 ? 8 : fn->line_cap * 2;
-                fn->lines = MCS_GROW(vm, mcs_line_t, fn->lines, fn->line_cap, nc);
-                fn->line_cap = nc;
+                mcs_line_t* lines = mcs_try_realloc(vm, fn->lines,
+                    fn->line_cap * sizeof(mcs_line_t), nc * sizeof(mcs_line_t));
+                if (!lines) {
+                    nc = fn->line_count + 1;
+                    lines = MCS_GROW(vm, mcs_line_t, fn->lines, fn->line_cap, nc);
+                }
+                fn->lines = lines; fn->line_cap = nc;
             }
             fn->lines[fn->line_count].pc = fn->code_len;
             fn->lines[fn->line_count].line = line;
@@ -65,8 +91,13 @@ uint32_t mcs_fn_add_const(mcs_vm_t* vm, mcs_function_t* fn, mcs_value_t v) {
     }
     if (fn->const_count == fn->const_cap) {
         uint32_t nc = fn->const_cap < 8 ? 8 : fn->const_cap * 2;
-        fn->consts = MCS_GROW(vm, mcs_value_t, fn->consts, fn->const_cap, nc);
-        fn->const_cap = nc;
+        mcs_value_t* values = mcs_try_realloc(vm, fn->consts,
+            fn->const_cap * sizeof(mcs_value_t), nc * sizeof(mcs_value_t));
+        if (!values) {
+            nc = fn->const_count + 1;
+            values = MCS_GROW(vm, mcs_value_t, fn->consts, fn->const_cap, nc);
+        }
+        fn->consts = values; fn->const_cap = nc;
     }
     fn->consts[fn->const_count] = v;
     return fn->const_count++;

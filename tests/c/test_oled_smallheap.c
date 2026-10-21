@@ -1,8 +1,18 @@
-/* Real U8g2 + simulated HAL, fixed 100 KB VM pool; no physical ESP32 claim. */
+/* Real U8g2 + simulated HAL; optional hard 40 KiB 32-bit Project gate.
+ * Representative fixture, not the exact user sources or a physical ESP32. */
 #include "mcs_runtime.h"
 #include <stdio.h>
 #include <string.h>
-static uint8_t heap[100*1024];
+#ifndef OLED_HEAP_KB
+#define OLED_HEAP_KB 100
+#endif
+#ifdef OLED_BUDGET
+typedef char require_32_bit_budget_test[(sizeof(void*) == 4) ? 1 : -1];
+#define OLED_REPEATS 20
+#else
+#define OLED_REPEATS 5
+#endif
+static uint8_t heap[OLED_HEAP_KB*1024];
 static int checks, failures;
 #define CHECK(x) do { checks++; if(!(x)) { failures++; fprintf(stderr,"FAIL %d: %s (%s)\n",__LINE__,#x,mcs_last_error(rt.vm)); } } while(0)
 static uint32_t clock_ms;
@@ -17,12 +27,16 @@ int main(void) {
     cfg.heap=heap;cfg.heap_size=sizeof heap;cfg.hal=&hal;cfg.fs_ops=&mcs_posixfs_ops;cfg.fs_ctx=&fs;
     cfg.run_boot_scripts=false;cfg.mode=MCS_RUNTIME_HEADLESS;cfg.console.write=quiet;cfg.ticks=ticks;cfg.delay=delay;
     if(mcs_runtime_start(&rt,&cfg))return 1;
+    mcs_mem_stats_t memory; mcs_mem_stats(rt.vm,&memory);
+    CHECK(memory.stack_limit==MCS_DEFAULT_STACK); CHECK(memory.frame_limit==MCS_DEFAULT_FRAMES);
     CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
+#ifndef OLED_BUDGET
     CHECK(mcs_exec_file(rt.vm,&rt.vfs,"/app.cs")==MCS_ERR_RUNTIME);
     CHECK(strstr(mcs_last_error(rt.vm),"Display")!=NULL);
     for(int i=0;i<3;i++) CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
+#endif
     CHECK(mcs_exec_file(rt.vm,&rt.vfs,"/oled.cs")==MCS_OK);
-    for(int i=0;i<5;i++) {
+    for(int i=0;i<OLED_REPEATS;i++) {
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/oled.cs")==MCS_OK);
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs")==MCS_OK);
         CHECK(mcs_sched_start_project(&rt.sched,"startup /oled.cs\nstartup /app.cs\n")==2);
@@ -36,6 +50,6 @@ int main(void) {
         mcs_hal_sim_set_input(&sim,8,0); mcs_hal_poll(rt.vm);
         CHECK(oled.frames>frames);
     }
-    printf("%s OLED 100 KB: %d checks, %d failures; peak %zu bytes\n",failures?"FAIL":"PASS",checks,failures,rt.pool.peak);
+    printf("%s OLED %u KiB: %d checks, %d failures; peak %zu bytes\n",failures?"FAIL":"PASS",OLED_HEAP_KB,checks,failures,rt.pool.peak);
     mcs_runtime_stop(&rt); CHECK(rt.pool.used==0); return failures!=0;
 }
