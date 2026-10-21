@@ -6,10 +6,15 @@ function methods(start,end,deps={}) {
  return new Function(...Object.keys(deps),'return ({'+source.slice(a,b)+'});')(...Object.values(deps));
 }
 (async()=>{
- const node={textContent:'old stale value',title:''};let report={status:'OK',out:new TextEncoder().encode('heap 16384 bytes in use, peak 54272, 50 objects, 3 collections\nvm_limit 38912\nstack 0 used, 64 allocated, 43 peak, 1024 limit\nframes 0 used, 8 allocated, 6 peak, 64 limit\npool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest\ndevice_heap 200000 total, 150000 used, 50000 free, 40000 minimum_free, 30000 largest\n')};
+ const node={textContent:'old stale value',title:'',tabIndex:-1,classList:{toggle(){},remove(){}}};let report={status:'OK',out:new TextEncoder().encode('heap 16384 bytes in use, peak 54272, 50 objects, 3 collections\nvm_limit 38912\nstack 0 used, 64 allocated, 43 peak, 1024 limit\nframes 0 used, 8 allocated, 6 peak, 64 limit\npool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest\ndevice_heap 200000 total, 150000 used, 50000 free, 40000 minimum_free, 30000 largest\n')};
  const dev={connected:true,running:false,op:fn=>fn(),cmd:async()=>report};
- const app=methods('memoryText(text)','renderFiles()',{$:()=>node,dev,TextDecoder});
+ const fmtBytes=n=>{ if (n == null || isNaN(n)) return '—'; if (n < 1024) return n + ' B'; if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB'; if (n < 1024 * 1048576) return (n / 1048576).toFixed(n < 10485760 ? 2 : 1) + ' MB'; return (n / 1073741824).toFixed(1) + ' GB'; };
+ const app=methods('memoryText(text)','renderFiles()',{$:()=>node,dev,TextDecoder,fmtBytes});
  await app.refreshMemory();
+ assert.strictEqual(node.textContent,'VM heap: 16.0 KB used · 53.0 KB peak');
+ assert(!node.textContent.includes('Memory snapshot'));
+ assert(node.title.includes('Click to expand.'));
+ app.toggleMemoryInfo();
  assert(node.textContent.includes('VM pool: 18,000 B / 40,960 B'));
  assert(node.textContent.includes('Pool peak: 39,000 B'));
  assert(node.textContent.includes('largest: 8,192 B'));
@@ -19,8 +24,11 @@ function methods(start,end,deps={}) {
  assert(node.textContent.includes('Stack slots: 0 used · 64 allocated · peak 43 · max 1024'));
  assert(node.textContent.includes('Call frames: 0 used · 8 allocated · peak 6 · max 64'));
  assert(node.title.includes('not static RAM'));
+ app.toggleMemoryInfo();
+ assert.strictEqual(node.textContent,'VM heap: 16.0 KB used · 53.0 KB peak');
  const old=app.memoryText('heap 16384 bytes in use, peak 54272');
  assert(old.includes('capacity unavailable'));assert(old.includes('Device heap unavailable'));
+ assert.strictEqual(app.memorySummary('heap 16384 bytes in use, peak 54272'),'VM heap: 16.0 KB used · 53.0 KB peak');
  assert(!old.includes('/ 0'));assert(!old.includes('NaN'));
  report={status:'ERR unavailable',out:new Uint8Array()};await app.refreshMemory();assert.strictEqual(node.textContent,'Memory report unavailable');
  dev.cmd=async()=>{throw Error('disconnected');};await app.refreshMemory();assert(node.textContent.includes('refresh failed'));

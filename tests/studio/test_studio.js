@@ -67,7 +67,12 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
-  check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem: ' + await page.textContent('#memInfo'));
+  check(/^VM heap: .* used · .* peak$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
+  await page.click('#memInfo');
+  await page.waitForFunction(() => /Memory snapshot/.test(document.getElementById('memInfo').textContent), null, { timeout: 5000 }).catch(() => {});
+  check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem expanded: ' + await page.textContent('#memInfo'));
+  await page.click('#memInfo');
+  check(!/Memory snapshot/.test(await page.textContent('#memInfo')), 'mem collapsed: ' + await page.textContent('#memInfo'));
 
   // REPL
   await page.fill('#cin', 'var x = 21;'); await page.press('#cin', 'Enter');
