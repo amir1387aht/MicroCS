@@ -126,6 +126,8 @@ main { display: grid; grid-template-columns: var(--side, 280px) 4px 1fr; min-hei
 .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
 .bar.full > div { background: #e51400; }
 .meminfo { margin-top: 7px; color: var(--fg3); font-size: 11px; white-space: pre-line; overflow-wrap: anywhere; line-height: 1.5; }
+.meminfo.expandable { cursor: pointer; }
+.meminfo.expandable:hover, .meminfo.expanded { color: var(--fg2); }
 .xfer { padding: 7px 10px; border-top: 1px solid var(--line2); font-size: 11.5px; display: none; }
 .xfer.show { display: block; }
 .xfer .row { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--fg2); gap: 8px; }

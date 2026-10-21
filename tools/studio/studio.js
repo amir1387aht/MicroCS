@@ -1506,6 +1506,7 @@ const App = {
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
   capabilities: null, capabilitiesKnown: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
+  memExpanded: false, memReportText: "", memReportTitle: "",
 
   /* ---------- connection */
   async connect() {
@@ -1573,6 +1574,7 @@ const App = {
       if ($("galleryBg").classList.contains("show")) this.galRender();
       this.setConn("on", this.info);
       term.line(`${this.info} — ready`, "ok");
+      this.memExpanded = false; this.memReportText = ""; this.memReportTitle = "";
       this.reopened = false;
     } catch (e) {
       /* the stream broke on a framing error (baud change while booting) and nothing usable came
@@ -1612,7 +1614,14 @@ const App = {
     for (const id of ["btnNewFile", "btnNewDir", "btnUpload", "btnRefresh", "btnReset", "btnCtrlC", "cin"]) $(id).disabled = !on;
     this.updateButtons();
     if ($("galleryBg").classList.contains("show")) this.galRender();
-    if (!on) { this.projectRunning = false; this.entries = []; this.renderFiles(); $("stText").textContent = "—"; $("stBar").style.width = "0"; $("memInfo").textContent = ""; }
+    if (!on) {
+      this.projectRunning = false; this.entries = [];
+      this.memExpanded = false; this.memReportText = ""; this.memReportTitle = "";
+      this.renderFiles();
+      $("stText").textContent = "—"; $("stBar").style.width = "0";
+      $("memInfo").textContent = ""; $("memInfo").title = "";
+      $("memInfo").classList?.remove("expandable", "expanded");
+    }
   },
   updateButtons() {
     const t = this.tab(), c = dev.connected;
@@ -1705,14 +1714,26 @@ const App = {
     await this.refreshMemory();
   },
   memoryText(text) {
+    const data = this.memoryData(text);
+    return data ? data.detail : "Memory report unavailable";
+  },
+  memorySummary(text) {
+    const data = this.memoryData(text);
+    return data ? data.summary : "Memory report unavailable";
+  },
+  memoryData(text) {
     const logical = /^heap (\d+) bytes in use, peak (\d+)/m.exec(text);
     const pool = /^pool (\d+) total, (\d+) used, (\d+) peak, (\d+) free, (\d+) largest/m.exec(text);
     const device = /^device_heap (\d+) total, (\d+) used, (\d+) free, (\d+) minimum_free, (\d+) largest/m.exec(text);
     const stack = /^stack (\d+) used, (\d+) allocated, (\d+) peak, (\d+) limit/m.exec(text);
     const frames = /^frames (\d+) used, (\d+) allocated, (\d+) peak, (\d+) limit/m.exec(text);
     const limit = /^vm_limit (\d+)/m.exec(text);
-    if (!logical && !pool && !device) return "Memory report unavailable";
+    if (!logical && !pool && !device) return null;
     const bytes = n => `${Number(n).toLocaleString("en-US")} B`;
+    const kb = n => `${(Number(n) / 1024).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KB`;
+    const summary = logical ? `VM heap: ${kb(logical[1])} used · ${kb(logical[2])} peak` :
+      pool ? `VM pool: ${kb(pool[2])} used · ${kb(pool[3])} peak` :
+        `Device heap: ${kb(device[2])} used · ${kb(Number(device[1]) - Number(device[4]))} peak`;
     const lines = ["Memory snapshot"];
     if (pool) {
       lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
@@ -1723,17 +1744,33 @@ const App = {
     if (frames) lines.push(`Call frames: ${frames[1]} used · ${frames[2]} allocated · peak ${frames[3]} · max ${frames[4]}`);
     if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
     else lines.push("Device heap unavailable on this firmware");
-    return lines.join("\n");
+    return { summary, detail: lines.join("\n") };
+  },
+  renderMemory(text, title) {
+    const node = $("memInfo");
+    this.memReportText = text || "";
+    this.memReportTitle = title || "";
+    if (!text) this.memExpanded = false;
+    node.textContent = text ? (this.memExpanded ? this.memoryText(text) : this.memorySummary(text)) : "Memory report unavailable";
+    node.title = text ? `${this.memExpanded ? "Click to collapse." : "Click to expand."} ${title}` : (title || "");
+    node.classList?.toggle("expandable", !!text);
+    node.classList?.toggle("expanded", !!text && this.memExpanded);
+    if ("tabIndex" in node) node.tabIndex = text ? 0 : -1;
+  },
+  toggleMemoryInfo() {
+    if (!this.memReportText) return;
+    this.memExpanded = !this.memExpanded;
+    this.renderMemory(this.memReportText, this.memReportTitle);
   },
   async refreshMemory() {
     if (!dev.connected) return;
     try {
       const mm = await dev.op(() => dev.cmd("mem"));
       if (!dev.connected) return;
-      $("memInfo").textContent = mm.status === "OK" ? this.memoryText(new TextDecoder().decode(mm.out)) : "Memory report unavailable";
-      $("memInfo").title = "Snapshot: " + new Date().toLocaleTimeString() + ". Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      this.renderMemory(mm.status === "OK" ? new TextDecoder().decode(mm.out) : "", title);
     } catch {
-      if (dev.connected) { $("memInfo").textContent = "Memory report unavailable (refresh failed)"; $("memInfo").title = ""; }
+      if (dev.connected) { this.renderMemory("", ""); $("memInfo").textContent = "Memory report unavailable (refresh failed)"; }
     }
   },
   renderFiles() {
@@ -2599,6 +2636,10 @@ const App = {
     $("btnClear").onclick = () => { if (this.view === "plot") plot.clear(); else term.clear(); };
     $("consView").onclick = (e) => { const v = e.target.closest("button")?.dataset.v; if (v) this.setView(v); };
     $("consMode").onclick = (e) => { const m = e.target.closest("button")?.dataset.m; if (m) { this.setConsMode(m); $("cin").focus(); } };
+    $("memInfo").onclick = () => this.toggleMemoryInfo();
+    $("memInfo").onkeydown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.toggleMemoryInfo(); }
+    };
     $("cin").addEventListener("keydown", (e) => this.consoleKey(e));
     $("cin").addEventListener("input", () => this.autosize());
     $("term").addEventListener("mouseup", () => { if (!getSelection().toString() && !$("cin").disabled) $("cin").focus(); });

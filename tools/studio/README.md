@@ -185,10 +185,16 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The memory panel distinguishes VM-tracked allocations, full physical VM pool
+The left panel shows compact VM heap telemetry by default
+(`VM heap: used · peak`, in KB). Click it to expand the full memory snapshot,
+and click again to collapse it. The peak is the lifetime high-water mark, so it
+does not decrease when garbage is collected; current usage should settle after
+one-time lazy runtime initialization.
+
+The expanded view distinguishes VM-tracked allocations, full physical VM pool
 usage/capacity/peak/free/largest block, and optional ESP32 device heap telemetry.
-Values are exact bytes. Device heap already includes the reserved VM pool: the
-numbers are not additive. Older firmware explicitly shows missing capacity;
+Values there are exact bytes. Device heap already includes the reserved VM pool:
+the numbers are not additive. Older firmware explicitly shows missing capacity;
 Studio never guesses it from a VM peak. Failed workflows also refresh the
 snapshot. See [memory budgets](../../docs/MEMORY.md) for scope, exclusions and the
 40 KiB source-Project regression/configuration.

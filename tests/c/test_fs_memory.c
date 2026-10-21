@@ -168,6 +168,7 @@ static void test_upload_churn(void) {
     CHECK(mcs_runtime_start(&rt, &cfg) == 0);
     if (!rt.vm) return;
     command(&rt, "exec int retained = 42;\n");
+    size_t warm_vm = 0, warm_runtime = 0;
     for (int i = 0; i < 100; i++) {
         char upload[4300];
         size_t len = (size_t)(512 + (i % 8) * 512);
@@ -182,6 +183,17 @@ static void test_upload_churn(void) {
         CHECK(mcs_vfs_stat(&rt.vfs, "/churn.cs.part", &st) == MCS_VFS_ENOENT);
         command(&rt, "run /churn.cs\n");
         CHECK(strstr(serial_output, "42\n") != NULL);
+        mcs_mem_stats_t memory; mcs_mem_stats(rt.vm, &memory);
+        size_t runtime_used = rt.pool.used - rt.ramfs.used;
+        if (!i) { warm_vm = memory.bytes_in_use; warm_runtime = runtime_used; }
+        else {
+            /* The first run lazily creates normal runtime objects. Later Studio
+             * upload/run cycles must not retain compiler graphs, source buffers
+             * or allocator blocks. Pool placement may vary by a few aligned
+             * blocks as RAMFS files change size, but it must not creep. */
+            CHECK(memory.bytes_in_use == warm_vm);
+            CHECK(runtime_used <= warm_runtime + 256);
+        }
     }
     command(&rt, "rm /churn.cs\n");
     CHECK(rt.ramfs.used == 0);
