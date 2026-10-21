@@ -36,7 +36,8 @@ Results: `MCS_OK`, `MCS_ERR_COMPILE`, `MCS_ERR_RUNTIME` (uncaught exception),
 `MCS_ERR_MEMORY`, `MCS_ERR_BYTECODE`, `MCS_ERR_ABORTED`. The message is in `mcs_last_error(vm)`.
 
 For compiler-enabled `.cs` files, `mcs_exec_file` treats `using A.B;` as a dependency hint:
-same-folder files declaring `namespace A.B` contribute declarations first, transitively.
+files anywhere in the mounted VFS declaring `namespace A.B` contribute declarations first,
+transitively, regardless of project folder layout.
 Their top-level statements and implicit `Main` methods do not run.
 
 ## 3. Limits and abort

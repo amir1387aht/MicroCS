@@ -115,7 +115,7 @@ avoids flash writes for identical files. Communication/read failures block launc
 upload/verification is required before marking the text saved. Local files still ask for a path.
 
 Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
-individual scripts and their same-folder namespace dependencies, not a persistent linked `.mcsb`
+individual scripts and their namespace dependencies across the mounted VFS, not a persistent linked `.mcsb`
 assembly. Dependency resolution happens inside each VM, including isolated delayed/periodic job
 VMs. For a two-file display app, only the application needs to be a job:
 

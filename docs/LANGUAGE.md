@@ -11,7 +11,7 @@ against .NET 8 byte-for-byte.
 | Feature | | Notes |
 |---|:---:|---|
 | Top-level statements, `static void Main()` | ✅ | `args` via the host |
-| `namespace`, `using` directives | ⚠️ | type names remain globally flattened; VFS `.cs` execution uses `using` as a same-folder dependency hint and loads matching namespace declarations |
+| `namespace`, `using` directives | ⚠️ | type names remain globally flattened; VFS `.cs` execution uses `using` as a dependency hint and loads matching namespace declarations across the mounted VFS |
 | Classes, static classes, nested types | ✅ | |
 | `struct` | ⚠️ | **reference semantics** (assignment does not copy) |
 | Interfaces, `abstract`/`virtual`/`override`/`sealed`/`base` | ✅ | default interface methods ❌ |

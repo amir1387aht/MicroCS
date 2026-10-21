@@ -293,19 +293,18 @@ const char* mcs_vfs_strerror(int e) {
 
 #if MCS_ENABLE_COMPILER
 typedef struct {
-    char path[MCS_VFS_PATH_MAX];
+    uint32_t path;            /* offset in source_set_t.paths */
     uint8_t state;             /* 0 unseen, 1 visiting, 2 loaded/checked */
 } source_file_t;
+typedef struct { char* data; size_t len, cap; } name_list_t;
 typedef struct {
     mcs_vm_t* vm;
     mcs_vfs_t* vfs;
     source_file_t* files;
     size_t count, cap, root;
     bool check;
-    int list_error;
-    char dir[MCS_VFS_PATH_MAX];
+    name_list_t paths;
 } source_set_t;
-typedef struct { char* data; size_t len, cap; } name_list_t;
 
 static bool cs_id0(char c) { return c == '_' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); }
 static bool cs_id(char c) { return cs_id0(c) || (c >= '0' && c <= '9'); }
@@ -344,7 +343,7 @@ static const char* cs_string(const char* p, bool verbatim) {
 }
 static bool cs_word(const char* p, const char* word) {
     size_t n = strlen(word);
-    for (size_t i = 0; i < n; i++) if (p[i] != word[i]) return false;
+    for (size_t i = 0; i < n; i++) if (!p[i] || p[i] != word[i]) return false;
     return !cs_id(p[n]);
 }
 /* Finds the next namespace name after `using` or `namespace`. Strings and
@@ -419,8 +418,15 @@ static int collect_usings(mcs_vfs_t* vfs, const char* src, name_list_t* list) {
     }
     return MCS_VFS_OK;
 }
+static int add_unique_name(mcs_vfs_t* vfs, name_list_t* list, const char* name) {
+    for (size_t i = 0; i < list->len; i += strlen(list->data + i) + 1)
+        if (!strcmp(list->data + i, name)) return MCS_VFS_OK;
+    return add_name(vfs, list, name);
+}
 static int add_source(source_set_t* set, const char* path) {
-    for (size_t i = 0; i < set->count; i++) if (!strcmp(set->files[i].path, path)) return (int)i;
+    for (size_t i = 0; i < set->count; i++)
+        if (!strcmp(set->paths.data + set->files[i].path, path)) return (int)i;
+    if (set->paths.len > UINT32_MAX) return MCS_VFS_ENOMEM;
     if (set->count == set->cap) {
         if (set->cap > SIZE_MAX / 2 / sizeof(*set->files)) return MCS_VFS_ENOMEM;
         size_t cap = set->cap ? set->cap * 2 : 4;
@@ -429,25 +435,65 @@ static int add_source(source_set_t* set, const char* path) {
         if (!p) return MCS_VFS_ENOMEM;
         set->files = p; set->cap = cap;
     }
+    uint32_t offset = (uint32_t)set->paths.len;
+    int e = add_name(set->vfs, &set->paths, path);
+    if (e) return e;
     source_file_t* f = &set->files[set->count];
     memset(f, 0, sizeof *f);
-    if (strlen(path) >= sizeof f->path) return MCS_VFS_ENAMETOOLONG;
-    strcpy(f->path, path);
+    f->path = offset;
     return (int)set->count++;
 }
-static int collect_source(void* ud, const char* name, const mcs_vfs_stat_t* st) {
-    source_set_t* set = (source_set_t*)ud;
-    if (st->is_dir || !cs_extension(name) || !strncmp(name, ".studio", 7)) return 0;
-    char path[MCS_VFS_PATH_MAX];
-    size_t dl = strlen(set->dir), nl = strlen(name);
+static const char* source_path(const source_set_t* set, size_t at) {
+    return set->paths.data + set->files[at].path;
+}
+static int join_source_path(const char* dir, const char* name, char* path) {
+    size_t dl = strlen(dir), nl = strlen(name);
     size_t slash = dl == 1 ? 0 : 1;
-    if (dl + slash + nl >= sizeof path) { set->list_error = MCS_VFS_ENAMETOOLONG; return 1; }
-    memcpy(path, set->dir, dl);
+    if (dl + slash + nl >= MCS_VFS_PATH_MAX) return MCS_VFS_ENAMETOOLONG;
+    memcpy(path, dir, dl);
     if (slash) path[dl++] = '/';
     memcpy(path + dl, name, nl + 1);
-    int e = add_source(set, path);
-    if (e < 0) { set->list_error = e; return 1; }
+    return MCS_VFS_OK;
+}
+typedef struct {
+    source_set_t* set;
+    const char* dir;
+    name_list_t dirs;
+    int error;
+} source_scan_t;
+static int collect_source(void* ud, const char* name, const mcs_vfs_stat_t* st) {
+    source_scan_t* scan = (source_scan_t*)ud;
+    if (!strncmp(name, ".studio", 7)) return 0;
+    char path[MCS_VFS_PATH_MAX];
+    int e = join_source_path(scan->dir, name, path);
+    if (e) { scan->error = e; return 1; }
+    if (st->is_dir) e = add_unique_name(scan->set->vfs, &scan->dirs, path);
+    else if (cs_extension(name)) {
+        int added = add_source(scan->set, path);
+        if (added < 0) e = added;
+    }
+    if (e) { scan->error = e; return 1; }
     return 0;
+}
+#define MCS_SOURCE_SCAN_DEPTH 16
+static int scan_sources(source_set_t* set, const char* dir, unsigned depth) {
+    source_scan_t scan;
+    memset(&scan, 0, sizeof scan);
+    scan.set = set; scan.dir = dir;
+    int e = mcs_vfs_list(set->vfs, dir, collect_source, &scan);
+    if (!e) e = scan.error;
+    if (!e && depth < MCS_SOURCE_SCAN_DEPTH) {
+        for (size_t i = 0; i < scan.dirs.len; i += strlen(scan.dirs.data + i) + 1) {
+            e = scan_sources(set, scan.dirs.data + i, depth + 1);
+            if (e) break;
+        }
+    }
+    if (scan.dirs.data) vfs_alloc(set->vfs, scan.dirs.data, scan.dirs.cap, 0);
+    return e;
+}
+static void free_source_set(source_set_t* set) {
+    if (set->files) vfs_alloc(set->vfs, set->files, set->cap * sizeof(*set->files), 0);
+    if (set->paths.data) vfs_alloc(set->vfs, set->paths.data, set->paths.cap, 0);
 }
 static mcs_result_t source_error(source_set_t* set, const char* action, const char* path, int e) {
     return mcs_fail(set->vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
@@ -455,24 +501,29 @@ static mcs_result_t source_error(source_set_t* set, const char* action, const ch
 }
 static mcs_result_t visit_source(source_set_t* set, size_t at) {
     source_file_t* file = &set->files[at];
+    const char* path = source_path(set, at);
     if (file->state == 2 || file->state == 1) return MCS_OK; /* loaded or a namespace cycle */
     file->state = 1;
     char* src; size_t len;
-    int e = (mcs_vfs_flags(set->vfs, file->path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
-            : mcs_vfs_read_file(set->vfs, file->path, &src, &len);
-    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
+    int e = (mcs_vfs_flags(set->vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+            : mcs_vfs_read_file(set->vfs, path, &src, &len);
+    if (e) return source_error(set, set->check ? "check" : "run", path, e);
     name_list_t uses = {0};
     e = collect_usings(set->vfs, src, &uses);
     mcs_vfs_free(set->vfs, src, len);
-    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
+    if (e) {
+        if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
+        return source_error(set, set->check ? "check" : "run", path, e);
+    }
     for (size_t u = 0; u < uses.len; u += strlen(uses.data + u) + 1) {
         for (size_t i = 0; i < set->count; i++) {
             if (i == at) continue;
             char* candidate; size_t clen;
-            e = mcs_vfs_read_file(set->vfs, set->files[i].path, &candidate, &clen);
+            const char* candidate_path = source_path(set, i);
+            e = mcs_vfs_read_file(set->vfs, candidate_path, &candidate, &clen);
             if (e) {
                 if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-                return source_error(set, set->check ? "check" : "run", set->files[i].path, e);
+                return source_error(set, set->check ? "check" : "run", candidate_path, e);
             }
             bool provider = declares_namespace(candidate, uses.data + u);
             mcs_vfs_free(set->vfs, candidate, clen);
@@ -486,11 +537,11 @@ static mcs_result_t visit_source(source_set_t* set, size_t at) {
         }
     }
     if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-    e = mcs_vfs_read_file(set->vfs, file->path, &src, &len);
-    if (e) return source_error(set, set->check ? "check" : "run", file->path, e);
-    mcs_result_t r = set->check ? mcs_check_source(set->vm, file->path, src)
-        : at == set->root ? mcs_exec_source(set->vm, file->path, src)
-                          : mcs_exec_declarations(set->vm, file->path, src);
+    e = mcs_vfs_read_file(set->vfs, path, &src, &len);
+    if (e) return source_error(set, set->check ? "check" : "run", path, e);
+    mcs_result_t r = set->check ? mcs_check_source(set->vm, path, src)
+        : at == set->root ? mcs_exec_source(set->vm, path, src)
+                          : mcs_exec_declarations(set->vm, path, src);
     mcs_vfs_free(set->vfs, src, len);
     if (r == MCS_OK) file->state = 2;
     return r;
@@ -516,6 +567,7 @@ static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char
     name_list_t root_uses = {0};
     e = collect_usings(vfs, root_src, &root_uses);
     if (e) {
+        if (root_uses.data) vfs_alloc(vfs, root_uses.data, root_uses.cap, 0);
         mcs_vfs_free(vfs, root_src, root_len);
         return mcs_fail(vm, MCS_ERR_MEMORY, "cannot %s '%s': %s",
                         check ? "check" : "run", norm, mcs_vfs_strerror(e));
@@ -529,25 +581,21 @@ static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char
     }
     vfs_alloc(vfs, root_uses.data, root_uses.cap, 0);
     mcs_vfs_free(vfs, root_src, root_len);
-    strcpy(set.dir, norm);
-    char* slash = strrchr(set.dir, '/');
-    if (slash == set.dir) set.dir[1] = 0; else *slash = 0;
-    e = mcs_vfs_list(vfs, set.dir, collect_source, &set);
-    if (!e) e = set.list_error;
-    if (e) {
-        if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
-        return mcs_fail(vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
-                        "cannot scan '%s': %s", set.dir, mcs_vfs_strerror(e));
-    }
     int root = add_source(&set, norm);
     if (root < 0) {
-        if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
+        free_source_set(&set);
         return mcs_fail(vm, root == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
-                        "cannot scan '%s': %s", set.dir, mcs_vfs_strerror(root));
+                        "cannot scan '/': %s", mcs_vfs_strerror(root));
     }
     set.root = (size_t)root;
+    e = scan_sources(&set, "/", 0);
+    if (e) {
+        free_source_set(&set);
+        return mcs_fail(vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
+                        "cannot scan '/': %s", mcs_vfs_strerror(e));
+    }
     mcs_result_t r = visit_source(&set, set.root);
-    if (set.files) vfs_alloc(vfs, set.files, set.cap * sizeof(*set.files), 0);
+    free_source_set(&set);
     return r;
 }
 

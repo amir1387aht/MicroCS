@@ -105,9 +105,15 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   // open-file language model + using-driven source dependency loading
   const oledSource = 'namespace App.Display { public class Display { public int Center_Width(string text) { return text.Length; } public void DrawCentered(string text) {} } }\n';
   const appSource = 'using App.Display;\nnamespace App.MainApp { public class MainApp { public Display display; public void Start() { display = new Display(); Console.WriteLine(display.Center_Width(\"hey\")); } } }\nvar app = new MainApp(); app.Start();\n';
-  fs.writeFileSync(ROOT + '/studio-ns-lib.cs', oledSource);
-  fs.writeFileSync(ROOT + '/studio-ns-app.cs', appSource);
-  await page.evaluate(async () => { await App.refresh(); await App.openPath('/studio-ns-lib.cs'); await App.openPath('/studio-ns-app.cs'); });
+  fs.mkdirSync(ROOT + '/lib/display', { recursive: true });
+  fs.mkdirSync(ROOT + '/apps', { recursive: true });
+  fs.writeFileSync(ROOT + '/lib/display/studio-ns-lib.cs', oledSource);
+  fs.writeFileSync(ROOT + '/apps/studio-ns-app.cs', appSource);
+  await page.evaluate(async () => {
+    await App.refresh();
+    await App.openPath('/lib/display/studio-ns-lib.cs');
+    await App.openPath('/apps/studio-ns-app.cs');
+  });
   await page.waitForTimeout(50);
   const pathItems = await page.evaluate(() => {
     const keep = ed.ta.value, sel = [ed.ta.selectionStart, ed.ta.selectionEnd];
@@ -126,8 +132,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#btnRun');
   await page.waitForFunction(() => !App.workflowBusy && !dev.pending, null, { timeout: 10000 });
   tt = await page.innerText('#term');
-  check(!/▶ load \/studio-ns-lib\.cs/.test(tt) && /▶ run \/studio-ns-app\.cs[\s\S]*\n3\n/.test(tt),
-    'compiler resolves using App.Display without Studio running the provider');
+  check(!/▶ load \/lib\/display\/studio-ns-lib\.cs/.test(tt) && /▶ run \/apps\/studio-ns-app\.cs[\s\S]*\n3\n/.test(tt),
+    'compiler resolves cross-folder using App.Display without Studio running the provider');
   await page.evaluate(() => App.activate(App.tabs.find(t => t.path === '/hello.cs').id));
 
   await page.evaluate(() => store.set('saveAllCs', false));
