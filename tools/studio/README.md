@@ -67,6 +67,13 @@ only the selected file. Selection-run is an explicit exception: it executes just
 Parameter info closes on outside pointer clicks, Escape, its × button, focus loss and moving
 out of the call; it should not block other controls.
 
+IntelliSense combines the symbols from all open C# tabs, so a variable whose type is declared
+in another open file offers that class's fields and methods. Built-in class completion also
+opens for a single capital letter (`P` includes `Path`). When **Run file** sees
+`using App.Display;`, it scans the active file's device folder for `.cs` files declaring
+`namespace App.Display`, loads those providers first, and follows their `using` dependencies
+transitively. Each provider is loaded once per run; namespace cycles do not loop.
+
 ## Project mode
 
 1. Create a device folder (or use `/`), with C# scripts and a `jobs.cfg` file. Use the existing
@@ -108,7 +115,9 @@ upload/verification is required before marking the text saved. Local files still
 
 Project mode needs firmware with the compiler, scheduler and `project` command. Checks compile
 individual scripts, not a linked multi-file assembly or persistent `.mcsb` output. There is no
-implicit cross-file initialization: `using` and `namespace` are accepted/ignored, not loaders.
+implicit cross-file initialization for **Project jobs**: `using` and `namespace` remain
+compile-time names there, because delayed/periodic jobs may execute in isolated VMs. The
+automatic same-folder loading described above applies to **Run file**, not `jobs.cfg`.
 For a two-file display app, list the dependency first:
 
 ```text

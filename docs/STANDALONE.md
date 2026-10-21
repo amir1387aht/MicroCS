@@ -175,6 +175,8 @@ Dark (Light via the theme button).
   view. Find / replace (`Ctrl+F` / `Ctrl+H`, match case, whole word, regex), go to line
   (`Ctrl+G`), format document (`Shift+Alt+F`), move / copy lines (`Alt+↑↓`), bracket matching.
   Automatic line/paste formatting and format-on-save are on by default (independent ⋯ settings).
+  Run file resolves `using` directives to source files declaring that namespace in the same
+  device folder and loads them first.
   Unsaved files are kept in the browser and come back after a reload.
 * **Projects** — Project… chooses a device folder containing `jobs.cfg`. F5 / Run project
   saves the open project sources/config, checks every discovered project source, then schedules
@@ -188,7 +190,8 @@ Dark (Light via the theme button).
   signature or type; `using System.C` completes namespaces. Types are inferred from
   `var x = new T()`, declarations, method return types (`var found = I2C.Scan(0)` →
   `List<int>`), `foreach` and chains like `s.Trim().Split(',')`; the classes, fields,
-  methods and local functions of the open file are completed too. 77 snippets such as `cw`,
+  methods and local functions from all open C# files are completed too; a single capital
+  letter can open built-in class suggestions (`P` includes `Path`). 77 snippets such as `cw`,
   `for`, `try`, `pin`, `every`, `i2cdev`, `spicfg`, `dmabuf`, `u8g2`, `wifi`, `httpget`, `json`,
   `httpserver`, `wsserver`, `wsclient`, `captive`.
 * **Templates** (`Alt+T`) — 194 ready-to-run templates and examples in an *Add New Item* dialog

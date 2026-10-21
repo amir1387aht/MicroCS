@@ -102,6 +102,33 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(fs.readFileSync(ROOT + '/hello.cs', 'utf8').endsWith('Console.WriteLine(6 * 7);'), 'saved to device fs');
   check(await page.$('.tab.dirty') === null, 'tab clean after save');
 
+  // open-file language model + using-driven source dependency loading
+  const oledSource = 'namespace App.Display { public class Display { public int Center_Width(string text) { return text.Length; } public void DrawCentered(string text) {} } }\n';
+  const appSource = 'using App.Display;\nnamespace App.MainApp { public class MainApp { public Display display; public void Start() { display = new Display(); Console.WriteLine(display.Center_Width(\"hey\")); } } }\nvar app = new MainApp(); app.Start();\n';
+  fs.writeFileSync(ROOT + '/studio-ns-lib.cs', oledSource);
+  fs.writeFileSync(ROOT + '/studio-ns-app.cs', appSource);
+  await page.evaluate(async () => { await App.refresh(); await App.openPath('/studio-ns-lib.cs'); await App.openPath('/studio-ns-app.cs'); });
+  await page.waitForTimeout(50);
+  const pathItems = await page.evaluate(() => {
+    const keep = ed.ta.value, sel = [ed.ta.selectionStart, ed.ta.selectionEnd];
+    ed.ta.value = keep + '\nP'; ed.ta.setSelectionRange(ed.ta.value.length, ed.ta.value.length); ed.suggest(false);
+    const out = ed.items.map(x => x.label);
+    ed.hideComplete(); ed.ta.value = keep; ed.ta.setSelectionRange(sel[0], sel[1]); ed.refresh(true);
+    return out;
+  });
+  check(pathItems.includes('Path'), 'single-capital class completion includes Path');
+  const crossItems = await page.evaluate(() => {
+    const at = ed.ta.value.indexOf('display.Center_Width') + 'display.'.length;
+    ed.ta.setSelectionRange(at, at); ed.suggest(true);
+    const out = ed.items.map(x => x.label); ed.hideComplete(); return out;
+  });
+  check(crossItems.includes('Center_Width') && crossItems.includes('DrawCentered'), 'members from another open source file: ' + crossItems.slice(0, 5));
+  await page.click('#btnRun');
+  await page.waitForFunction(() => !App.workflowBusy, null, { timeout: 10000 });
+  tt = await page.innerText('#term');
+  check(/▶ load \/studio-ns-lib\.cs[\s\S]*▶ run \/studio-ns-app\.cs[\s\S]*\n3\n/.test(tt), 'using App.Display loads the provider before the app');
+  await page.evaluate(() => App.activate(App.tabs.find(t => t.path === '/hello.cs').id));
+
   await page.evaluate(() => store.set('saveAllCs', false));
 
   // REPL again after machine ops
@@ -138,11 +165,12 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#gCats div[data-c="Scheduler"]'); await page.click('#gItems .item b:text-is("State machine with jobs")');
   await page.screenshot({ path: OUT + '/4_templates.png' });
   await tpl('Files and free space');
+  const finishedBeforeTemplate = await page.evaluate(() => (document.getElementById('term').innerText.match(/finished in/g) || []).length);
   await page.click('#btnRun');
   await page.waitForSelector('#dlgIn');
   check((await page.inputValue('#dlgIn')) === '/files.cs', 'save dialog suggests ' + await page.inputValue('#dlgIn'));
   await page.press('#dlgIn', 'Enter');
-  await page.waitForFunction(() => (document.getElementById('term').innerText.match(/finished in/g) || []).length >= 2, null, { timeout: 8000 }).catch(() => {});
+  await page.waitForFunction(n => (document.getElementById('term').innerText.match(/finished in/g) || []).length > n, finishedBeforeTemplate, { timeout: 8000 }).catch(() => {});
   tt = await page.innerText('#term');
   check(/KB free of .* KB \(posix\)/.test(tt), 'template ran (DriveInfo)');
   check(fs.existsSync(ROOT + '/files.cs') && fs.existsSync(ROOT + '/log.txt'), 'files.cs saved, log.txt written by script');
