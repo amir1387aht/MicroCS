@@ -46,10 +46,10 @@ static void pool_tests(void) {
     void* whole=mcs_pool_realloc(&p,NULL,0,p.size-MCS_POOL_OVERHEAD);
     CHECK(whole!=NULL); mcs_pool_realloc(&p,whole,p.size-MCS_POOL_OVERHEAD,0); CHECK(!p.used);
 }
-typedef struct { mcs_pool_t pool; int countdown; } alloc_t;
+typedef struct { mcs_pool_t pool; int countdown, fired; } alloc_t;
 static void* alloc(void* ud, void* ptr, size_t old, size_t n) {
     alloc_t* a=ud;
-    if(n>old && a->countdown>0 && --a->countdown==0) return NULL;
+    if(n>old && a->countdown>0 && --a->countdown==0) { a->fired=1; return NULL; }
     return mcs_pool_realloc(&a->pool,ptr,old,n);
 }
 static void quiet(void* ud,const char* s,size_t n) { (void)ud;(void)s;(void)n; }
@@ -58,17 +58,25 @@ static void oom_tests(void) {
     mcs_config_t cfg; mcs_config_default(&cfg); cfg.realloc_fn=alloc;cfg.alloc_ud=&a;
     cfg.alloc_overhead=MCS_POOL_OVERHEAD;cfg.heap_limit=sizeof heap;cfg.write_fn=quiet;
     mcs_vm_t* vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm)return;
+    CHECK(mcs_exec_source(vm,"retained.cs","class Previous { int Read() { return 42; } } var previous=new Previous(); var callback=previous.Read;")==MCS_OK);
     const char* src="class Box { int value; Box(int x) { value=x; } int Get() { Func<int> f=()=>value; return f(); } } var b=new Box(42);";
-    CHECK(mcs_check_source(vm,"forced.cs",src)==MCS_OK); mcs_gc(vm);
+    /* Settle weak-intern-table capacity before comparing physical pool use. */
+    for(int warm=0;warm<3;warm++) { CHECK(mcs_check_source(vm,"forced.cs",src)==MCS_OK); mcs_gc(vm); }
     size_t baseline=a.pool.used; int injected=0;
-    for(int site=1;site<90;site++) {
-        a.countdown=site; mcs_result_t st=mcs_check_source(vm,"forced.cs",src);
+    bool complete=false;
+    for(int site=1;site<2000;site++) {
+        a.countdown=site; a.fired=0; mcs_result_t st=mcs_check_source(vm,"forced.cs",src);
         if(st==MCS_ERR_MEMORY)injected++;
         else CHECK(st==MCS_OK);
+        bool hit=a.fired!=0;
         a.countdown=0; mcs_gc(vm);
         CHECK(a.pool.used==baseline); validate(&a.pool);
+        mcs_value_t result;
+        CHECK(mcs_call_value(vm,mcs_get_global(vm,"callback"),0,NULL,&result)==MCS_OK);
+        CHECK(mcs_to_int(vm,result)==42);
+        if(!hit) { complete=true; break; }
     }
-    CHECK(injected>10);
+    CHECK(complete); CHECK(injected>10);
     CHECK(mcs_exec_source(vm,"recover.cs","int recovered=42;")==MCS_OK);
     mcs_free(vm); CHECK(a.pool.used==0);
     mcs_config_default(&cfg); cfg.write_fn=quiet; vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm)return;

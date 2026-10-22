@@ -362,6 +362,12 @@ libraries, fonts, diagnostics, numeric precision and normal profile stack/frame 
 it does not use a reduced feature profile. This is a tested application budget, **not** a
 promise that arbitrary C# programs or the entire board firmware fit in 40 KiB.
 
+A separate [larger-app regression](tests/projects/oled_repeat/) uses a **64 KiB
+32-bit pool** for 100 upload/check/run cycles with both GPIO and hardware-timer
+callbacks still live. Method syntax trees are parsed and released one at a time
+so rebuilding does not retain every old-app object beside a full new-program AST.
+Compile-only checks preserve the running application's state and callbacks.
+
 Studio shows compact **VM heap used / peak** telemetry; click it to expand or collapse
 physical pool and optional device-heap details. Stack/frame allocations are already in
 pool totals. Device heap already includes the reserved VM pool: **do not add them together**.

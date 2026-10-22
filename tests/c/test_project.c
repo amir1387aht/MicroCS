@@ -48,6 +48,14 @@ int main(void) {
     CHECK(mcs_to_int(vm, mcs_get_global(vm, "retained")) == 42);
     mcs_vfs_stat_t st; CHECK(mcs_vfs_stat(&vfs, "/should_not_exist", &st) == MCS_VFS_ENOENT);
     CHECK(mcs_check_source(vm, "bad.cs", "int broken = ;") == MCS_ERR_COMPILE);
+    /* Delayed bodies still receive full syntax/codegen validation, even for
+     * compile-only checks. Failed checks must not execute or replace globals. */
+    CHECK(mcs_check_source(vm, "method-error.cs", "class Bad { int Broken() { return ; int x = ; } }") == MCS_ERR_COMPILE);
+    CHECK(strstr(mcs_last_error(vm), "method-error.cs(1,45):") != NULL);
+    CHECK(mcs_check_source(vm, "arrow-error.cs", "class Bad { int Broken() => ; }") == MCS_ERR_COMPILE);
+    CHECK(mcs_check_source(vm, "interface-error.cs", "interface Bad { int Broken() { int x = ; } }") == MCS_ERR_COMPILE);
+    CHECK(mcs_check_source(vm, "method-recovery.cs", "class Valid { int Read() => 42; }") == MCS_OK);
+    CHECK(mcs_to_int(vm, mcs_get_global(vm, "retained")) == 42);
     CHECK(mcs_exec_source(vm, "ok.cs", "retained += 1;") == MCS_OK);
     char* huge = malloc(65540); CHECK(huge != NULL);
     if (huge) {
