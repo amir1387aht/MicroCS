@@ -127,7 +127,7 @@ jobs:
           python3 -m pip install kconfiglib==14.1.0
           python3 tests/test_esp_config.py
       - name: Capability-aware template metadata and filtering
-        run: node tests/studio/test_capabilities.js && node tests/studio/test_upload_stop.js && python3 tests/test_template_metadata.py
+        run: node tests/studio/test_capabilities.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && python3 tests/test_template_metadata.py
       - name: Script input echo ownership (machine protocol and raw REPL)
         run: python3 tests/test_readline_echo.py ./mcs
       - name: C# interpolated / verbatim string highlighting

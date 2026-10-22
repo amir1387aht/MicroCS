@@ -720,11 +720,15 @@ class Editor {
     this.ta.value = tab.text;
     this.ta.readOnly = !!tab.readOnly;
     this.refresh(true);
+    // Claim focus now, not in a later frame that could steal a console/dialog
+    // edit started after tab activation. Stale tab callbacks must not restore
+    // another tab's caret either.
+    this.ta.focus({ preventScroll: true });
     requestAnimationFrame(() => {
+      if (this.tab !== tab || document.activeElement !== this.ta) return;
       this.ta.setSelectionRange(tab.sel?.[0] || 0, tab.sel?.[1] || 0);
       this.ta.scrollTop = tab.scroll?.[0] || 0; this.ta.scrollLeft = tab.scroll?.[1] || 0;
       this.syncScroll(); this.cursorMoved();
-      this.ta.focus({ preventScroll: true });
     });
   }
   stash() {
@@ -2338,15 +2342,16 @@ const App = {
       return;
     }
     const lines = text.split("\n");
-    const wasRepl = dev.mode === "repl";
-    const cur = term.lineText;
-    const atPrompt = wasRepl && /^(> |\.\.\. )$/.test(cur);
-    if (term.cells.length && !atPrompt) term.newline();
-    lines.forEach((l, i) => { if (!(i === 0 && atPrompt)) term.write(i ? "... " : "> ", "in"); term.write(l + "\n", "in"); });
-    this.echoQ = lines.map((l) => l + "\r\n").join("");
     try {
       await dev.op(async () => {
         await dev.repl();
+        // Earlier queued machine operations may still flush a prompt/output.
+        // Render and arm echo filtering only once this command owns the line,
+        // after the REPL transition has consumed its banner and first prompt.
+        const atPrompt = /^(> |\.\.\. )$/.test(term.lineText);
+        if (term.cells.length && !atPrompt) term.newline();
+        lines.forEach((l, i) => { if (!(i === 0 && atPrompt)) term.write(i ? "... " : "> ", "in"); term.write(l + "\n", "in"); });
+        this.echoQ = lines.map((l) => l + "\r\n").join("");
         await dev.write(lines.map((l) => l + "\r").join(""));
       });
     } catch (e) { this.echoQ = ""; term.line(e.message, "err"); }

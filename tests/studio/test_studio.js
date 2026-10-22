@@ -156,8 +156,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
 
   // REPL again after machine ops
   await page.fill('#cin', 'x + 1'); await page.press('#cin', 'Enter');
-  await page.waitForFunction(() => /\n22\n/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
-  check(/> x \+ 1\n22/.test(await page.innerText('#term')), 'REPL state survives file ops');
+  await page.waitForFunction(() => /> x \+ 1\n22/.test(document.getElementById('term').innerText), null, { timeout: 5000 }).catch(() => {});
+  tt = await page.innerText('#term');
+  const replStateOk = /> x \+ 1\n22/.test(tt);
+  check(replStateOk, 'REPL state survives file ops' + (replStateOk ? '' : ': ' + JSON.stringify(tt.slice(-1400))));
 
   // completion
   await page.click('#ta'); await page.keyboard.press('Control+End'); await page.keyboard.press('Enter');
