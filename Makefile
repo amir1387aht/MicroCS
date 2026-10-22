@@ -425,3 +425,9 @@ memory-test: build/test_memory build/test_dynamic_stack
 	./build/test_memory
 	./build/test_dynamic_stack
 	@if command -v node >/dev/null 2>&1; then node tests/studio/test_memory.js; fi
+
+# Actual two-file app with timer/GPIO callbacks; separate from the smaller 40 KiB fixture.
+oled-repeat-test: mcs-u8g2
+	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_repeat.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_repeat $(LDLIBS)
+	./build/test_oled_repeat
+.PHONY: oled-repeat-test

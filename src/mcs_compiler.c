@@ -1505,6 +1505,7 @@ static void emit_ctor_prologue(comp_t* c, member_t* m, classdecl_t* cls, bool ne
 static bool class_needs_init(classdecl_t* d);
 
 static void emit_closure(comp_t* c, funcdecl_t* f, int kind, classdecl_t* cls, const char* name, uint32_t nlen, member_t* ctor) {
+    if (f->body_src && !mcs_parse_method(c->ctx, f)) longjmp(c->jb, 1);
     fcomp_t* prev = c->fc;
     fcomp_t* fc = c->fc_free;
     if (fc) {
@@ -1594,6 +1595,10 @@ static void emit_closure(comp_t* c, funcdecl_t* f, int kind, classdecl_t* cls, c
     emit_op16(c, OP_CLOSURE, konst(c, OBJ_VAL(fn)));
     for (int u = 0; u < fc->nupv; u++) { emit(c, fc->upv[u].is_local); emit(c, fc->upv[u].index); }
     fc->enc = c->fc_free; c->fc_free = fc; /* finished: reuse for the next function */
+    if (f->body_src) {
+        f->body = NULL;
+        arena_free(c->ctx->body_arena);
+    }
 }
 
 /* ------------------------------------------------------------ classes */
@@ -1624,7 +1629,7 @@ static void emit_def(comp_t* c, uint8_t op, const char* name, uint32_t len, uint
 
 static bool first_decl(member_t* list, member_t* m, const char* name, uint32_t len) {
     for (member_t* x = list; x && x != m; x = x->next) {
-        if (x->kind == M_METHOD && name_eq(x->fn->name, x->fn->len, name, len) && ((x->mods & MOD_STATIC) == (m->mods & MOD_STATIC)) && x->fn->body) return false;
+        if (x->kind == M_METHOD && name_eq(x->fn->name, x->fn->len, name, len) && ((x->mods & MOD_STATIC) == (m->mods & MOD_STATIC)) && (x->fn->body || x->fn->body_src)) return false;
         if (x->kind == M_CTOR && m->kind == M_CTOR && !(x->mods & MOD_STATIC)) return false;
         if (x->kind == M_OPERATOR && m->kind == M_OPERATOR && name_eq(x->name, x->len, name, len)) return false;
     }
@@ -1704,7 +1709,7 @@ static void emit_class(comp_t* c, classdecl_t* d) {
             }
             break;
         case M_METHOD:
-            if (!m->fn->body) break; /* abstract / interface */
+            if (!m->fn->body && !m->fn->body_src) break; /* abstract / interface */
             emit_closure(c, m->fn, (m->mods & MOD_STATIC) ? FK_STATIC : FK_METHOD, d, m->fn->name, m->fn->len, NULL);
             emit_def(c, (m->mods & MOD_STATIC) ? OP_STATIC : OP_METHOD, m->fn->name, m->fn->len,
                      first_decl(d->members, m, m->fn->name, m->fn->len) ? 1 : 0);
@@ -1832,11 +1837,11 @@ static void topo_visit(comp_t* c, classdecl_t* d, classdecl_t** out, int* n) {
 static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char* src, bool declarations_only) {
     /* Mutable cleanup state must survive longjmp. A non-volatile stack arena
      * or token owner modified after setjmp would have indeterminate values. */
-    typedef struct { arena_t arena; front_ctx_t ctx; program_t prog; } workspace_t;
+    typedef struct { arena_t arena, body_arena; front_ctx_t ctx; program_t prog; } workspace_t;
     workspace_t* w = (workspace_t*)mcs_realloc(vm, NULL, 0, sizeof(workspace_t));
     memset(w, 0, sizeof *w);
-    w->arena.vm = vm;
-    w->ctx = (front_ctx_t){ .vm = vm, .arena = &w->arena, .src_name = name };
+    w->arena.vm = vm; w->body_arena.vm = vm;
+    w->ctx = (front_ctx_t){ .vm = vm, .arena = &w->arena, .body_arena = &w->body_arena, .src_name = name };
     vm->gc_pause++;
     mcs_function_t* volatile result = NULL;
     /* an out-of-memory panic during compilation must not leak the AST arena:
@@ -1847,6 +1852,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
     if ((pcode = setjmp(pjb)) != 0) {
         vm->panic = prev_panic;
         mcs_front_free_tokens(&w->ctx);
+        arena_free(&w->body_arena);
         arena_free(&w->arena);
         mcs_realloc(vm, w, sizeof *w, 0);
         vm->gc_pause--;
@@ -1911,7 +1917,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
         if (!declarations_only && !has_code) {
             for (int i = 0; i < n; i++) {
                 member_t* m = find_member(order[i], "Main", 4, NULL);
-                if (m && m->kind == M_METHOD && (m->mods & MOD_STATIC) && m->fn->body) {
+                if (m && m->kind == M_METHOD && (m->mods & MOD_STATIC) && (m->fn->body || m->fn->body_src)) {
                     emit_class_ref(c, order[i]);
                     if (m->fn->nparams) { emit_op8(c, OP_INT8, 0); emit_op8(c, OP_NEW_ARRAY, CV_NULL); }
                     emit_invoke(c, OP_INVOKE, "Main", 4, m->fn->nparams ? 1 : 0);
@@ -1926,6 +1932,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
     }
 done:
     mcs_front_free_tokens(&w->ctx);
+    arena_free(&w->body_arena);
     arena_free(&w->arena);
     if (result) mcs_fn_trim(vm, result);
     vm->panic = prev_panic;

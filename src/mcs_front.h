@@ -136,6 +136,8 @@ typedef struct funcdecl {
     uint8_t expr_body;
     uint8_t is_static;
     uint32_t line;
+    const char* body_src;    /* deferred method body; points into the source */
+    uint32_t body_len, body_line, body_col;
 } funcdecl_t;
 
 typedef struct member {
@@ -181,17 +183,23 @@ typedef struct {
     node_t* stmts_tail;
 } program_t;
 
+typedef struct { const char* name; uint32_t len; typeref_t* ty; } tuple_member_t;
+
 /* ---------------------------------------------------------- API */
 typedef struct {
     mcs_vm_t* vm;
     arena_t* arena;
     const char* src_name;
     int errors;
+    arena_t* body_arena;     /* one method syntax tree at a time */
+    tuple_member_t tuple_members[32];
+    int tuple_member_count;
     toklist_t heap_tokens; /* paged main tokens; owned even across allocation longjmp */
 } front_ctx_t;
 
 bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, toklist_t* out);
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog);
+bool mcs_parse_method(front_ctx_t* ctx, funcdecl_t* f);
 mcs_int_t mcs_token_int(const token_t* t);
 #if MCS_ENABLE_FLOAT
 mcs_float_t mcs_token_float(const token_t* t);

@@ -21,7 +21,7 @@ typedef struct {
     int ntvars;
     /* fields/properties/variables declared anywhere with a named tuple type, found
        by a token pre-scan so `obj.P = (1, 2)` works before the class is parsed */
-    struct { const char* name; uint32_t len; typeref_t* ty; } tmems[32];
+    tuple_member_t tmems[32];
     int ntmems;
     char tokbuf[48];            /* tokname() text (per parser: VMs may compile on several threads) */
 } parser_t;
@@ -1116,6 +1116,40 @@ static void parse_func_body(parser_t* P, funcdecl_t* f) {
     }
 }
 
+/* Keep signatures for class resolution, but do not retain every method AST
+ * while emitting its siblings. Token-aware boundaries ignore braces in
+ * comments/strings; the normal parser validates each body before codegen. */
+static void defer_method_body(parser_t* P, funcdecl_t* f) {
+    skip_where(P);
+    if (!check(P, TK_LBRACE) && !check(P, TK_ARROW)) {
+        parse_func_body(P, f);
+        return;
+    }
+    token_t start = *CUR;
+    bool block = check(P, TK_LBRACE);
+    int braces = 0, parens = 0, brackets = 0;
+    for (;;) {
+        token_t* t = CUR;
+        if (t->type == TK_EOF) perr(P, t, "expected method body terminator");
+        int ty = t->type;
+        if (ty == TK_LBRACE) braces++;
+        else if (ty == TK_RBRACE) braces--;
+        else if (ty == TK_LPAREN) parens++;
+        else if (ty == TK_RPAREN) parens--;
+        else if (ty == TK_LBRACK) brackets++;
+        else if (ty == TK_RBRACK) brackets--;
+        const char* finish = t->start + t->len;
+        adv(P);
+        if ((block && braces == 0) ||
+            (!block && ty == TK_SEMI && !braces && !parens && !brackets)) {
+            f->body_src = start.start;
+            f->body_len = (uint32_t)(finish - start.start);
+            f->body_line = start.line; f->body_col = start.col;
+            return;
+        }
+    }
+}
+
 static node_t* parse_block(parser_t* P) {
     token_t* t = expect(P, TK_LBRACE, "'{'");
     node_t* b = mk(P, N_BLOCK, t);
@@ -1668,8 +1702,9 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
                 m->ctor_args = parse_args(P, TK_RPAREN);
                 m->has_ctor_call = 1;
             }
-            parse_func_body(P, m->fn);
-            if (!m->fn->body) perr(P, nm, "constructor needs a body");
+            if (c->kind == C_INTERFACE) parse_func_body(P, m->fn);
+            else defer_method_body(P, m->fn);
+            if (!m->fn->body && !m->fn->body_src) perr(P, nm, "constructor needs a body");
             ADDM(m);
             continue;
         }
@@ -1688,7 +1723,8 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
             if (!nm) perr(P, opt, "unsupported operator overload");
             m->name = nm; m->len = (uint32_t)strlen(nm);
             m->fn->name = nm; m->fn->len = m->len; m->fn->ret = ty; m->fn->is_static = 1;
-            parse_func_body(P, m->fn);
+            if (c->kind == C_INTERFACE) parse_func_body(P, m->fn);
+            else defer_method_body(P, m->fn);
             ADDM(m);
             continue;
         }
@@ -1727,7 +1763,8 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
             if (check(P, TK_LT)) skip_type_args(P);
             expect(P, TK_LPAREN, "'('");
             m->fn->params = parse_params(P, TK_RPAREN, &m->fn->nparams);
-            parse_func_body(P, m->fn);
+            if (c->kind == C_INTERFACE) parse_func_body(P, m->fn);
+            else defer_method_body(P, m->fn);
             if (!m->fn->body && !(mods & (MOD_ABSTRACT)) && c->kind != C_INTERFACE) {
                 if (!(mods & MOD_STATIC) || true) { /* extern/partial: treat as abstract */ }
             }
@@ -1898,8 +1935,35 @@ bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog) {
     P->ctx = ctx; P->A = ctx->arena; P->tokens = tl; P->n = tl.count; P->pos = 0; P->prog = prog;
     if (setjmp(P->jb)) { mcs_front_free_tokens(ctx); return false; }
     prescan_tuple_members(P);
+    ctx->tuple_member_count = P->ntmems;
+    memcpy(ctx->tuple_members, P->tmems, sizeof P->tmems);
     parse_namespace_members(P, false);
     mcs_front_free_tokens(ctx);   /* the AST points into the source text, not into tokens */
     return ctx->errors == 0;
 }
+
+bool mcs_parse_method(front_ctx_t* ctx, funcdecl_t* f) {
+    toklist_t tl = {0}; tl.heap = 1;
+    if (!mcs_lex(ctx, f->body_src, f->body_len, f->body_line, &tl)) {
+        mcs_front_free_tokens(ctx); return false;
+    }
+    /* The second lexer starts at the body, not at the start of its line. */
+    for (uint32_t i = 0; i < tl.count; i++) {
+        token_t* t = mcs_tok_at(&tl, i);
+        if (t->line != f->body_line) break;
+        uint32_t col = t->col + f->body_col - 1;
+        t->col = col > 4095 ? 4095 : col;
+    }
+    parser_t parser; parser_t* P = &parser;
+    memset(P, 0, sizeof *P);
+    P->ctx = ctx; P->A = ctx->body_arena; P->tokens = tl; P->n = tl.count;
+    P->ntmems = ctx->tuple_member_count;
+    memcpy(P->tmems, ctx->tuple_members, sizeof P->tmems);
+    if (setjmp(P->jb)) { mcs_front_free_tokens(ctx); return false; }
+    parse_func_body(P, f);
+    expect(P, TK_EOF, "end of method body");
+    mcs_front_free_tokens(ctx);
+    return ctx->errors == 0;
+}
+
 #endif

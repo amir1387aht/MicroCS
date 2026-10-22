@@ -48,7 +48,7 @@ profile defaults. This is **not** a reduced build profile.
 Compiler, libraries, display/fonts, diagnostics and numeric precision are not
 removed. Public stack/frame defaults are unchanged. Deeper/larger applications
 may require more RAM and eventually larger safety ceilings; 40 KiB is not a guarantee for arbitrary
-C# source, the user's unavailable original scripts, or all firmware RAM.
+C# source or all firmware RAM.
 The gate counts source/read buffers in the physical pool and checks that shutdown
 returns its usage to zero. It does not measure C call stacks, the static runtime
 struct, native SDK allocations or actual ESP32 hardware behavior.
@@ -72,6 +72,31 @@ Custom `app_main` code must set the same runtime fields and check `heap != NULL`
 before starting the runtime; example menuconfig settings do not modify custom
 entrypoints. Rebuild after changing them. Wi-Fi/BLE reserves and task stacks
 remain additional device costs, not part of the 40 KiB VM pool.
+
+## Rebuilding while the previous application is live
+
+A first run is not a sufficient memory test. GPIO and hardware-timer callbacks
+can keep the previous app instance, methods and display alive after its top-level
+script finishes. A compile-only check must preserve those callbacks and must not
+execute the replacement script to reclaim the old state.
+
+`tests/projects/oled_repeat` contains the larger reported menu application,
+including file enumeration and both callback types. The separate
+`oled-repeat-test` CI step uses a **64 KiB 32-bit application pool**, real U8g2 and
+all three selected fonts. It uploads both files, varies source size, checks them,
+starts the Project, and exercises GPIO/timer callbacks for **100 cycles in the
+same VM**. Checks assert that no display/timer side effects occur during a build,
+that the prior app is not replaced, and that warm retained usage stays bounded.
+Shutdown must return pool usage to zero. This is a host simulation, not a physical
+ESP32 measurement; it does not claim this larger app fits the smaller 40 KiB gate.
+
+The compiler retains class/member signatures for resolution but defers ordinary
+method, constructor and operator bodies until their bytecode is emitted. Each
+body's syntax tree is then released before the next method. This reduces both
+peak overlap with the live app and long-lived allocations interleaved with
+short-lived syntax trees. Full parsing, line/column diagnostics, nested closures,
+default arguments and named-tuple information remain available. Failed builds
+and allocator failures release the body workspace without stopping old callbacks.
 
 ## Where the reductions come from
 
