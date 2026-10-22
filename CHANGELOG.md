@@ -2,7 +2,9 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — source discovery hardening
+## 1.16.0 — Source discovery, bounded memory and Studio projects
+
+### Source discovery hardening
 
 * Discover providers at nested VFS mount roots even when no backing parent
   directory exists; deduplicate files already reached through the root walk.
@@ -16,7 +18,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 * Add nested-mount, no-execute, large-directory, moving-allocation, deep-cycle and
   exhaustive scratch-allocation failure regressions to `make project-test`.
 
-## Unreleased — bounded memory and accurate telemetry
+### Bounded memory and accurate telemetry
 
 * Compact paged compiler tokens and AST storage; release consumed declarations,
   trim completed methods, and preserve configured execution limits while returning
@@ -30,7 +32,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 * ESP32 example pool ceiling/stack/frame settings and fail-closed allocation;
   existing defaults remain unchanged. See `docs/MEMORY.md` for scope/exclusions.
 
-## Unreleased — Studio project workflow
+### Studio project workflow
+
+* **CI readiness** — wait for asynchronous storage/memory telemetry before asserting
+  values, deliberately delay initial memory replies, and summarize failed assertions.
 
 * **Studio formatting** — safe offline C# whitespace formatter, explicit document formatting,
   default-on line/paste formatting and format-on-save; preserve literal/comment contents.
@@ -52,7 +57,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 * **Tests/docs** — formatter, compiler/project transaction and real-shell browser regressions;
   usage, compatibility and deployment caveats documented. No physical-board validation.
 
-## Unreleased — Power management, memory recovery and documentation audit
+### Power management, memory recovery and documentation audit
 
 * **Repeated-run memory recovery** — collect dead objects before an idle top-level
   source run starts compilation; preserve live globals and callbacks. Fixed-pool
