@@ -382,10 +382,17 @@ can-test: build/test_can
 .PHONY: project-test
 build/test_project: tests/c/test_project.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
-project-test: build/test_project
+build/test_source_resolver: tests/c/test_source_resolver.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+build/test_posix_list_oom: tests/c/test_posix_list_oom.c modules/fs/mcs_vfs_posix.c include/mcs_vfs.h | build
+	$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
+project-test: build/test_project build/test_source_resolver build/test_posix_list_oom
 	@for defs in "-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_COMPILER=0" "-DMCS_ENABLE_FS=0 -DMCS_ENABLE_COMPILER=0"; do \
 	  $(CC) $(CFLAGS) -Werror $$defs -c modules/sched/mcs_sched.c -o build/project_flags.o || exit 1; done
 	./build/test_project
+	./build/test_source_resolver
+	./build/test_posix_list_oom
+	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
 	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_upload_stop.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.

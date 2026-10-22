@@ -70,10 +70,10 @@ out of the call; it should not block other controls.
 IntelliSense combines the symbols from all open C# tabs, so a variable whose type is declared
 in another open file offers that class's fields and methods. Built-in class completion also
 opens for a single capital letter (`P` includes `Path`). The firmware compiler resolves source
-dependencies: when a `.cs` file uses `using App.Display;`, file execution scans the same device
-folder for `.cs` files declaring `namespace App.Display` and installs their type declarations
-before compiling/running the requested file. It follows transitive dependencies once and breaks
-namespace cycles. Dependency top-level statements and implicit `Main` methods do not run.
+dependencies: when a `.cs` file uses `using App.Display;`, file execution scans the mounted
+VFS for `.cs` files declaring `namespace App.Display`, including providers in different
+project folders, and installs their type declarations before compiling/running the requested
+file. It follows transitive dependencies once and breaks namespace cycles. Dependency top-level statements and implicit `Main` methods do not run.
 
 ## Project mode
 

@@ -105,27 +105,41 @@ static int p_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
     DIR* d = opendir(hp);
     if (!d) return map_errno(errno);
     /* sorted so output is deterministic across hosts */
-    char* names[256];
-    int count = 0;
+    char** names = NULL;
+    size_t count = 0, cap = 0;
+    int error = MCS_VFS_OK;
     struct dirent* de;
-    while ((de = readdir(d)) && count < 256) {
+    for (;;) {
+        errno = 0;
+        de = readdir(d);
+        if (!de) { if (errno) error = map_errno(errno); break; }
         if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, "..")) continue;
+        if (count == cap) {
+            size_t next = cap ? cap * 2 : 32;
+            if (next < cap || next > SIZE_MAX / sizeof(*names)) { error = MCS_VFS_ENOMEM; break; }
+            char** grown = (char**)realloc(names, next * sizeof(*names));
+            if (!grown) { error = MCS_VFS_ENOMEM; break; }
+            names = grown; cap = next;
+        }
         names[count] = strdup(de->d_name);
-        if (names[count]) count++;
+        if (!names[count]) { error = MCS_VFS_ENOMEM; break; }
+        count++;
     }
-    closedir(d);
-    qsort(names, (size_t)count, sizeof names[0], name_cmp);
-    int i = 0;
-    for (; i < count; i++) {
-        char full[600];
-        snprintf(full, sizeof full, "%s/%s", hp, names[i]);
-        struct stat st;
-        mcs_vfs_stat_t vs = { 0, false };
-        if (!stat(full, &st)) { vs.is_dir = S_ISDIR(st.st_mode); vs.size = vs.is_dir ? 0 : (uint32_t)st.st_size; }
-        if (cb(ud, names[i], &vs)) break;
+    if (closedir(d) && !error) error = map_errno(errno);
+    if (!error) {
+        if (count > 1) qsort(names, count, sizeof names[0], name_cmp);
+        for (size_t i = 0; i < count; i++) {
+            char full[600];
+            snprintf(full, sizeof full, "%s/%s", hp, names[i]);
+            struct stat st;
+            mcs_vfs_stat_t vs = { 0, false };
+            if (!stat(full, &st)) { vs.is_dir = S_ISDIR(st.st_mode); vs.size = vs.is_dir ? 0 : (uint32_t)st.st_size; }
+            if (cb(ud, names[i], &vs)) break;
+        }
     }
-    for (int j = 0; j < count; j++) free(names[j]);
-    return MCS_VFS_OK;
+    for (size_t i = 0; i < count; i++) free(names[i]);
+    free(names);
+    return error;
 }
 
 /* ESP-IDF has no statvfs: the ESP32 port wraps these ops with esp_littlefs_info */

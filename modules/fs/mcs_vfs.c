@@ -499,52 +499,84 @@ static mcs_result_t source_error(source_set_t* set, const char* action, const ch
     return mcs_fail(set->vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,
                     "cannot %s '%s': %s", action, path, mcs_vfs_strerror(e));
 }
+/* Keep dependency depth off the native MCU stack. Each suspended visit owns
+ * only its using list and scan cursors, charged to the VFS scratch allocator. */
+typedef struct {
+    size_t at, use, candidate;
+    name_list_t uses;
+} source_visit_t;
 static mcs_result_t visit_source(source_set_t* set, size_t at) {
-    source_file_t* file = &set->files[at];
-    const char* path = source_path(set, at);
-    if (file->state == 2 || file->state == 1) return MCS_OK; /* loaded or a namespace cycle */
-    file->state = 1;
-    char* src; size_t len;
-    int e = (mcs_vfs_flags(set->vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
-            : mcs_vfs_read_file(set->vfs, path, &src, &len);
-    if (e) return source_error(set, set->check ? "check" : "run", path, e);
-    name_list_t uses = {0};
-    e = collect_usings(set->vfs, src, &uses);
-    mcs_vfs_free(set->vfs, src, len);
-    if (e) {
-        if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-        return source_error(set, set->check ? "check" : "run", path, e);
-    }
-    for (size_t u = 0; u < uses.len; u += strlen(uses.data + u) + 1) {
-        for (size_t i = 0; i < set->count; i++) {
-            if (i == at) continue;
-            char* candidate; size_t clen;
-            const char* candidate_path = source_path(set, i);
-            e = mcs_vfs_read_file(set->vfs, candidate_path, &candidate, &clen);
-            if (e) {
-                if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-                return source_error(set, set->check ? "check" : "run", candidate_path, e);
-            }
-            bool provider = declares_namespace(candidate, uses.data + u);
-            mcs_vfs_free(set->vfs, candidate, clen);
-            if (provider) {
-                mcs_result_t r = visit_source(set, i);
-                if (r != MCS_OK) {
-                    if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-                    return r;
+    source_visit_t* visits = NULL;
+    size_t count = 0, cap = 0;
+    mcs_result_t result = MCS_OK;
+    bool push = true;
+    for (;;) {
+        if (push) {
+            if (count == cap) {
+                size_t next = cap ? cap * 2 : 4;
+                if (next < cap || next > SIZE_MAX / sizeof(*visits)) {
+                    result = source_error(set, "resolve", source_path(set, at), MCS_VFS_ENOMEM);
+                    break;
                 }
+                source_visit_t* grown = (source_visit_t*)vfs_alloc(set->vfs, visits,
+                    cap * sizeof(*visits), next * sizeof(*visits));
+                if (!grown) {
+                    result = source_error(set, "resolve", source_path(set, at), MCS_VFS_ENOMEM);
+                    break;
+                }
+                visits = grown; cap = next;
+            }
+            source_visit_t* visit = &visits[count++];
+            memset(visit, 0, sizeof *visit); visit->at = at;
+            set->files[at].state = 1;
+            const char* path = source_path(set, at);
+            char* src = NULL; size_t len = 0;
+            int e = (mcs_vfs_flags(set->vfs, path) & MCS_VFS_NOEXEC) ? MCS_VFS_EACCES
+                : mcs_vfs_read_file(set->vfs, path, &src, &len);
+            if (!e) e = collect_usings(set->vfs, src, &visit->uses);
+            mcs_vfs_free(set->vfs, src, len);
+            if (e) { result = source_error(set, set->check ? "check" : "run", path, e); break; }
+            push = false;
+        }
+        source_visit_t* visit = &visits[count - 1];
+        while (visit->use < visit->uses.len && !push) {
+            while (visit->candidate < set->count) {
+                size_t i = visit->candidate++;
+                if (i == visit->at || set->files[i].state) continue;
+                char* candidate; size_t len;
+                const char* path = source_path(set, i);
+                int e = mcs_vfs_read_file(set->vfs, path, &candidate, &len);
+                if (e) { result = source_error(set, set->check ? "check" : "run", path, e); goto done; }
+                bool provider = declares_namespace(candidate, visit->uses.data + visit->use);
+                mcs_vfs_free(set->vfs, candidate, len);
+                if (provider) { at = i; push = true; break; }
+            }
+            if (!push) {
+                visit->use += strlen(visit->uses.data + visit->use) + 1;
+                visit->candidate = 0;
             }
         }
+        if (push) continue;
+        at = visit->at;
+        const char* path = source_path(set, at);
+        char* src; size_t len;
+        int e = mcs_vfs_read_file(set->vfs, path, &src, &len);
+        if (e) { result = source_error(set, set->check ? "check" : "run", path, e); break; }
+        result = set->check ? mcs_check_source(set->vm, path, src)
+            : at == set->root ? mcs_exec_source(set->vm, path, src)
+                             : mcs_exec_declarations(set->vm, path, src);
+        mcs_vfs_free(set->vfs, src, len);
+        if (result != MCS_OK) break;
+        set->files[at].state = 2;
+        if (visit->uses.data) vfs_alloc(set->vfs, visit->uses.data, visit->uses.cap, 0);
+        count--;
+        if (!count) break;
     }
-    if (uses.data) vfs_alloc(set->vfs, uses.data, uses.cap, 0);
-    e = mcs_vfs_read_file(set->vfs, path, &src, &len);
-    if (e) return source_error(set, set->check ? "check" : "run", path, e);
-    mcs_result_t r = set->check ? mcs_check_source(set->vm, path, src)
-        : at == set->root ? mcs_exec_source(set->vm, path, src)
-                          : mcs_exec_declarations(set->vm, path, src);
-    mcs_vfs_free(set->vfs, src, len);
-    if (r == MCS_OK) file->state = 2;
-    return r;
+done:
+    for (size_t i = 0; i < count; i++)
+        if (visits[i].uses.data) vfs_alloc(set->vfs, visits[i].uses.data, visits[i].uses.cap, 0);
+    if (visits) vfs_alloc(set->vfs, visits, cap * sizeof(*visits), 0);
+    return result;
 }
 static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path, bool check) {
     source_set_t set;
@@ -589,6 +621,13 @@ static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char
     }
     set.root = (size_t)root;
     e = scan_sources(&set, "/", 0);
+    /* VFS listing synthesizes only direct mount children. A nested mount can
+     * have no backing parent directory, so also enter nested mount roots.
+     * add_source deduplicates files already reached through the root walk. */
+    for (int i = 0; !e && i < vfs->count; i++) {
+        const char* prefix = vfs->mounts[i].prefix;
+        if (strchr(prefix + 1, '/')) e = scan_sources(&set, prefix, 0);
+    }
     if (e) {
         free_source_set(&set);
         return mcs_fail(vm, e == MCS_VFS_ENOMEM ? MCS_ERR_MEMORY : MCS_ERR_RUNTIME,

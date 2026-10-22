@@ -16,14 +16,25 @@ fs.writeFileSync(ROOT + '/hello.cs', 'Console.WriteLine("hi from file");\n');
 fs.writeFileSync(ROOT + '/lib/util.cs', '// util\n');
 fs.writeFileSync(ROOT + '/data.bin', Buffer.from([0, 1, 2, 3, 255, 4]));
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w); if (!c) fails++; };
+const failureMessages = [];
+let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w); if (!c) { fails++; failureMessages.push(w); } };
 (async () => {
   const proc = spawn(MCS, [process.env.MODE === 'shell' ? '--shell' : '--repl', ...(process.env.ECHO === '0' ? [] : ['--echo']), '--sim', '--fs', ROOT], { stdio: ['pipe', 'pipe', 'inherit'] });
   const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1400, height: 860 } });
-  page.on('pageerror', e => { console.log('PAGEERROR', e.message); fails++; });
+  page.on('pageerror', e => { console.log('PAGEERROR', e.message); fails++; failureMessages.push('PAGEERROR ' + e.message); });
   page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
-  await page.exposeFunction('__serialWrite', (arr) => { proc.stdin.write(Buffer.from(arr)); });
+  // Exercise the real async connection/refresh sequence even on a fast host.
+  const initialMemoryDelay = Number(process.env.MEM_DELAY_MS ?? 250);
+  let delayedInitialMemory = false;
+  await page.exposeFunction('__serialWrite', async (arr) => {
+    const data = Buffer.from(arr);
+    if (!delayedInitialMemory && data.toString().trim() === 'mem' && initialMemoryDelay > 0) {
+      delayedInitialMemory = true;
+      await sleep(initialMemoryDelay);
+    }
+    proc.stdin.write(data);
+  });
   let chain = Promise.resolve();
   proc.stdout.on('data', (d) => { const a = [...d]; chain = chain.then(() => page.evaluate((b) => window.__serialPush(b), a).catch(() => {})); });
   await page.addInitScript(() => {
@@ -66,6 +77,11 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.waitForSelector('.file');
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
+  // The file list renders before df/mem finish. Visibility of .file is not a
+  // readiness signal for either counter, particularly on busy CI runners.
+  await page.waitForFunction(() => /free of/.test(document.getElementById('stText').textContent) &&
+    /^VM heap: .* used · .* peak$/.test(document.getElementById('memInfo').textContent),
+    null, { timeout: 5000 });
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
   check(/^VM heap: .* used · .* peak$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
   await page.click('#memInfo');
@@ -494,6 +510,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(nDraft >= 1, nDraft + ' unsaved drafts kept');
   await page.click('#btnTheme'); await sleep(200);
   await page.screenshot({ path: OUT + '/2_light.png' });
+  if (fails) console.log('Failed assertions:\n' + failureMessages.map(w => 'FAIL ' + w).join('\n'));
   console.log(fails ? `${fails} FAILED` : 'ALL PASSED');
   fs.writeFileSync(OUT + '/term.txt', await page.innerText('#term'));
   await browser.close(); proc.kill(); process.exit(fails ? 1 : 0);

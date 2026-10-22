@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.15.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.16.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -93,7 +93,7 @@ Scheduler.Every(1000, () => {
 
 - [Why MicroCS](#-why-microcs)
 - [Two ways to use it](#-two-ways-to-use-it) — [① library](#-option-1--drop-the-library-into-an-existing-project) · [② REPL firmware](#-option-2--build-a-complete-c-firmware-with-a-repl)
-- [Try it on your PC](#-try-it-on-your-pc-one-minute)
+- [Try it on your PC](#-try-it-on-your-pc-one-minute) · [Memory budgets](#-memory-budgets)
 - [Hardware in C#](#-hardware-in-c) · [Wi-Fi & networking](#-wi-fi--networking) · [Build systems](#-works-with-every-build-system) · [Targets](#-supported-targets)
 - [Language at a glance](#-language-at-a-glance) · [vs MicroPython / nanoFramework](#%EF%B8%8F-microcs-vs-micropython-vs-net-nanoframework)
 - [Architecture](#%EF%B8%8F-architecture) · [Performance & footprint](#-performance--footprint)
@@ -258,7 +258,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.15.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.16.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -283,6 +283,21 @@ editor in Visual Studio's dark look with IntelliSense (member lists with docs, p
 hover, find/replace, format) that saves to and runs on the device, 200+ templates (boot scripts, every peripheral with its settings, DMA, U8g2 displays, Wi-Fi and networking, Bluetooth LE, power management,
 scheduler, sensors, displays, motors, every peripheral, console games), a serial plotter and the REPL — no install
 ([details](docs/STANDALONE.md#6-in-the-browser-microcs-studio)).
+
+**Multi-file C# without running library files.** With compiler-enabled firmware, a simple
+`using App.Display;` in `/apps/app.cs` loads declarations from `.cs` files declaring
+`namespace App.Display` anywhere in the mounted filesystem, for example
+`/drivers/display/oled.cs`. Dependencies are resolved transitively, including in scheduler
+and thread job VMs; namespace cycles terminate safely. Provider declarations and static
+initialization load into the current VM, but provider top-level statements and implicit
+`Main()` methods do **not** run. Run or schedule only `/apps/app.cs`, not `oled.cs` first.
+This is source dependency discovery, not a persistent linked assembly; precompiled images
+and compiler-free builds keep their existing behavior.
+
+Studio IntelliSense combines symbols from **all open C# tabs**, even across folders, so
+members declared in `oled.cs` are suggested in `app.cs`. Built-in classes also complete
+from a single capital letter (`P` suggests `Path`). See the
+[Studio guide](tools/studio/README.md) and [language reference](docs/LANGUAGE.md).
 
 <p align="center"><img src="assets/studio.svg" alt="MicroCS Studio: device files, C# editor and console in the browser" width="860"></p>
 <p align="center"><img src="assets/studio_templates.svg" alt="MicroCS Studio: 160+ templates - boot scripts, scheduler, sensors, displays, motors, every peripheral" width="860"></p>
@@ -330,6 +345,33 @@ python3 tools/mcs_remote.py --exec "./mcs --shell --fs device_root" put app.cs /
 ```
 
 </details>
+
+## 🪶 Memory budgets
+
+Stack and call-frame limits are **ceilings, not upfront reservations**. The value stack
+starts at up to **32 slots** and call-frame storage at **one frame**, then grows automatically
+as execution needs it. The full profile retains its **1,024-slot / 64-frame** limits;
+the embedded profile retains **512 / 64**. Allocated stack/frame storage and stable native
+argument blocks are counted in the VM pool. No manual stack-sizing loop is needed for
+ordinary execution within those ceilings, provided enough pool memory remains.
+
+A dedicated **32-bit CI regression uses a hard 40 KiB application pool** for the representative
+[two-file OLED menu](tests/projects/oled_menu/): source compilation/checks, real U8g2,
+three fonts, repeated Project restarts and redraw callbacks. It keeps the compiler,
+libraries, fonts, diagnostics, numeric precision and normal profile stack/frame limits;
+it does not use a reduced feature profile. This is a tested application budget, **not** a
+promise that arbitrary C# programs or the entire board firmware fit in 40 KiB.
+
+Studio shows compact **VM heap used / peak** telemetry; click it to expand or collapse
+physical pool and optional device-heap details. Stack/frame allocations are already in
+pool totals. Device heap already includes the reserved VM pool: **do not add them together**.
+Native SDK/driver allocations, RTOS task stacks and other firmware memory still need their
+own headroom. For a small application pool, prefer a flash filesystem over RAMFS, which
+consumes the pool too.
+
+See [Memory budgets and Studio reports](docs/MEMORY.md) for the exact counters,
+40 KiB configuration and test scope, and [Low-resource targets](docs/LOW_RESOURCE.md)
+for profile-specific trade-offs and precompiled images.
 
 ## 🔌 Hardware in C#
 
@@ -466,7 +508,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.15.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.16.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
