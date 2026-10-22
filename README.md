@@ -363,10 +363,13 @@ it does not use a reduced feature profile. This is a tested application budget, 
 promise that arbitrary C# programs or the entire board firmware fit in 40 KiB.
 
 A separate [larger-app regression](tests/projects/oled_repeat/) uses a **64 KiB
-32-bit pool** for 100 upload/check/run cycles with both GPIO and hardware-timer
-callbacks still live. Method syntax trees are parsed and released one at a time
-so rebuilding does not retain every old-app object beside a full new-program AST.
-Compile-only checks preserve the running application's state and callbacks.
+32-bit pool** for 2,000 upload/check/run cycles, changing compiled content and
+source size while retaining 7,500 extra bytes and live GPIO/hardware-timer callbacks.
+Method syntax trees are released one at a time; compiler/VFS scratch grows from
+the high end of the same pool while retained objects grow from the low end. Tokens
+use 12 bytes on 32-bit targets, with diagnostic columns recovered from source.
+Compile-only checks preserve the application's state and callbacks; no VM reset,
+larger pool, reduced precision or removed fonts/features are used.
 
 Studio shows compact **VM heap used / peak** telemetry; click it to expand or collapse
 physical pool and optional device-heap details. Stack/frame allocations are already in

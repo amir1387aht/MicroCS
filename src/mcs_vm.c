@@ -2507,7 +2507,10 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     if (!cfg.stack_slots) cfg.stack_slots = MCS_DEFAULT_STACK;
     if (!cfg.max_frames) cfg.max_frames = MCS_DEFAULT_FRAMES;
 #if MCS_ENABLE_POOL_HEAP
-    if (cfg.realloc_fn == mcs_pool_realloc && !cfg.alloc_overhead) cfg.alloc_overhead = MCS_POOL_OVERHEAD;
+    if (cfg.realloc_fn == mcs_pool_realloc) {
+        if (!cfg.alloc_overhead) cfg.alloc_overhead = MCS_POOL_OVERHEAD;
+        if (!cfg.temporary_realloc_fn) cfg.temporary_realloc_fn = mcs_pool_realloc_temporary;
+    }
 #endif
     mcs_vm_t* vm = cfg.realloc_fn ? (mcs_vm_t*)cfg.realloc_fn(cfg.alloc_ud, NULL, 0, sizeof(mcs_vm_t)) : (mcs_vm_t*)mcs_sys_realloc(NULL, NULL, 0, sizeof(mcs_vm_t));
     if (!vm) return NULL;

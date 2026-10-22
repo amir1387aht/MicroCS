@@ -6,8 +6,11 @@ and `Timer.Start(0, 1000000, ReadEncoderRotary)`. This is not the smaller
 `oled_menu` fixture used by the separate 40 KiB budget gate.
 
 `tests/c/test_oled_repeat.c` uploads these sources to a temporary POSIX VFS,
-varies trailing whitespace, checks without execution, launches `/app.cs` as a
-Project, and exercises both callbacks for 100 cycles without replacing the VM.
+changes a compiled string literal as well as trailing whitespace, checks without
+execution, launches `/app.cs` as a Project, and exercises both callbacks for
+**2,000 cycles without replacing the VM**. An additional **7,500-byte string** is
+kept live in the VM pool to reproduce the narrow-headroom fragmentation case;
+this is not an uncounted host allocation.
 The display provider is resolved through `using App.Display`, not run separately.
 The host filesystem models off-pool flash storage; source-read/compiler buffers,
 VM objects and U8g2 display storage remain charged to the application pool.
@@ -24,3 +27,9 @@ make oled-repeat-test CC="gcc -m32 -malign-double" \
 
 A normal 64-bit host defaults to a separate 128 KiB pool, because object sizes
 are different. Neither host test measures total board RAM or physical hardware.
+
+For longer stress runs add `-DOLED_REPEAT_CYCLES=10000` to `CFLAGS`.
+`OLED_REPEAT_LIVE_BYTES` can vary the extra retained state (default 7,500).
+The title edit uses a stable source offset and does not manufacture new global
+names each cycle. Assertions cover non-executing builds, preserved app identity,
+live callbacks, bounded warm pool usage and zero pool usage after shutdown.

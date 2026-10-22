@@ -6,6 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifndef OLED_REPEAT_CYCLES
+#define OLED_REPEAT_CYCLES 2000
+#endif
+#ifndef OLED_REPEAT_LIVE_BYTES
+#define OLED_REPEAT_LIVE_BYTES 7500
+#endif
 #ifndef OLED_REPEAT_HEAP_KB
 #define OLED_REPEAT_HEAP_KB 128
 #endif
@@ -48,11 +54,21 @@ int main(void) {
     if (mcs_runtime_start(&rt,&cfg)) return 1;
     CHECK(!mcs_vfs_mkdir(&rt.vfs,"/files")); CHECK(!mcs_vfs_mkdir(&rt.vfs,"/files/text"));
     CHECK(!mcs_vfs_write_file(&rt.vfs,"/files/text/sample.txt","hello",5,false));
+    char* title = strstr(app, "Welcome!");
+    if (!title) return 1;
+    /* Extra live state narrows the headroom to the failing device scenario.
+     * This C buffer only supplies input: the retained string is pool allocated. */
+    char retained[OLED_REPEAT_LIVE_BYTES + 1]; memset(retained, 'r', sizeof retained);
+    mcs_value_t held = mcs_string_n(rt.vm, retained, OLED_REPEAT_LIVE_BYTES);
+    mcs_push_root(rt.vm, held); mcs_set_global(rt.vm, "retained_user_data", held); mcs_pop_root(rt.vm, 1);
+    unsigned completed = 0;
     size_t warm_min = SIZE_MAX, warm_max = 0;
-    for (int i = 0; i < 100; i++) {
-        /* Vary source size without changing the user's application logic. */
+    for (int i = 0; i < OLED_REPEAT_CYCLES; i++) {
+        /* Edit compiled content as well as source size, without renaming
+         * globals or changing the user's application logic. */
         size_t padding = (size_t)(i % 5) * 256;
         memset(app + app_len,'\n',padding); app[app_len + padding] = 0;
+        char edit[9]; snprintf(edit, sizeof edit, "W%07u", (unsigned)i % 10000000u); memcpy(title, edit, 8);
         CHECK(!mcs_vfs_write_file(&rt.vfs,"/app.cs",app,app_len + padding,false));
         CHECK(!mcs_vfs_write_file(&rt.vfs,"/oled.cs",provider,oled_len,false));
         mcs_value_t prior = mcs_get_global(rt.vm,"app");
@@ -60,6 +76,7 @@ int main(void) {
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/app.cs") == MCS_OK);
         CHECK(mcs_check_file(rt.vm,&rt.vfs,"/oled.cs") == MCS_OK);
         CHECK(oled.frames == frames && sim.timer_fired[0] == fired);
+        if (failures) { fprintf(stderr,"Failed cycle %d\n", i + 1); break; }
         mcs_value_t after = mcs_get_global(rt.vm,"app");
         CHECK(prior.type == after.type && (mcs_is_null(prior) || prior.as.o == after.as.o));
         if (i >= 10) {
@@ -79,8 +96,10 @@ int main(void) {
         output_len = 0; output[0] = 0; sim.timer_next[0] = sim.virt_us;
         mcs_hal_poll(rt.vm);
         CHECK(strstr(output,"828") != NULL);
+        if (failures) { fprintf(stderr,"Failed cycle %d\n", i + 1); break; }
+        completed++;
     }
-    CHECK(warm_max - warm_min < 2048);
+    CHECK(warm_min != SIZE_MAX && warm_max - warm_min < 2048 * (sizeof(void*) / 4));
     mcs_mem_stats_t memory; mcs_mem_stats(rt.vm,&memory);
     CHECK(memory.stack_limit == MCS_DEFAULT_STACK && memory.frame_limit == MCS_DEFAULT_FRAMES);
 #ifdef OLED_REPEAT_BUDGET
@@ -91,7 +110,7 @@ int main(void) {
     CHECK(!mcs_vfs_remove(&rt.vfs,"/files/text/sample.txt"));
     CHECK(!mcs_vfs_remove(&rt.vfs,"/files/text")); CHECK(!mcs_vfs_remove(&rt.vfs,"/files"));
     mcs_runtime_stop(&rt); CHECK(rt.pool.used == 0); rmdir(dir); free(app); free(provider);
-    printf("%s OLED repeat %u KiB: %d checks, %d failures; peak %zu; warm %zu..%zu bytes\n",
-           failures ? "FAIL" : "PASS",OLED_REPEAT_HEAP_KB,checks,failures,peak,warm_min,warm_max);
+    printf("%s OLED repeat %u KiB (cycles %u/%u, %u retained bytes): %d checks, %d failures; peak %zu; warm %zu..%zu bytes\n",
+           failures ? "FAIL" : "PASS",OLED_REPEAT_HEAP_KB,completed,(unsigned)OLED_REPEAT_CYCLES,(unsigned)OLED_REPEAT_LIVE_BYTES,checks,failures,peak,warm_min,warm_max);
     return failures != 0;
 }

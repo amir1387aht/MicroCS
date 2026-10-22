@@ -579,6 +579,10 @@ done:
     return result;
 }
 static mcs_result_t resolve_source_file(mcs_vm_t* vm, mcs_vfs_t* vfs, const char* path, bool check) {
+    /* Source buffers use the VFS allocator, before the compiler's own entry
+     * safepoint. Release unreachable prior-run objects before this first read,
+     * but never collect under a nested native call with unrooted C locals. */
+    if (!mcs_running(vm)) mcs_gc(vm);
     source_set_t set;
     memset(&set, 0, sizeof set);
     set.vm = vm; set.vfs = vfs; set.check = check;

@@ -30,12 +30,20 @@ static void* rt_pool_realloc(void* pool, void* p, size_t o, size_t n) {
     mcs_threads_heap_unlock();
     return r;
 }
+static void* rt_pool_temporary_realloc(void* pool, void* p, size_t o, size_t n) {
+    if (!mcs_threads_active()) return mcs_pool_realloc_temporary(pool, p, o, n);
+    mcs_threads_heap_lock();
+    void* r = mcs_pool_realloc_temporary(pool, p, o, n);
+    mcs_threads_heap_unlock();
+    return r;
+}
 #endif
 #else
 #define rt_write rt_write_raw
 #endif
 #if MCS_ENABLE_POOL_HEAP && !MCS_ENABLE_THREADS
 #define rt_pool_realloc mcs_pool_realloc
+#define rt_pool_temporary_realloc mcs_pool_realloc_temporary
 #endif
 static uint32_t rt_ticks(void* ud) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
@@ -92,6 +100,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     if (cfg->heap && cfg->heap_size) {
         mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
         c.realloc_fn = rt_pool_realloc;
+        c.temporary_realloc_fn = rt_pool_temporary_realloc;
         c.alloc_ud = &rt->pool;
         c.alloc_overhead = MCS_POOL_OVERHEAD; /* also when the allocator is thread-wrapped */
         size_t reserve = cfg->ramfs_size + 2048;   /* RAM fs + fragmentation slack */
@@ -119,7 +128,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     if (cfg->heap && cfg->heap_size) {
         /* Whole-file source/read buffers belong to the same physical budget,
          * not a hidden malloc allocation outside the VM pool. */
-        rt->vfs.realloc_fn = rt_pool_realloc; rt->vfs.alloc_ud = &rt->pool;
+        rt->vfs.realloc_fn = rt_pool_temporary_realloc; rt->vfs.alloc_ud = &rt->pool;
     }
 #endif
     int e = 1;

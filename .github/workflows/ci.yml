@@ -58,7 +58,7 @@ jobs:
           U8G2_DISPLAYS="ssd1306_i2c_128x32_univision"
           U8G2_FONTS="helvR08_tf streamline_all_t ncenB08_te"
 
-      - name: Actual app, 100 upload/check/run cycles in the same 64 KiB pool
+      - name: Actual app, 2000 content edits and 7.5 KB live state in the same 64 KiB pool
         run: >-
           make oled-repeat-test CC="gcc -m32 -malign-double"
           CFLAGS="-O2 -g -DOLED_REPEAT_HEAP_KB=64 -DOLED_REPEAT_BUDGET=1"
