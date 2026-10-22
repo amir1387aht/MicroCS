@@ -1099,8 +1099,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef X
     };
 #define CASE(name) L_##name:
+#if defined(__OPTIMIZE_SIZE__)
+/* Share opcode fetch/dispatch in flash-constrained firmware, rather than
+ * repeating its pointer load, increment and indirect branch at every tail.
+ * Speed builds retain direct-threaded dispatch. No opcode or check is omitted. */
+#define DISPATCH() goto dispatch_next
+#define DISPATCH_START() dispatch_next: goto *labels[*ip++];
+#else
 #define DISPATCH() goto *labels[*ip++]
 #define DISPATCH_START() DISPATCH();
+#endif
 #define DISPATCH_END()
 #else
 #define CASE(name) case OP_##name:
