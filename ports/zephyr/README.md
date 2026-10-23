@@ -123,3 +123,10 @@ See [docs/THREADS.md](../../docs/THREADS.md).
 See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
 `Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
 Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) prefers a board-supplied native counter backend, otherwise GPIO interrupts,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.

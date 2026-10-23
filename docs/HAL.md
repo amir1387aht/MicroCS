@@ -23,6 +23,12 @@ and true shutdown, with per-mode/per-source capabilities and a port support matr
 Hardware modes are synchronous; Studio cannot cancel until wake. HAL API v4 appends
 optional power callbacks/masks; all v3 peripheral/DMA members remain unchanged.
 
+## Rotary encoders
+
+[`RotaryEncoder`](ENCODER.md) uses hardware PCNT / timer encoder / PIO counting first, with GPIO decoding only when unavailable,
+with atomic position/reset, deterministic disposal and an optional push-button input.
+Supported by the simulator, ESP32, RP2, STM32, Arduino and Zephyr ports.
+
 ## Concepts
 
 * **Static and object APIs.** Every peripheral has static methods (`GPIO.Write(13, 1)`,

@@ -274,6 +274,14 @@ menu "MicroCS"
             (MCS_THREAD_STACK, default 12 KB). Off: MicroCS stays the
             single-threaded runtime (Thread.Os == "None"). See docs/THREADS.md.
 
+    config MICROCS_ENCODER
+        bool "Rotary encoders (hardware PCNT, GPIO fallback)"
+        default y
+        help
+            RotaryEncoder uses the PCNT peripheral when the SoC provides it.
+            Chips without PCNT use GPIO interrupts. Hardware errors do not
+            silently select software. Optional active-low button; see docs/ENCODER.md.
+
     config MICROCS_SERVO
         bool "Servo driver (C# Servo on a LEDC PWM channel)"
         default y

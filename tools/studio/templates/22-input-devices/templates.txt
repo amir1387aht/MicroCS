@@ -6,8 +6,8 @@ category: Input devices
 requires: none
 
 [encoder.cs] Rotary encoder
-requires: GPIO, GPIO.IRQ
-Quadrature decoding with pin interrupts, plus the push button.
+requires: RotaryEncoder
+Hardware PCNT / TIM / PIO counting with GPIO fallback and optional button handling.
 
 [keypad.cs] 4x4 matrix keypad
 requires: GPIO, StringBuilder

@@ -130,6 +130,9 @@ extern "C" {
 #ifndef MCS_STM32_TIMERS
 #define MCS_STM32_TIMERS 4
 #endif
+#ifndef MCS_STM32_ENCODERS
+#define MCS_STM32_ENCODERS 4
+#endif
 #ifndef MCS_STM32_IRQ_PRIORITY
 #define MCS_STM32_IRQ_PRIORITY 5   /* EXTI priority (>= configMAX_SYSCALL_INTERRUPT_PRIORITY with FreeRTOS) */
 #endif
@@ -158,6 +161,15 @@ typedef struct { ADC_HandleTypeDef* h; uint32_t channel; } mcs_stm32_adc_t;
 typedef struct { TIM_HandleTypeDef* h; uint32_t channel; uint32_t clock_hz; } mcs_stm32_pwm_t;
 /* Timer.Start(n): a basic/general timer with its update IRQ enabled in CubeMX */
 typedef struct { TIM_HandleTypeDef* h; uint32_t clock_hz; } mcs_stm32_timer_t;
+/* CubeMX: configure this handle in encoder TI12 mode, CH1=A / CH2=B,
+ * pull-up AF pins, and the update IRQ for 16-bit counter extension.
+ * a/b are the MicroCS numeric pin IDs. Set only h, a, b; the rest is private. */
+typedef struct {
+    TIM_HandleTypeDef* h;
+    int a, b;
+    uint32_t high, mask;
+    uint8_t active;
+} mcs_stm32_encoder_t;
 
 typedef struct {
     const char* name;                         /* Hal.Board, e.g. "NUCLEO-F446RE" */
@@ -184,6 +196,7 @@ typedef struct {
 #ifdef HAL_TIM_MODULE_ENABLED
     mcs_stm32_pwm_t pwm[MCS_STM32_PWM_CHANNELS];
     mcs_stm32_timer_t timer[MCS_STM32_TIMERS];
+    mcs_stm32_encoder_t encoder[MCS_STM32_ENCODERS];
 #endif
 #ifdef MCS_STM32_HAS_I2S
     I2S_HandleTypeDef* i2s[MCS_STM32_BUSES];

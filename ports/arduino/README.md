@@ -101,3 +101,10 @@ cfg.fs_ops = &mcs_arduino_fs_ops; cfg.fs_ctx = &files;      // mcs_runtime_cfg_t
 See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
 `Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
 Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) prefers PCNT on ESP32 and PIO on Arduino-Pico,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.

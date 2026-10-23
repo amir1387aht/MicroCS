@@ -89,6 +89,7 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **Power** | static | `WakePin` `WakeHigh` | `Sleep(·)` `SetWakePin(·, ·)` `ClearWakePin()` `LightSleep(…)` `DeepSleep(…)` `Shutdown()` | capability-gated hardware modes; [power management](POWER.md) |
 | **Hal** | static | `Board` `Micros` `UniqueId` `CpuHz` `DroppedEvents` | `Has(·)` `Poll()` `Run(…)` `DelayMicroseconds(·)` `Reset()` `OnEvent(·, ·)` `Post(…)` `Options(…)` | consts `Board`, `ApiVersion` |
 | **GPIO** | static | — | `Configure(·, ·)` `Mode(·, ·)` `Write(·, ·)` `Read(·)` `Toggle(·)` `Pin(·)` `OnChange(·, ·, ·)` `Off(·)` `PulseIn(…)` | consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md)) |
+| **RotaryEncoder** | instance | `Backend` `Position` `ButtonPressed` | `Reset(…)` `Dispose()` | `new RotaryEncoder(a, b[, steps = 4, button = -1, reverse = false])`; [quadrature encoders](ENCODER.md) |
 | **Pin** | instance | `Value` `Number` | `Write(·)` `Read()` `Toggle()` `High()` `Low()` `SetMode(·)` `OnChange(·, ·)` `Configure(·)` | `new Pin(pin[, mode or GpioConfig])`; pin = number or name (`"PA5"`, `"GPIO21"`, `"LED"`) |
 | **UART** | static | — | `Open(…)` `Close(·)` `Write(·, ·)` `WriteLine(…)` `Read(…)` `ReadString(…)` `ReadLine(…)` `Available(·)` `OnReceive(·, ·)` `WriteAsync(·, ·)` `ReadAsync(·, ·)` | consts `ParityNone ParityOdd ParityEven` |
 | **I2C** | static | — | `Open(…)` `Write(·, ·, ·)` `Read(·, ·, ·)` `WriteRead(·, ·, ·, ·)` `ReadRegister(·, ·, ·)` `ReadRegisters(·, ·, ·, ·)` `WriteRegister(·, ·, ·, ·)` `Scan(·)` `WriteAsync(·, ·, ·)` `ReadAsync(·, ·, ·)` `WriteReadAsync(·, ·, ·, ·)` |  |
@@ -202,4 +203,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1429 members in 117 tables._
+_1434 members in 118 tables._

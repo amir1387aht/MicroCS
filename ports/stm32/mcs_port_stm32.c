@@ -275,7 +275,7 @@ void mcs_stm32_exti(uint16_t gpio_pin) {
         int pin = b->exti_pin[line] - 1;
         GPIO_TypeDef* g = port_fast(pin);
         int level = g ? HAL_GPIO_ReadPin(g, (uint16_t)(1u << line)) == GPIO_PIN_SET : 0;
-        mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
+        if (!mcs_hal_gpio_edge(b, pin)) mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
     }
 }
 
@@ -599,9 +599,82 @@ static int tim_period(uint32_t clk, uint32_t f, uint32_t* psc, uint32_t* arr) {
     *arr = total / (p + 1) - 1;
     return 0;
 }
+/* Native TIM quadrature: CubeMX binds CH1/CH2 and alternate functions. */
+#if MCS_ENABLE_ENCODER && MCS_ENABLE_ENCODER_HW && defined(TIM_ENCODERMODE_TI12)
+static bool st_encoder_busy(mcs_stm32_board_t* b, TIM_HandleTypeDef* h) {
+    for (int i = 0; i < MCS_STM32_ENCODERS; i++)
+        if (b->encoder[i].active && b->encoder[i].h->Instance == h->Instance) return true;
+    return false;
+}
+static uint32_t st_encoder_wrap(mcs_stm32_encoder_t* e, uint32_t low) {
+    /* Infer the rollover side from the count, not DIR: the shaft may reverse
+     * between rollover and ISR service. Must service within half a 16-bit lap. */
+    uint32_t lap = e->mask + 1u;
+    return low <= (e->mask >> 1) ? lap : 0u - lap;
+}
+static int st_encoder_open(void* ctx, int a, int pin_b, void** handle) {
+    mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
+    *handle = NULL;
+    mcs_stm32_encoder_t* e = NULL;
+    for (int i = 0; i < MCS_STM32_ENCODERS; i++)
+        if (b->encoder[i].h && b->encoder[i].a == a && b->encoder[i].b == pin_b) { e = &b->encoder[i]; break; }
+    if (!e) return MCS_HAL_ENOTSUP; /* not a bound native pin pair */
+    TIM_HandleTypeDef* h = e->h;
+    if (st_encoder_busy(b, h) || (h->Instance->CR1 & TIM_CR1_CEN)) return MCS_HAL_EBUSY;
+    if ((h->Instance->SMCR & TIM_SMCR_SMS) != TIM_ENCODERMODE_TI12) return MCS_HAL_EINVAL;
+    e->mask = 65535u;
+#ifdef IS_TIM_32B_COUNTER_INSTANCE
+    if (IS_TIM_32B_COUNTER_INSTANCE(h->Instance)) e->mask = UINT32_MAX;
+#endif
+    /* Do not call GPIO.Mode here: CubeMX owns the required timer AF pins. */
+    __HAL_TIM_DISABLE_IT(h, TIM_IT_UPDATE);
+    __HAL_TIM_SET_PRESCALER(h, 0);
+    __HAL_TIM_SET_AUTORELOAD(h, e->mask);
+    h->Instance->EGR = TIM_EGR_UG;
+    __HAL_TIM_SET_COUNTER(h, 0);
+    __HAL_TIM_CLEAR_FLAG(h, TIM_FLAG_UPDATE);
+    e->high = 0;
+    int rc = st_err(HAL_TIM_Encoder_Start(h, TIM_CHANNEL_ALL));
+    if (rc < 0) { HAL_TIM_Encoder_Stop(h, TIM_CHANNEL_ALL); return rc; }
+    e->active = 1;
+    if (e->mask != UINT32_MAX) __HAL_TIM_ENABLE_IT(h, TIM_IT_UPDATE);
+    *handle = e;
+    return 0;
+}
+static int st_encoder_read(void* ctx, void* handle, uint32_t* count) {
+    (void)ctx;
+    mcs_stm32_encoder_t* e = (mcs_stm32_encoder_t*)handle;
+    uint32_t key = __get_PRIMASK(); __disable_irq();
+    uint32_t before, after, low;
+    do {
+        before = __HAL_TIM_GET_FLAG(e->h, TIM_FLAG_UPDATE);
+        low = __HAL_TIM_GET_COUNTER(e->h) & e->mask;
+        after = __HAL_TIM_GET_FLAG(e->h, TIM_FLAG_UPDATE);
+    } while (before != after);
+    if (after && e->mask != UINT32_MAX) {
+        __HAL_TIM_CLEAR_FLAG(e->h, TIM_FLAG_UPDATE);
+        e->high += st_encoder_wrap(e, low);
+    }
+    *count = e->high + low;
+    __set_PRIMASK(key);
+    return 0;
+}
+static void st_encoder_close(void* ctx, void* handle) {
+    (void)ctx;
+    mcs_stm32_encoder_t* e = (mcs_stm32_encoder_t*)handle;
+    __HAL_TIM_DISABLE_IT(e->h, TIM_IT_UPDATE);
+    HAL_TIM_Encoder_Stop(e->h, TIM_CHANNEL_ALL);
+    __HAL_TIM_CLEAR_FLAG(e->h, TIM_FLAG_UPDATE);
+    e->active = 0;
+}
+#else
+#define st_encoder_busy(b, h) false
+#endif
+
 static int st_pwm_set16(void* ctx, int ch, uint32_t freq, uint16_t duty) {
     mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
     if (ch < 0 || ch >= MCS_STM32_PWM_CHANNELS || !b->pwm[ch].h) return MCS_HAL_ENOTSUP;
+    if (st_encoder_busy(b, b->pwm[ch].h)) return MCS_HAL_EBUSY;
     mcs_stm32_pwm_t* p = &b->pwm[ch];
     uint32_t psc, arr;
     int r = tim_period(p->clock_hz ? p->clock_hz : SystemCoreClock, b->pwm_center[ch] ? freq * 2u : freq, &psc, &arr);
@@ -622,6 +695,7 @@ static int st_pwm_configure(void* ctx, int ch, const mcs_pwm_config_t* c) {
     if (ch < 0 || ch >= MCS_STM32_PWM_CHANNELS || !b->pwm[ch].h) return MCS_HAL_ENOTSUP;
     if (c->pin >= 0) { mcs_hal_error("Pin: STM32 PWM pins are set by CubeMX"); return MCS_HAL_ENOTSUP; }
     if (c->resolution_bits) { mcs_hal_error("ResolutionBits: STM32 picks the finest step for the frequency"); return MCS_HAL_ENOTSUP; }
+    if (st_encoder_busy(b, b->pwm[ch].h)) return MCS_HAL_EBUSY;
     mcs_stm32_pwm_t* p = &b->pwm[ch];
     TIM_TypeDef* t = p->h->Instance;
     uint32_t pol = TIM_CCER_CC1P << (p->channel & 0x1Cu);
@@ -642,12 +716,14 @@ static int st_pwm_set(void* ctx, int ch, uint32_t freq, uint16_t permille) {
 static int st_pwm_stop(void* ctx, int ch) {
     mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
     if (ch < 0 || ch >= MCS_STM32_PWM_CHANNELS || !b->pwm[ch].h) return MCS_HAL_ENOTSUP;
+    if (st_encoder_busy(b, b->pwm[ch].h)) return MCS_HAL_EBUSY;
     b->pwm_started[ch] = 0;
     return st_err(HAL_TIM_PWM_Stop(b->pwm[ch].h, b->pwm[ch].channel));
 }
 static int st_timer_start(void* ctx, int t, uint32_t period_us, int periodic) {
     mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
     if (t < 0 || t >= MCS_STM32_TIMERS || !b->timer[t].h) return MCS_HAL_ENOTSUP;
+    if (st_encoder_busy(b, b->timer[t].h)) return MCS_HAL_EBUSY;
     if (!period_us) return MCS_HAL_EINVAL;
     TIM_HandleTypeDef* h = b->timer[t].h;
     uint32_t clk = b->timer[t].clock_hz ? b->timer[t].clock_hz : SystemCoreClock;
@@ -668,11 +744,20 @@ static int st_timer_start(void* ctx, int t, uint32_t period_us, int periodic) {
 static int st_timer_stop(void* ctx, int t) {
     mcs_stm32_board_t* b = (mcs_stm32_board_t*)ctx;
     if (t < 0 || t >= MCS_STM32_TIMERS || !b->timer[t].h) return MCS_HAL_ENOTSUP;
+    if (st_encoder_busy(b, b->timer[t].h)) return MCS_HAL_EBUSY;
     return st_err(HAL_TIM_Base_Stop_IT(b->timer[t].h));
 }
 void mcs_stm32_tim_elapsed(TIM_HandleTypeDef* htim) {
     mcs_stm32_board_t* b = g_board;
     if (!b) return;
+#if MCS_ENABLE_ENCODER && MCS_ENABLE_ENCODER_HW && defined(TIM_ENCODERMODE_TI12)
+    for (int i = 0; i < MCS_STM32_ENCODERS; i++) {
+        mcs_stm32_encoder_t* e = &b->encoder[i];
+        if (!e->active || e->h->Instance != htim->Instance) continue;
+        e->high += st_encoder_wrap(e, __HAL_TIM_GET_COUNTER(htim) & e->mask);
+        return; /* no C# event and no software per-edge decoder */
+    }
+#endif
     for (int t = 0; t < MCS_STM32_TIMERS; t++) {
         if (b->timer[t].h != htim) continue;
         b->timer_count[t]++;
@@ -1179,6 +1264,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
 #endif
     hal->power_validate = st_power_validate; hal->power_enter = st_power_enter;
 #endif
+    hal->gpio_capture = true;
     hal->gpio_mode = st_gpio_mode;
     hal->gpio_write = st_gpio_write;
     hal->gpio_read = st_gpio_read;
@@ -1212,6 +1298,10 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
     if (b->dac) { hal->dac_write = st_dac_write; hal->dac_bits = 12; }
 #endif
 #ifdef HAL_TIM_MODULE_ENABLED
+#if MCS_ENABLE_ENCODER && MCS_ENABLE_ENCODER_HW && defined(TIM_ENCODERMODE_TI12)
+    hal->encoder_open = st_encoder_open; hal->encoder_read = st_encoder_read;
+    hal->encoder_close = st_encoder_close; hal->encoder_name = "TIM";
+#endif
     hal->pwm_set = st_pwm_set;
     hal->pwm_set16 = st_pwm_set16;
     hal->pwm_stop = st_pwm_stop;

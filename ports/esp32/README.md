@@ -334,3 +334,10 @@ also installs device-heap telemetry for the shell/Studio automatically.
 See [memory budgets](../../docs/MEMORY.md): the device heap includes the reserved
 pool and SDK costs, but is not total physical SRAM. No ESP32 hardware measurement
 or arbitrary-app 40 KiB guarantee is implied by the host regression.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) prefers PCNT,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.

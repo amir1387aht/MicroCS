@@ -142,3 +142,10 @@ YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi, `pico_w` with BLE 
 See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
 `Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
 Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) prefers PIO hardware state machines,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.
