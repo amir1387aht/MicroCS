@@ -12,6 +12,12 @@ with tempfile.TemporaryDirectory() as tmp:
     assert rows[0]['requires']==['Compiler','Wifi']
     assert rows[1]['requires']==['Compiler','GPIO','GPIO.IRQ'] and rows[1]['save']=='boot.cs'
     assert rows[2]['requires']==[]
+    versioned=parse('category: Test\nrequires: none\n[a.cs] A\nmin firmware: 1.17.0\ntext\n')
+    assert versioned[0]['minFirmware']=='1.17.0'
+    for bad in ['1.17', 'latest', '-1.0.0']:
+        try: parse('category: Test\nrequires: none\n[a.cs] A\nmin firmware: '+bad+'\ntext')
+        except gen.TemplateError: pass
+        else: raise AssertionError('invalid version accepted: '+bad)
     for text in ['category: Test\n[a.cs] A\ntext', 'category: Test\nrequires: wifi', 'category: Test\nrequires: Wifi, Wifi', 'category: Test\nrequires: none\n[a.cs] A\ntext\nrequires: Wifi', 'category: Test\nrequires: none\n[a.cs] A\nrequires: GPIO\nrequires: Wifi']:
         try: parse(text)
         except gen.TemplateError: pass

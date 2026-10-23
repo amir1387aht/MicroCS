@@ -60,8 +60,11 @@ The ⋯ menu has three independent options, **on by default**:
   ask for a device path; duplicate open paths are rejected. Compile-only checks never execute
   scripts. A cancelled/failed upload or compilation prevents the requested run.
 
-Compile checks require firmware with the `check` command. For older firmware, update it or
-turn off the all-C# option for legacy single-file saves/runs. Offline local saves download
+Compile checks use the firmware `check` command. On older firmware without it, File mode
+still saves/uploads and clearly warns that compile-only validation was skipped. Run compiles
+and executes only the selected file; Studio never runs other sources as a compatibility probe.
+Project mode still requires compile-only checks and will request a firmware update rather
+than starting an unchecked project. Offline local saves download
 only the selected file. Selection-run is an explicit exception: it executes just the selection.
 
 Parameter info closes on outside pointer clicks, Escape, its × button, focus loss and moving
@@ -205,3 +208,29 @@ the numbers are not additive. Older firmware explicitly shows missing capacity;
 Studio never guesses it from a VM peak. Failed workflows also refresh the
 snapshot. See [memory budgets](../../docs/MEMORY.md) for scope, exclusions and the
 40 KiB source-Project regression/configuration.
+
+## Older firmware and template compatibility
+
+All templates and categories stay visible, online and offline. Each template shows
+**Requirements supported**, **Support unknown**, **Not supported**, or **Not checked**.
+The preview lists exact missing/unreported requirements and any declared minimum firmware.
+A missing legacy report is unknown, not proof that hardware exists. The old compiler feature
+bit can establish source compilation support; HAL/network bits do not establish individual
+peripherals. Templates can always be opened/copied for adaptation; that does not execute them.
+Support checks cannot prove that external sensors are attached or that every custom API matches.
+Optional `min firmware: major.minor.patch` metadata belongs before a template's description.
+
+## Device Explorer tree
+
+Expand/collapse folders without replacing the root view. Multiple branches and their files
+remain visible together, with indentation and folder-first sorting. Closed folders are not
+scanned; Refresh reloads expanded branches. The breadcrumb identifies the target folder for
+uploads and new files. Opening a file selects its parent as that target. Keyboard navigation:
+Up/Down, Home/End, Right to expand/enter, Left to collapse/go to parent, Enter/Space to open.
+Folder load errors remain visible with a retry hint; late replies from a disconnected or
+replaced device cannot repopulate the tree. Explorer traversal is bounded to 128 expanded
+folders / 32 levels. Rename/move updates descendant tab paths and expanded branches.
+
+Identifier highlighting is lexical rather than a full semantic compiler: declared fields,
+locals and parameters keep a consistent color irrespective of name casing or `this.` access.
+User-declared types, methods, keywords, literals and comments retain distinct classifications.

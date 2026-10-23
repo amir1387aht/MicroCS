@@ -388,3 +388,18 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
 .sig-close:hover { color: var(--accent2); }
 .sighelp { max-height: min(300px, 55vh); overflow: auto; }
 @media (max-width: 900px) { .tabs { flex-wrap: wrap; } .toolbar { width: 100%; } }
+
+/* Expandable device explorer: folders and files stay in one rooted tree. */
+.file .twisty { flex: none; width: 12px; text-align: center; color: var(--fg3); }
+.file:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; background: var(--listsel); }
+.file.selected-folder .name { font-weight: 600; }
+.file:focus-within .acts { display: flex; }
+.tree-error { color: var(--fg3); font-size: 11px; padding: 5px 8px; overflow-wrap: anywhere; }
+.gallery .compat { display: block; font-size: 11px; margin: 3px 0; line-height: 1.35; }
+.gallery .compat.supported { color: var(--fg2); }
+.gallery .compat.unknown, .gallery .compat.offline { color: var(--fg3); }
+.gallery .compat.unsupported { color: var(--fg); font-weight: 600; }
+
+.file .twisty.branch::before { content: ""; display: inline-block; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(-45deg); }
+.file[aria-expanded="true"] .twisty.branch::before { transform: rotate(45deg); vertical-align: 2px; }
+.gallery .compat b { display: inline; }
