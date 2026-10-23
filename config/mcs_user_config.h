@@ -129,7 +129,10 @@
 #define MCS_ENABLE_BYTES          1    /* Encoding, BitConverter, BinaryPrimitives, Base64 / hex (~3 KB) */
 #endif
 #ifndef MCS_ENABLE_JSON
-#define MCS_ENABLE_JSON           1    /* Json.Parse / Json.Stringify, JsonSerializer (~4 KB) */
+#define MCS_ENABLE_JSON           1    /* Json / JsonSerializer; requires List + Dictionary */
+#endif
+#ifndef MCS_JSON_MAX_DEPTH
+#define MCS_JSON_MAX_DEPTH        32   /* bounded parser / writer nesting, range 1..64 */
 #endif
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT        1    /* the Convert class */

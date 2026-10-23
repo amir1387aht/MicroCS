@@ -2,6 +2,22 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Lightweight JSON and API helpers
+
+* Extend the existing dependency-free JSON engine with `TryParse`, computed and
+  inherited instance getters, mixed nested collections, explicit cycle detection
+  and optional inclusion of underscore-prefixed members.
+* Validate UTF-8 and surrogate pairs, preserve embedded NUL, reject malformed
+  number syntax, and parse complete numeric tokens without truncation. Native
+  numeric precision is unchanged; JSON numbers are not arbitrary precision.
+* Add `Http.GetJson`, `PostJson`, `PutJson`, `PatchJson` and `HttpResponse.Json`,
+  plus feature capabilities for older-firmware checks. JSON works offline on every
+  port with List and Dictionary; HTTP still needs the existing socket backend.
+* Release JSON scratch buffers on fatal OOM and fix partially committed dictionary
+  growth that could corrupt allocation accounting after a failed resize.
+* Add a JSON guide, Studio signatures and templates, strict malformed-input and
+  allocation-failure tests, and 1,000 round trips in an unchanged 40 KiB test pool.
+
 ## 1.17.0 — Long-run upload memory recovery
 
 * Separate short-lived compiler/VFS buffers from retained VM objects using

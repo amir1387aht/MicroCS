@@ -1121,6 +1121,7 @@ static const mcs_reg_t ping_fns[] = { MCS_FN("Send", ping_send, -1), MCS_REG_END
 bool mcs_net_has(const mcs_net_t* n, const char* f) {
     if (!f) return false;
     if (!strcmp(f, "Net")) return true;
+    if (!strcmp(f, "Http.Json")) return MCS_ENABLE_SOCKETS && MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT;
     if (!strcmp(f, "Sockets") || !strcmp(f, "TcpClient") || !strcmp(f, "TcpListener") || !strcmp(f, "UdpClient")
         || !strcmp(f, "Dns") || !strcmp(f, "Http") || !strcmp(f, "HttpServer") || !strcmp(f, "WebSocket")
         || !strcmp(f, "DnsServer")) return MCS_ENABLE_SOCKETS != 0;

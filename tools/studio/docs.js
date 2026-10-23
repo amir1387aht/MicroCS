@@ -687,6 +687,10 @@ Put(string url, object body, string contentType = null, object headers = null): 
 Patch(string url, object body, string contentType = null, object headers = null): HttpResponse | PATCH request
 Request(string method, string url, object body = null, string contentType = null, object headers = null): HttpResponse | Any method
 GetString(string url, object headers = null): string | Body of a GET (HttpRequestException unless 2xx)
+GetJson(string url, object headers = null): object | GET, require 2xx, parse JSON (requires Http.Json)
+PostJson(string url, object value, object headers = null): HttpResponse | Serialize value and POST application/json; inspect IsSuccess or EnsureSuccess
+PutJson(string url, object value, object headers = null): HttpResponse | Serialize value and PUT application/json
+PatchJson(string url, object value, object headers = null): HttpResponse | Serialize value and PATCH application/json
 Download(string url, string path, object headers = null): int | Stream a body to a file; bytes written
 UrlEncode(string text): string | Percent-encode for URLs / forms
 Timeout: int | Request timeout in ms
@@ -698,6 +702,7 @@ FollowRedirects: bool | Follow 301/302/303/307/308
 .Reason: string | "OK", "Not Found", ...
 .IsSuccess: bool | Status 200..299
 .Body: string | Body as text
+.Json: object | Parse Body as JSON (does not check HTTP status; requires Http.Json)
 .Bytes: byte[] | Body as bytes
 .ContentLength: int | Body size
 .ContentType: string | Content-Type header
@@ -706,16 +711,21 @@ FollowRedirects: bool | Follow 301/302/303/307/308
 .Header(string name): string | One header (case-insensitive), null when missing
 .EnsureSuccess(): HttpResponse | Throws HttpRequestException unless 2xx
 
-@Json | JSON text ↔ objects
-Parse(string json): object | Dictionary<string, object>, List<object>, int, double, string, bool or null (FormatException on bad input)
-Stringify(object value, bool indent = false): string | Dictionaries, lists, arrays, numbers, strings, objects' fields
-Deserialize(string json): object | Same as Parse
-Serialize(object value, bool indent = false): string | Same as Stringify
-Escape(string text): string | Quoted JSON string
+@Json | Lightweight JSON text ↔ data values (no typed class reconstruction)
+Parse(string json): object | Dictionary, List, native number, string, bool or null; strict Unicode/grammar; FormatException on bad input
+TryParse(string json, out object result): bool | False and null for malformed/null/non-string input; OOM still propagates
+Stringify(object value, object indent = false, bool includeHidden = false): string | Nested collections, fields and computed getters; indent true=2 or integer 0..8; cycles throw
+Deserialize(string json): object | Same as Parse; generic type arguments do not reconstruct classes
+Serialize(object value, object indent = false, bool includeHidden = false): string | Same as Stringify; underscore-prefixed fields/getters omitted unless includeHidden
+Escape(string text): string | Quoted, escaped UTF-8 string (null → JSON null); rejects invalid Unicode
 
-@JsonSerializer | System.Text.Json names for Json
-Serialize(object value, bool indent = false): string | Object → JSON text
-Deserialize(string json): object | JSON text → Dictionary / List / value
+@JsonSerializer | Json aliases, not the full System.Text.Json framework
+Serialize(object value, object indent = false, bool includeHidden = false): string | Same as Json.Serialize
+Deserialize(string json): object | Same as Json.Parse
+Parse(string json): object | Same as Json.Parse
+TryParse(string json, out object result): bool | Same as Json.TryParse
+Stringify(object value, object indent = false, bool includeHidden = false): string | Same as Json.Stringify
+Escape(string text): string | Same as Json.Escape
 
 @Encoding | Text ↔ bytes (System.Text)
 UTF8: Encoding | UTF-8 encoding

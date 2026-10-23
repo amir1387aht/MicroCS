@@ -672,9 +672,23 @@ void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v) {
     }
     if (d->count == d->cap) {
         uint32_t nc = d->cap < 4 ? 4 : d->cap * 2;
-        d->keys = MCS_GROW(vm, mcs_value_t, d->keys, d->cap, nc);
-        if (!(d->obj.aux & DICT_KEYS_ONLY)) d->vals = MCS_GROW(vm, mcs_value_t, d->vals, d->cap, nc);
-        d->cap = nc;
+        /* Commit both arrays together. A fatal second realloc used to leave
+         * keys at the new size but cap at the old size after an OOM, corrupting
+         * allocator accounting and the next retry. Stage values first so keys
+         * can still use realloc (and sets keep their single-array fast path). */
+        mcs_value_t* vals = NULL;
+        if (!(d->obj.aux & DICT_KEYS_ONLY)) {
+            vals = MCS_ALLOC(vm, mcs_value_t, nc);
+            if (d->count) memcpy(vals, d->vals, d->count * sizeof(*vals));
+        }
+        mcs_value_t* keys = (mcs_value_t*)mcs_try_realloc(vm, d->keys,
+            d->cap * sizeof(*keys), nc * sizeof(*keys));
+        if (!keys) {
+            if (vals) MCS_FREE(vm, mcs_value_t, vals, nc);
+            mcs_panic(vm, MCS_ERR_MEMORY, "out of memory (dictionary growth)");
+        }
+        if (d->vals) MCS_FREE(vm, mcs_value_t, d->vals, d->cap);
+        d->keys = keys; d->vals = vals; d->cap = nc;
     }
     d->keys[d->count] = key;
     if (d->vals) d->vals[d->count] = v;

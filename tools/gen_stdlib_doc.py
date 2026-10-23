@@ -93,7 +93,7 @@ MAP = {
     "g_statics": ("Displays (modules/drivers, optional U8g2)", "U8g2", "static", ""),
     "x_members": ("Displays (modules/drivers, optional U8g2)", "U8x8", "instance", "`new U8x8(display)` — 8×8 text without a frame buffer"),
     "x_statics": ("Displays (modules/drivers, optional U8g2)", "U8x8", "static", ""),
-    "json_fns": ("Core", "Json", "static", "`Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent])`; also as `JsonSerializer.Serialize` / `Deserialize` ([NETWORK.md](NETWORK.md#json))"),
+    "json_fns": ("Core", "Json", "static", "`Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent[, includeHidden]])`; fields + computed getters, `TryParse`; also as `JsonSerializer` ([JSON.md](JSON.md))"),
     "net_fns": ("Network (modules/net)", "Net", "static", "const `ApiVersion`; `Has(feature)`: `Wifi`, `EspNow`, `Tls`, `HttpServer`, … ([NETWORK.md](NETWORK.md))"),
     "wifi_fns": ("Network (modules/net)", "Wifi", "static", "consts `ModeOff ModeStation ModeAccessPoint ModeStationAp`, statuses `Idle Connecting Connected NoSsid WrongPassword ConnectFailed ConnectionLost Disconnected Stopped`, `Auth*`, `Power*`, `Proto*`, `Band*`, `Event*`, `Reason*`"),
     "wnet_members": ("Network (modules/net)", "WifiNetwork", "instance", "returned by `Wifi.Scan()`"),

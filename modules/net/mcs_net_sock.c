@@ -12,6 +12,7 @@
  * Accept or Http call stays abortable (Ctrl+C, time limits, Studio's Stop button).
  */
 #include "mcs_net_internal.h"
+#include "mcs_native_internal.h"
 #if MCS_ENABLE_NET && MCS_ENABLE_SOCKETS
 #include "mcs_net_posix.h"
 #if MCS_ENABLE_FS
@@ -735,6 +736,20 @@ static const char* hdr_find(const char* h, size_t hl, const char* name, size_t* 
     }
     return NULL;
 }
+#if MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT
+static mcs_value_t http_json_value(mcs_vm_t* vm, const char* method, mcs_value_t value) {
+    mcs_value_t result = mcs_null();
+    mcs_result_t status = mcs_call(vm, method, 1, &value, &result);
+    if (status != MCS_OK) {
+        /* Nested execution guards return fatal OOM/abort codes without a C#
+         * exception. Do not accidentally send null or report a successful GET. */
+        if (!mcs_has_exception(vm)) mcs_rethrow_native(vm, status);
+        return mcs_null();
+    }
+    return result;
+}
+NATIVE(rs_json) { RS(); return http_json_value(vm, "Json.Parse", mcs_string_n(vm, r->body ? r->body : "", r->body_len)); }
+#endif
 NATIVE(rs_status) { RS(); return mcs_int(r->status); }
 NATIVE(rs_reason) { RS(); return mcs_string(vm, r->reason); }
 NATIVE(rs_ok) { RS(); return mcs_bool(r->status >= 200 && r->status < 300); }
@@ -760,6 +775,9 @@ NATIVE(rs_ensure) {
 }
 static const mcs_reg_t resp_members[] = {
     MCS_GET("StatusCode", rs_status), MCS_GET("Reason", rs_reason), MCS_GET("IsSuccess", rs_ok),
+#if MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT
+    MCS_GET("Json", rs_json),
+#endif
     MCS_GET("Body", rs_body), MCS_GET("Bytes", rs_bytes), MCS_GET("ContentLength", rs_len),
     MCS_GET("ContentType", rs_ctype), MCS_GET("Url", rs_url), MCS_GET("Headers", rs_headers),
     MCS_FN("Header", rs_header, 1), MCS_FN("EnsureSuccess", rs_ensure, 0), MCS_FN("ToString", rs_tostring, 0), MCS_REG_END };
@@ -1129,6 +1147,26 @@ NATIVE(http_getstring) {
     mcs_pop_root(vm, 1);
     return s;
 }
+#if MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT
+NATIVE(http_getjson) {
+    mcs_value_t text = http_getstring(vm, self, argc, argv);
+    if (mcs_has_exception(vm)) return mcs_null();
+    return http_json_value(vm, "Json.Parse", text);
+}
+static mcs_value_t http_sendjson(mcs_vm_t* vm, const char* method, int argc, mcs_value_t* argv) {
+    if (argc < 2 || argc > 3) { mcs_raise(vm, "ArgumentException", "Http JSON request expects url, value[, headers]"); return mcs_null(); }
+    mcs_value_t text = http_json_value(vm, "Json.Stringify", argv[1]);
+    if (mcs_has_exception(vm)) return mcs_null();
+    mcs_push_root(vm, text);
+    mcs_value_t ctype = mcs_string(vm, "application/json; charset=utf-8");
+    mcs_push_root(vm, ctype);
+    mcs_value_t result = http_call(vm, method, argv[0], text, ctype, argc > 2 ? argv[2] : mcs_null());
+    mcs_pop_root(vm, 2); return result;
+}
+NATIVE(http_postjson) { return http_sendjson(vm, "POST", argc, argv); }
+NATIVE(http_putjson) { return http_sendjson(vm, "PUT", argc, argv); }
+NATIVE(http_patchjson) { return http_sendjson(vm, "PATCH", argc, argv); }
+#endif
 NATIVE(http_download) { /* (url, path[, headers]) -> bytes written */
 #if MCS_ENABLE_FS
     if (argc < 2 || argc > 3) { mcs_raise(vm, "ArgumentException", "Http.Download(url, path[, headers])"); return mcs_null(); }
@@ -1197,6 +1235,10 @@ NATIVE(http_urlencode) {
     return s;
 }
 static const mcs_reg_t http_fns[] = {
+#if MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT
+    MCS_FN("GetJson", http_getjson, -1), MCS_FN("PostJson", http_postjson, -1),
+    MCS_FN("PutJson", http_putjson, -1), MCS_FN("PatchJson", http_patchjson, -1),
+#endif
     MCS_FN("Get", http_get, -1), MCS_FN("Head", http_head, -1), MCS_FN("Delete", http_delete, -1),
     MCS_FN("Post", http_post, -1), MCS_FN("Put", http_put, -1), MCS_FN("Patch", http_patch, -1),
     MCS_FN("Request", http_request, -1), MCS_FN("GetString", http_getstring, -1), MCS_FN("Download", http_download, -1),
