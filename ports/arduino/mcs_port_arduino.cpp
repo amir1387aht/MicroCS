@@ -588,6 +588,15 @@ mcs_transport_t mcs_arduino_console(Stream* s) {
     return t;
 }
 
+#if defined(ESP32)
+#include "soc/soc_caps.h"
+#include "mcs_esp_encoder.h"
+#endif
+
+#if defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
+#include "mcs_rp2_encoder.h"
+#endif
+
 void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     if (cfg) g_cfg = *cfg;
     memset(hal, 0, sizeof *hal);
@@ -597,6 +606,12 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     mcs_esp_power_init(hal);
 #endif
     hal->pin_lookup = a_pin_lookup;
+#if defined(ESP32)
+    mcs_esp_encoder_init(hal);
+#endif
+#if defined(ARDUINO_ARCH_RP2040) && !defined(ARDUINO_ARCH_MBED)
+    mcs_rp2_encoder_init(hal);
+#endif
     hal->gpio_capture = true;
     hal->gpio_mode = a_gpio_mode;
     hal->gpio_write = a_gpio_write;

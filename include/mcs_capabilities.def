@@ -26,7 +26,7 @@ MCS_CAP("Scheduler", MCS_ENABLE_SCHED && mcs_get_ext(vm, MCS_EXT_SCHED) != NULL 
 MCS_CAP("Threads", MCS_ENABLE_THREADS && mcs_global_exists(vm, "Thread"), MCS_CAP_Threads)
 MCS_CAP("Board", CAP_HW(true), MCS_CAP_Board)
 MCS_CAP("GPIO", CAP_HW(h->gpio_write != NULL), MCS_CAP_GPIO)
-MCS_CAP("RotaryEncoder", MCS_ENABLE_ENCODER && CAP_HW(h->gpio_capture && h->gpio_mode && h->gpio_read && h->gpio_irq) && mcs_hal_events(vm) && CAP_GLOBAL("RotaryEncoder"), MCS_CAP_RotaryEncoder)
+MCS_CAP("RotaryEncoder", MCS_ENABLE_ENCODER && CAP_HW(h->gpio_mode && h->gpio_read && ((h->gpio_capture && h->gpio_irq) || (MCS_ENABLE_ENCODER_HW && h->encoder_open && h->encoder_read && h->encoder_close))) && mcs_hal_events(vm) && CAP_GLOBAL("RotaryEncoder"), MCS_CAP_RotaryEncoder)
 MCS_CAP("GPIO.IRQ", CAP_HW(h->gpio_irq != NULL), MCS_CAP_GPIO_IRQ)
 MCS_CAP("GPIO.Configure", CAP_HW(h->gpio_configure != NULL), MCS_CAP_GPIO_Configure)
 MCS_CAP("UART", CAP_HW(h->uart_write != NULL), MCS_CAP_UART)

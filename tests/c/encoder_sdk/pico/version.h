@@ -1,0 +1,3 @@
+#ifndef PICO_SDK_VERSION_MAJOR
+#define PICO_SDK_VERSION_MAJOR 2
+#endif

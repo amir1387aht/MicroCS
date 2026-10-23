@@ -337,6 +337,7 @@ or arbitrary-app 40 KiB guarantee is implied by the host regression.
 
 ## Rotary encoders
 
-[RotaryEncoder](../../docs/ENCODER.md) supports A/B quadrature via both-edge GPIO
-interrupts, with optional push-button input. See the guide for this port's pin
-restrictions, lifetime rules and speed limits.
+[RotaryEncoder](../../docs/ENCODER.md) prefers PCNT,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.

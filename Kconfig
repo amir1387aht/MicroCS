@@ -275,12 +275,12 @@ menu "MicroCS"
             single-threaded runtime (Thread.Os == "None"). See docs/THREADS.md.
 
     config MICROCS_ENCODER
-        bool "Rotary encoders (A/B GPIO interrupts)"
+        bool "Rotary encoders (hardware PCNT, GPIO fallback)"
         default y
         help
-            Native RotaryEncoder class for EC11 / KY-040 controls. Counts
-            transitions in the ISR with an optional active-low button.
-            Both A and B need interrupt-capable GPIOs. See docs/ENCODER.md.
+            RotaryEncoder uses the PCNT peripheral when the SoC provides it.
+            Chips without PCNT use GPIO interrupts. Hardware errors do not
+            silently select software. Optional active-low button; see docs/ENCODER.md.
 
     config MICROCS_SERVO
         bool "Servo driver (C# Servo on a LEDC PWM channel)"

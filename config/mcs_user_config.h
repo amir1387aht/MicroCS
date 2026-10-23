@@ -348,6 +348,9 @@
 #ifndef MCS_HAL_MAX_BUSES
 #define MCS_HAL_MAX_BUSES         4    /* per peripheral type, cached bus settings */
 #endif
+#ifndef MCS_ENABLE_ENCODER_HW
+#define MCS_ENABLE_ENCODER_HW     MCS_ENABLE_ENCODER    /* use native counters first */
+#endif
 #ifndef MCS_ENABLE_ENCODER
 #define MCS_ENABLE_ENCODER        MCS_ENABLE_HAL    /* ISR A/B quadrature: RotaryEncoder */
 #endif
@@ -637,6 +640,9 @@
 #endif
 #ifndef MCS_STM32_PWM_CHANNELS
 #define MCS_STM32_PWM_CHANNELS    12
+#endif
+#ifndef MCS_STM32_ENCODERS
+#define MCS_STM32_ENCODERS        4    /* CubeMX TIM encoder bindings */
 #endif
 #ifndef MCS_STM32_TIMERS
 #define MCS_STM32_TIMERS          4

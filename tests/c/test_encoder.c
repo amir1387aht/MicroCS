@@ -1,4 +1,4 @@
-/* Quadrature is decoded before the queue, not in a delayed C# callback. */
+/* Hardware-first quadrature and pre-queue GPIO fallback lifecycle regressions. */
 #include "mcs_hal.h"
 #include <stdio.h>
 #include <string.h>
@@ -41,6 +41,23 @@ static int fail_pin = -1;
 static int faulty_irq(void* ctx,int pin,int edge) {
     if (pin == fail_pin && edge) return MCS_HAL_EBUSY;
     return real_irq(ctx,pin,edge);
+}
+#endif
+#if MCS_ENABLE_ENCODER && MCS_ENABLE_ENCODER_HW
+static uint32_t native_count;
+static int native_result, native_read_error, native_opens, native_closes, native_active;
+static int native_open(void* ctx,int a,int b,void** handle) {
+    (void)ctx; CHECK(a==2 && b==3); native_opens++; *handle=NULL;
+    if(native_result) return native_result;
+    CHECK(!native_active); native_active=1; native_count=0; *handle=&native_count; return 0;
+}
+static int native_read(void* ctx,void* handle,uint32_t* count) {
+    (void)ctx; CHECK(handle==&native_count && native_active);
+    if(native_read_error) return MCS_HAL_ERR;
+    *count=native_count; return 0;
+}
+static void native_close(void* ctx,void* handle) {
+    (void)ctx; CHECK(handle==&native_count && native_active); native_active=0; native_closes++;
 }
 #endif
 static mcs_vm_t* newvm(void) {
@@ -151,7 +168,43 @@ int main(void) {
 #endif
     mcs_hal_close_lib(vm); mcs_free(vm);
 #if MCS_ENABLE_ENCODER
-    /* Fixed-pool teardown and many explicit disposals: no hidden SDK mallocs. */
+#if MCS_ENABLE_ENCODER_HW
+    hal.encoder_open=native_open; hal.encoder_read=NULL; hal.encoder_close=native_close; hal.encoder_name="FakeHardware";
+    vm=newvm();
+    run(vm,"try { new RotaryEncoder(2,3); throw new Exception(); } catch(IOException e) {}");
+    CHECK(!native_opens && !native_active && !sim.irq[2] && !sim.irq[3]);
+    mcs_free(vm); /* Incomplete native hooks are a port error, not a fallback request. */
+    hal.encoder_read=native_read;
+    vm=newvm();
+    run(vm,"var enc=new RotaryEncoder(2,3,4); if(enc.Backend != \"FakeHardware\") throw new Exception();");
+    CHECK(native_opens==1 && !sim.irq[2] && !sim.irq[3]);
+    native_count=80000; expect(vm,20000); /* no GPIO edge producer / Hal.Poll */
+    native_count=80003; expect(vm,20000); native_count=80004; expect(vm,20001);
+    native_count=80002; expect(vm,20001); native_count=80000; expect(vm,20000);
+    run(vm,"enc.Reset(17);"); native_count+=4; expect(vm,18);
+    native_read_error=1;
+    run(vm,"try { int p=enc.Position; throw new Exception(); } catch(IOException e) {} "
+           "try { enc.Reset(123); throw new Exception(); } catch(IOException e) {}");
+    native_read_error=0; expect(vm,18); run(vm,"enc.Dispose();"); CHECK(!native_active);
+    run(vm,"enc=new RotaryEncoder(2,3,1); ");
+    native_count=UINT32_MAX-2; run(vm,"enc.Reset();"); native_count=1; expect(vm,4);
+    native_count=UINT32_MAX-2; expect(vm,0); run(vm,"enc.Dispose();");
+    run(vm,"enc=new RotaryEncoder(2,3,4,-1,true);"); native_count=40; expect(vm,-10);
+    mcs_hal_close_lib(vm); CHECK(!native_active); mcs_free(vm);
+    vm=newvm(); native_result=MCS_HAL_EBUSY;
+    run(vm,"try { new RotaryEncoder(2,3); throw new Exception(); } catch(IOException e) {}");
+    CHECK(!sim.irq[2] && !sim.irq[3] && !native_active); /* busy hardware MUST NOT fall back */
+    native_result=MCS_HAL_ENOTSUP;
+    run(vm,"var enc=new RotaryEncoder(2,3); if(enc.Backend != \"Software\") throw new Exception();");
+    CHECK(sim.irq[2]==3 && sim.irq[3]==3); run(vm,"enc.Dispose();");
+    native_result=0; native_read_error=1;
+    run(vm,"try { new RotaryEncoder(2,3); throw new Exception(); } catch(IOException e) {}");
+    CHECK(!native_active && !sim.irq[2] && !sim.irq[3]);
+    native_read_error=0; run(vm,"enc=new RotaryEncoder(2,3);");
+    mcs_free(vm); CHECK(!native_active && native_closes>=5);
+    hal.encoder_open=NULL;hal.encoder_read=NULL;hal.encoder_close=NULL;hal.encoder_name=NULL;
+#endif
+    /* Fixed-pool teardown and many explicit disposals: no residual VM allocations. */
     static uint8_t heap[64 * 1024];
     mcs_pool_t pool; mcs_pool_init(&pool,heap,sizeof heap);
     mcs_config_t cfg; mcs_config_default(&cfg);

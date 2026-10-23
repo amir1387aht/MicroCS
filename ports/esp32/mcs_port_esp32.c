@@ -1406,6 +1406,9 @@ static bool e_memory_info(void* ctx, mcs_heap_stats_t* st) {
     return true;
 }
 
+#define MCS_ESP_ENCODER_INVERT(pin) E_INV(pin)
+#include "mcs_esp_encoder.h"
+
 void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     static const mcs_esp32_cfg_t defaults = MCS_ESP32_CFG_DEFAULT;
     g_cfg = cfg ? *cfg : defaults;
@@ -1418,6 +1421,7 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->board = g_cfg.name ? g_cfg.name : CONFIG_IDF_TARGET;
     hal->ctx = &g_cfg;
     mcs_esp_power_init(hal);
+    mcs_esp_encoder_init(hal);
     hal->gpio_capture = true;
     hal->gpio_mode = e_gpio_mode;
     hal->gpio_write = e_gpio_write;

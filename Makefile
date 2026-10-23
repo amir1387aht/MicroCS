@@ -184,7 +184,7 @@ config-check: | build
 FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
 	"-DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_LINES=0 -DMCS_ENABLE_BYTECODE_SAVE=0" "-DMCS_INT64=1" \
-	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_ENCODER=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
+	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_ENCODER=0" "-DMCS_ENABLE_ENCODER_HW=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
 	"-DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_PROFILE=MCS_PROFILE_TINY" "-DMCS_PROFILE=MCS_PROFILE_MCU" \
 	"-DMCS_PROFILE=MCS_PROFILE_EMBEDDED" "-DMCS_PROFILE=MCS_PROFILE_LINUX" \
@@ -438,5 +438,16 @@ build/test_encoder: tests/c/test_encoder.c $(OBJ)
 encoder-test: build/test_encoder
 	./build/test_encoder
 	python3 tests/test_encoder_ports.py
+	python3 tests/test_encoder_stm32.py
+	python3 tests/test_encoder_pio.py
+	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder.c -o build/test_esp_encoder && ./build/test_esp_encoder
+	$(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder.c -o build/test_esp_encoder_cpp && ./build/test_esp_encoder_cpp
+	$(CC) -std=gnu99 -Wall -Wextra -Werror -DPCNT_TEST_MINOR=1 -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder.c -o build/test_esp_encoder_accum && ./build/test_esp_encoder_accum
+	$(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -DPCNT_TEST_MINOR=1 -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder.c -o build/test_esp_encoder_accum_cpp && ./build/test_esp_encoder_accum_cpp
+	$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder_legacy.c -o build/test_esp_encoder_legacy && ./build/test_esp_encoder_legacy
+	$(CXX) -x c++ -std=c++11 -Wall -Wextra -Werror -Iinclude -Itests/c/encoder_sdk tests/c/test_esp_encoder_legacy.c -o build/test_esp_encoder_legacy_cpp && ./build/test_esp_encoder_legacy_cpp
+	@for v in 1 2; do \
+	  $(CC) -std=gnu99 -Wall -Wextra -Werror -DPICO_SDK_VERSION_MAJOR=$$v -Iinclude -Itests/c/encoder_sdk tests/c/test_pio_encoder.c -o build/test_pio_encoder && ./build/test_pio_encoder || exit 1; \
+	  $(CXX) -x c++ -std=gnu++11 -Wall -Wextra -Werror -DPICO_SDK_VERSION_MAJOR=$$v -Iinclude -Itests/c/encoder_sdk tests/c/test_pio_encoder.c -o build/test_pio_encoder_cpp && ./build/test_pio_encoder_cpp || exit 1; done
 	@if command -v node >/dev/null 2>&1; then node tests/studio/test_encoder.js; fi
 .PHONY: encoder-test

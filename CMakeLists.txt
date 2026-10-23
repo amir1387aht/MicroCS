@@ -134,6 +134,9 @@ if(ESP_PLATFORM)
     if(IDF_VERSION_MAJOR GREATER 5 OR (IDF_VERSION_MAJOR EQUAL 5 AND IDF_VERSION_MINOR GREATER_EQUAL 5))
         list(APPEND _mcs_net_reqs esp_driver_twai)
     endif()
+    if(IDF_VERSION_MAJOR GREATER 5 OR (IDF_VERSION_MAJOR EQUAL 5 AND IDF_VERSION_MINOR GREATER_EQUAL 3))
+        list(APPEND _mcs_net_reqs esp_driver_pcnt)
+    endif()
     idf_component_register(
         SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
@@ -228,7 +231,7 @@ if(NOT DEFINED MICROCS_WS2812)
     option(MICROCS_WS2812 "Built-in ws2812 driver: C# LedStrip (WS2812 / SK6812 strips)" ON)
 endif()
 if(NOT DEFINED MICROCS_ENCODER)
-    option(MICROCS_ENCODER "GPIO-interrupt A/B rotary encoders" ON)
+    option(MICROCS_ENCODER "Hardware-first A/B rotary encoders with GPIO fallback" ON)
 endif()
 if(NOT DEFINED MICROCS_SERVO)
     option(MICROCS_SERVO "Built-in servo driver: C# Servo (hobby servos on a PWM channel)" ON)
@@ -325,7 +328,7 @@ if(MICROCS_PORT STREQUAL "rp2")
     target_link_libraries(microcs PUBLIC pico_stdlib pico_unique_id hardware_i2c hardware_spi
                           hardware_adc hardware_pwm hardware_irq hardware_watchdog hardware_clocks
                           hardware_flash hardware_sync hardware_dma)
-    if(MICROCS_WS2812)
+    if(MICROCS_WS2812 OR MICROCS_ENCODER)
         target_link_libraries(microcs PUBLIC hardware_pio)   # the ws2812 driver's PIO backend
     endif()
     if(TARGET pico_flash)

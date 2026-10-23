@@ -255,6 +255,10 @@ typedef struct encoder {
     const mcs_hal_t* hal;
     int a, b, button, pin;
     int32_t position;
+#if MCS_ENABLE_ENCODER_HW
+    void* hardware;
+    uint32_t last_count;
+#endif
     int8_t partial;
     uint8_t state, steps, reverse, active, irqs;
 } encoder_t;
@@ -301,6 +305,9 @@ bool mcs_hal_gpio_edge(void* ctx, int pin) {
 static void encoder_detach(encoder_t* e) {
     if (!e->hal) return;
     { MCS_HAL_CRITICAL_ENTER(); e->active = 0; MCS_HAL_CRITICAL_EXIT(); }
+#if MCS_ENABLE_ENCODER_HW
+    if (e->hardware) { e->hal->encoder_close(e->hal->ctx, e->hardware); e->hardware = NULL; }
+#endif
     if (e->irqs & 1) e->hal->gpio_irq(e->hal->ctx, e->a, MCS_GPIO_EDGE_NONE);
     if (e->irqs & 2) e->hal->gpio_irq(e->hal->ctx, e->b, MCS_GPIO_EDGE_NONE);
     {
@@ -333,13 +340,13 @@ static bool encoder_guard(mcs_vm_t* vm, int pin) {
 static void encoder_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     encoder_t* e = (encoder_t*)mcs_userdata(self);
     e->pin = -1;
-    if (argc < 2 || argc > 5) { mcs_raise(vm, "ArgumentException", "RotaryEncoder(a, b[, steps = 4, button = -1, reverse = false]) expected"); return; }
+    if (argc < 2 || argc > 5) { mcs_raise(vm, "ArgumentException", "RotaryEncoder expects 2 to 5 arguments"); return; }
     const mcs_hal_t* h = mcs_hal_get(vm);
-    if (!h || !h->gpio_capture || !h->gpio_mode || !h->gpio_irq || !h->gpio_read) { hal_fail(vm, "RotaryEncoder", MCS_HAL_ENOTSUP); return; }
+    if (!h || !h->gpio_mode || !h->gpio_read) { hal_fail(vm, "RotaryEncoder", MCS_HAL_ENOTSUP); return; }
     if (ST()->no_events) { mcs_raise(vm, "InvalidOperationException", "RotaryEncoder requires the main event VM"); return; }
     e->a = pin_arg(vm, argv[0]); e->b = pin_arg(vm, argv[1]);
     mcs_int_t steps = argc > 2 ? mcs_to_int(vm, argv[2]) : 4;
-    e->button = argc > 3 && !(mcs_is_int(argv[3]) && mcs_to_int(vm, argv[3]) == -1) ? pin_arg(vm, argv[3]) : -1;
+    e->button = argc > 3 ? pin_arg(vm, argv[3]) : -1;
     e->reverse = argc > 4 && mcs_to_bool(vm, argv[4]);
     if (mcs_has_exception(vm)) return;
     if (e->a < 0 || e->b < 0 || e->button < -1 || e->a == e->b || e->button == e->a || e->button == e->b || (steps != 1 && steps != 2 && steps != 4)) {
@@ -363,7 +370,19 @@ static void encoder_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* 
         MCS_HAL_CRITICAL_EXIT();
     }
     int rc = total < MCS_HAL_MAX_ENCODERS ? 0 : MCS_HAL_EBUSY;
-    for (int i = 0; i < 3 && rc >= 0; i++) if (pins[i] >= 0) rc = h->gpio_mode(h->ctx, pins[i], MCS_GPIO_INPUT_PULLUP);
+    if (rc >= 0 && e->button >= 0) rc = h->gpio_mode(h->ctx, e->button, MCS_GPIO_INPUT_PULLUP);
+#if MCS_ENABLE_ENCODER_HW
+    if (rc >= 0 && (h->encoder_open || h->encoder_read || h->encoder_close)) {
+        if (!h->encoder_open || !h->encoder_read || !h->encoder_close) { rc = MCS_HAL_ERR; goto encoder_ready; }
+        rc = h->encoder_open(h->ctx, e->a, e->b, &e->hardware);
+        if (rc == MCS_HAL_ENOTSUP && !e->hardware) rc = 0; /* unavailable: software fallback */
+        else if (rc >= 0 && !e->hardware) rc = MCS_HAL_ERR;
+        if (rc >= 0 && e->hardware) rc = h->encoder_read(h->ctx, e->hardware, &e->last_count);
+        if (rc < 0 || e->hardware) goto encoder_ready;
+    }
+#endif
+    if (rc >= 0 && (!h->gpio_capture || !h->gpio_irq)) rc = MCS_HAL_ENOTSUP;
+    for (int i = 0; i < 2 && rc >= 0; i++) rc = h->gpio_mode(h->ctx, pins[i], MCS_GPIO_INPUT_PULLUP);
     if (rc >= 0) { rc = h->gpio_irq(h->ctx, e->a, MCS_GPIO_EDGE_BOTH); if (rc >= 0) e->irqs |= 1; }
     if (rc >= 0) { rc = h->gpio_irq(h->ctx, e->b, MCS_GPIO_EDGE_BOTH); if (rc >= 0) e->irqs |= 2; }
     if (rc >= 0) {
@@ -373,6 +392,9 @@ static void encoder_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* 
         else { e->state = (uint8_t)(((a != 0) << 1) | (b != 0)); e->active = 1; }
         MCS_HAL_CRITICAL_EXIT();
     }
+#if MCS_ENABLE_ENCODER_HW
+encoder_ready:
+#endif
     if (rc < 0) { encoder_detach(e); mcs_unpin(vm, e->pin); e->pin = -1; hal_fail(vm, "RotaryEncoder", rc); }
 }
 static encoder_t* encoder_get(mcs_vm_t* vm, mcs_value_t self) {
@@ -380,8 +402,29 @@ static encoder_t* encoder_get(mcs_vm_t* vm, mcs_value_t self) {
     if (e && !e->hal) { mcs_raise(vm, "ObjectDisposedException", "RotaryEncoder is disposed"); return NULL; }
     return e;
 }
+#if MCS_ENABLE_ENCODER_HW
+static int encoder_sample(encoder_t* e) {
+    if (!e->hardware) return 0;
+    uint32_t count;
+    int rc = e->hal->encoder_read(e->hal->ctx, e->hardware, &count);
+    if (rc < 0) return rc;             /* preserve baseline / position on error */
+    int64_t delta = (uint32_t)(count - e->last_count);
+    if (delta > INT32_MAX) delta -= INT64_C(4294967296);
+    e->last_count = count;
+    if (e->reverse) delta = -delta;
+    delta += e->partial;
+    int64_t position = (int64_t)e->position + delta / e->steps;
+    e->partial = (int8_t)(delta % e->steps);
+    e->position = position > INT32_MAX ? INT32_MAX : position < INT32_MIN ? INT32_MIN : (int32_t)position;
+    return 0;
+}
+#endif
 NATIVE(encoder_position) {
     encoder_t* e = encoder_get(vm, self); if (!e) return mcs_null();
+#if MCS_ENABLE_ENCODER_HW
+    int rc = encoder_sample(e);
+    if (rc < 0) return hal_fail(vm, "RotaryEncoder.Position", rc);
+#endif
     int32_t n; { MCS_HAL_CRITICAL_ENTER(); n = e->position; MCS_HAL_CRITICAL_EXIT(); }
     return mcs_int((mcs_int_t)n);
 }
@@ -391,6 +434,14 @@ NATIVE(encoder_reset) {
     mcs_int_t n = argc ? mcs_to_int(vm, argv[0]) : 0;
     if (mcs_has_exception(vm)) return mcs_null();
     if (n < INT32_MIN || n > INT32_MAX) return range_fail(vm, "encoder position");
+#if MCS_ENABLE_ENCODER_HW
+    if (e->hardware) {
+        uint32_t count;
+        int rc = e->hal->encoder_read(e->hal->ctx, e->hardware, &count);
+        if (rc < 0) return hal_fail(vm, "RotaryEncoder.Reset", rc);
+        e->last_count = count;        /* reset baseline without stopping / clearing the hardware */
+    }
+#endif
     { MCS_HAL_CRITICAL_ENTER(); e->position = (int32_t)n; e->partial = 0; MCS_HAL_CRITICAL_EXIT(); }
     return mcs_null();
 }
@@ -405,8 +456,15 @@ NATIVE(encoder_dispose) {
     if (e->hal) { int pin = e->pin; encoder_detach(e); mcs_unpin(vm, pin); e->pin = -1; }
     return mcs_null();
 }
+NATIVE(encoder_backend) {
+    encoder_t* e = encoder_get(vm, self); if (!e) return mcs_null();
+#if MCS_ENABLE_ENCODER_HW
+    if (e->hardware) return mcs_string(vm, e->hal->encoder_name ? e->hal->encoder_name : "Hardware");
+#endif
+    return mcs_string(vm, "Software");
+}
 static const mcs_reg_t encoder_members[] = {
-    MCS_GET("Position", encoder_position), MCS_GET("ButtonPressed", encoder_button),
+    MCS_GET("Backend", encoder_backend), MCS_GET("Position", encoder_position), MCS_GET("ButtonPressed", encoder_button),
     MCS_FN("Reset", encoder_reset, -1), MCS_FN("Dispose", encoder_dispose, 0), MCS_REG_END
 };
 static const mcs_class_def_t encoder_def = { "RotaryEncoder", sizeof(encoder_t), encoder_ctor, encoder_free, encoder_members, NULL };
@@ -1709,7 +1767,12 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         mcs_register_consts(vm, "GPIO", gpio_consts);
         mcs_register_class(vm, &pin_def);
 #if MCS_ENABLE_ENCODER
-        if (h->gpio_capture && h->gpio_mode && h->gpio_read && h->gpio_irq && !s->no_events)
+        if (h->gpio_mode && h->gpio_read && !s->no_events &&
+            ((h->gpio_capture && h->gpio_irq)
+#if MCS_ENABLE_ENCODER_HW
+             || (h->encoder_open && h->encoder_read && h->encoder_close)
+#endif
+            ))
             mcs_register_class(vm, &encoder_def);
 #endif
     }

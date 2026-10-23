@@ -662,6 +662,9 @@ static int r_power_enter(void* ctx, int mode, uint32_t ms, int pin, int high) {
     }
 }
 
+#define MCS_RP2_ENCODER_INVERT(pin) R_INV(pin)
+#include "mcs_rp2_encoder.h"
+
 void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     static const mcs_rp2_cfg_t defaults = MCS_RP2_CFG_DEFAULT;
     g_cfg = cfg ? *cfg : defaults;
@@ -674,6 +677,7 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->ctx = &g_cfg;
     hal->power_modes = hal->power_timer_modes = hal->power_pin_modes = MCS_POWER_LIGHT;
     hal->power_validate = r_power_validate; hal->power_enter = r_power_enter;
+    mcs_rp2_encoder_init(hal);
     hal->gpio_capture = true;
     hal->gpio_mode = r_gpio_mode;
     hal->gpio_write = r_gpio_write;

@@ -7,7 +7,7 @@ requires: none
 
 [encoder.cs] Rotary encoder
 requires: RotaryEncoder
-Native ISR quadrature counting with optional debounced push-button handling.
+Hardware PCNT / TIM / PIO counting with GPIO fallback and optional button handling.
 
 [keypad.cs] 4x4 matrix keypad
 requires: GPIO, StringBuilder

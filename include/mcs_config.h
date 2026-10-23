@@ -352,6 +352,9 @@
 #ifndef MCS_ENABLE_ENCODER
 #define MCS_ENABLE_ENCODER MCS_ENABLE_HAL /* GPIO-interrupt quadrature: RotaryEncoder */
 #endif
+#ifndef MCS_ENABLE_ENCODER_HW
+#define MCS_ENABLE_ENCODER_HW MCS_ENABLE_ENCODER /* native PCNT / timer encoder backends */
+#endif
 #if MCS_ENABLE_ENCODER && !MCS_ENABLE_HAL
 #undef MCS_ENABLE_ENCODER
 #define MCS_ENABLE_ENCODER 0

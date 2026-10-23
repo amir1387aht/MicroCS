@@ -216,6 +216,7 @@ def main():
     for d in glob.glob(os.path.join(ROOT, "ports", "arduino", "examples", "*")):
         shutil.copytree(d, os.path.join(lib, "examples", os.path.basename(d)))
     shutil.copy(os.path.join(ROOT, "LICENSE"), lib)
+    shutil.copy(os.path.join(ROOT, "ports", "rp2", "LICENSE.encoder"), lib)
     v = version()
     with open(os.path.join(lib, "library.properties"), "w") as f:
         f.write(f"""name=MicroCS

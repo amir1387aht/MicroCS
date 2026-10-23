@@ -214,6 +214,9 @@ CAN peripheral. See [CAN port contract and setup](CAN.md#firmware-integration-an
 
 ## Rotary encoders (HAL API v6)
 
-See [encoder port integration](ENCODER.md#build-and-custom-ports). GPIO ISR
-producers must call `mcs_hal_gpio_edge(ctx, pin)` before enqueueing an event and
-set `gpio_capture` only when both-edge interrupts and ISR-safe GPIO reads work.
+[Native encoder backends](ENCODER.md#build-and-custom-hal-backends) provide
+`encoder_open/read/close`: the API tries hardware first and falls back only on
+`ENOTSUP`, never on busy/allocation/configuration errors. PCNT, TIM encoder and
+PIO backends do not decode GPIO edges on the CPU. For fallback, GPIO producers
+call `mcs_hal_gpio_edge(ctx, pin)` before enqueueing and set `gpio_capture` only
+with both-edge interrupts and ISR-safe reads.

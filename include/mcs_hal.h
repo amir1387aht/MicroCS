@@ -421,6 +421,15 @@ typedef struct mcs_hal {
     /* v6: GPIO ISR calls mcs_hal_gpio_edge(ctx, pin) BEFORE queueing an edge.
      * gpio_read must be nonblocking / ISR-safe for these direct MCU pins. */
     bool gpio_capture;
+    /* Native encoder first. open returns ENOTSUP ONLY when unavailable for this
+     * pin pair, with *handle NULL and no resources retained. Other errors must
+     * not silently fall back. Count is a free-running modulo-2^32 x4 transition
+     * total; read must not clear it. close releases all peripheral resources.
+     * Hardware open owns A/B electrical / alternate-function setup. */
+    int (*encoder_open)(void* ctx, int a, int b, void** handle);
+    int (*encoder_read)(void* ctx, void* handle, uint32_t* count);
+    void (*encoder_close)(void* ctx, void* handle);
+    const char* encoder_name;         /* e.g. "PCNT", "TIM"; NULL = "Hardware" */
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the

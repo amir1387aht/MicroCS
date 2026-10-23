@@ -25,7 +25,7 @@ optional power callbacks/masks; all v3 peripheral/DMA members remain unchanged.
 
 ## Rotary encoders
 
-[`RotaryEncoder`](ENCODER.md) counts A/B quadrature transitions in GPIO interrupts,
+[`RotaryEncoder`](ENCODER.md) uses hardware PCNT / timer encoder / PIO counting first, with GPIO decoding only when unavailable,
 with atomic position/reset, deterministic disposal and an optional push-button input.
 Supported by the simulator, ESP32, RP2, STM32, Arduino and Zephyr ports.
 

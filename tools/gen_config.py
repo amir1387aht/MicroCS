@@ -17,7 +17,7 @@ import argparse, os, re, shutil, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "config", "mcs_user_config.h")
-NOT_OPTIONS = {"MCS_FLASHFS_FORMAT_IF_NEEDED"}  # guards of constants, not options
+NOT_OPTIONS = {"MCS_FLASHFS_FORMAT_IF_NEEDED", "MCS_ESP_ENCODER_INVERT", "MCS_RP2_ENCODER_INVERT"}  # guards of constants, not options
 PROFILES = ["full", "auto", "embedded", "mcu", "lowram", "tiny", "min", "linux"]
 OPT = re.compile(r"^#ifndef (MCS_\w+)\n#define (\1)(\s+)(.*?)(\s*/\*.*\*/)?\n#endif\n", re.M)
 

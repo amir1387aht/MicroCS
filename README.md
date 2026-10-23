@@ -123,7 +123,7 @@ starts in 1.7–8 KB of heap; bytecode can run straight from flash.
 <td width="33%" valign="top">
 
 ### 🔌 Built for devices
-Native [A/B rotary encoders](docs/ENCODER.md) (`RotaryEncoder`, optional push button),
+Hardware-first [A/B rotary encoders](docs/ENCODER.md) (`RotaryEncoder`, optional push button),
 14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and Pico W / Pico 2 W: station, soft AP, TCP/UDP, HTTP, web servers, WebSocket, NTP, mDNS and `Json`; ESP-NOW and HTTPS/TLS are ESP32-specific, and other features vary by backend. [Bluetooth LE](docs/BLE.md) on ESP32 (NimBLE), Pico W / Pico 2 W (BTstack), Zephyr and ArduinoBLE (opt-in for custom builds; enabled in BLE-capable ESP32 release images): beacons, scanning, GATT server and client, pairing, `BleUart`. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 

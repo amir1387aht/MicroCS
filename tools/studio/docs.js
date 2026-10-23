@@ -852,11 +852,12 @@ new(pin pin, GpioConfig cfg) | A pin with full electrical settings
 .Value: bool | Level (get / set)
 .Number: int | Pin number
 
-@RotaryEncoder | Interrupt-decoded A/B quadrature encoder (KY-040 / EC11)
-new(pin a, pin b, int steps = 4, pin button = -1, bool reverse = false) | Pull-up inputs; both A/B pins must support interrupts; steps 1, 2 or 4 per count
-.Position: int | Signed 32-bit position; saturates at min/max; counts even while the VM is busy
+@RotaryEncoder | Hardware-first A/B quadrature: PCNT / TIM / PIO, GPIO fallback
+new(pin a, pin b, int steps = 4, pin button = -1, bool reverse = false) | Prefers native hardware; GPIO interrupts only when unavailable; steps 1, 2 or 4 transitions/count
+.Backend: string | Selected backend: PCNT, TIM, PIO, or Software (explicit fallback)
+.Position: int | Signed 32-bit position from the native counter or GPIO fallback; saturates at min/max
 .ButtonPressed: bool | Raw active-low optional button (false when omitted); debounce in the application
-.Reset(int position = 0): void | Atomically sets position and clears the partial count
+.Reset(int position = 0): void | Sets position and rebaselines without stopping or clearing the hardware counter
 .Dispose(): void | Disables both interrupts and releases the pins; idempotent
 
 @UART | Serial ports (modules/hal)
