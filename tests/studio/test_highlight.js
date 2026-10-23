@@ -27,3 +27,15 @@ assert(web.includes('class="t-str">&quot;on&quot;'), 'quoted interpolation expre
 assert.strictEqual(stringEnd('$@"unfinished {x + "value"', 0), '$@"unfinished {x + "value"'.length);
 assert.strictEqual(stringEnd('"unfinished\nnext', 0), '"unfinished'.length);
 console.log('PASS Studio strings: interpolated/verbatim, nested holes, comments, escapes, incomplete input');
+const syntax = 'class Display { public int Count; int Path = 1, Other = 2; void Show(int Value) { Count = this.Count + Value; Path++; Other++; var text = $"{Count} {this.Count}"; } }\nDisplay display = new Display();';
+const colored = highlight(syntax);
+for (const name of ['Count','Path','Other','Value']) {
+  const hits = [...colored.matchAll(new RegExp('<span class="(t-[^"]+)">' + name + '<\\/span>', 'g'))];
+  assert(hits.length >= 2, name + ': declaration and references');
+  assert(hits.every(m => m[1] === 't-loc'), name + ': stable identifier color');
+}
+assert(colored.includes('t-ty">Display'), 'user-defined class is a type');
+assert(colored.includes('t-fn">Show'), 'method retains method color');
+assert(highlight('int @class = 1; @class++;').match(/t-loc">@class/g).length === 2);
+assert(!highlight('// class Bogus {}\nint Bogus = 1; Bogus++;').includes('t-ty">Bogus'), 'comments cannot create type symbols');
+console.log('PASS stable identifier colors: PascalCase locals/fields, this.member, parameters, API-name shadowing, interpolation and custom classes');

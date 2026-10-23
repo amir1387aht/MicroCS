@@ -122,6 +122,10 @@ jobs:
           exit "$result"
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
+      - name: Explorer tree and legacy firmware compatibility
+        run: |
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_explorer_compat.js
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_legacy.js ./mcs
       - name: ESP BLE menuconfig gating and limits
         run: |
           python3 -m pip install kconfiglib==14.1.0

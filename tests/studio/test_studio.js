@@ -207,12 +207,12 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     App.capabilities = new Map([['Compiler', true], ['GPIO', true]]);
     App.capabilitiesKnown = true; App.gal.cat = 'All'; App.gal.q = ''; App.galRender();
   });
-  check(await page.$('#gCats div[data-c="Wi-Fi and networking"]') === null && await page.$('#gCats div[data-c="Bluetooth LE"]') === null, 'unsupported radio categories hidden');
-  check(await page.evaluate(() => App.gal.list.every(t => t.requires.every(c => App.capabilities.get(c) === true))), 'every visible template has all requirements');
-  check(await page.evaluate(() => !App.gal.list.some(t => t.requires.includes('GPIO.IRQ'))), 'GPIO does not imply interrupt support');
-  check(/unavailable/.test(await page.textContent('#gSupport')), 'gallery explains capability filtering');
+  check(await page.$('#gCats div[data-c="Wi-Fi and networking"]') !== null && await page.$('#gCats div[data-c="Bluetooth LE"]') !== null, 'radio categories remain visible');
+  check(await page.evaluate(() => App.gal.list.length === TEMPLATES.length), 'all templates remain visible');
+  check(await page.evaluate(() => App.gal.list.filter(t => t.requires.includes('GPIO.IRQ')).every(t => templateSupport(t, App.capabilities, true).state === 'unknown')), 'GPIO does not imply interrupt support');
+  check(/unknown/.test(await page.textContent('#gSupport')), 'gallery explains unknown support');
   await page.evaluate(() => { App.capabilitiesKnown = false; App.capabilities = legacyCapabilities('features=0xffff'); App.galRender(); });
-  check(await page.evaluate(() => App.gal.list.every(t => t.requires.every(c => c === 'Compiler'))), 'legacy firmware never guesses peripheral support');
+  check(await page.evaluate(() => App.gal.list.length === TEMPLATES.length && App.gal.list.filter(t => t.requires.includes('Ble')).every(t => templateSupport(t, App.capabilities, true).state === 'unknown')), 'legacy firmware keeps templates without guessing hardware');
   await page.evaluate(() => { App.capabilities = window.savedCaps; App.capabilitiesKnown = window.savedKnown; App.galRender(); });
   await page.keyboard.press('Escape');
 
@@ -245,7 +245,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(tags.includes('Wi-Fi') && /\/tools\/studio\/templates\/\d\d-web-server-and-websocket\/web_led\.cs$/.test(href || ''), 'tags ' + tags + ' + GitHub source link');
   await page.fill('#gSearch', 'zzqqxx');
   await page.waitForFunction(() => App.gal.q === 'zzqqxx');
-  check(/No compatible template matches/.test(await page.textContent('#gItems')), 'no-match message');
+  check(/No template matches/.test(await page.textContent('#gItems')), 'no-match message');
   await page.keyboard.press('Escape');
   check(await page.isVisible('#galleryBg') && (await page.inputValue('#gSearch')) === '', 'Escape clears the search first');
   await page.click('#gCats div[data-c="GPIO"]');

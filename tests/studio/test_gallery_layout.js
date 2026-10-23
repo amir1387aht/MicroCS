@@ -18,7 +18,7 @@ fs.mkdirSync(OUT, { recursive: true });
       await page.setViewportSize({ width, height });
       for (const state of ['offline', 'connected', 'legacy', 'empty']) {
         await page.evaluate(state => {
-          dev.connected = state !== 'offline';
+          dev.port = state === 'offline' ? null : {};
           App.capabilitiesKnown = state !== 'legacy';
           App.capabilities = new Map(state === 'empty' ? [] : [['Compiler', true], ['GPIO', true]]);
           App.gal.cat = 'All'; App.gal.q = ''; App.gal.sel = 0; App.galRender();
@@ -53,7 +53,7 @@ fs.mkdirSync(OUT, { recursive: true });
       }
     }
     await page.setViewportSize({width:1400,height:860});
-    await page.evaluate(() => { dev.connected = false; document.documentElement.classList.add('light'); App.galRender(); });
+    await page.evaluate(() => { dev.port = null; document.documentElement.classList.add('light'); App.galRender(); });
     await page.fill('#gSearch', 'zz-no-template-zz');
     await page.waitForSelector('#gItems .none');
     assert(await page.isDisabled('#gAdd'), 'empty search disables Add');

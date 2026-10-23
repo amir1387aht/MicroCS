@@ -555,7 +555,7 @@ function holeEnd(src, start, nesting = 0) {
   return { end: i, closed: false };
 }
 /* string literal: escapes and interpolation holes */
-function hlString(t) {
+function hlString(t, symbols) {
   const verbatim = /^(\$@|@\$|@)/.test(t), interp = t[0] === "$" || t[1] === "$";
   let out = "", buf = "", i = 0;
   const flush = () => { if (buf) { out += span("str", buf); buf = ""; } };
@@ -573,7 +573,7 @@ function hlString(t) {
       const inner = t.slice(i + 1, hole.closed ? j - 1 : j);
       const fm = /(,\s*-?\d+)?(:(?:[A-Za-z]{1,2}\d*|[#0.,%]+))?$/.exec(inner);     // {value,alignment:format}
       const cut = fm && fm[0] && fm.index > 0 ? fm.index : inner.length;
-      out += span("br", "{") + highlight(inner.slice(0, cut)) + (fm && fm[1] && cut < inner.length ? highlight(fm[1]) : "") +
+      out += span("br", "{") + highlight(inner.slice(0, cut), symbols) + (fm && fm[1] && cut < inner.length ? highlight(fm[1], symbols) : "") +
         (fm && fm[2] && cut < inner.length ? span("str", fm[2]) : "") + (hole.closed ? span("br", "}") : "");
       i = j; continue;
     }
@@ -583,7 +583,38 @@ function hlString(t) {
   flush();
   return out;
 }
-function highlight(src) {
+/* Token-derived symbols avoid casing guesses: `int Count` and `this.Count`
+ * are identifiers, not classes. Strings/comments cannot declare fake types.
+ * This is lexical classification, not a complete C# semantic compiler. */
+function highlightSymbols(src) {
+  const re = new RegExp(TOKEN_SRC.source, "gm");
+  let m, last = 0, clean = "";
+  while ((m = re.exec(src))) {
+    clean += src.slice(last, m.index);
+    if (m[3]) re.lastIndex = stringEnd(src, m.index);
+    const text = src.slice(m.index, re.lastIndex);
+    if (m[1] || m[2] || m[3] || m[4] || m[6]) clean += " ".repeat(text.length);
+    else clean += text;
+    last = re.lastIndex;
+  }
+  clean += src.slice(last);
+  const types = new Set(), variables = new Set();
+  for (const x of clean.matchAll(/\b(?:class|struct|interface|enum|record|new)\s+([A-Za-z_]\w*)/g)) types.add(x[1]);
+  const primitive = /^(?:bool|byte|char|decimal|double|float|int|long|object|sbyte|short|string|uint|ulong|ushort|var|dynamic)$/;
+  // Include explicit types, generic/array/nullable types and additional declarators.
+  const declarations = /\b(@?[A-Za-z_]\w*)(?:\s*<[^;{}()=]*>)?(?:\s*\[\s*\])*(?:\s*\?)?\s+(@?[A-Za-z_]\w*)\s*(?=[=;,):{]|in\b|$)/g;
+  for (const x of clean.matchAll(declarations)) {
+    const type = x[1], name = x[2].replace(/^@/, "");
+    if (KEYWORDS.has(type) && !primitive.test(type)) continue;
+    variables.add(name);
+    if (!primitive.test(type)) types.add(type);
+    // int A = 1, B = 2; (not method arguments or generic lists)
+    const tail = clean.slice(x.index + x[0].length).split(/[;{}\n]/, 1)[0];
+    if (/^\s*(?:=|,)/.test(tail)) for (const more of tail.matchAll(/,\s*(@?[A-Za-z_]\w*)\s*(?==|,|$)/g)) variables.add(more[1].replace(/^@/, ""));
+  }
+  return { types, variables };
+}
+function highlight(src, symbols = highlightSymbols(src)) {
   const re = new RegExp(TOKEN_SRC.source, "gm");
   let html = "", last = 0, m, prevSig = "";
   while ((m = re.exec(src))) {
@@ -593,7 +624,7 @@ function highlight(src) {
     if (m[1] || m[2]) cls = "com";
     else if (m[3]) {
       re.lastIndex = stringEnd(src, m.index);
-      html += hlString(src.slice(m.index, re.lastIndex));
+      html += hlString(src.slice(m.index, re.lastIndex), symbols);
       last = re.lastIndex; prevSig = '"'; continue;
     }
     else if (m[4]) { html += t.length > 3 && t[1] === "\\" ? span("str", "'") + span("esc", t.slice(1, -1)) + span("str", "'") : span("str", t); last = re.lastIndex; prevSig = "'"; continue; }
@@ -603,15 +634,17 @@ function highlight(src) {
       const id = t[0] === "@" ? t.slice(1) : t;
       const after = src.slice(re.lastIndex, re.lastIndex + 40);
       const dot = prevSig === ".";
+      const knownType = isType(id) || symbols.types.has(id);
+      const typeContext = /^(new|class|struct|interface|enum|record|typeof|as|is)$/.test(prevSig) ||
+        (!dot && /^\s*(?:<[^;{}()=]*>)?(?:\s*\[\s*\])*(?:\s*\?)?\s+@?[A-Za-z_]\w*\s*(?:[=;,({)]|$)/.test(after));
       if (KEYWORDS.has(id) && t[0] !== "@") cls = CONTROL.has(id) ? "ctl" : "kw";
-      else if (/^\s*\(/.test(after)) cls = prevSig === "new" || (isType(id) && !dot) ? "ty" : "fn";
-      else if (/^\s*<[\w\s,<>\[\]]*>\s*\(/.test(after) && /^[A-Z]/.test(id) && !isType(id)) cls = prevSig === "new" ? "ty" : "fn";      // generic call
-      else if (dot) cls = isType(id) ? "ty" : null;                                                        // member: property / field / constant
-      else if (isType(id)) cls = "ty";
-      else if (/^[A-Z]/.test(id) && (prevSig === "new" || /^(class|struct|interface|enum|:)$/.test(prevSig) || /^\s*(<|\[\]|\.[A-Z]|[A-Za-z_]\w*\s*[=;,)\]{]|[A-Za-z_]\w*\s*$|\?\s+[A-Za-z_])/.test(after))) cls = "ty";
-      else if (/^[A-Z]/.test(id) && /^[<,]$/.test(prevSig) && /^\s*(>|,|\[\])/.test(after)) cls = "ty";              // generic argument
-      else if (/^[a-z_]/.test(id)) cls = "loc";
-      if (cls === "ty" && /^I[A-Z][a-z]/.test(id)) cls = "if";                                             // interface
+      else if (typeContext && (!dot || prevSig === "new")) cls = "ty";
+      else if (/^\s*\(/.test(after)) cls = knownType && !dot && !symbols.variables.has(id) ? "ty" : "fn";
+      else if (/^\s*<[^;{}()=]*>\s*\(/.test(after)) cls = "fn";
+      else if (dot) cls = "loc"; // fields/properties use the same identifier color as declarations
+      else if (knownType && !symbols.variables.has(id)) cls = "ty";
+      else cls = "loc";
+      if (cls === "ty" && /^I[A-Z][a-z]/.test(id)) cls = "if";
       prevSig = t;
     } else if (m[8]) cls = "br";
     else if (m[9]) cls = "op";
@@ -1484,14 +1517,37 @@ function parseCapabilities(text) {
   }
   return caps.size ? caps : null;
 }
-function templateCompatible(t, caps, connected) {
-  if (!connected) return true;  // offline browsing is explicitly not a compatibility claim
-  return (t.requires || []).every((name) => caps?.get(name) === true);
+/* Three states: an absent legacy capability is unknown, never proof of support. */
+function templateSupport(t, caps, connected, firmware = "") {
+  if (!connected) return { state: "offline", label: "Not checked", missing: [], unknown: [], reason: "Connect a board to check firmware support." };
+  const missing = [], unknown = [];
+  for (const name of t.requires || []) {
+    if (caps?.get(name) === false) missing.push(name);
+    else if (caps?.get(name) !== true) unknown.push(name);
+  }
+  const version = /(?:MicroCS\s+)?(\d+)\.(\d+)\.(\d+)/.exec(firmware);
+  if (t.minFirmware) {
+    const required = t.minFirmware.split(".").map(Number), actual = version?.slice(1).map(Number);
+    if (!actual) unknown.push("firmware >= " + t.minFirmware);
+    else {
+      let cmp = 0;
+      for (let i = 0; i < 3 && !cmp; i++) cmp = Math.sign(actual[i] - required[i]);
+      if (cmp < 0) missing.push("firmware >= " + t.minFirmware);
+    }
+  }
+  const state = missing.length ? "unsupported" : unknown.length ? "unknown" : "supported";
+  return { state, missing, unknown, label: state === "supported" ? "Requirements supported" : state === "unknown" ? "Support unknown" : "Not supported",
+    reason: [missing.length ? "Unavailable: " + missing.join(", ") + "." : "", unknown.length ? "Not reported: " + unknown.join(", ") + "." : "",
+      state === "supported" ? "Reported requirements are available; external hardware and API details still need checking." : "You can still open or copy this template; adding it does not run it."].filter(Boolean).join(" ") };
+}
+function templateCompatible(t, caps, connected, firmware = "") {
+  return ["supported", "offline"].includes(templateSupport(t, caps, connected, firmware).state);
 }
 function legacyCapabilities(info) {
-  const bits = /features=0x([0-9a-f]+)/i.exec(info);
-  // The old info command proves compiler availability, but not onboard peripherals.
-  return new Map([["Compiler", !!bits && (parseInt(bits[1], 16) & 1) !== 0]]);
+  const bits = /features=0x([0-9a-f]+)/i.exec(info), caps = new Map();
+  // Compiler is an explicit feature bit. HAL/NET bits do not prove a peripheral.
+  if (bits) caps.set("Compiler", (parseInt(bits[1], 16) & 1) !== 0);
+  return caps;
 }
 const GH_TEMPLATES = "https://github.com/amir1387aht/MicroCS/blob/main/tools/studio/templates/";
 const TAG_RULES = [
@@ -1533,7 +1589,9 @@ const App = {
     await this.openPort(port);
   },
   async openPort(port, again) {
-    this.capabilities = null; this.capabilitiesKnown = false;
+    this.capabilities = null; this.capabilitiesKnown = false; this.compileCheck = null;
+    this.treeDirs = new Map(); this.treeExpanded = new Set(["/"]); this.treeErrors = new Map();
+    this.treeGeneration = (this.treeGeneration || 0) + 1;
     const baud = +$("baud").value;
     try {
       this.setConn("busy", again ? "Reconnecting…" : "Connecting…");
@@ -1573,6 +1631,7 @@ const App = {
     } finally { this.reconnecting = false; }
   },
   async afterConnect() {
+    this.capabilities = null; this.capabilitiesKnown = false; this.compileCheck = null;
     try {
       await dev.op(() => dev.machine());
       const r = await dev.op(() => dev.cmd("info"));
@@ -1584,7 +1643,7 @@ const App = {
         const caps = report.status === "OK" ? parseCapabilities(new TextDecoder().decode(report.out)) : null;
         if (caps) { this.capabilities = caps; this.capabilitiesKnown = true; }
       } catch { /* old firmware keeps working; never infer hardware from a feature bit */ }
-      if (!this.capabilitiesKnown) term.line("— capability report unavailable; peripheral templates are hidden. Update firmware to enable board-aware templates —", "warn");
+      if (!this.capabilitiesKnown) term.line("— older/custom firmware: templates remain visible; unreported requirements are marked unknown, not assumed supported —", "warn");
       if ($("galleryBg").classList.contains("show")) this.galRender();
       this.setConn("on", this.info);
       term.line(`${this.info} — ready`, "ok");
@@ -1630,6 +1689,7 @@ const App = {
     if ($("galleryBg").classList.contains("show")) this.galRender();
     if (!on) {
       this.projectRunning = false; this.entries = [];
+      this.treeDirs = new Map(); this.treeErrors = new Map(); this.treeGeneration = (this.treeGeneration || 0) + 1;
       this.memExpanded = false; this.memReportText = ""; this.memReportTitle = "";
       this.renderFiles();
       $("stText").textContent = "—"; $("stBar").style.width = "0";
@@ -1671,18 +1731,68 @@ const App = {
   },
 
   /* ---------- files */
+  treeInit() {
+    if (!this.treeDirs) this.treeDirs = new Map();
+    if (!this.treeExpanded) this.treeExpanded = new Set(["/"]);
+    if (!this.treeErrors) this.treeErrors = new Map();
+  },
+  treeItems(items) {
+    return items.filter(e => e.name && e.name !== "." && e.name !== ".." &&
+      !/[\/\\\x00-\x1f]/.test(e.name) && !e.name.endsWith(".part") && !e.name.startsWith(".studio"))
+      .sort((a, b) => Number(!!b.dir) - Number(!!a.dir) || a.name.localeCompare(b.name));
+  },
   async refresh(quiet) {
     if (!dev.connected) return;
-    try {
-      this.entries = await dev.op(() => dev.ls(this.cwd));
-    } catch (e) {
-      if (this.cwd !== "/" && /no such|not found/i.test(e.message)) { this.cwd = "/"; return this.refresh(quiet); }
-      if (!quiet) toast("ls: " + e.message, "err");
-      this.entries = [];
+    this.treeInit();
+    const generation = this.treeGeneration = (this.treeGeneration || 0) + 1, epoch = dev.epoch;
+    const dirs = new Map(), errors = new Map(), pending = [["/", 0]];
+    while (pending.length) {
+      const [path, depth] = pending.shift();
+      if (!dev.connected || generation !== this.treeGeneration || epoch !== dev.epoch) return;
+      if (dirs.size >= 128) { errors.set(path, "Explorer folder limit reached (128). Collapse folders and refresh."); break; }
+      try {
+        const items = this.treeItems(await dev.op(() => dev.ls(path)));
+        if (!dev.connected || generation !== this.treeGeneration || epoch !== dev.epoch) return;
+        dirs.set(path, items);
+        for (const it of items) if (it.dir && this.treeExpanded.has(joinPath(path, it.name))) {
+          const child = joinPath(path, it.name);
+          if (depth < 31) pending.push([child, depth + 1]);
+          else errors.set(child, "Explorer nesting limit reached (32).");
+        }
+      } catch (e) {
+        if (!dev.connected || generation !== this.treeGeneration || epoch !== dev.epoch) return;
+        dirs.set(path, []); errors.set(path, e.message);
+        if (!quiet) toast("ls " + path + ": " + e.message, "err");
+      }
     }
+    if (!dev.connected || generation !== this.treeGeneration || epoch !== dev.epoch) return;
+    this.treeDirs = dirs; this.treeErrors = errors;
+    // A deleted/renamed selected folder must not remain an invisible upload target.
+    if (!dirs.has(this.cwd)) this.cwd = "/";
+    this.entries = dirs.get(this.cwd) || [];
     this.renderFiles();
     this.refreshStorage();
     this.syncOpenTabs(!quiet);
+  },
+  async toggleFolder(path) {
+    this.treeInit();
+    if (this.treeExpanded.has(path)) {
+      this.treeExpanded.delete(path);
+      if (this.cwd === path || this.cwd.startsWith(path + "/")) this.cwd = dirName(path);
+      this.entries = this.treeDirs.get(this.cwd) || [];
+      this.renderFiles();
+    } else {
+      this.treeExpanded.add(path); this.cwd = path;
+      this.renderFiles();
+      await this.refresh(true);
+    }
+    this.focusTree(path);
+  },
+  focusTree(path) {
+    const rows = [...$("fileList").querySelectorAll('[role="treeitem"]')];
+    const selected = rows.find(r => r.dataset.path === path) || rows[0];
+    rows.forEach(r => r.tabIndex = r === selected ? 0 : -1);
+    selected?.focus();
   },
   /* re-read open, unmodified device files that changed on the device (a script wrote them);
    * all = the user pressed Refresh: re-read them even if the size is the same */
@@ -1788,42 +1898,73 @@ const App = {
     }
   },
   renderFiles() {
-    const crumbs = $("crumbs");
-    const parts = this.cwd.split("/").filter(Boolean);
-    let html = `<a data-p="/">${icon("chip")}</a>`, acc = "";
+    this.treeInit();
+    const crumbs = $("crumbs"), parts = this.cwd.split("/").filter(Boolean);
+    let html = `<a data-p="/" title="Upload / new-file target: device root">${icon("chip")}</a>`, acc = "";
     for (const p of parts) { acc += "/" + p; html += `<span>/</span><a data-p="${esc(acc)}">${esc(p)}</a>`; }
     crumbs.innerHTML = html;
-    crumbs.querySelectorAll("a").forEach((a) => (a.onclick = () => this.cd(a.dataset.p)));
-    const list = $("fileList");
-    const items = [...this.entries].filter((e) => !e.name.endsWith(".part") && !e.name.startsWith(".studio")).sort((a, b) => (b.dir - a.dir) || a.name.localeCompare(b.name));
+    crumbs.querySelectorAll("a").forEach(a => a.onclick = () => this.cd(a.dataset.p));
+    const list = $("fileList"), focused = list.querySelector(':focus')?.dataset.path;
+    list.setAttribute("role", "tree"); list.setAttribute("aria-label", "Device files");
     if (!dev.connected) { list.innerHTML = `<div class="empty"><b>No device connected</b><br>Connect a board running MicroCS to browse its files.</div>`; return; }
-    if (!items.length) { list.innerHTML = `<div class="empty"><b>This folder is empty</b><br>Drop files here, or create one with the buttons above.</div>`; return; }
     list.innerHTML = "";
-    if (this.cwd !== "/") items.unshift({ name: "..", dir: true, up: true });
-    for (const it of items) {
-      const path = it.up ? dirName(this.cwd) : joinPath(this.cwd, it.name);
-      const ext = extOf(it.name);
-      const kind = it.dir ? "dir" : ext === "cs" ? "cs" : ext === "mcsb" ? "img" : "txt";
-      const row = document.createElement("div");
-      row.className = "file" + (this.tab()?.path === path ? " active" : "");
-      row.title = path;
-      row.innerHTML = `<span class="ficon ${kind}">${icon(it.dir ? "folder" : kind === "cs" ? "code" : kind === "img" ? "chip" : "file")}</span>` +
-        `<span class="name">${esc(it.name)}</span>` + (it.dir ? "" : `<span class="size">${fmtBytes(it.size)}</span>`) +
-        (it.up ? "" : `<span class="acts">${kind === "cs" || kind === "img" ? `<button data-a="run" title="Run">${icon("play")}</button>` : ""}` +
+    const append = (folder, depth) => {
+      if (depth > 32) return;
+      const items = this.treeDirs.get(folder) || [];
+      for (const it of items) {
+        const path = joinPath(folder, it.name), ext = extOf(it.name), expanded = it.dir && this.treeExpanded.has(path);
+        const kind = it.dir ? "dir" : ext === "cs" ? "cs" : ext === "mcsb" ? "img" : "txt";
+        const row = document.createElement("div");
+        row.className = "file" + (this.tab()?.path === path ? " active" : "") + (it.dir && this.cwd === path ? " selected-folder" : "");
+        row.dataset.path = path; row.dataset.dir = String(!!it.dir); row.dataset.parent = folder;
+        row.setAttribute("role", "treeitem"); row.setAttribute("aria-level", depth + 1);
+        row.setAttribute("aria-selected", String(this.tab()?.path === path));
+        if (it.dir) row.setAttribute("aria-expanded", String(expanded));
+        row.tabIndex = -1; row.title = path; row.style.paddingLeft = (4 + depth * 16) + "px";
+        row.innerHTML = `<span class="twisty${it.dir ? " branch" : ""}" aria-hidden="true"></span>` +
+          `<span class="ficon ${kind}">${icon(it.dir ? "folder" : kind === "cs" ? "code" : kind === "img" ? "chip" : "file")}</span>` +
+          `<span class="name">${esc(it.name)}</span>` + (it.dir ? "" : `<span class="size">${fmtBytes(it.size)}</span>`) +
+          `<span class="acts">${kind === "cs" || kind === "img" ? `<button data-a="run" title="Run">${icon("play")}</button>` : ""}` +
           (it.dir ? "" : `<button data-a="dl" title="Download">${icon("download")}</button>`) +
-          `<button data-a="mv" title="Rename / move">${icon("edit")}</button><button data-a="rm" class="del" title="Delete">${icon("trash")}</button></span>`);
-      row.onclick = (e) => {
-        const a = e.target.closest("button")?.dataset.a;
-        if (a === "run") this.runFilePath(path);
-        else if (a === "dl") this.downloadPath(path);
-        else if (a === "mv") this.rename(path);
-        else if (a === "rm") this.remove(path, it.dir);
-        else if (it.dir) this.cd(path);
-        else this.openPath(path, it.size);
-      };
-      row.oncontextmenu = (e) => { if (it.up) return; e.preventDefault(); this.fileMenu(e.clientX, e.clientY, path, it, kind); };
-      list.appendChild(row);
-    }
+          `<button data-a="mv" title="Rename / move">${icon("edit")}</button><button data-a="rm" class="del" title="Delete">${icon("trash")}</button></span>`;
+        row.onclick = e => {
+          const action = e.target.closest("button")?.dataset.a;
+          if (action === "run") this.runFilePath(path);
+          else if (action === "dl") this.downloadPath(path);
+          else if (action === "mv") this.rename(path);
+          else if (action === "rm") this.remove(path, it.dir);
+          else if (it.dir) this.toggleFolder(path);
+          else { this.cwd = folder; this.entries = this.treeDirs.get(folder) || []; this.openPath(path, it.size); }
+        };
+        row.onfocus = () => { list.querySelectorAll('[role="treeitem"]').forEach(r => r.tabIndex = r === row ? 0 : -1); };
+        row.onkeydown = e => {
+          if (e.target !== row || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "Enter", " "].includes(e.key)) return;
+          e.preventDefault();
+          const rows = [...list.querySelectorAll('[role="treeitem"]')], i = rows.indexOf(row);
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") this.focusTree(rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === "ArrowUp" ? -1 : 1)))].dataset.path);
+          else if (e.key === "Home" || e.key === "End") this.focusTree(rows[e.key === "Home" ? 0 : rows.length - 1].dataset.path);
+          else if (e.key === "ArrowRight") {
+            if (it.dir && !expanded) this.toggleFolder(path);
+            else if (it.dir && rows[i + 1]?.dataset.parent === path) this.focusTree(rows[i + 1].dataset.path);
+          } else if (e.key === "ArrowLeft") {
+            if (expanded) this.toggleFolder(path); else this.focusTree(folder);
+          } else row.click();
+        };
+        row.oncontextmenu = e => { e.preventDefault(); this.fileMenu(e.clientX, e.clientY, path, it, kind); };
+        list.appendChild(row);
+        if (expanded) append(path, depth + 1);
+      }
+      if (this.treeErrors.has(folder)) {
+        const error = document.createElement("div"); error.className = "tree-error";
+        error.style.paddingLeft = (20 + depth * 16) + "px";
+        error.textContent = this.treeErrors.get(folder) + " — Refresh to retry."; list.appendChild(error);
+      }
+    };
+    append("/", 0);
+    if (!list.children.length) list.innerHTML = `<div class="empty"><b>Device root is empty</b><br>Drop files here, or create one with the buttons above.</div>`;
+    const rows = [...list.querySelectorAll('[role="treeitem"]')];
+    const target = rows.find(r => r.dataset.path === focused) || rows.find(r => r.dataset.path === this.tab()?.path) || rows[0];
+    if (target) { target.tabIndex = 0; if (focused) target.focus(); }
   },
   fileMenu(x, y, path, it, kind) {
     const items = [{ header: baseName(path) }];
@@ -1840,7 +1981,12 @@ const App = {
     items.push("-", { label: "Delete", icon: "trash", danger: true, run: () => this.remove(path, it.dir) });
     Menu.show(x, y, items);
   },
-  cd(path) { this.cwd = normPath(path); this.refresh(); },
+  cd(path) {
+    this.treeInit(); this.cwd = normPath(path);
+    let folder = this.cwd;
+    while (folder !== "/") { this.treeExpanded.add(folder); folder = dirName(folder); }
+    this.refresh();
+  },
   checkName(path) {
     if (/\s/.test(path)) { toast("Names cannot contain spaces (the shell protocol separates arguments with spaces).", "err", 5000); return false; }
     if (path.length > 100) { toast("Path too long.", "err"); return false; }
@@ -1882,7 +2028,12 @@ const App = {
     if (dst === path || !this.checkName(dst)) return;
     try {
       await dev.op(() => dev.check(`mv ${path} ${dst}`));
-      for (const t of this.tabs) if (t.path === path) { t.path = dst; }
+      for (const t of this.tabs) if (t.path === path || t.path?.startsWith(path + "/")) t.path = dst + t.path.slice(path.length);
+      if (this.cwd === path || this.cwd.startsWith(path + "/")) this.cwd = dst + this.cwd.slice(path.length);
+      this.treeInit();
+      this.treeExpanded = new Set([...this.treeExpanded].map(p => p === path || p.startsWith(path + "/") ? dst + p.slice(path.length) : p));
+      let parent = dirName(dst);
+      while (parent !== "/") { this.treeExpanded.add(parent); parent = dirName(parent); }
       this.renderTabs(); this.refresh();
       toast(`Renamed to ${dst}`, "ok");
     } catch (e) { toast("Rename failed: " + e.message, "err"); }
@@ -2145,20 +2296,31 @@ const App = {
       this.updateButtons(); complete();
     }
   },
-  async checkScripts(paths) {
+  async checkScripts(paths, requireCheck = false) {
     if (!paths.length) return;
+    if (this.compileCheck === false) {
+      if (requireCheck) throw new Error("Project mode requires compile-only checks. Update firmware, or use File mode.");
+      term.line("— saved without compile-only validation: legacy firmware has no check command. Run compiles only the selected file —", "warn");
+      return;
+    }
     term.line(`— compiling ${paths.length} script${paths.length === 1 ? "" : "s"} (no execution) —`, "sys");
     for (const path of [...new Set(paths)].sort()) {
       if (this.workflowCancelled) throw new Error("Save/build cancelled.");
       const r = await dev.op(() => dev.cmd("check " + path, { idle: 0 }));
       if (r.status !== "OK") {
         const detail = new TextDecoder().decode(r.out).trim();
-        if (/unknown command/i.test(r.status)) throw new Error("Firmware update required: compile-only 'check' is unavailable. Update MicroCS or turn off Save/upload all C# files for legacy single-file saves.");
+        if (/unknown command/i.test(r.status)) {
+          this.compileCheck = false;
+          if (requireCheck) throw new Error("Project mode requires compile-only checks. Update firmware, or use File mode.");
+          term.line("— saved without compile-only validation: older firmware has no check command. No scripts were executed —", "warn");
+          return;
+        }
         const tab = this.tabs.find(t => !t.local && t.path === path);
         if (tab) { this.activate(tab.id); const m = /\((\d+),\d+\)/.exec(detail + r.status); if (m) ed.setError(+m[1]); }
         throw new Error("Build failed: " + path + "\n" + (detail || r.status.replace(/^ERR /, "")));
       }
     }
+    this.compileCheck = true;
     term.line("✓ build checks passed", "ok");
   },
   async projectScripts() {
@@ -2216,7 +2378,7 @@ const App = {
       paths.add(t.path);
     }
     const sources = project ? await this.projectScripts() : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
-    await this.checkScripts(sources);
+    await this.checkScripts(sources, project);
     ed.stash();
     if (this.workflowCancelled) throw new Error("Save/build cancelled.");
     if (candidates.some(t => t.text !== t.saved)) throw new Error("A file changed during the build. Save/build again before running.");
@@ -2448,12 +2610,12 @@ const App = {
   galRender() {
     const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
     for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
-    const available = TEMPLATES.filter((t) => templateCompatible(t, this.capabilities, dev.connected));
+    const available = TEMPLATES; // Never hide examples just because firmware cannot report support.
     const recent = this.galRecent().map((src) => available.find((t) => t.src === src)).filter(Boolean);
     const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(available.map((t) => t.cat))];
-    $("gSupport").textContent = !dev.connected ? "Offline: browsing all templates. Requirements are checked when a board connects." :
-      !this.capabilitiesKnown ? "Older firmware: peripheral support is unknown, so those templates are hidden. Update firmware for capability reporting." :
-      `${available.length} compatible templates · ${TEMPLATES.length - available.length} unavailable for this board / firmware. Bus support does not prove an external sensor is attached.`;
+    const states = available.map(t => templateSupport(t, this.capabilities, dev.connected, this.info).state);
+    $("gSupport").textContent = !dev.connected ? "Offline: all templates are visible. Connect a board to check support." :
+      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. All templates remain visible; external hardware is not detected.`;
     if (!cats.includes(g.cat)) g.cat = "All";
     const pool = (c) => (c === "All" ? available : c === "Recent" ? recent : available.filter((t) => t.cat === c));
     const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
@@ -2464,10 +2626,10 @@ const App = {
     if (g.sel >= g.list.length) g.sel = 0;
     const mark = (text) => galMark(text, words);
     $("gItems").innerHTML = g.list.length ? g.list.map((t, i) => {
-      const cs = /\.cs$/.test(t.file);
+      const cs = /\.cs$/.test(t.file), support = templateSupport(t, this.capabilities, dev.connected, this.info);
       return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
-        `<em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
-    }).join("") : `<div class="none">No compatible template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+        `<small class="compat ${support.state}" title="${esc(support.reason)}">${esc(support.label)}</small><em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
+    }).join("") : `<div class="none">No template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
     const all = $("gAll");
     if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();
@@ -2476,10 +2638,11 @@ const App = {
     const t = this.gal.list[this.gal.sel], tab = this.tab();
     $("gItems").querySelectorAll(".item").forEach((x) => x.classList.toggle("on", +x.dataset.i === this.gal.sel));
     if (t) {
+      const support = templateSupport(t, this.capabilities, dev.connected, this.info);
       const lines = t.text.replace(/\n$/, "").split("\n").length;
       const src = t.src ? `<a href="${GH_TEMPLATES}${encodeURI(t.src)}" target="_blank" rel="noopener" title="Open the source file on GitHub">templates/${esc(t.src)}</a>` : "";
       $("gInfo").innerHTML = `<div class="pt"><b>${esc(t.name)}</b><button class="btn icon" id="gCopy" title="Copy the code">${icon("copy")}</button></div>` +
-        `<span>${esc(t.cat)} · ${esc(t.desc)}</span><div class="requirements">Requires: ${esc((t.requires || []).join(", ") || "none")}</div><div class="tags">${galTags(t).map((x) => `<i>${esc(x)}</i>`).join("")}<small>${lines} lines${src ? " · " + src : ""}</small></div>`;
+        `<span>${esc(t.cat)} · ${esc(t.desc)}</span><div class="requirements">Requires: ${esc((t.requires || []).join(", ") || "none")}${t.minFirmware ? " · firmware >= " + esc(t.minFirmware) : ""}</div><div class="compat ${support.state}"><b>${esc(support.label)}</b>: ${esc(support.reason)}</div><div class="tags">${galTags(t).map((x) => `<i>${esc(x)}</i>`).join("")}<small>${lines} lines${src ? " · " + src : ""}</small></div>`;
       $("gCopy").onclick = () => navigator.clipboard?.writeText(t.text).then(() => toast("Copied " + t.file, "ok"), () => toast("Copy failed", "err"));
     } else $("gInfo").innerHTML = "";
     $("gPrev").innerHTML = t ? (/\.cs$/.test(t.file) ? highlight(t.text) : highlightPlain(t.text)) : "";

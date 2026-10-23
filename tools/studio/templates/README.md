@@ -43,6 +43,9 @@ Hold a button at boot to skip the application.
 * `[file] Display name` — a file of this folder; blocks are listed in this order.
 * `save as:` (optional, right after the header) — the file name Studio suggests when several
   templates of a folder are meant to become the same file (`main.cs`, `boot.cs`).
+* `min firmware:` (optional, before the description) — an explicitly known minimum
+  `major.minor.patch`, for example `1.17.0` for the rotary encoder API. Do not guess
+  a version from a platform name.
 * The lines after it are the description (joined into one paragraph).
 
 Every file of the folder must be described and every described file must exist.
@@ -63,12 +66,17 @@ Every file of the folder must be described and every described file must exist.
 Studio derives the tags it shows (*Wi-Fi*, *OLED*, *files*, *jobs*, *DMA* …) from the code and
 links each preview to its file here.
 
-## Connected-board filtering
+## Connected-board compatibility
 
-Studio sends the allocation-free shell command `caps` after connecting, then shows only
-examples whose **every** requirement is true. It does not infer a radio or role from a chip
-name, probe buses or start Wi-Fi/BLE. Disconnected Studio shows the full catalog for browsing.
-Older firmware without `caps` hides unverified peripheral examples and shows an upgrade hint;
-reconnecting refreshes the report. A supported bus does **not** mean the external sensor,
-display or actuator is attached. Pins, wiring and network credentials still need configuring.
-The preview lists requirements. Tags are search labels, not support guarantees.
+Studio sends the allocation-free shell command `caps` after connecting. **All examples
+remain visible**, with supported, unknown, unsupported or offline/not-checked badges.
+The preview lists missing/unreported requirements and any declared minimum firmware.
+Older firmware without `caps` can still use the gallery; unverified peripherals stay
+unknown rather than being hidden or claimed available. Only explicitly reported
+feature bits are used; a HAL/network build bit does not prove a particular peripheral.
+Reconnecting refreshes support and clears the cached compile-check availability.
+
+Templates can always be copied or opened for adaptation; adding one does not run it.
+Studio does not probe buses or start radios to discover support. A supported bus does
+**not** mean the external sensor/display/actuator is attached. Pins, wiring, credentials
+and API details still need checking. Tags are search labels, not support guarantees.

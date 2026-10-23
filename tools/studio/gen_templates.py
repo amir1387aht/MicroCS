@@ -65,6 +65,11 @@ def parse_txt(folder, path):
                 cat = v.strip()
             else:
                 raise TemplateError(f"{where}: expected category: or requires: before the first [file] block")
+        elif re.match(r"^min firmware\s*:", line, re.I):
+            version = line.split(":", 1)[1].strip()
+            if cur["desc"] or "minFirmware" in cur or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+                raise TemplateError(f"{where}: min firmware: needs one major.minor.patch before the description")
+            cur["minFirmware"] = version
         elif re.match(r"^requires\s*:", line, re.I):
             if cur["desc"]: raise TemplateError(f"{where}: requires: must precede the description")
             if cur["requires"] is not None: raise TemplateError(f"{where}: duplicate requires:")
@@ -114,7 +119,7 @@ def load():
                 raise TemplateError(f"{it['where']}: {it['file']} has no description")
             with open(fp, encoding="utf-8", newline="") as f:
                 text = f.read().replace("\r\n", "\n")
-            templates.append({"cat": cat, "name": it["name"], "file": it["save"] or it["file"],
+            templates.append({**({"minFirmware": it["minFirmware"]} if "minFirmware" in it else {}), "cat": cat, "name": it["name"], "file": it["save"] or it["file"],
                               "desc": " ".join(it["desc"]), "requires": it["requires"], "src": f"{folder}/{it['file']}", "text": text})
         extra = sorted(f for f in os.listdir(fdir) if f != "templates.txt" and not f.startswith(".") and f not in listed)
         if extra:
