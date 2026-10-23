@@ -852,6 +852,13 @@ new(pin pin, GpioConfig cfg) | A pin with full electrical settings
 .Value: bool | Level (get / set)
 .Number: int | Pin number
 
+@RotaryEncoder | Interrupt-decoded A/B quadrature encoder (KY-040 / EC11)
+new(pin a, pin b, int steps = 4, pin button = -1, bool reverse = false) | Pull-up inputs; both A/B pins must support interrupts; steps 1, 2 or 4 per count
+.Position: int | Signed 32-bit position; saturates at min/max; counts even while the VM is busy
+.ButtonPressed: bool | Raw active-low optional button (false when omitted); debounce in the application
+.Reset(int position = 0): void | Atomically sets position and clears the partial count
+.Dispose(): void | Disables both interrupts and releases the pins; idempotent
+
 @UART | Serial ports (modules/hal)
 const ParityNone: int | No parity
 const ParityOdd: int | Odd parity
