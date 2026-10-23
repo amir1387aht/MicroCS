@@ -462,6 +462,8 @@ static inline mcs_value_t mcs_undef(void) { mcs_value_t v; v.type = MCS_T_UNDEF;
 /* memory (mcs_object.c) */
 /* Non-panicking attempt for optional capacity; failed requests do not count. */
 void* mcs_try_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
+void* mcs_temporary_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
+void* mcs_try_temporary_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz);
 void mcs_panic(mcs_vm_t* vm, mcs_result_t code, const char* msg);
 mcs_value_t* mcs_root_slot(mcs_vm_t* vm, int i); /* i-th temporary root (mcs_push_root) */
@@ -471,6 +473,9 @@ static inline size_t mcs_arr_bytes(mcs_vm_t* vm, size_t elem, uint64_t n) {
     if (n > (uint64_t)(SIZE_MAX / elem)) mcs_panic(vm, MCS_ERR_MEMORY, "out of memory (allocation size overflow)");
     return elem * (size_t)n;
 }
+#define MCS_TEMP_ALLOC(vm, T, n) ((T*)mcs_temporary_realloc(vm, NULL, 0, mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))
+#define MCS_TEMP_FREE(vm, T, p, n) mcs_temporary_realloc(vm, p, sizeof(T) * (n), 0)
+#define MCS_TEMP_GROW(vm, T, p, o, n) ((T*)mcs_temporary_realloc(vm, p, sizeof(T) * (o), mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))
 #define MCS_ALLOC(vm, T, n) ((T*)mcs_realloc(vm, NULL, 0, mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))
 #define MCS_FREE(vm, T, p, n) mcs_realloc(vm, p, sizeof(T) * (n), 0)
 #define MCS_GROW(vm, T, p, o, n) ((T*)mcs_realloc(vm, p, sizeof(T) * (o), mcs_arr_bytes(vm, sizeof(T), (uint64_t)(n))))

@@ -37,7 +37,7 @@ uint32_t mcs_decode_escape(const char** pp, const char* end);
 static void perr(parser_t* P, token_t* t, const char* fmt, ...) {
     char msg[160];
     va_list ap; va_start(ap, fmt); vsnprintf(msg, sizeof msg, fmt, ap); va_end(ap);
-    mcs_front_error(P->ctx, t->line, t->col, "%s", msg);
+    mcs_front_error(P->ctx, t->line, mcs_token_column(P->ctx, t), "%s", msg);
     longjmp(P->jb, 1);
 }
 static token_t* adv(parser_t* P) { token_t* t = CUR; if (P->pos < P->n - 1) P->pos++; return t; }
@@ -1144,7 +1144,7 @@ static void defer_method_body(parser_t* P, funcdecl_t* f) {
             (!block && ty == TK_SEMI && !braces && !parens && !brackets)) {
             f->body_src = start.start;
             f->body_len = (uint32_t)(finish - start.start);
-            f->body_line = start.line; f->body_col = start.col;
+            f->body_line = start.line;
             return;
         }
     }
@@ -1640,7 +1640,7 @@ static void reclaim_tokens(parser_t* P) {
     for (uint32_t i = 0; i < P->pos / MCS_TOK_PAGE; i++) {
         token_t* page = P->tokens.pages[i];
         if (page) {
-            MCS_FREE(P->ctx->vm, token_t, page, MCS_TOK_PAGE);
+            MCS_TEMP_FREE(P->ctx->vm, token_t, page, MCS_TOK_PAGE);
             P->tokens.pages[i] = NULL;
         }
     }
@@ -1920,8 +1920,8 @@ static void parse_namespace_members(parser_t* P, bool braced) {
 void mcs_front_free_tokens(front_ctx_t* ctx) {
     toklist_t* t = &ctx->heap_tokens;
     for (uint32_t i = 0; i < t->cap / MCS_TOK_PAGE; i++)
-        if (t->pages[i]) MCS_FREE(ctx->vm, token_t, t->pages[i], MCS_TOK_PAGE);
-    if (t->pages) MCS_FREE(ctx->vm, token_t*, t->pages, t->cap / MCS_TOK_PAGE);
+        if (t->pages[i]) MCS_TEMP_FREE(ctx->vm, token_t, t->pages[i], MCS_TOK_PAGE);
+    if (t->pages) MCS_TEMP_FREE(ctx->vm, token_t*, t->pages, t->cap / MCS_TOK_PAGE);
     memset(t, 0, sizeof *t);
 }
 
@@ -1946,13 +1946,6 @@ bool mcs_parse_method(front_ctx_t* ctx, funcdecl_t* f) {
     toklist_t tl = {0}; tl.heap = 1;
     if (!mcs_lex(ctx, f->body_src, f->body_len, f->body_line, &tl)) {
         mcs_front_free_tokens(ctx); return false;
-    }
-    /* The second lexer starts at the body, not at the start of its line. */
-    for (uint32_t i = 0; i < tl.count; i++) {
-        token_t* t = mcs_tok_at(&tl, i);
-        if (t->line != f->body_line) break;
-        uint32_t col = t->col + f->body_col - 1;
-        t->col = col > 4095 ? 4095 : col;
     }
     parser_t parser; parser_t* P = &parser;
     memset(P, 0, sizeof *P);

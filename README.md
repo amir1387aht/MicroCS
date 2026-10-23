@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.16.0-8b5cf6?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.17.0-8b5cf6?style=flat-square)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -258,7 +258,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.16.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 1.17.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -363,10 +363,13 @@ it does not use a reduced feature profile. This is a tested application budget, 
 promise that arbitrary C# programs or the entire board firmware fit in 40 KiB.
 
 A separate [larger-app regression](tests/projects/oled_repeat/) uses a **64 KiB
-32-bit pool** for 100 upload/check/run cycles with both GPIO and hardware-timer
-callbacks still live. Method syntax trees are parsed and released one at a time
-so rebuilding does not retain every old-app object beside a full new-program AST.
-Compile-only checks preserve the running application's state and callbacks.
+32-bit pool** for 2,000 upload/check/run cycles, changing compiled content and
+source size while retaining 7,500 extra bytes and live GPIO/hardware-timer callbacks.
+Method syntax trees are released one at a time; compiler/VFS scratch grows from
+the high end of the same pool while retained objects grow from the low end. Tokens
+use 12 bytes on 32-bit targets, with diagnostic columns recovered from source.
+Compile-only checks preserve the application's state and callbacks; no VM reset,
+larger pool, reduced precision or removed fonts/features are used.
 
 Studio shows compact **VM heap used / peak** telemetry; click it to expand or collapse
 physical pool and optional device-heap details. Stack/frame allocations are already in
@@ -514,7 +517,7 @@ integrations:
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.16.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.17.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**

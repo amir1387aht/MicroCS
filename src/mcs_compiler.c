@@ -1838,10 +1838,10 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
     /* Mutable cleanup state must survive longjmp. A non-volatile stack arena
      * or token owner modified after setjmp would have indeterminate values. */
     typedef struct { arena_t arena, body_arena; front_ctx_t ctx; program_t prog; } workspace_t;
-    workspace_t* w = (workspace_t*)mcs_realloc(vm, NULL, 0, sizeof(workspace_t));
+    workspace_t* w = (workspace_t*)mcs_temporary_realloc(vm, NULL, 0, sizeof(workspace_t));
     memset(w, 0, sizeof *w);
     w->arena.vm = vm; w->body_arena.vm = vm;
-    w->ctx = (front_ctx_t){ .vm = vm, .arena = &w->arena, .body_arena = &w->body_arena, .src_name = name };
+    w->ctx = (front_ctx_t){ .vm = vm, .arena = &w->arena, .body_arena = &w->body_arena, .src_name = name, .source = src };
     vm->gc_pause++;
     mcs_function_t* volatile result = NULL;
     /* an out-of-memory panic during compilation must not leak the AST arena:
@@ -1854,7 +1854,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
         mcs_front_free_tokens(&w->ctx);
         arena_free(&w->body_arena);
         arena_free(&w->arena);
-        mcs_realloc(vm, w, sizeof *w, 0);
+        mcs_temporary_realloc(vm, w, sizeof *w, 0);
         vm->gc_pause--;
         if (prev_panic) longjmp(*prev_panic, pcode);
         mcs_report_error(vm, "fatal: %s\n", vm->error);
@@ -1936,7 +1936,7 @@ done:
     arena_free(&w->arena);
     if (result) mcs_fn_trim(vm, result);
     vm->panic = prev_panic;
-    mcs_realloc(vm, w, sizeof *w, 0);
+    mcs_temporary_realloc(vm, w, sizeof *w, 0);
     vm->gc_pause--;
     return result;
 }

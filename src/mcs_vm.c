@@ -1099,8 +1099,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef X
     };
 #define CASE(name) L_##name:
+#if defined(__OPTIMIZE_SIZE__)
+/* Share opcode fetch/dispatch in flash-constrained firmware, rather than
+ * repeating its pointer load, increment and indirect branch at every tail.
+ * Speed builds retain direct-threaded dispatch. No opcode or check is omitted. */
+#define DISPATCH() goto dispatch_next
+#define DISPATCH_START() dispatch_next: goto *labels[*ip++];
+#else
 #define DISPATCH() goto *labels[*ip++]
 #define DISPATCH_START() DISPATCH();
+#endif
 #define DISPATCH_END()
 #else
 #define CASE(name) case OP_##name:
@@ -2507,7 +2515,10 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     if (!cfg.stack_slots) cfg.stack_slots = MCS_DEFAULT_STACK;
     if (!cfg.max_frames) cfg.max_frames = MCS_DEFAULT_FRAMES;
 #if MCS_ENABLE_POOL_HEAP
-    if (cfg.realloc_fn == mcs_pool_realloc && !cfg.alloc_overhead) cfg.alloc_overhead = MCS_POOL_OVERHEAD;
+    if (cfg.realloc_fn == mcs_pool_realloc) {
+        if (!cfg.alloc_overhead) cfg.alloc_overhead = MCS_POOL_OVERHEAD;
+        if (!cfg.temporary_realloc_fn) cfg.temporary_realloc_fn = mcs_pool_realloc_temporary;
+    }
 #endif
     mcs_vm_t* vm = cfg.realloc_fn ? (mcs_vm_t*)cfg.realloc_fn(cfg.alloc_ud, NULL, 0, sizeof(mcs_vm_t)) : (mcs_vm_t*)mcs_sys_realloc(NULL, NULL, 0, sizeof(mcs_vm_t));
     if (!vm) return NULL;

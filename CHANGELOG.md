@@ -2,6 +2,24 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.17.0 — Long-run upload memory recovery
+
+* Separate short-lived compiler/VFS buffers from retained VM objects using
+  opposite ends of the same fixed pool; preserve allocation accounting, OOM
+  cleanup, live application state and GPIO/timer callbacks during compile checks.
+* Collect unreachable prior-run objects before the first idle source-file read.
+* Reduce 32-bit compiler tokens from 16 to 12 bytes while preserving numeric
+  precision, source line/column diagnostics and string-prefix locations.
+* Add an optional compiler-scratch allocator, synchronized runtime wrappers and
+  per-worker high-end scratch allocation without a second heap or larger pool.
+* Strengthen the larger-app regression to 2,000 content-edit/upload/check/run
+  cycles with 7,500 extra bytes retained in the unchanged 64 KiB application pool.
+  Local 10,000-cycle stress passes; the unchanged-main negative control fails on
+  cycle 4 with a 512-byte OOM. The separate hard 40 KiB OLED gate remains intact.
+* Expand mixed-allocator, exhaustive OOM-recovery and diagnostic coverage. No
+  language features, fonts or default execution ceilings are removed. Host
+  simulation and sanitizer results do not substitute for physical-board validation.
+
 ## 1.16.0 — Source discovery, bounded memory and Studio projects
 
 ### Source discovery hardening

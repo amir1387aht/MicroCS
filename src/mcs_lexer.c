@@ -17,12 +17,12 @@ void* arena_alloc(arena_t* a, size_t n) {
          * 256-byte chunks reduce the final unused tail and contiguous-block demand;
          * unusually large individual allocations still get their exact size. */
         size_t cap = n > 256 ? n : 256;
-        arena_chunk_t* c = (arena_chunk_t*)mcs_try_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
+        arena_chunk_t* c = (arena_chunk_t*)mcs_try_temporary_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
         if (!c) {
             /* A fragmented pool may have room for this record, not a full
              * default chunk. Optional spare capacity must not cause an OOM. */
             cap = n;
-            c = (arena_chunk_t*)mcs_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
+            c = (arena_chunk_t*)mcs_temporary_realloc(a->vm, NULL, 0, sizeof(arena_chunk_t) + cap);
         }
         c->next = a->head; c->used = 0; c->cap = cap; a->head = chunk = c;
     }
@@ -33,7 +33,7 @@ void* arena_alloc(arena_t* a, size_t n) {
 }
 void arena_free(arena_t* a) {
     arena_chunk_t* c = a->head;
-    while (c) { arena_chunk_t* n = c->next; mcs_realloc(a->vm, c, sizeof(arena_chunk_t) + c->cap, 0); c = n; }
+    while (c) { arena_chunk_t* n = c->next; mcs_temporary_realloc(a->vm, c, sizeof(arena_chunk_t) + c->cap, 0); c = n; }
     a->head = NULL;
 }
 char* arena_strdup(arena_t* a, const char* s, size_t n) {
@@ -91,7 +91,7 @@ static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t le
         uint32_t pages = t->cap / MCS_TOK_PAGE;
         token_t** index;
         if (t->heap) {
-            index = MCS_GROW(L->ctx->vm, token_t*, t->pages, pages, pages + 1);
+            index = MCS_TEMP_GROW(L->ctx->vm, token_t*, t->pages, pages, pages + 1);
         } else {
             index = arena_alloc(L->ctx->arena, (pages + 1) * sizeof(token_t*));
             if (pages) memcpy(index, t->pages, pages * sizeof(token_t*));
@@ -99,7 +99,7 @@ static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t le
         index[pages] = NULL;
         t->pages = index; t->cap += MCS_TOK_PAGE;
         if (t->heap) L->ctx->heap_tokens = *t;
-        token_t* page = t->heap ? MCS_ALLOC(L->ctx->vm, token_t, MCS_TOK_PAGE) :
+        token_t* page = t->heap ? MCS_TEMP_ALLOC(L->ctx->vm, token_t, MCS_TOK_PAGE) :
             arena_alloc(L->ctx->arena, MCS_TOK_PAGE * sizeof(token_t));
         t->pages[pages] = page;
         if (t->heap) L->ctx->heap_tokens = *t;
@@ -107,7 +107,7 @@ static token_t* push_tok(lexer_t* L, uint16_t type, const char* start, size_t le
     token_t* k = mcs_tok_at(t, t->count++);
     memset(k, 0, sizeof *k);
     k->start = start; k->len = (uint32_t)len;
-    k->type = (uint8_t)type; k->line = L->line & 0xFFFFF; { size_t col = (size_t)(start - L->line_start + 1); k->col = col > 4095 ? 4095 : (uint32_t)col; }
+    k->type = (uint8_t)type; k->line = L->line & 0xFFFFF;
     return k;
 }
 
@@ -319,10 +319,9 @@ bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, tokl
             while (*L.p != '"') { if (*L.p == '@') verbatim = true; if (*L.p == '$') interp = true; L.p++; }
             L.p++;
             const char* body = L.p;
-            const char* ls = L.line_start;
             if (!scan_string(&L, verbatim, interp)) break;
             token_t* t = push_tok(&L, interp ? TK_INTERP : TK_STRING, body, (size_t)(L.p - body));
-            t->line = line & 0xFFFFF; { size_t col = (size_t)(s - ls + 1); t->col = col > 4095 ? 4095 : (uint32_t)col; }
+            t->line = line & 0xFFFFF; t->prefix = (uint32_t)(body - s);
             t->verbatim = verbatim;
             L.p++; /* closing quote */
             continue;

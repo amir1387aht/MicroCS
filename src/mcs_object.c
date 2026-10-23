@@ -59,7 +59,7 @@ static size_t acct_size(const mcs_vm_t* vm, size_t n) {
     return b < 2 * sizeof(void*) ? 2 * sizeof(void*) : b;
 }
 
-static void* realloc_impl(mcs_vm_t* vm, void* p, size_t old, size_t nsz, bool fatal) {
+static void* realloc_impl(mcs_vm_t* vm, void* p, size_t old, size_t nsz, bool fatal, bool temporary) {
     /* The collector never runs from inside an allocation: native code may hold
      * unrooted objects in C locals. Allocation only *requests* a collection,
      * which the interpreter performs at its next safepoint (instruction
@@ -81,7 +81,9 @@ static void* realloc_impl(mcs_vm_t* vm, void* p, size_t old, size_t nsz, bool fa
     } else {
         vm->bytes_allocated -= ao - an;
     }
-    void* r = raw_realloc(vm, p, old, nsz);
+    void* r = temporary && vm->cfg.temporary_realloc_fn
+        ? vm->cfg.temporary_realloc_fn(vm->cfg.alloc_ud, p, old, nsz)
+        : raw_realloc(vm, p, old, nsz);
     if (r == NULL && nsz > 0) {
         vm->bytes_allocated -= an - ao;
         if (!fatal) return NULL;
@@ -94,10 +96,17 @@ static void* realloc_impl(mcs_vm_t* vm, void* p, size_t old, size_t nsz, bool fa
 }
 
 void* mcs_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
-    return realloc_impl(vm, p, old, nsz, true);
+    return realloc_impl(vm, p, old, nsz, true, false);
 }
 void* mcs_try_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
-    return realloc_impl(vm, p, old, nsz, false);
+    return realloc_impl(vm, p, old, nsz, false, false);
+}
+
+void* mcs_temporary_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+    return realloc_impl(vm, p, old, nsz, true, true);
+}
+void* mcs_try_temporary_realloc(mcs_vm_t* vm, void* p, size_t old, size_t nsz) {
+    return realloc_impl(vm, p, old, nsz, false, true);
 }
 
 void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size) {
@@ -141,20 +150,31 @@ static void pool_free(mcs_pool_t* pool, void* ptr) {
     }
 }
 
-static void* pool_alloc(mcs_pool_t* pool, size_t n) {
+static void* pool_alloc(mcs_pool_t* pool, size_t n, bool temporary) {
     if (n > SIZE_MAX - POOL_HDR - (POOL_ALIGN - 1)) return NULL;
     size_t need = POOL_ROUND(n + POOL_HDR);
     if (need < sizeof(pool_blk_t)) need = sizeof(pool_blk_t);
-    /* Preserve larger contiguous holes for source buffers and execution stacks. */
+    /* Persistent objects grow from low addresses; transient compiler/VFS blocks
+     * grow from high addresses. Do not scatter persistent objects into holes
+     * between temporary token/AST allocations. */
     pool_blk_t** best = NULL;
     for (pool_blk_t** pp = (pool_blk_t**)&pool->free_list; *pp; pp = &(*pp)->next) {
-        if ((*pp)->size >= need && (!best || (*pp)->size < (*best)->size)) {
+        if ((*pp)->size >= need) {
             best = pp;
-            if ((*pp)->size == need) break;
+            if (!temporary) break;
         }
     }
     if (best) {
         pool_blk_t* b = *best;
+        if (temporary && b->size - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
+            /* Keep scratch above persistent objects, in the same physical pool. */
+            b->size -= need;
+            pool_blk_t* high = (pool_blk_t*)((uint8_t*)b + b->size);
+            high->size = need;
+            pool->used += need;
+            if (pool->used > pool->peak) pool->peak = pool->used;
+            return (uint8_t*)high + POOL_HDR;
+        }
         if (b->size - need >= sizeof(pool_blk_t) + POOL_ALIGN) {
             pool_blk_t* rest = (pool_blk_t*)((uint8_t*)b + need);
             rest->size = b->size - need; rest->next = b->next;
@@ -167,7 +187,7 @@ static void* pool_alloc(mcs_pool_t* pool, size_t n) {
     return NULL;
 }
 
-void* mcs_pool_realloc(void* ud, void* ptr, size_t old, size_t nsz) {
+static void* pool_realloc_impl(void* ud, void* ptr, size_t old, size_t nsz, bool temporary) {
     mcs_pool_t* pool = (mcs_pool_t*)ud;
     if (nsz == 0) { if (ptr) pool_free(pool, ptr); return NULL; }
     if (nsz > SIZE_MAX - POOL_HDR - (POOL_ALIGN - 1)) return NULL;
@@ -201,10 +221,16 @@ void* mcs_pool_realloc(void* ud, void* ptr, size_t old, size_t nsz) {
             return ptr;
         }
     }
-    void* n = pool_alloc(pool, nsz);
+    void* n = pool_alloc(pool, nsz, temporary);
     if (!n) return NULL;
     if (ptr) { memcpy(n, ptr, old < nsz ? old : nsz); pool_free(pool, ptr); }
     return n;
+}
+void* mcs_pool_realloc(void* ud, void* ptr, size_t old, size_t nsz) {
+    return pool_realloc_impl(ud, ptr, old, nsz, false);
+}
+void* mcs_pool_realloc_temporary(void* ud, void* ptr, size_t old, size_t nsz) {
+    return pool_realloc_impl(ud, ptr, old, nsz, true);
 }
 #endif
 

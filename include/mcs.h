@@ -21,9 +21,9 @@ extern "C" {
 #endif
 
 #define MCS_VERSION_MAJOR 1
-#define MCS_VERSION_MINOR 16
+#define MCS_VERSION_MINOR 17
 #define MCS_VERSION_PATCH 0
-#define MCS_VERSION_STRING "1.16.0"
+#define MCS_VERSION_STRING "1.17.0"
 
 #if MCS_INT64
 typedef int64_t mcs_int_t;
@@ -161,6 +161,10 @@ typedef struct {
                                    counts as round_up(size + overhead) against
                                    heap_limit, so the GC runs before the pool is
                                    full. mcs_new() sets it for mcs_pool_realloc. */
+    /* Optional compiler-scratch allocator, sharing alloc_ud and allocation
+     * accounting/overhead with realloc_fn. NULL uses realloc_fn, except that
+     * mcs_new() selects the high-end variant for mcs_pool_realloc. */
+    mcs_realloc_fn temporary_realloc_fn;
 } mcs_config_t;
 
 #define MCS_LIB_CORE        0x01  /* Console, Convert, exceptions, string... */
@@ -333,6 +337,8 @@ void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
  * synchronize with concurrent allocations, just like mcs_pool_realloc. */
 void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st);
 void* mcs_pool_realloc(void* pool, void* ptr, size_t old_size, size_t new_size);
+/* Same pool/accounting/free format, but place short-lived blocks at its high end. */
+void* mcs_pool_realloc_temporary(void* pool, void* ptr, size_t old_size, size_t new_size);
 /* per-block header of the pool allocator (for cfg.alloc_overhead when
  * mcs_pool_realloc is wrapped by another function) */
 #define MCS_POOL_OVERHEAD ((unsigned)sizeof(size_t) > (unsigned)MCS_POOL_ALIGN ? (unsigned)sizeof(size_t) : (unsigned)MCS_POOL_ALIGN)

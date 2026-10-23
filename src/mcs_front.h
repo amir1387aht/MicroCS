@@ -37,14 +37,13 @@ typedef enum {
     TK_KW_LAST
 } tok_type_t;
 
-/* Source spans only: 16 bytes on 32-bit targets. Literal values are decoded
+/* Source spans only: 12 bytes on 32-bit targets. Literal values are decoded
  * when consumed, not reserved in every punctuation/identifier token. */
 typedef struct {
-    uint8_t type;            /* tok_type_t (< 256) */
-    uint8_t verbatim;
-    uint8_t spare[2];
+    uint32_t type : 8;       /* tok_type_t (< 256) */
+    uint32_t verbatim : 1;
+    uint32_t prefix : 2;     /* string opening quote/prefix bytes before start */
     uint32_t line : 20;      /* diagnostics only: lines beyond 1M wrap */
-    uint32_t col : 12;       /* clamped to 4095 */
     const char* start;
     uint32_t len;
 } token_t;
@@ -137,7 +136,7 @@ typedef struct funcdecl {
     uint8_t is_static;
     uint32_t line;
     const char* body_src;    /* deferred method body; points into the source */
-    uint32_t body_len, body_line, body_col;
+    uint32_t body_len, body_line;
 } funcdecl_t;
 
 typedef struct member {
@@ -190,12 +189,22 @@ typedef struct {
     mcs_vm_t* vm;
     arena_t* arena;
     const char* src_name;
+    const char* source;      /* original source, also for deferred-body columns */
     int errors;
     arena_t* body_arena;     /* one method syntax tree at a time */
     tuple_member_t tuple_members[32];
     int tuple_member_count;
     toklist_t heap_tokens; /* paged main tokens; owned even across allocation longjmp */
 } front_ctx_t;
+
+/* Columns are needed only on errors; recover them from the original source
+ * instead of reserving four extra bytes in every 32-bit lexer token. */
+static inline uint32_t mcs_token_column(const front_ctx_t* ctx, const token_t* t) {
+    const char* at = t->start - t->prefix;
+    const char* p = at;
+    while (p > ctx->source && p[-1] != '\n' && (size_t)(at - p) < 4094) p--;
+    return (uint32_t)(at - p) + 1;
+}
 
 bool mcs_lex(front_ctx_t* ctx, const char* src, size_t len, uint32_t line0, toklist_t* out);
 bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog);

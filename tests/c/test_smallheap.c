@@ -1,5 +1,5 @@
 /* Pool properties and forced compiler OOM cleanup. Runs in normal + ASan CI. */
-#include "mcs.h"
+#include "../../src/mcs_front.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,11 +29,18 @@ static void pool_tests(void) {
     CHECK(!mcs_pool_realloc(&p,a,2048,SIZE_MAX)); CHECK(a[0]==0x5a);
     CHECK(!mcs_pool_realloc(&p,a,2048,sizeof heap)); CHECK(a[0]==0x5a);
     mcs_pool_realloc(&p,a,2048,0); CHECK(!p.used); validate(&p);
+    uint8_t* low=mcs_pool_realloc(&p,NULL,0,128);
+    uint8_t* high=mcs_pool_realloc_temporary(&p,NULL,0,128);
+    CHECK(low && high && low < high); validate(&p);
+    mcs_pool_realloc(&p,low,128,0); mcs_pool_realloc_temporary(&p,high,128,0);
+    CHECK(!p.used); validate(&p);
     struct { uint8_t* p; size_t n; uint8_t fill; } slots[64] = {{0}};
     for (int i=0;i<20000;i++) {
         unsigned k=random32()%64; size_t n=random32()%8192;
         for(size_t j=0;j<slots[k].n;j++) if(slots[k].p[j]!=slots[k].fill) { CHECK(0); break; }
-        uint8_t* q=mcs_pool_realloc(&p,slots[k].p,slots[k].n,n);
+        /* Both entry points preserve bytes and share the free/coalescing format. */
+        mcs_realloc_fn allocator=(random32()&1) ? mcs_pool_realloc : mcs_pool_realloc_temporary;
+        uint8_t* q=allocator(&p,slots[k].p,slots[k].n,n);
         if(q || !n) {
             if(q) { CHECK((uintptr_t)q%MCS_POOL_ALIGN==0); for(size_t j=0;j<(n<slots[k].n?n:slots[k].n);j++) if(q[j]!=slots[k].fill) { CHECK(0); break; } }
             slots[k].p=q; slots[k].n=q?n:0; slots[k].fill=(uint8_t)k;
@@ -52,10 +59,16 @@ static void* alloc(void* ud, void* ptr, size_t old, size_t n) {
     if(n>old && a->countdown>0 && --a->countdown==0) { a->fired=1; return NULL; }
     return mcs_pool_realloc(&a->pool,ptr,old,n);
 }
+static void* temp_alloc(void* ud, void* ptr, size_t old, size_t n) {
+    alloc_t* a=ud;
+    if(n>old && a->countdown>0 && --a->countdown==0) { a->fired=1; return NULL; }
+    return mcs_pool_realloc_temporary(&a->pool,ptr,old,n);
+}
 static void quiet(void* ud,const char* s,size_t n) { (void)ud;(void)s;(void)n; }
-static void oom_tests(void) {
+static void oom_tests(bool temporary) {
     alloc_t a={0}; mcs_pool_init(&a.pool,heap,sizeof heap);
     mcs_config_t cfg; mcs_config_default(&cfg); cfg.realloc_fn=alloc;cfg.alloc_ud=&a;
+    cfg.temporary_realloc_fn=temporary ? temp_alloc : NULL;
     cfg.alloc_overhead=MCS_POOL_OVERHEAD;cfg.heap_limit=sizeof heap;cfg.write_fn=quiet;
     mcs_vm_t* vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm)return;
     CHECK(mcs_exec_source(vm,"retained.cs","class Previous { int Read() { return 42; } } var previous=new Previous(); var callback=previous.Read;")==MCS_OK);
@@ -90,4 +103,33 @@ static void oom_tests(void) {
     CHECK(mcs_check_source(vm,"limit-recovery.cs","int fine=1;")==MCS_OK);
     mcs_free(vm);
 }
-int main(void) { pool_tests(); oom_tests(); printf("%s smallheap: %d checks, %d failures\n",failures?"FAIL":"PASS",checks,failures); return failures!=0; }
+static void token_tests(void) {
+    if(sizeof(void*)==4) CHECK(sizeof(token_t)==12);
+    mcs_config_t cfg; mcs_config_default(&cfg); cfg.write_fn=quiet;
+    mcs_vm_t* vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm)return;
+    /* Prefixes and multi-line strings must report the opening token column,
+     * not the body or closing quote. CRLF/tabs retain byte-column semantics. */
+    const char* source="  \"a\" @\"b\" $\"c\" $@\"d\" @$\"e\" @\"f\ng\"\r\n\t123";
+    arena_t arena={0}; arena.vm=vm;
+    front_ctx_t ctx={0}; ctx.vm=vm; ctx.arena=&arena; ctx.source=source; ctx.src_name="tokens.cs";
+    toklist_t tokens={0}; tokens.heap=1;
+    CHECK(mcs_lex(&ctx,source,strlen(source),1,&tokens));
+    const unsigned columns[]={3,7,12,17,23,29,2,5};
+    const unsigned lines[]={1,1,1,1,1,1,3,3};
+    CHECK(tokens.count==8);
+    for(uint32_t i=0;i<tokens.count && i<8;i++) {
+        const token_t* t=mcs_tok_at(&tokens,i);
+        CHECK(mcs_token_column(&ctx,t)==columns[i]); CHECK(t->line==lines[i]);
+    }
+    mcs_front_free_tokens(&ctx); arena_free(&arena);
+    /* Deferred-body parser columns are recovered from the whole source,
+     * including the original first-line offset and string opening quote. */
+    CHECK(mcs_check_source(vm,"columns.cs","class C { int F() { return 1 \"oops\"; } }")==MCS_ERR_COMPILE);
+    CHECK(strstr(mcs_last_error(vm),"columns.cs(1,30):")!=NULL);
+    char wide[4600]; memset(wide,' ',sizeof wide); memcpy(wide,"int x = ",8);
+    wide[sizeof wide-2]=';'; wide[sizeof wide-1]=0;
+    CHECK(mcs_check_source(vm,"wide.cs",wide)==MCS_ERR_COMPILE);
+    CHECK(strstr(mcs_last_error(vm),"wide.cs(1,4095):")!=NULL);
+    mcs_free(vm);
+}
+int main(void) { pool_tests(); oom_tests(false); oom_tests(true); token_tests(); printf("%s smallheap: %d checks, %d failures\n",failures?"FAIL":"PASS",checks,failures); return failures!=0; }

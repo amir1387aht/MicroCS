@@ -83,9 +83,10 @@ execute the replacement script to reclaim the old state.
 `tests/projects/oled_repeat` contains the larger reported menu application,
 including file enumeration and both callback types. The separate
 `oled-repeat-test` CI step uses a **64 KiB 32-bit application pool**, real U8g2 and
-all three selected fonts. It uploads both files, varies source size, checks them,
-starts the Project, and exercises GPIO/timer callbacks for **100 cycles in the
-same VM**. Checks assert that no display/timer side effects occur during a build,
+all three selected fonts. It uploads both files, changes an actual string literal
+and source size, checks them, starts the Project, and exercises GPIO/timer callbacks
+for **2,000 cycles in the same VM**, with **7,500 extra pool-allocated bytes** kept
+live. A short whitespace-only run is not sufficient to expose late fragmentation. Checks assert that no display/timer side effects occur during a build,
 that the prior app is not replaced, and that warm retained usage stays bounded.
 Shutdown must return pool usage to zero. This is a host simulation, not a physical
 ESP32 measurement; it does not claim this larger app fits the smaller 40 KiB gate.
@@ -98,10 +99,34 @@ short-lived syntax trees. Full parsing, line/column diagnostics, nested closures
 default arguments and named-tuple information remain available. Failed builds
 and allocator failures release the body workspace without stopping old callbacks.
 
+Short-lived source buffers, dependency traversal lists, tokens and compiler arenas
+use the high end of the **same physical pool**; retained VM objects use low-address
+first-fit placement. This separates lifetimes instead of scattering retained
+bytecode among syntax buffers. There is no second heap, hidden malloc fallback or
+fixed scratch reservation. All VM compiler allocations still count against the VM
+allocation limit; VFS scratch and per-block headers still count in physical pool
+usage. Idle file entry collects unreachable prior-run objects before its first
+source read, rather than waiting until the compiler starts.
+
+`mcs_config_t.temporary_realloc_fn` optionally supplies the compiler-scratch
+allocator, sharing `alloc_ud` and the configured overhead/accounting convention.
+It defaults to the ordinary allocator for custom allocators; `mcs_new()` selects
+`mcs_pool_realloc_temporary` when the ordinary allocator is `mcs_pool_realloc`.
+Wrappers around the pool may set it explicitly. The complete firmware runtime
+uses synchronized wrappers for both allocation directions when threads are active;
+worker VMs use their own pools and high-end VFS scratch.
+
+An OOM snapshot is taken after compiler cleanup. Free bytes and largest free block
+in that snapshot are not necessarily what was available at the failed request.
+The regression verifies callback preservation, bounded warm usage, complete pool
+recovery at shutdown, and mixed-direction realloc/OOM cleanup.
+
 ## Where the reductions come from
 
 - Tokens store source spans rather than redundant numeric payloads and use
-  indexed 32-record pages. Declaration boundaries release consumed pages, so
+  indexed 32-record pages. Each token is 12 bytes on 32-bit targets rather than
+  16; parser error columns are recovered from the original source with string
+  prefixes and the existing 4,095-column cap preserved. Declaration boundaries release consumed pages, so
   parsing does not require a large contiguous token array or keep every token
   beside the full AST. Interpolation and speculative lookahead keep valid tokens.
 - AST leaves omit children, mutually exclusive payloads share storage, and arenas

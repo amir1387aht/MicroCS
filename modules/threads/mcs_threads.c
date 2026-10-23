@@ -319,7 +319,7 @@ static void worker_main(void* arg) {
         mcs_os_mutex_lock(G.fs);
         vfs = *G.cfg.vfs;                 /* same mounts and backends, own scratch heap */
         mcs_os_mutex_unlock(G.fs);
-        vfs.realloc_fn = mcs_pool_realloc; vfs.alloc_ud = &pool;
+        vfs.realloc_fn = mcs_pool_realloc_temporary; vfs.alloc_ud = &pool;
         vfs.lock = &G.vfs_lock;
         mcs_fs_open_lib(vm, &vfs);
         vfsp = &vfs;
