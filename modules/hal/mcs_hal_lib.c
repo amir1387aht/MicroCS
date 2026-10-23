@@ -176,6 +176,29 @@ int mcs_hal_parse_pin(const char* s) {
 #define MCS_HAL_CRITICAL_ENTER() unsigned mcs__key = mcs_os_irq_lock()
 #define MCS_HAL_CRITICAL_EXIT()  mcs_os_irq_unlock(mcs__key)
 #endif
+#if !defined(MCS_HAL_CRITICAL_ENTER) && (defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32))
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+static portMUX_TYPE mcs_hal_mux = portMUX_INITIALIZER_UNLOCKED;
+#define MCS_HAL_CRITICAL_ENTER() portENTER_CRITICAL_SAFE(&mcs_hal_mux)
+#define MCS_HAL_CRITICAL_EXIT() portEXIT_CRITICAL_SAFE(&mcs_hal_mux)
+#endif
+#if !defined(MCS_HAL_CRITICAL_ENTER) && defined(__ZEPHYR__)
+#include <zephyr/kernel.h>
+static struct k_spinlock mcs_hal_lock;
+#define MCS_HAL_CRITICAL_ENTER() k_spinlock_key_t mcs_hal_key = k_spin_lock(&mcs_hal_lock)
+#define MCS_HAL_CRITICAL_EXIT() k_spin_unlock(&mcs_hal_lock, mcs_hal_key)
+#endif
+#if !defined(MCS_HAL_CRITICAL_ENTER) && (defined(PICO_RP2040) || defined(PICO_RP2350))
+#include "hardware/sync.h"
+#define MCS_HAL_CRITICAL_ENTER() uint32_t mcs_hal_key = save_and_disable_interrupts()
+#define MCS_HAL_CRITICAL_EXIT() restore_interrupts(mcs_hal_key)
+#endif
+#if !defined(MCS_HAL_CRITICAL_ENTER) && defined(__AVR__)
+#include <avr/interrupt.h>
+#define MCS_HAL_CRITICAL_ENTER() uint8_t mcs_hal_key = SREG; cli()
+#define MCS_HAL_CRITICAL_EXIT() SREG = mcs_hal_key
+#endif
 #if !defined(MCS_HAL_CRITICAL_ENTER)
 #if defined(__GNUC__) && (defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7EM__) || \
     defined(__ARM_ARCH_8M_BASE__) || defined(__ARM_ARCH_8M_MAIN__) || defined(__ARM_ARCH_8_1M_MAIN__))
@@ -224,6 +247,175 @@ static bool ring_pop(mcs_hal_event_t* ev) {
     return true;
 }
 
+/* ------------------------------------------------------------ quadrature encoder */
+#if MCS_ENABLE_ENCODER
+typedef struct encoder {
+    struct encoder* next;
+    mcs_vm_t* vm;
+    const mcs_hal_t* hal;
+    int a, b, button, pin;
+    int32_t position;
+    int8_t partial;
+    uint8_t state, steps, reverse, active, irqs;
+} encoder_t;
+static encoder_t* encoders;
+static const mcs_class_def_t encoder_def;
+static bool encoder_owns(void* ctx, int pin) {
+    bool found = false;
+    MCS_HAL_CRITICAL_ENTER();
+    for (encoder_t* e = encoders; e; e = e->next)
+        if (e->hal->ctx == ctx && (e->a == pin || e->b == pin || e->button == pin)) { found = true; break; }
+    MCS_HAL_CRITICAL_EXIT();
+    return found;
+}
+/* Valid Gray-code transitions cancel contact bounce; diagonal jumps resync.
+ * No callback, allocation, GC or queue operation is allowed in this path. */
+bool mcs_hal_gpio_edge(void* ctx, int pin) {
+    static const int8_t direction[16] = { 0,1,-1,0, -1,0,0,1, 1,0,0,-1, 0,-1,1,0 };
+    bool consumed = false;
+    MCS_HAL_CRITICAL_ENTER();
+    for (encoder_t* e = encoders; e; e = e->next) {
+        if (e->hal->ctx != ctx || (e->a != pin && e->b != pin)) continue;
+        consumed = true;
+        if (!e->active) break;
+        int a = e->hal->gpio_read(ctx, e->a), b = e->hal->gpio_read(ctx, e->b);
+        if (a < 0 || b < 0) { e->partial = 0; break; }
+        unsigned state = ((a != 0) << 1) | (b != 0), old = e->state;
+        e->state = (uint8_t)state;
+        if ((old ^ state) == 3) { e->partial = 0; break; }
+        int d = direction[old * 4 + state];
+        e->partial += (int8_t)(e->reverse ? -d : d);
+        if (e->partial >= e->steps) {
+            if (e->position < INT32_MAX) e->position++;
+            e->partial = 0;
+        } else if (e->partial <= -(int)e->steps) {
+            if (e->position > INT32_MIN) e->position--;
+            e->partial = 0;
+        }
+        break;
+    }
+    MCS_HAL_CRITICAL_EXIT();
+    return consumed;
+}
+/* Keep the reservation until both IRQs are disabled; late IRQs are consumed. */
+static void encoder_detach(encoder_t* e) {
+    if (!e->hal) return;
+    { MCS_HAL_CRITICAL_ENTER(); e->active = 0; MCS_HAL_CRITICAL_EXIT(); }
+    if (e->irqs & 1) e->hal->gpio_irq(e->hal->ctx, e->a, MCS_GPIO_EDGE_NONE);
+    if (e->irqs & 2) e->hal->gpio_irq(e->hal->ctx, e->b, MCS_GPIO_EDGE_NONE);
+    {
+        MCS_HAL_CRITICAL_ENTER();
+        encoder_t** it = &encoders;
+        while (*it && *it != e) it = &(*it)->next;
+        if (*it) *it = e->next;
+        e->hal = NULL;
+        MCS_HAL_CRITICAL_EXIT();
+    }
+}
+static void encoder_free(mcs_vm_t* vm, void* data) {
+    (void)vm;
+    /* During mcs_free, the root list may already be gone: do not unpin here. */
+    encoder_detach((encoder_t*)data);
+}
+static void encoder_close_all(mcs_vm_t* vm) {
+    encoder_t* e = encoders;
+    while (e) {
+        encoder_t* next = e->next;
+        if (e->vm == vm) { int pin = e->pin; encoder_detach(e); mcs_unpin(vm, pin); }
+        e = next;
+    }
+}
+static bool encoder_guard(mcs_vm_t* vm, int pin) {
+    if (!encoder_owns(CTX(), pin)) return true;
+    mcs_raise(vm, "InvalidOperationException", "pin is reserved by RotaryEncoder; Dispose it first");
+    return false;
+}
+static void encoder_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
+    encoder_t* e = (encoder_t*)mcs_userdata(self);
+    e->pin = -1;
+    if (argc < 2 || argc > 5) { mcs_raise(vm, "ArgumentException", "RotaryEncoder(a, b[, steps = 4, button = -1, reverse = false]) expected"); return; }
+    const mcs_hal_t* h = mcs_hal_get(vm);
+    if (!h || !h->gpio_capture || !h->gpio_mode || !h->gpio_irq || !h->gpio_read) { hal_fail(vm, "RotaryEncoder", MCS_HAL_ENOTSUP); return; }
+    if (ST()->no_events) { mcs_raise(vm, "InvalidOperationException", "RotaryEncoder requires the main event VM"); return; }
+    e->a = pin_arg(vm, argv[0]); e->b = pin_arg(vm, argv[1]);
+    mcs_int_t steps = argc > 2 ? mcs_to_int(vm, argv[2]) : 4;
+    e->button = argc > 3 && !(mcs_is_int(argv[3]) && mcs_to_int(vm, argv[3]) == -1) ? pin_arg(vm, argv[3]) : -1;
+    e->reverse = argc > 4 && mcs_to_bool(vm, argv[4]);
+    if (mcs_has_exception(vm)) return;
+    if (e->a < 0 || e->b < 0 || e->button < -1 || e->a == e->b || e->button == e->a || e->button == e->b || (steps != 1 && steps != 2 && steps != 4)) {
+        range_fail(vm, "encoder pins must differ; steps must be 1, 2 or 4"); return;
+    }
+    int pins[3] = { e->a, e->b, e->button };
+    for (int i = 0; i < 3; i++) if (pins[i] >= 0 &&
+        (mcs__hal_pin_has_irq(vm, pins[i]) || !encoder_guard(vm, pins[i]))) {
+        if (!mcs_has_exception(vm)) mcs_raise(vm, "InvalidOperationException", "encoder pin already has a GPIO callback");
+        return;
+    }
+    e->vm = vm; e->steps = (uint8_t)steps;
+    /* Pin before hardware changes: OOM cannot leave an ISR pointing at garbage. */
+    e->pin = mcs_pin(vm, self);
+    if (e->pin < 0) { mcs_raise(vm, "OutOfMemoryException", "RotaryEncoder: no free pin handles"); return; }
+    int total = 0;
+    {
+        MCS_HAL_CRITICAL_ENTER();
+        for (encoder_t* p = encoders; p; p = p->next) total++;
+        if (total < MCS_HAL_MAX_ENCODERS) { e->hal = h; e->next = encoders; encoders = e; }
+        MCS_HAL_CRITICAL_EXIT();
+    }
+    int rc = total < MCS_HAL_MAX_ENCODERS ? 0 : MCS_HAL_EBUSY;
+    for (int i = 0; i < 3 && rc >= 0; i++) if (pins[i] >= 0) rc = h->gpio_mode(h->ctx, pins[i], MCS_GPIO_INPUT_PULLUP);
+    if (rc >= 0) { rc = h->gpio_irq(h->ctx, e->a, MCS_GPIO_EDGE_BOTH); if (rc >= 0) e->irqs |= 1; }
+    if (rc >= 0) { rc = h->gpio_irq(h->ctx, e->b, MCS_GPIO_EDGE_BOTH); if (rc >= 0) e->irqs |= 2; }
+    if (rc >= 0) {
+        MCS_HAL_CRITICAL_ENTER();
+        int a = h->gpio_read(h->ctx, e->a), b = h->gpio_read(h->ctx, e->b);
+        if (a < 0 || b < 0) rc = a < 0 ? a : b;
+        else { e->state = (uint8_t)(((a != 0) << 1) | (b != 0)); e->active = 1; }
+        MCS_HAL_CRITICAL_EXIT();
+    }
+    if (rc < 0) { encoder_detach(e); mcs_unpin(vm, e->pin); e->pin = -1; hal_fail(vm, "RotaryEncoder", rc); }
+}
+static encoder_t* encoder_get(mcs_vm_t* vm, mcs_value_t self) {
+    encoder_t* e = (encoder_t*)mcs_check_userdata(vm, self, &encoder_def);
+    if (e && !e->hal) { mcs_raise(vm, "ObjectDisposedException", "RotaryEncoder is disposed"); return NULL; }
+    return e;
+}
+NATIVE(encoder_position) {
+    encoder_t* e = encoder_get(vm, self); if (!e) return mcs_null();
+    int32_t n; { MCS_HAL_CRITICAL_ENTER(); n = e->position; MCS_HAL_CRITICAL_EXIT(); }
+    return mcs_int((mcs_int_t)n);
+}
+NATIVE(encoder_reset) {
+    encoder_t* e = encoder_get(vm, self); if (!e) return mcs_null();
+    if (argc > 1) { mcs_raise(vm, "ArgumentException", "Reset([position]) expected"); return mcs_null(); }
+    mcs_int_t n = argc ? mcs_to_int(vm, argv[0]) : 0;
+    if (mcs_has_exception(vm)) return mcs_null();
+    if (n < INT32_MIN || n > INT32_MAX) return range_fail(vm, "encoder position");
+    { MCS_HAL_CRITICAL_ENTER(); e->position = (int32_t)n; e->partial = 0; MCS_HAL_CRITICAL_EXIT(); }
+    return mcs_null();
+}
+NATIVE(encoder_button) {
+    encoder_t* e = encoder_get(vm, self); if (!e) return mcs_null();
+    if (e->button < 0) return mcs_bool(false);
+    int rc = e->hal->gpio_read(e->hal->ctx, e->button);
+    return rc < 0 ? hal_fail(vm, "RotaryEncoder.ButtonPressed", rc) : mcs_bool(!rc);
+}
+NATIVE(encoder_dispose) {
+    encoder_t* e = (encoder_t*)mcs_check_userdata(vm, self, &encoder_def); if (!e) return mcs_null();
+    if (e->hal) { int pin = e->pin; encoder_detach(e); mcs_unpin(vm, pin); e->pin = -1; }
+    return mcs_null();
+}
+static const mcs_reg_t encoder_members[] = {
+    MCS_GET("Position", encoder_position), MCS_GET("ButtonPressed", encoder_button),
+    MCS_FN("Reset", encoder_reset, -1), MCS_FN("Dispose", encoder_dispose, 0), MCS_REG_END
+};
+static const mcs_class_def_t encoder_def = { "RotaryEncoder", sizeof(encoder_t), encoder_ctor, encoder_free, encoder_members, NULL };
+#else
+bool mcs_hal_gpio_edge(void* ctx, int pin) { (void)ctx; (void)pin; return false; }
+#define encoder_guard(vm, pin) true
+#define encoder_close_all(vm) ((void)0)
+#endif
+
 /* ------------------------------------------------------------ callbacks */
 static int cb_find(hal_state_t* s, int kind, int source) {
     for (int i = 0; i < MCS_HAL_MAX_CALLBACKS; i++)
@@ -231,7 +423,11 @@ static int cb_find(hal_state_t* s, int kind, int source) {
     return -1;
 }
 bool mcs__hal_pin_has_irq(mcs_vm_t* vm, int pin) {
-    return ST() && cb_find(ST(), CB_GPIO, pin) >= 0;
+    return ST() && (cb_find(ST(), CB_GPIO, pin) >= 0
+#if MCS_ENABLE_ENCODER
+        || encoder_owns(CTX(), pin)
+#endif
+    );
 }
 /* fn null = remove. Returns false when the table is full. */
 static bool cb_set(mcs_vm_t* vm, hal_state_t* s, int kind, int source, mcs_value_t fn) {
@@ -364,12 +560,14 @@ static int idle_poll(mcs_vm_t* vm, void* ud) { (void)ud; return mcs_hal_poll(vm)
 /* ------------------------------------------------------------- GPIO */
 NATIVE(gpio_mode) {
     PIN_ARG(0, pin); INT_ARG(1, mode);
+    if (!encoder_guard(vm, pin)) return mcs_null();
     NEED(gpio_mode, "GPIO.Mode");
     RC("GPIO.Mode", HAL()->gpio_mode(CTX(), pin, mode));
     return mcs_null();
 }
 NATIVE(gpio_write) {
     PIN_ARG(0, pin);
+    if (!encoder_guard(vm, pin)) return mcs_null();
     RC("GPIO.Write", HAL()->gpio_write(CTX(), pin, level_of(argv[1])));
     return mcs_null();
 }
@@ -381,6 +579,7 @@ NATIVE(gpio_read) {
 }
 NATIVE(gpio_toggle) {
     PIN_ARG(0, pin);
+    if (!encoder_guard(vm, pin)) return mcs_null();
     NEED(gpio_read, "GPIO.Toggle");
     int rc = HAL()->gpio_read(CTX(), pin);
     if (rc >= 0) rc = HAL()->gpio_write(CTX(), pin, !rc);
@@ -391,6 +590,7 @@ NATIVE(gpio_pin) {
     return mcs_has_exception(vm) ? mcs_null() : mcs_int(p);
 }
 static mcs_value_t gpio_irq_common(mcs_vm_t* vm, int pin, int edge, mcs_value_t fn) {
+    if (!encoder_guard(vm, pin)) return mcs_null();
     if (!HAL()->gpio_irq) return hal_fail(vm, "GPIO.OnChange", MCS_HAL_ENOTSUP);
     if (edge < 0 || edge > 3) return range_fail(vm, "edge");
     if (mcs_is_null(fn)) edge = 0;
@@ -429,6 +629,7 @@ static mcs_value_t cfg_unsupported(mcs_vm_t* vm, const char* what, const char* f
     return mcs_null();
 }
 static mcs_value_t gpio_apply(mcs_vm_t* vm, int pin, const mcs_gpio_config_t* c, const char* what) {
+    if (!encoder_guard(vm, pin)) return mcs_null();
     const mcs_hal_t* h = HAL();
     if (h->gpio_configure) { RC(what, h->gpio_configure(h->ctx, pin, c)); return mcs_null(); }
     static const char* const ok[] = { "Mode", "Pull", "Initial", NULL };
@@ -474,6 +675,7 @@ static void pin_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv
     if (argc < 1 || argc > 2) { mcs_raise(vm, "ArgumentException", "Pin(pin[, mode | GpioConfig]) expected"); return; }
     p->pin = pin_arg(vm, argv[0]);
     if (mcs_has_exception(vm)) return;
+    if (!encoder_guard(vm, p->pin)) return;
     const mcs_gpio_config_t* gc = argc > 1 ? (const mcs_gpio_config_t*)mcs__cfg_get(argv[1], MCS__CFG_GPIO) : NULL;
     if (gc) { p->mode = gc->mode; gpio_apply(vm, p->pin, gc, "Pin"); return; }
     p->mode = argc > 1 ? (int)mcs_to_int(vm, argv[1]) : -1;
@@ -484,25 +686,25 @@ static void pin_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv
 }
 #define PIN() pin_t* p = (pin_t*)mcs_check_userdata(vm, self, &pin_def); if (!p) return mcs_null()
 NATIVE(pin_write) {
-    PIN();
+    PIN(); if (!encoder_guard(vm, p->pin)) return mcs_null();
     RC("Pin.Write", HAL()->gpio_write(CTX(), p->pin, level_of(argv[0])));
     return mcs_null();
 }
-NATIVE(pin_high) { PIN(); RC("Pin.High", HAL()->gpio_write(CTX(), p->pin, 1)); return mcs_null(); }
-NATIVE(pin_low) { PIN(); RC("Pin.Low", HAL()->gpio_write(CTX(), p->pin, 0)); return mcs_null(); }
+NATIVE(pin_high) { PIN(); if (!encoder_guard(vm, p->pin)) return mcs_null(); RC("Pin.High", HAL()->gpio_write(CTX(), p->pin, 1)); return mcs_null(); }
+NATIVE(pin_low) { PIN(); if (!encoder_guard(vm, p->pin)) return mcs_null(); RC("Pin.Low", HAL()->gpio_write(CTX(), p->pin, 0)); return mcs_null(); }
 NATIVE(pin_read) {
     PIN(); NEED(gpio_read, "Pin.Read");
     int rc = HAL()->gpio_read(CTX(), p->pin);
     return rc < 0 ? hal_fail(vm, "Pin.Read", rc) : mcs_bool(rc != 0);
 }
 NATIVE(pin_toggle) {
-    PIN(); NEED(gpio_read, "Pin.Toggle");
+    PIN(); if (!encoder_guard(vm, p->pin)) return mcs_null(); NEED(gpio_read, "Pin.Toggle");
     int rc = HAL()->gpio_read(CTX(), p->pin);
     if (rc >= 0) rc = HAL()->gpio_write(CTX(), p->pin, !rc);
     return rc < 0 ? hal_fail(vm, "Pin.Toggle", rc) : mcs_null();
 }
 NATIVE(pin_setmode) {
-    PIN(); INT_ARG(0, mode); NEED(gpio_mode, "Pin.Mode");
+    PIN(); if (!encoder_guard(vm, p->pin)) return mcs_null(); INT_ARG(0, mode); NEED(gpio_mode, "Pin.Mode");
     RC("Pin.Mode", HAL()->gpio_mode(CTX(), p->pin, mode));
     p->mode = mode;
     return mcs_null();
@@ -1434,6 +1636,7 @@ const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm) {
 void mcs_hal_close_lib(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s) return;
+    encoder_close_all(vm);
     mcs__can_close_all(vm);
     mcs__dma_close(vm);                           /* stop / finish transfers still in flight */
     mcs_set_ext(vm, MCS_EXT_HAL, NULL);
@@ -1488,7 +1691,7 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         }
         mcs_set_ext(vm, MCS_EXT_HAL, s);
     }
-    if (s->hal) mcs__can_close_all(vm);
+    if (s->hal) { encoder_close_all(vm); mcs__can_close_all(vm); }
     s->hal = h;
     s->wake_pin = -1;
     s->wake_high = 0;
@@ -1505,6 +1708,10 @@ void mcs_hal_open_lib_ex(mcs_vm_t* vm, const mcs_hal_t* h, unsigned flags) {
         mcs_register_module(vm, "GPIO", gpio_props);
         mcs_register_consts(vm, "GPIO", gpio_consts);
         mcs_register_class(vm, &pin_def);
+#if MCS_ENABLE_ENCODER
+        if (h->gpio_capture && h->gpio_mode && h->gpio_read && h->gpio_irq && !s->no_events)
+            mcs_register_class(vm, &encoder_def);
+#endif
     }
     if (h && (h->uart_write != NULL)) {
         mcs_register_module(vm, "UART", uart_fns);

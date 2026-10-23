@@ -142,3 +142,9 @@ YAFFS2), plus `pico_w` and `pico2_w` with FreeRTOS and Wi-Fi, `pico_w` with BLE 
 See [sleep, wake pins and shutdown](../../docs/POWER.md) for the exact support matrix,
 `Hal.Has("Power.LightSleep")` / `Power.DeepSleep.Pin` checks, GPIO restrictions and
 Studio/recovery precautions. Unsupported modes throw; they do not fall back to delay.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) supports A/B quadrature via both-edge GPIO
+interrupts, with optional push-button input. See the guide for this port's pin
+restrictions, lifetime rules and speed limits.

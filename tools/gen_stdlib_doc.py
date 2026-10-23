@@ -59,6 +59,7 @@ MAP = {
     "power_fns": ("Hardware (modules/hal)", "Power", "static", "capability-gated hardware modes; [power management](POWER.md)"),
     "hal_fns": ("Hardware (modules/hal)", "Hal", "static", "consts `Board`, `ApiVersion`"),
     "gpio_fns": ("Hardware (modules/hal)", "GPIO", "static", "consts `Input Output InputPullUp InputPullDown OpenDrain Analog Rising Falling Both`, `PullDefault PullNone PullUp PullDown PullBoth`, `SpeedDefault SpeedLow SpeedMedium SpeedHigh SpeedVeryHigh`; `Configure(pin, GpioConfig)` ([settings](PERIPHERALS.md))"),
+    "encoder_members": ("Hardware (modules/hal)", "RotaryEncoder", "instance", "`new RotaryEncoder(a, b[, steps = 4, button = -1, reverse = false])`; [quadrature encoders](ENCODER.md)"),
     "pin_members": ("Hardware (modules/hal)", "Pin", "instance", "`new Pin(pin[, mode or GpioConfig])`; pin = number or name (`\"PA5\"`, `\"GPIO21\"`, `\"LED\"`)"),
     "uart_fns": ("Hardware (modules/hal)", "UART", "static", "consts `ParityNone ParityOdd ParityEven`"),
     "i2c_fns": ("Hardware (modules/hal)", "I2C", "static", ""),

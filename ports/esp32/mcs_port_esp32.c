@@ -257,7 +257,7 @@ static int e_gpio_read(void* ctx, int pin) {
 }
 static void IRAM_ATTR gpio_isr(void* arg) {
     int pin = (int)(intptr_t)arg;
-    post_isr(MCS_HAL_EV_GPIO, (uint16_t)pin, gpio_get_level((gpio_num_t)pin) ^ E_INV(pin));
+    if (!mcs_hal_gpio_edge(&g_cfg, pin)) post_isr(MCS_HAL_EV_GPIO, (uint16_t)pin, gpio_get_level((gpio_num_t)pin) ^ E_INV(pin));
 }
 static int e_gpio_irq(void* ctx, int pin, int edge) {
     (void)ctx;
@@ -272,10 +272,12 @@ static int e_gpio_irq(void* ctx, int pin, int edge) {
     if (!edge) { gpio_intr_disable(p); gpio_isr_handler_remove(p); return 0; }
     bool rising = edge == MCS_GPIO_EDGE_RISING, falling = edge == MCS_GPIO_EDGE_FALLING;
     if (E_INV(pin)) { bool t = rising; rising = falling; falling = t; }
-    gpio_set_intr_type(p, rising ? GPIO_INTR_POSEDGE : falling ? GPIO_INTR_NEGEDGE : GPIO_INTR_ANYEDGE);
+    esp_err_t e = gpio_set_intr_type(p, rising ? GPIO_INTR_POSEDGE : falling ? GPIO_INTR_NEGEDGE : GPIO_INTR_ANYEDGE);
+    if (e != ESP_OK) return esp_rc(e);
     gpio_isr_handler_remove(p);
-    esp_err_t e = gpio_isr_handler_add(p, gpio_isr, (void*)(intptr_t)pin);
+    e = gpio_isr_handler_add(p, gpio_isr, (void*)(intptr_t)pin);
     if (e == ESP_OK) e = gpio_intr_enable(p);
+    if (e != ESP_OK) { gpio_intr_disable(p); gpio_isr_handler_remove(p); }
     return esp_rc(e);
 }
 
@@ -1416,6 +1418,7 @@ void mcs_esp32_hal_init(mcs_hal_t* hal, const mcs_esp32_cfg_t* cfg) {
     hal->board = g_cfg.name ? g_cfg.name : CONFIG_IDF_TARGET;
     hal->ctx = &g_cfg;
     mcs_esp_power_init(hal);
+    hal->gpio_capture = true;
     hal->gpio_mode = e_gpio_mode;
     hal->gpio_write = e_gpio_write;
     hal->gpio_read = e_gpio_read;

@@ -349,6 +349,13 @@
 #ifndef MCS_ENABLE_HAL
 #define MCS_ENABLE_HAL 1           /* C# GPIO/UART/I2C/SPI/ADC/PWM  */
 #endif
+#ifndef MCS_ENABLE_ENCODER
+#define MCS_ENABLE_ENCODER MCS_ENABLE_HAL /* GPIO-interrupt quadrature: RotaryEncoder */
+#endif
+#if MCS_ENABLE_ENCODER && !MCS_ENABLE_HAL
+#undef MCS_ENABLE_ENCODER
+#define MCS_ENABLE_ENCODER 0
+#endif
 #ifndef MCS_ENABLE_HAL_DMA
 #define MCS_ENABLE_HAL_DMA MCS_ENABLE_HAL /* C# DmaBuffer, Dma, DmaTransfer and the ...Async calls (~11 KB) */
 #endif

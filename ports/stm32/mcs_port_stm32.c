@@ -275,7 +275,7 @@ void mcs_stm32_exti(uint16_t gpio_pin) {
         int pin = b->exti_pin[line] - 1;
         GPIO_TypeDef* g = port_fast(pin);
         int level = g ? HAL_GPIO_ReadPin(g, (uint16_t)(1u << line)) == GPIO_PIN_SET : 0;
-        mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
+        if (!mcs_hal_gpio_edge(b, pin)) mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
     }
 }
 
@@ -1179,6 +1179,7 @@ void mcs_stm32_hal_init(mcs_hal_t* hal, mcs_stm32_board_t* b) {
 #endif
     hal->power_validate = st_power_validate; hal->power_enter = st_power_enter;
 #endif
+    hal->gpio_capture = true;
     hal->gpio_mode = st_gpio_mode;
     hal->gpio_write = st_gpio_write;
     hal->gpio_read = st_gpio_read;

@@ -14,7 +14,8 @@
  *   MCS_HAL_EBUSY (-5) busy        MCS_HAL_EINVAL (-6) bad argument
  * which become IOException / NotSupportedException / TimeoutException /
  * ArgumentException in C#. Calls happen on the VM thread, except
- * mcs_hal_post(), which is safe to call from interrupt handlers.
+ * mcs_hal_post() / mcs_hal_gpio_edge(); encoder capture also samples gpio_read
+ * in the ISR, which must be nonblocking and ISR-safe for those pins.
  *
  * Compatibility: the v1 members (gpio .. pwm_set) keep their order. Everything
  * after them is optional, so a v1 board table written with designated
@@ -33,7 +34,7 @@
 extern "C" {
 #endif
 
-#define MCS_HAL_API_VERSION 5
+#define MCS_HAL_API_VERSION 6
 
 /* v4: hardware power modes, also used as capability-mask bits. */
 enum { MCS_POWER_LIGHT = 1, MCS_POWER_DEEP = 2, MCS_POWER_SHUTDOWN = 4 };
@@ -43,6 +44,9 @@ enum { MCS_POWER_LIGHT = 1, MCS_POWER_DEEP = 2, MCS_POWER_SHUTDOWN = 4 };
 #endif
 #ifndef MCS_HAL_EVENT_QUEUE
 #define MCS_HAL_EVENT_QUEUE 32   /* ISR -> VM event ring (power of two) */
+#endif
+#ifndef MCS_HAL_MAX_ENCODERS
+#define MCS_HAL_MAX_ENCODERS 4   /* process-wide live quadrature encoders */
 #endif
 #ifndef MCS_HAL_MAX_CALLBACKS
 #define MCS_HAL_MAX_CALLBACKS 16 /* GPIO + timer + user event handlers per VM */
@@ -302,7 +306,8 @@ typedef struct mcs_hal {
 
     /* ---------------- v2 (all optional) ---------------- */
     /* GPIO: enable an edge interrupt (edge 0 disables). The driver reports
-     * edges with mcs_hal_post(MCS_HAL_EV_GPIO, pin, level) or poll_event. */
+     * edges with mcs_hal_post(MCS_HAL_EV_GPIO, pin, level) or poll_event.
+     * Encoder-capable producers call mcs_hal_gpio_edge first (see gpio_capture). */
     int (*gpio_irq)(void* ctx, int pin, int edge);
     /* Board pin names ("PA5", "GPIO13", "LED"). NULL = generic parser, see
      * mcs_hal_parse_pin(). Return the pin number or < 0. */
@@ -413,6 +418,9 @@ typedef struct mcs_hal {
     /* Optional whole-device allocatable 8-bit heap (not static/physical SRAM).
      * Includes SDK/driver/task allocations and any reserved VM pool. */
     bool (*memory_info)(void* ctx, mcs_heap_stats_t* st);
+    /* v6: GPIO ISR calls mcs_hal_gpio_edge(ctx, pin) BEFORE queueing an edge.
+     * gpio_read must be nonblocking / ISR-safe for these direct MCU pins. */
+    bool gpio_capture;
 } mcs_hal_t;
 
 /* Register the C# peripheral classes the board supports, plus `Hal` and the
@@ -448,6 +456,12 @@ int mcs_hal_spi_config(mcs_vm_t* vm, int bus, const mcs_spi_cfg_t* cfg);
  * priorities post concurrently - on Cortex-M PRIMASK is used by default).
  * Returns false when the queue is full (the event is counted as dropped). */
 bool mcs_hal_post(int type, int source, int32_t value);
+/* GPIO producers: if true, an encoder consumed this edge; do not enqueue it.
+ * Samples both A/B pins immediately, without allocation or VM access. Call in
+ * the ISR, not while draining poll_event. ctx is the board's exact HAL context.
+ * Bare-metal ports must deliver GPIO IRQs on the VM's core (or supply the
+ * MCS_HAL_CRITICAL_ENTER/EXIT lock shared by all producers and the VM). */
+bool mcs_hal_gpio_edge(void* ctx, int pin);
 uint32_t mcs_hal_dropped_events(void);
 
 /* Module event handlers: events of `type` (MCS_HAL_EV_NET .. MCS_HAL_EV_USER - 1) go to fn

@@ -30,7 +30,7 @@ static void edge(mcs_hal_sim_t* s, int pin, int before) {
     int after = level(s, pin);
     if (after == before || !s->irq[pin]) return;
     if ((after && (s->irq[pin] & MCS_GPIO_EDGE_RISING)) || (!after && (s->irq[pin] & MCS_GPIO_EDGE_FALLING)))
-        mcs_hal_post(MCS_HAL_EV_GPIO, pin, after);
+        if (!mcs_hal_gpio_edge(s, pin)) mcs_hal_post(MCS_HAL_EV_GPIO, pin, after);
 }
 static int g_mode(void* ctx, int pin, int mode) {
     if (pin < 0 || pin >= 64 || mode < 0 || mode > MCS_GPIO_ANALOG) return MCS_HAL_ENOTSUP;
@@ -589,6 +589,7 @@ void mcs_hal_sim_init(mcs_hal_t* h, mcs_hal_sim_t* s) {
     h->power_timer_modes = MCS_POWER_LIGHT | MCS_POWER_DEEP;
     h->power_validate = sim_power_validate; h->power_enter = sim_power_enter;
     h->ctx = s;
+    h->gpio_capture = true;
     h->gpio_mode = g_mode; h->gpio_write = g_write; h->gpio_read = g_read; h->gpio_irq = g_irq; h->pin_lookup = g_lookup;
     h->uart_open = u_open; h->uart_config = u_config; h->uart_write = u_write; h->uart_read = u_read; h->uart_available = u_avail;
     h->i2c_open = i_open; h->i2c_write = i_write; h->i2c_read = i_read; h->i2c_probe = i_probe;

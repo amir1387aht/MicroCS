@@ -211,3 +211,9 @@ Native controllers can provide `can_configure` and `can_close` in addition to
 The library polls receive subscriptions and slices waits into nonblocking SDK
 calls. SPI/GPIO ports can instead use the portable MCP2515 driver without a native
 CAN peripheral. See [CAN port contract and setup](CAN.md#firmware-integration-and-validation).
+
+## Rotary encoders (HAL API v6)
+
+See [encoder port integration](ENCODER.md#build-and-custom-ports). GPIO ISR
+producers must call `mcs_hal_gpio_edge(ctx, pin)` before enqueueing an event and
+set `gpio_capture` only when both-edge interrupts and ISR-safe GPIO reads work.

@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: encoder-test memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -184,7 +184,7 @@ config-check: | build
 FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
 	"-DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_LINES=0 -DMCS_ENABLE_BYTECODE_SAVE=0" "-DMCS_INT64=1" \
-	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
+	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_ENCODER=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
 	"-DMCS_ENABLE_FS=0 -DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0 -DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_USER_CONFIG_FILE=\"profiles/mcs_profile_tiny.h\"" "-DMCS_PROFILE=MCS_PROFILE_TINY" "-DMCS_PROFILE=MCS_PROFILE_MCU" \
 	"-DMCS_PROFILE=MCS_PROFILE_EMBEDDED" "-DMCS_PROFILE=MCS_PROFILE_LINUX" \
@@ -431,3 +431,12 @@ oled-repeat-test: mcs-u8g2
 	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_repeat.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_repeat $(LDLIBS)
 	./build/test_oled_repeat
 .PHONY: oled-repeat-test
+
+# ISR quadrature decoder, resource ownership, repeated disposal and rollback.
+build/test_encoder: tests/c/test_encoder.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+encoder-test: build/test_encoder
+	./build/test_encoder
+	python3 tests/test_encoder_ports.py
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_encoder.js; fi
+.PHONY: encoder-test

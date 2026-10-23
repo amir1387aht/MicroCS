@@ -336,6 +336,9 @@
 #ifndef MCS_HAL_EVENT_QUEUE
 #define MCS_HAL_EVENT_QUEUE       32    /* ISR -> VM event ring (power of two) */
 #endif
+#ifndef MCS_HAL_MAX_ENCODERS
+#define MCS_HAL_MAX_ENCODERS      4    /* process-wide live encoders */
+#endif
 #ifndef MCS_HAL_MAX_CALLBACKS
 #define MCS_HAL_MAX_CALLBACKS     16    /* GPIO + timer + user event handlers per VM */
 #endif
@@ -344,6 +347,9 @@
 #endif
 #ifndef MCS_HAL_MAX_BUSES
 #define MCS_HAL_MAX_BUSES         4    /* per peripheral type, cached bus settings */
+#endif
+#ifndef MCS_ENABLE_ENCODER
+#define MCS_ENABLE_ENCODER        MCS_ENABLE_HAL    /* ISR A/B quadrature: RotaryEncoder */
 #endif
 #ifndef MCS_ENABLE_HAL_DMA
 #define MCS_ENABLE_HAL_DMA        MCS_ENABLE_HAL    /* DmaBuffer / Dma / DmaTransfer + ...Async (~11 KB flash) */

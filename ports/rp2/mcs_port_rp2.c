@@ -88,7 +88,7 @@ static int r_gpio_read(void* ctx, int pin) {
 static void gpio_cb(uint gpio, uint32_t events) {
     int level = (events & GPIO_IRQ_EDGE_RISE) && !(events & GPIO_IRQ_EDGE_FALL) ? 1
               : (events & GPIO_IRQ_EDGE_FALL) && !(events & GPIO_IRQ_EDGE_RISE) ? 0 : (int)gpio_get(gpio);
-    mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level ^ R_INV(gpio));
+    if (!mcs_hal_gpio_edge(&g_cfg, (int)gpio)) mcs_hal_post(MCS_HAL_EV_GPIO, (int)gpio, level ^ R_INV(gpio));
 }
 static int r_gpio_configure(void* ctx, int pin, const mcs_gpio_config_t* c) {
     if (pin < 0 || pin >= (int)NUM_BANK0_GPIOS) return MCS_HAL_EINVAL;
@@ -674,6 +674,7 @@ void mcs_rp2_hal_init(mcs_hal_t* hal, const mcs_rp2_cfg_t* cfg) {
     hal->ctx = &g_cfg;
     hal->power_modes = hal->power_timer_modes = hal->power_pin_modes = MCS_POWER_LIGHT;
     hal->power_validate = r_power_validate; hal->power_enter = r_power_enter;
+    hal->gpio_capture = true;
     hal->gpio_mode = r_gpio_mode;
     hal->gpio_write = r_gpio_write;
     hal->gpio_read = r_gpio_read;

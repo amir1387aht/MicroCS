@@ -53,7 +53,10 @@ static int gpio_write(void* ctx, int pin, int v) { return 0; /* TODO */ }
 static int gpio_read(void* ctx, int pin) { return 0; /* TODO: 0 or 1 */ }
 static int gpio_irq(void* ctx, int pin, int edge) {
     /* edge: MCS_GPIO_EDGE_NONE (disable), RISING, FALLING, BOTH. In the ISR call
-     *     mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
+     *     if (!mcs_hal_gpio_edge(ctx, pin))
+     *         mcs_hal_post(MCS_HAL_EV_GPIO, pin, level);
+     * Set .gpio_capture = true only after wiring this ISR path and providing
+     * nonblocking ISR-safe gpio_read for direct MCU pins.
      * the C# callback then runs on the VM thread. */
     return MCS_HAL_ENOTSUP;   /* TODO */
 }

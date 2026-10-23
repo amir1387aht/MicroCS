@@ -46,7 +46,7 @@ static int a_gpio_read(void*, int pin) { return digitalRead(pin) == HIGH ? 1 : 0
 static volatile int g_irq_pin[MCS_ARDUINO_IRQS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 template <int N> static void irq_tramp() {
     int p = g_irq_pin[N];
-    if (p >= 0) mcs_hal_post(MCS_HAL_EV_GPIO, p, digitalRead(p) == HIGH);
+    if (p >= 0 && !mcs_hal_gpio_edge(&g_cfg, p)) mcs_hal_post(MCS_HAL_EV_GPIO, p, digitalRead(p) == HIGH);
 }
 typedef void (*irq_fn)();
 static const irq_fn g_tramps[8] = { irq_tramp<0>, irq_tramp<1>, irq_tramp<2>, irq_tramp<3>,
@@ -56,6 +56,9 @@ static int a_gpio_irq(void*, int pin, int edge) {
     for (int i = 0; i < MCS_ARDUINO_IRQS; i++) if (g_irq_pin[i] == pin) slot = i;
     int irq = digitalPinToInterrupt(pin);
     if (irq < 0) return MCS_HAL_ENOTSUP;
+#ifdef NOT_AN_INTERRUPT
+    if (irq == (int)NOT_AN_INTERRUPT) return MCS_HAL_ENOTSUP;
+#endif
     if (!edge) {
         if (slot >= 0) { detachInterrupt(irq); g_irq_pin[slot] = -1; }
         return 0;
@@ -594,6 +597,7 @@ void mcs_arduino_hal_init(mcs_hal_t* hal, const mcs_arduino_cfg_t* cfg) {
     mcs_esp_power_init(hal);
 #endif
     hal->pin_lookup = a_pin_lookup;
+    hal->gpio_capture = true;
     hal->gpio_mode = a_gpio_mode;
     hal->gpio_write = a_gpio_write;
     hal->gpio_read = a_gpio_read;

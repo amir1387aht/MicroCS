@@ -138,7 +138,7 @@ static gpio_port_pins_t g_gmask[NPORTS];
 static void gpio_isr(const struct device* port, struct gpio_callback* cb, gpio_port_pins_t pins) {
     int p = (int)(cb - g_gcb);
     for (int i = 0; i < 32; i++)
-        if (pins & BIT(i)) mcs_hal_post(MCS_HAL_EV_GPIO, p * 32 + i, gpio_pin_get_raw(port, (gpio_pin_t)i));
+        if ((pins & BIT(i)) && !mcs_hal_gpio_edge(&g_cfg, p * 32 + i)) mcs_hal_post(MCS_HAL_EV_GPIO, p * 32 + i, gpio_pin_get_raw(port, (gpio_pin_t)i));
 }
 static int z_gpio_irq(void* ctx, int pin, int edge) {
     (void)ctx;
@@ -147,12 +147,24 @@ static int z_gpio_irq(void* ctx, int pin, int edge) {
     int p = pin >> 5, n = pin & 31;
     gpio_flags_t f = edge == MCS_GPIO_EDGE_RISING ? GPIO_INT_EDGE_RISING : edge == MCS_GPIO_EDGE_FALLING ? GPIO_INT_EDGE_FALLING
                    : edge == MCS_GPIO_EDGE_BOTH ? GPIO_INT_EDGE_BOTH : GPIO_INT_DISABLE;
+    gpio_port_pins_t old_mask = g_gmask[p];
+    bool added = false;
     if (edge) {
-        if (!g_gmask[p]) { gpio_init_callback(&g_gcb[p], gpio_isr, 0); gpio_add_callback(d, &g_gcb[p]); }
+        if (!old_mask) {
+            gpio_init_callback(&g_gcb[p], gpio_isr, 0);
+            int rc = z_rc(gpio_add_callback(d, &g_gcb[p]));
+            if (rc < 0) return rc;
+            added = true;
+        }
         g_gmask[p] |= BIT(n);
     } else g_gmask[p] &= ~BIT(n);
     g_gcb[p].pin_mask = g_gmask[p];
-    return z_rc(gpio_pin_interrupt_configure(d, (gpio_pin_t)n, f));
+    int rc = z_rc(gpio_pin_interrupt_configure(d, (gpio_pin_t)n, f));
+    if (rc < 0) {
+        g_gmask[p] = old_mask; g_gcb[p].pin_mask = old_mask;
+        if (added) gpio_remove_callback(d, &g_gcb[p]);
+    } else if (!g_gmask[p] && old_mask) gpio_remove_callback(d, &g_gcb[p]);
+    return rc;
 }
 
 /* ------------------------------------------------------------------ UART */
@@ -978,6 +990,7 @@ void mcs_zephyr_hal_init(mcs_hal_t* hal, const mcs_zephyr_cfg_t* cfg) {
     hal->board = g_cfg.name ? g_cfg.name : CONFIG_BOARD;
     hal->ctx = &g_cfg;
     hal->pin_lookup = z_pin_lookup;
+    hal->gpio_capture = true;
     hal->gpio_mode = z_gpio_mode;
     hal->gpio_write = z_gpio_write;
     hal->gpio_read = z_gpio_read;
