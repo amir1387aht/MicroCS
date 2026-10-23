@@ -55,10 +55,14 @@
   <header>
     <div class="brand"><div class="logo">C#</div><b>MicroCS Studio</b></div>
     <button class="btn primary" id="btnConnect"><svg class="i"><use href="#i-plug"/></svg><span>Connect</span></button>
-    <select class="sel" id="baud" title="Baud rate (UART bridges; ignored by native USB)">
-      <option>9600</option><option>57600</option><option selected>115200</option><option>230400</option>
-      <option>460800</option><option>921600</option>
-    </select>
+    <input class="baud-input" id="baud" type="text" inputmode="numeric" list="baudRates" value="115200"
+      aria-label="Baud rate" autocomplete="off" spellcheck="false"
+      title="Choose or type the firmware console baud rate (1–4294967295). Disconnect before changing an open port; native USB may ignore this setting.">
+    <datalist id="baudRates">
+      <option value="9600"><option value="19200"><option value="38400"><option value="57600">
+      <option value="74880"><option value="115200"><option value="230400">
+      <option value="460800"><option value="921600">
+    </datalist>
     <span class="chip" id="connChip"><span class="dot" id="connDot"></span><span id="connText">Not connected</span></span>
     <div class="spacer"></div>
     <button class="btn boxed" id="btnReset" disabled title="Reset the board (EN pin via RTS, like esptool)"><svg class="i"><use href="#i-power"/></svg>Reset board</button>

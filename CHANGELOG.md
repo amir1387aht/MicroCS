@@ -2,6 +2,12 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* Allow custom Studio UART baud rates with preset suggestions including 74880,
+  19200 and 38400. Validate positive 32-bit integer rates before connecting, retain
+  115200 as the default, and remember custom rates across reloads/reconnects.
+
 ## 1.17.0 — Long-run upload memory recovery
 
 * Separate short-lived compiler/VFS buffers from retained VM objects using

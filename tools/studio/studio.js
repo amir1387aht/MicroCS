@@ -1566,6 +1566,14 @@ function galMark(text, words) {
   const re = new RegExp("(" + words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi");
   return String(text).split(re).map((part, i) => (i % 2 ? `<mark>${esc(part)}</mark>` : esc(part))).join("");
 }
+// Web Serial baudRate is an unsigned 32-bit integer; hardware may support fewer rates.
+function parseBaud(value) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const text = String(value).trim();
+  if (!/^[0-9]+$/.test(text)) return null;
+  const baud = Number(text);
+  return Number.isInteger(baud) && baud >= 1 && baud <= 0xFFFFFFFF ? baud : null;
+}
 const store = {
   get(k, d) { try { const v = localStorage.getItem("mcs-studio." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem("mcs-studio." + k, JSON.stringify(v)); } catch {} },
@@ -1579,10 +1587,17 @@ const App = {
   memExpanded: false, memReportText: "", memReportTitle: "",
 
   /* ---------- connection */
+  selectedBaud() {
+    const input = $("baud"), baud = parseBaud(input.value);
+    input.setCustomValidity(baud === null ? "Enter a whole-number baud rate from 1 to 4294967295." : "");
+    if (baud === null) input.reportValidity();
+    return baud;
+  },
   async connect() {
     if (dev.connected) return this.disconnect();
     if (this.autoReconnect && this.lastPort && $("btnConnect").querySelector("span").textContent === "Cancel") { this.autoReconnect = false; this.setConn("off", "Not connected"); return; }
     if (!("serial" in navigator)) { toast("Web Serial is not available - use Chrome or Edge on a desktop.", "err", 6000); return; }
+    if (this.selectedBaud() === null) return;
     let port;
     try { port = await navigator.serial.requestPort(); } catch { return; }
     this.reopened = false;
@@ -1592,7 +1607,8 @@ const App = {
     this.capabilities = null; this.capabilitiesKnown = false; this.compileCheck = null;
     this.treeDirs = new Map(); this.treeExpanded = new Set(["/"]); this.treeErrors = new Map();
     this.treeGeneration = (this.treeGeneration || 0) + 1;
-    const baud = +$("baud").value;
+    const baud = this.selectedBaud();
+    if (baud === null) return false;
     try {
       this.setConn("busy", again ? "Reconnecting…" : "Connecting…");
       if (dev.closeP) { await dev.closeP; dev.closeP = null; }   // the old handle must be closed before reopening
@@ -1675,6 +1691,7 @@ const App = {
     this.enable(false);
   },
   setConn(state, text) {
+    $("baud").disabled = state !== "off";
     $("connDot").className = "dot" + (state === "on" ? " on" : state === "busy" ? " busy" : "");
     $("connText").textContent = text;
     $("sbConn").textContent = state === "on" ? "Connected · " + text : state === "busy" ? text : "Offline";
@@ -2766,7 +2783,8 @@ const App = {
     this.theme(false);
     if (store.get("fs", 13) !== 13) this.font(0);
     this.splitters();
-    const b = store.get("baud", 115200); $("baud").value = String(b);
+    $("baud").value = String(parseBaud(store.get("baud", 115200)) ?? 115200);
+    $("baud").oninput = () => $("baud").setCustomValidity("");
     this.setConsMode(this.consMode);
     if (!("serial" in navigator)) $("noSerial").innerHTML = `<div class="warnbox">This browser has no Web Serial. Open this file in <b>Chrome</b> or <b>Edge</b> on a desktop to talk to a device — the editor works here too.</div>`;
     dev.onText = (t) => this.onDeviceText(t);

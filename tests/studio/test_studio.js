@@ -21,7 +21,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
 (async () => {
   const proc = spawn(MCS, [process.env.MODE === 'shell' ? '--shell' : '--repl', ...(process.env.ECHO === '0' ? [] : ['--echo']), '--sim', '--fs', ROOT], { stdio: ['pipe', 'pipe', 'inherit'] });
   const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 1400, height: 860 } });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 860 } });
+  const page = await context.newPage();
   page.on('pageerror', e => { console.log('PAGEERROR', e.message); fails++; failureMessages.push('PAGEERROR ' + e.message); });
   page.on('console', m => { if (m.type() === 'error') console.log('CONSOLE', m.text()); });
   // Exercise the real async connection/refresh sequence even on a fast host.
@@ -41,7 +42,8 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     let ctl;
     const port = {
       readable: null, writable: null,
-      async open() {     // fresh streams on every open, like a real port
+      async open(options) {     // fresh streams on every open, like a real port
+        window.__serialOpens = (window.__serialOpens || []).concat([options]);
         if (window.__gone) throw new DOMException('Failed to open serial port.', 'NetworkError');
         port.readable = new ReadableStream({ start(c) { ctl = c; } });
         // window.__rom: the "board" sits in the ESP32 ROM bootloader until RTS resets it
@@ -59,7 +61,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     window.__serialError = () => { const old = ctl; port.readable = new ReadableStream({ start(c) { ctl = c; } }); old.error(new DOMException('Framing error', 'FramingError')); };
     // window.__unplug(): the USB device vanishes (board reset on native USB) until __gone is cleared
     window.__unplug = () => { window.__gone = 1; ctl.close(); };
-    Object.defineProperty(navigator, 'serial', { value: { requestPort: async () => port, getPorts: async () => (window.__gone ? [] : [port]), addEventListener() {} } });
+    Object.defineProperty(navigator, 'serial', { value: { requestPort: async () => { window.__portRequests = (window.__portRequests || 0) + 1; return port; }, getPorts: async () => (window.__gone ? [] : [port]), addEventListener() {} } });
   });
   const tpl = async (name) => {
     if (!(await page.isVisible('#galleryBg'))) await page.click('#btnTemplates');
@@ -68,11 +70,25 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     await page.click('#gAdd');
   };
   await page.goto(HTML);
+  check(await page.inputValue('#baud') === '115200', 'default baud remains 115200');
+  await page.evaluate(() => localStorage.setItem('mcs-studio.baud', '-7'));
+  await page.reload();
+  check(await page.inputValue('#baud') === '115200', 'invalid saved baud falls back to 115200, not zero');
+  check(await page.locator('#baudRates option[value="74880"]').count() === 1, '74880 remains a suggested rate');
+  for (const invalid of ['', '0', '-1', '1.5', '1e5', '4294967296']) {
+    await page.fill('#baud', invalid);
+    await page.click('#btnConnect');
+    check(await page.evaluate(() => !window.__portRequests && !window.__serialOpens?.length && !document.querySelector('#baud').validity.valid), 'invalid baud rejected before port picker: ' + JSON.stringify(invalid));
+  }
+  await page.fill('#baud', '125000');
   await page.screenshot({ path: OUT + '/0_start.png' });
   await page.click('#btnConnect');
   await page.waitForFunction(() => document.getElementById('connText').textContent.startsWith('MicroCS'), null, { timeout: 8000 }).catch(() => {});
   check((await page.textContent('#connText')).startsWith('MicroCS 1.'), 'connected, info read: ' + await page.textContent('#connText'));
   check(await page.evaluate(() => !window.__signals), 'connect leaves DTR/RTS alone (no reset on connect)');
+  check(await page.isDisabled('#baud'), 'baud is locked while connected');
+  check(await page.evaluate(() => window.__serialOpens[0].baudRate === 125000 && window.__serialOpens[0].bufferSize === 65536), 'custom 125000 passed unchanged to Web Serial with normal buffer size');
+  check(await page.evaluate(() => JSON.parse(localStorage.getItem('mcs-studio.baud')) === 125000), 'successful custom selection persisted');
   if (!(await page.textContent('#connText')).startsWith('MicroCS 1.')) console.log(await page.innerText('#term'));
   await page.waitForSelector('.file');
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
@@ -342,6 +358,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.evaluate(() => { window.__gone = 0; });
   await page.waitForFunction(() => /reconnected/.test(document.getElementById('term').innerText) && /ready/.test(document.getElementById('term').innerText.split('reconnected').pop()), null, { timeout: 10000 }).catch(() => {});
   check(await page.evaluate(() => dev.connected) && /^MicroCS 1\./.test(await page.textContent('#connText')), 'reconnected after the device came back: ' + await page.textContent('#connText'));
+  check(await page.evaluate(() => window.__serialOpens.length > 1 && window.__serialOpens.every(o => o.baudRate === 125000)), 'automatic reconnect retains custom baud');
   // Reset button: answers again afterwards
   await page.click('#btnReset');
   await page.waitForFunction(() => /resetting the board[\s\S]*ready/.test(document.getElementById('term').innerText), null, { timeout: 10000 }).catch(() => {});
@@ -505,6 +522,12 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   });
   check(Date.now() - uploadStart < 4000 && fs.readFileSync(ROOT + '/after_busy.cs', 'utf8') === 'Console.WriteLine(42);\n', 'upload stops a sleeping foreground script rather than queueing forever');
   check(await page.evaluate(() => !dev.running), 'foreground run released before upload');
+
+  // A separate tab shares settings without interrupting the live serial test.
+  const restoredPage = await page.context().newPage();
+  await restoredPage.goto(HTML);
+  check(await restoredPage.inputValue('#baud') === '125000', 'saved custom baud restored on a fresh page');
+  await restoredPage.close();
 
   /* ---- drafts survive a reload */
   await page.waitForTimeout(800);
