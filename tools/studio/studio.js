@@ -2767,6 +2767,7 @@ const App = {
     if (store.get("fs", 13) !== 13) this.font(0);
     this.splitters();
     const b = store.get("baud", 115200); $("baud").value = String(b);
+    if (!$("baud").value) $("baud").value = "115200"; // stale/unsupported saved setting must not open at 0 baud
     this.setConsMode(this.consMode);
     if (!("serial" in navigator)) $("noSerial").innerHTML = `<div class="warnbox">This browser has no Web Serial. Open this file in <b>Chrome</b> or <b>Edge</b> on a desktop to talk to a device — the editor works here too.</div>`;
     dev.onText = (t) => this.onDeviceText(t);

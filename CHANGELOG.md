@@ -2,6 +2,11 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* Add Studio UART baud choices 19200, 38400 and 74880 while keeping 115200 as
+  the default. Restore saved rates safely and test 74880 connection/reconnection.
+
 ## 1.17.0 — Long-run upload memory recovery
 
 * Separate short-lived compiler/VFS buffers from retained VM objects using

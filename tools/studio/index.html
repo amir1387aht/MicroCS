@@ -55,8 +55,9 @@
   <header>
     <div class="brand"><div class="logo">C#</div><b>MicroCS Studio</b></div>
     <button class="btn primary" id="btnConnect"><svg class="i"><use href="#i-plug"/></svg><span>Connect</span></button>
-    <select class="sel" id="baud" title="Baud rate (UART bridges; ignored by native USB)">
-      <option>9600</option><option>57600</option><option selected>115200</option><option>230400</option>
+    <select class="sel" id="baud" title="Firmware console baud rate: choose before connecting; disconnect to change an open port (ignored by native USB)" aria-label="Baud rate">
+      <option>9600</option><option>19200</option><option>38400</option><option>57600</option>
+      <option>74880</option><option selected>115200</option><option>230400</option>
       <option>460800</option><option>921600</option>
     </select>
     <span class="chip" id="connChip"><span class="dot" id="connDot"></span><span id="connText">Not connected</span></span>
