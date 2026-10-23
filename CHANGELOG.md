@@ -14,7 +14,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   plus feature capabilities for older-firmware checks. JSON works offline on every
   port with List and Dictionary; HTTP still needs the existing socket backend.
 * Release JSON scratch buffers on fatal OOM and fix partially committed dictionary
-  growth that could corrupt allocation accounting after a failed resize.
+  growth that could corrupt allocation accounting after a failed resize. Store
+  dictionary keys/values in one compact allocation, retain atomic OOM recovery
+  without a staged buffer, and compact power-of-two index checks to preserve
+  the unchanged 256 KiB Cortex-M0 flash limit.
 * Add a JSON guide, Studio signatures and templates, strict malformed-input and
   allocation-failure tests, and 1,000 round trips in an unchanged 40 KiB test pool.
 

@@ -158,7 +158,8 @@ an HTML/text response, and returning null still means an empty response; use
 The implementation adds no external library or per-VM JSON cache. Parse results
 and output strings use the existing VM allocator; temporary text buffers are
 released on success, malformed input and fatal allocation failure. Allocation
-failure tests also cover recovery on the same VM. Cycles throw
+failure tests also cover recovery on the same VM. Dictionary keys and values
+share one allocation, making growth atomic without a staged second buffer. Cycles throw
 `InvalidOperationException`; shared but acyclic objects are supported.
 
 This is an in-memory API, not a streaming parser. Input, parsed graph and output

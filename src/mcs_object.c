@@ -612,16 +612,18 @@ void mcs_listobj_remove_at(mcs_list_t* l, uint32_t at) {
 #define TABLE_MAX_LOAD_NUM 3
 #define TABLE_MAX_LOAD_DEN 4
 /* ------------------------------------------------- compact dictionary index */
-static inline uint32_t ix_width(uint32_t icap) { return icap <= 256 ? 1u : icap <= 65536 ? 2u : 4u; }
-static inline uint32_t ix_tomb(uint32_t icap) { return icap <= 256 ? 0xFFu : icap <= 65536 ? 0xFFFFu : 0xFFFFFFFFu; }
+/* icap is zero or a power of two. Shift tests avoid large Thumb-1 compare
+ * constants while retaining exactly the 256 / 65536 width boundaries. */
+static inline uint32_t ix_width(uint32_t icap) { return !(icap >> 9) ? 1u : !(icap >> 17) ? 2u : 4u; }
+static inline uint32_t ix_tomb(uint32_t icap) { return !(icap >> 9) ? 0xFFu : !(icap >> 17) ? 0xFFFFu : 0xFFFFFFFFu; }
 static inline uint32_t ix_get(const mcs_dict_t* d, uint32_t i) {
-    if (d->icap <= 256) return ((const uint8_t*)d->idx)[i];
-    if (d->icap <= 65536) return ((const uint16_t*)d->idx)[i];
+    if (!(d->icap >> 9)) return ((const uint8_t*)d->idx)[i];
+    if (!(d->icap >> 17)) return ((const uint16_t*)d->idx)[i];
     return ((const uint32_t*)d->idx)[i];
 }
 static inline void ix_set(mcs_dict_t* d, uint32_t i, uint32_t v) {
-    if (d->icap <= 256) ((uint8_t*)d->idx)[i] = (uint8_t)v;
-    else if (d->icap <= 65536) ((uint16_t*)d->idx)[i] = (uint16_t)v;
+    if (!(d->icap >> 9)) ((uint8_t*)d->idx)[i] = (uint8_t)v;
+    else if (!(d->icap >> 17)) ((uint16_t*)d->idx)[i] = (uint16_t)v;
     else ((uint32_t*)d->idx)[i] = v;
 }
 /* true: *slot holds key. false: *slot is where key would be inserted. */
@@ -670,25 +672,18 @@ void mcs_dict_set(mcs_vm_t* vm, mcs_dict_t* d, mcs_value_t key, mcs_value_t v) {
         dict_reindex(vm, d, d->count + 1);
         dict_find(d, key, &s);
     }
-    if (d->count == d->cap) {
-        uint32_t nc = d->cap < 4 ? 4 : d->cap * 2;
-        /* Commit both arrays together. A fatal second realloc used to leave
-         * keys at the new size but cap at the old size after an OOM, corrupting
-         * allocator accounting and the next retry. Stage values first so keys
-         * can still use realloc (and sets keep their single-array fast path). */
-        mcs_value_t* vals = NULL;
+    if (d->count == (d->vals ? d->cap / 2 : d->cap)) {
+        uint32_t oldcap = d->cap, nc = oldcap < 4 ? 4 : oldcap * 2;
+        /* cap counts raw value slots in one atomic allocation. Dictionaries
+         * split it equally into keys and values; sets use every slot as a key.
+         * An OOM leaves the old block, offsets and capacity untouched. */
+        d->keys = MCS_GROW(vm, mcs_value_t, d->keys, oldcap, nc);
         if (!(d->obj.aux & DICT_KEYS_ONLY)) {
-            vals = MCS_ALLOC(vm, mcs_value_t, nc);
-            if (d->count) memcpy(vals, d->vals, d->count * sizeof(*vals));
+            /* Nonoverlapping halves, including valid zero-length first copy. */
+            memcpy(d->keys + nc / 2, d->keys + oldcap / 2, oldcap / 2 * sizeof(*d->keys));
+            d->vals = d->keys + nc / 2;
         }
-        mcs_value_t* keys = (mcs_value_t*)mcs_try_realloc(vm, d->keys,
-            d->cap * sizeof(*keys), nc * sizeof(*keys));
-        if (!keys) {
-            if (vals) MCS_FREE(vm, mcs_value_t, vals, nc);
-            mcs_panic(vm, MCS_ERR_MEMORY, "out of memory (dictionary growth)");
-        }
-        if (d->vals) MCS_FREE(vm, mcs_value_t, d->vals, d->cap);
-        d->keys = keys; d->vals = vals; d->cap = nc;
+        d->cap = nc;
     }
     d->keys[d->count] = key;
     if (d->vals) d->vals[d->count] = v;
@@ -1013,7 +1008,6 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
         mcs_dict_t* d = (mcs_dict_t*)o;
         mcs_realloc(vm, d->idx, (size_t)d->icap * ix_width(d->icap), 0);
         MCS_FREE(vm, mcs_value_t, d->keys, d->cap);
-        if (d->vals) MCS_FREE(vm, mcs_value_t, d->vals, d->cap);
         mcs_realloc(vm, o, sizeof(mcs_dict_t), 0);
         break;
     }
