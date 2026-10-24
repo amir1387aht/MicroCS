@@ -227,6 +227,14 @@ Dark (Light via the theme button).
 * **Reset board** pulses EN through RTS like esptool. Boards on native USB (ESP32-S3/C3/C6
   USB-Serial-JTAG, RP2040 CDC) may disappear while resetting; the page reconnects
   automatically when they return.
+* **Baud rate** — choose a suggested speed (including **74880**) or type a custom
+  whole-number baud rate from **1 to 4294967295**. The default is 115200. The browser,
+  OS and serial adapter must support the requested rate; unsupported rates report an
+  open-port error. Blank, zero, negative, fractional and out-of-range values are rejected
+  before the port picker opens. The last successfully opened speed is remembered and
+  reused for automatic reconnects. Disconnect before changing the speed of an open port.
+  Match the running MicroCS console, not just its boot log; native USB CDC may ignore
+  the baud setting.
 * **Connecting** does not touch DTR/RTS (like `mcs_remote.py`; changing them can reset an
   ESP32 through its auto-reset circuit), sends Ctrl-C + Ctrl-A and waits for the `OK` status.
   A board that is still booting gets up to 14 s and its boot log is shown live. Only a board

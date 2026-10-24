@@ -1,7 +1,7 @@
 // Exercise the actual workflow lock with an intentionally delayed run -> Save handoff.
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const source = fs.readFileSync(path.join(__dirname,'../../tools/studio/studio.js'),'utf8');
-const a = source.indexOf('  async workflow(action) {'), b = source.indexOf('  async checkScripts(paths)',a);
+const a = source.indexOf('  async workflow(action) {'), b = source.indexOf('  async checkScripts(paths,',a);
 assert(a>0 && b>a);
 const deferred = () => { let resolve; const promise=new Promise(r=>resolve=r); return {promise,resolve}; };
 function setup() {

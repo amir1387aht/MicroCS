@@ -33,7 +33,7 @@ function methods(start,end,deps={}) {
  report={status:'ERR unavailable',out:new Uint8Array()};await app.refreshMemory();assert.strictEqual(node.textContent,'Memory report unavailable');
  dev.cmd=async()=>{throw Error('disconnected');};await app.refreshMemory();assert(node.textContent.includes('refresh failed'));
  let refreshes=0;app.refreshMemory=async()=>{refreshes++;};app.updateButtons=()=>{};
- Object.assign(app,methods('async workflow(action)','async checkScripts(paths)',{dev,ed:{sigHide(){},hoverHide(){},hideComplete(){}},toast(){},term:{line(){}}}));
+ Object.assign(app,methods('async workflow(action)','async checkScripts(paths,',{dev,ed:{sigHide(){},hoverHide(){},hideComplete(){}},toast(){},term:{line(){}}}));
  assert.strictEqual(await app.workflow(async()=>{throw Error('Build failed: out of memory');}),false);
  assert.strictEqual(refreshes,1,'failed check/build must refresh before releasing workflow lock');
  assert.strictEqual(app.workflowBusy,false);
