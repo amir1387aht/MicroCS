@@ -94,7 +94,21 @@ const path=require('path'),assert=require('assert');
    },status);
    await page.waitForFunction(()=>$('ta').value==='run');
   }
+  // A delayed post-save refresh belongs to the same workflow, not the next
+  // Save's editor/device snapshot. No extra transfers are needed to enforce it.
+  await page.evaluate(()=>{
+   App.tabs=[];ed.tab=null;App.openTab({path:'/app.cs',text:'int value = 1;',saved:'int value = 1;'});
+   App.saveOne=async t=>{t.saved=t.text;return true;};App.checkScripts=async()=>{};
+   App.refresh=()=>new Promise(resolve=>{window.__finishRefresh=resolve;});
+   window.__saveFinished=false;window.__saveTask=App.save().then(result=>{__saveFinished=true;return result;});
+  });
+  await page.waitForFunction(()=>!!window.__finishRefresh);
+  assert.strictEqual(await page.evaluate(()=>App.workflowBusy),true,'save stays busy through refresh');
+  assert.strictEqual(await page.evaluate(()=>__saveFinished),false,'save cannot return before refresh');
+  assert.strictEqual(await page.evaluate(()=>App.save()),false,'overlapping save must stay blocked');
+  await page.evaluate(()=>__finishRefresh());
+  assert.strictEqual(await page.evaluate(()=>__saveTask),true);
   assert.deepStrictEqual(errors,[]);
-  console.log('PASS file refresh: same-size/nested changes, zero default polling, opt-in/off timer, tab selection, run/error/stop, drafts, focus/caret, serial/reconnect/save/rename/close races and missing files');
+  console.log('PASS file refresh: same-size/nested changes, zero default polling, opt-in/off timer, tab selection, run/error/stop, drafts, focus/caret, serial/reconnect/save/rename/close races and missing files, delayed post-save refresh');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

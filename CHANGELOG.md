@@ -9,6 +9,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   file on demand while idle in machine mode without overwriting unsaved edits,
   stealing focus, or interrupting foreground scripts and the REPL. Recurring
   file polling is opt-in and off by default to avoid ongoing device/serial work.
+  Keep Save busy until its existing refresh completes, preventing late file
+  replies from racing the next save/build snapshot without extra device reads.
 
 * Extend the existing dependency-free JSON engine with `TryParse`, computed and
   inherited instance getters, mixed nested collections, explicit cycle detection

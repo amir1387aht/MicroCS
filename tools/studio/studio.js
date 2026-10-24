@@ -2441,7 +2441,9 @@ const App = {
     ed.stash();
     if (this.workflowCancelled) throw new Error("Save/build cancelled.");
     if (candidates.some(t => t.text !== t.saved)) throw new Error("A file changed during the build. Save/build again before running.");
-    this.refresh(true);
+    // Keep this workflow busy until its existing refresh has finished. Otherwise
+    // a late read can replace a clean tab during the next Save/build snapshot.
+    await this.refresh(true);
     return true;
   },
   async save(t = this.tab()) {
