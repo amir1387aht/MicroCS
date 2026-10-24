@@ -42,8 +42,7 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | Ctrl+/ · Tab / Shift+Tab | toggle comment · indent / outdent |
 | F5 | save/build, then run the active file or the Project jobs |
 | Ctrl+Enter · Ctrl+Shift+Enter | save/build and run the active file · run the selection |
-| Alt+Tab · Ctrl+J | hide/show the bottom terminal (also the toolbar terminal button or panel ×) |
-| Ctrl+` | show and focus the terminal |
+| Ctrl+` · Ctrl+J · Alt+Tab | hide/show the bottom terminal (also the toolbar terminal button or panel ×) |
 | Ctrl+S | save/upload and compile-check (no execution) |
 
 The terminal can be hidden without stopping the device or clearing output. Its height,

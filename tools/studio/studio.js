@@ -2591,7 +2591,7 @@ const App = {
     const pane = $("consolePane"), hadFocus = pane.contains(document.activeElement);
     $("center").classList.toggle("console-hidden", !visible);
     $("btnTerminal").setAttribute("aria-expanded", String(visible));
-    $("btnTerminal").title = (visible ? "Hide" : "Show") + " terminal (Alt+Tab / Ctrl+J)";
+    $("btnTerminal").title = (visible ? "Hide" : "Show") + " terminal (Ctrl+` / Ctrl+J)";
     plot.visible = visible && this.view === "plot";
     if (focus) {
       if (visible) ($("cin").disabled ? pane : $("cin")).focus();
@@ -2762,7 +2762,7 @@ const App = {
       { label: "Download to this computer", icon: "download", disabled: !t, run: () => download(t.path ? baseName(t.path) : t.name || "file.cs", t.binary || enc.encode(t.text)) },
       { label: "Save as… (device)", icon: "save", disabled: !t || !!t.binary || !dev.connected, run: async () => { const old = t.path; t.path = null; if (!(await this.save(t)) && !t.path) t.path = old; } },
       "-",
-      { label: (this.terminalHidden ? "Show" : "Hide") + " terminal  Alt+Tab / Ctrl+J", icon: "term", run: () => this.toggleTerminal() },
+      { label: (this.terminalHidden ? "Show" : "Hide") + " terminal  Ctrl+` / Ctrl+J", icon: "term", run: () => this.toggleTerminal() },
       { label: "Find / Replace…  Ctrl+H", icon: "edit", disabled: !t || !!t.binary, run: () => ed.openFind(true) },
       { label: "Go to line…  Ctrl+G", icon: "edit", disabled: !t || !!t.binary, run: () => this.gotoLineDialog() },
       { label: "Format document  Shift+Alt+F", icon: "code", disabled: !t || !!t.binary || t.readOnly, run: () => ed.formatDocument() },
@@ -2890,10 +2890,10 @@ const App = {
     addEventListener("drop", (e) => e.preventDefault());
 
     // Capture before editor/REPL Tab handlers. The OS may reserve physical Alt+Tab;
-    // Ctrl+J and the toolbar button remain available on those desktops.
+    // Ctrl+` / Ctrl+J and the toolbar button remain available on those desktops.
     addEventListener("keydown", (e) => {
       if ((e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === "Tab") ||
-          ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "j")) {
+          ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key.toLowerCase() === "j" || e.key === "`" || e.code === "Backquote"))) {
         e.preventDefault(); e.stopImmediatePropagation();
         if (!e.repeat) this.toggleTerminal();
       }
@@ -2902,7 +2902,6 @@ const App = {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
       else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod, mod); }
-      else if (mod && e.key === "`") { e.preventDefault(); this.setTerminalVisible(true); }
       else if (e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); this.newScratch(); }
       else if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); this.gallery(); }
       else if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); $("openLocal").click(); }
