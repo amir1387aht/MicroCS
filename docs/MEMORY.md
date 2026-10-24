@@ -73,6 +73,25 @@ before starting the runtime; example menuconfig settings do not modify custom
 entrypoints. Rebuild after changing them. Wi-Fi/BLE reserves and task stacks
 remain additional device costs, not part of the 40 KiB VM pool.
 
+## Automatic application replacement on Run
+
+Studio Run now asks the complete runtime to unload the previous application
+before checking its replacement. Shell `run` and `project` also replace the old
+application automatically. This releases timer/GPIO callbacks, encoder pin
+reservations, scheduled work, native display resources and all old class/global
+references—not just the top-level app variable. Files, RAM filesystem contents,
+serial transport/baud and the fixed physical pool survive. It is not an MCU reset.
+See [application lifecycle](STANDALONE.md#application-replacement-versus-compile-checks).
+
+`tests/projects/oled_encoder_repeat` captures the updated settings/encoder app.
+`test_oled_app_replace` performs **2,000 upload/newapp/check/run cycles** with real
+U8g2 and the three fonts in the same **64 KiB, 32-bit pool**. The script contains no
+manual Dispose/Stop/global clearing. Checks verify unchanged-source reruns,
+released encoder pins/timers, non-destructive standalone checks and zero pool use
+on shutdown. `test_app_replace` additionally covers RAM-file preservation,
+queued protocol commands, restored native bindings and OOM/retry recovery.
+These are host simulations, not physical ESP32 validation.
+
 ## Rebuilding while the previous application is live
 
 A first run is not a sufficient memory test. GPIO and hardware-timer callbacks

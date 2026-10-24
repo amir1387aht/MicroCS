@@ -181,7 +181,9 @@ static void test_upload_churn(void) {
         CHECK(!*serial_input);
         mcs_vfs_stat_t st;
         CHECK(mcs_vfs_stat(&rt.vfs, "/churn.cs.part", &st) == MCS_VFS_ENOENT);
-        command(&rt, "run /churn.cs\n");
+        /* This test intentionally shares a REPL global across file executions.
+         * Application replacement is covered separately by test_app_replace. */
+        command(&rt, "run /churn.cs shared\n");
         CHECK(strstr(serial_output, "42\n") != NULL);
         mcs_mem_stats_t memory; mcs_mem_stats(rt.vm, &memory);
         size_t runtime_used = rt.pool.used - rt.ramfs.used;

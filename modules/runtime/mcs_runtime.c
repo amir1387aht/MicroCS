@@ -3,6 +3,7 @@
 #if MCS_ENABLE_RUNTIME
 #include <string.h>
 #include "mcs_threads.h"
+#include "mcs_native_internal.h"
 
 /* Every callback gets the runtime itself as user data, so the board glue keeps
  * its own ud pointers (console.ud, time_ud, ud). */
@@ -91,14 +92,14 @@ static void rt_memory_info(void* ud, mcs_shell_memory_t* st) {
 #endif
 }
 
-int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
-    memset(rt, 0, sizeof *rt);
-    rt->cfg = *cfg;
+/* Recreate only VM-owned application state. The pool, mounted filesystems and
+ * shell transport/queued input deliberately outlive each application. */
+static int rt_new_vm(mcs_runtime_t* rt) {
+    const mcs_runtime_cfg_t* cfg = &rt->cfg;
     mcs_config_t c;
     mcs_config_default(&c);
 #if MCS_ENABLE_POOL_HEAP
     if (cfg->heap && cfg->heap_size) {
-        mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
         c.realloc_fn = rt_pool_realloc;
         c.temporary_realloc_fn = rt_pool_temporary_realloc;
         c.alloc_ud = &rt->pool;
@@ -121,27 +122,15 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     mcs_vm_t* vm = rt->vm;
     if (cfg->time_limit_ms) { mcs_limits_t l; memset(&l, 0, sizeof l); l.time_ms = cfg->time_limit_ms; mcs_set_limits(vm, &l); }
 
-    struct mcs_vfs* vfs = NULL;
+    return 0;
+}
+static void rt_open_modules(void* ud) {
+    mcs_runtime_t* rt = (mcs_runtime_t*)ud;
+    const mcs_runtime_cfg_t* cfg = &rt->cfg;
+    mcs_vm_t* vm = rt->vm;
+    struct mcs_vfs* vfs = rt->shell.vfs;
 #if MCS_ENABLE_FS
-    mcs_vfs_init(&rt->vfs);
-#if MCS_ENABLE_POOL_HEAP
-    if (cfg->heap && cfg->heap_size) {
-        /* Whole-file source/read buffers belong to the same physical budget,
-         * not a hidden malloc allocation outside the VM pool. */
-        rt->vfs.realloc_fn = rt_pool_temporary_realloc; rt->vfs.alloc_ud = &rt->pool;
-    }
-#endif
-    int e = 1;
-    if (cfg->fs_ops) e = mcs_vfs_mount(&rt->vfs, "/", cfg->fs_ops, cfg->fs_ctx, 0);
-    else if (cfg->ramfs_size) {
-#if MCS_ENABLE_POOL_HEAP
-        if (cfg->heap && cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, rt_pool_realloc, &rt->pool);
-        else
-#endif
-        mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, NULL, NULL);
-        e = mcs_vfs_mount(&rt->vfs, "/", &mcs_ramfs_ops, &rt->ramfs, 0);
-    }
-    if (e == 0) { vfs = &rt->vfs; mcs_fs_open_lib(vm, vfs); }
+    if (vfs) mcs_fs_open_lib(vm, vfs);
 #endif
 #if MCS_ENABLE_HAL
     if (cfg->hal) mcs_hal_open_lib(vm, cfg->hal);
@@ -171,23 +160,102 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
 #endif
     if (cfg->setup) cfg->setup(vm, cfg->ud);
 
+}
+static void rt_free_vm(mcs_runtime_t* rt) {
+    if (!rt->vm) return;
+#if MCS_ENABLE_SCHED
+    if (rt->sched.vm == rt->vm) mcs_sched_free(&rt->sched);
+    memset(&rt->sched, 0, sizeof rt->sched);
+#endif
+#if MCS_ENABLE_HAL
+    mcs_hal_close_lib(rt->vm);
+#endif
+    mcs_free(rt->vm);
+    rt->vm = NULL;
+    rt->shell.vm = NULL;
+    rt->shell.sched = NULL;
+}
+static int rt_attach_vm(mcs_runtime_t* rt) {
+    if (rt_new_vm(rt)) return -1;
+    if (mcs_protect_native(rt->vm, rt_open_modules, rt) || mcs_last_error(rt->vm)[0]) {
+#if MCS_ENABLE_THREADS
+        if (mcs_threads_shutdown(2000)) return -2;
+#endif
+        rt_free_vm(rt);
+        return -1;
+    }
+    rt->shell.vm = rt->vm;
+#if MCS_ENABLE_SCHED
+    rt->shell.sched = &rt->sched;
+#endif
+    mcs_set_ext(rt->vm, MCS_EXT_SHELL, &rt->shell);
+    return 0;
+}
+int mcs_runtime_reset_application(mcs_runtime_t* rt) {
+    if (!rt || !rt->running) return -1;
+#if MCS_ENABLE_THREADS
+    /* Never free a VM/pool while an uncooperative worker is still using it. */
+    if (mcs_threads_shutdown(2000)) return -2;
+#endif
+    rt_free_vm(rt);
+    return rt_attach_vm(rt);
+}
+static int rt_prepare_application(void* ud) {
+    return mcs_runtime_reset_application((mcs_runtime_t*)ud);
+}
+
+int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
+    memset(rt, 0, sizeof *rt);
+    rt->cfg = *cfg;
+#if MCS_ENABLE_POOL_HEAP
+    if (cfg->heap && cfg->heap_size) mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
+#endif
+    struct mcs_vfs* vfs = NULL;
+#if MCS_ENABLE_FS
+    mcs_vfs_init(&rt->vfs);
+#if MCS_ENABLE_POOL_HEAP
+    if (cfg->heap && cfg->heap_size) {
+        /* Whole-file source/read buffers belong to the same physical budget,
+         * not a hidden malloc allocation outside the VM pool. */
+        rt->vfs.realloc_fn = rt_pool_temporary_realloc; rt->vfs.alloc_ud = &rt->pool;
+    }
+#endif
+    int e = 1;
+    if (cfg->fs_ops) e = mcs_vfs_mount(&rt->vfs, "/", cfg->fs_ops, cfg->fs_ctx, 0);
+    else if (cfg->ramfs_size) {
+#if MCS_ENABLE_POOL_HEAP
+        if (cfg->heap && cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, rt_pool_realloc, &rt->pool);
+        else
+#endif
+        mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, NULL, NULL);
+        e = mcs_vfs_mount(&rt->vfs, "/", &mcs_ramfs_ops, &rt->ramfs, 0);
+    }
+    if (e == 0) vfs = &rt->vfs;
+#endif
+    rt->shell.vfs = vfs;
+    if (rt_attach_vm(rt)) {
+        mcs_runtime_stop(rt);
+        return -1;
+    }
     mcs_transport_t t;
     t.read = rt_read;
     t.write = rt_write;
     t.ud = rt;
-    mcs_shell_init(&rt->shell, vm, vfs,
+    mcs_shell_init(&rt->shell, rt->vm, vfs,
 #if MCS_ENABLE_SCHED
                    &rt->sched,
 #else
                    NULL,
 #endif
                    t);
+    rt->shell.prepare_application = rt_prepare_application;
+    rt->shell.application_ud = rt;
     rt->shell.memory_info = rt_memory_info;
     rt->shell.memory_ud = rt;
     rt->shell.echo = cfg->echo;
     rt->shell.repl = cfg->mode == MCS_RUNTIME_REPL;
 #if MCS_ENABLE_XIP
-    if (cfg->app_image && cfg->app_image_len) mcs_exec_image_xip(vm, cfg->app_image, cfg->app_image_len);
+    if (cfg->app_image && cfg->app_image_len) mcs_exec_image_xip(rt->vm, cfg->app_image, cfg->app_image_len);
 #endif
     mcs_shell_boot(&rt->shell, cfg->run_boot_scripts);
     rt->running = true;
@@ -201,7 +269,7 @@ bool mcs_runtime_step(mcs_runtime_t* rt, uint32_t timeout_ms) {
     if (rt->cfg.hal && timeout_ms > MCS_SLEEP_SLICE_MS) timeout_ms = MCS_SLEEP_SLICE_MS;
 #endif
 #if MCS_ENABLE_SCHED
-    int32_t next = mcs_sched_poll(&rt->sched);
+    int32_t next = rt->vm ? mcs_sched_poll(&rt->sched) : -1;
     if (next >= 0 && (uint32_t)next < timeout_ms) timeout_ms = (uint32_t)next;
 #endif
     /* the shell step polls the scheduler and the HAL event queue itself */
@@ -210,18 +278,10 @@ bool mcs_runtime_step(mcs_runtime_t* rt, uint32_t timeout_ms) {
 }
 
 void mcs_runtime_stop(mcs_runtime_t* rt) {
-    if (!rt->vm) return;
 #if MCS_ENABLE_THREADS
-    mcs_threads_shutdown(2000);         /* their heaps live in ours */
+    if (mcs_threads_shutdown(2000)) return; /* do not free live workers' storage */
 #endif
-#if MCS_ENABLE_SCHED
-    mcs_sched_free(&rt->sched);
-#endif
-#if MCS_ENABLE_HAL
-    if (rt->cfg.hal) mcs_hal_close_lib(rt->vm);
-#endif
-    mcs_free(rt->vm);
-    rt->vm = NULL;
+    rt_free_vm(rt);
 #if MCS_ENABLE_FS
     if (!rt->cfg.fs_ops && rt->cfg.ramfs_size) mcs_ramfs_free(&rt->ramfs);
 #endif

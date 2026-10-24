@@ -24,6 +24,23 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   19200 and 38400. Validate positive 32-bit integer rates before connecting, retain
   115200 as the default, and remember custom rates across reloads/reconnects.
 
+* Fix compiler-free host builds: only compile the shell result-report helper
+  when its source-compiler commands are enabled. Close the browser transport before
+  terminating its runtime fixture to prevent teardown-only broken-pipe failures.
+* Add a closeable Studio terminal with a toolbar/menu toggle, Alt+Tab when delivered
+  by the OS, Ctrl+J fallback and Ctrl+` to reopen/focus. Preserve output, plotter
+  selection and resized height; remember visibility without stopping the device.
+
+* Automatically replace the previous application on runtime file/Project Run.
+  Stop workers, jobs, GPIO/timer callbacks and encoders; release native objects,
+  old globals and bytecode before compiling the replacement in the same pool.
+  Preserve filesystem mounts/RAM files, uploaded scripts and console/baud.
+* Studio Run requests replacement before build checks when firmware advertises
+  Runtime.Replace. Save/Check stay non-destructive; REPL/selection and explicit
+  `run <file> shared` retain shared state. Legacy firmware gets an explicit warning.
+* Add unchanged-app 2,000-cycle real-U8g2 64 KiB rerun coverage without manual
+  script cleanup, plus native cleanup, RAM-file, OOM/retry and browser regressions.
+
 ## 1.17.0 — Long-run upload memory recovery
 
 * Separate short-lived compiler/VFS buffers from retained VM objects using

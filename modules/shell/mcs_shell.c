@@ -29,7 +29,7 @@ static void outf(mcs_shell_t* sh, const char* fmt, ...) {
  * physical allocator use/capacity and whole-device heap separately. No GC here:
  * reading telemetry must not hide the state immediately after an OOM. */
 static void print_memory(mcs_shell_t* sh) {
-    mcs_mem_stats_t st; mcs_mem_stats(sh->vm, &st);
+    mcs_mem_stats_t st; memset(&st, 0, sizeof st); if (sh->vm) mcs_mem_stats(sh->vm, &st);
     outf(sh, "heap %u bytes in use, peak %u, %u objects, %u collections\n",
          (unsigned)st.bytes_in_use, (unsigned)st.peak_bytes, (unsigned)st.objects, (unsigned)st.collections);
     outf(sh, "vm_limit %u\n", (unsigned)st.heap_limit);
@@ -99,6 +99,15 @@ int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
 
 static bool exists(mcs_shell_t* sh, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(sh->vfs, p, &st) && !st.is_dir; }
 
+static bool prepare_application(mcs_shell_t* sh) {
+    if (!sh->prepare_application) return true; /* legacy embedding */
+    int rc = sh->prepare_application(sh->application_ud);
+    if (rc) err(sh, rc == -2 ? "application replacement failed: workers did not stop" :
+        "application replacement failed: VM unavailable/out of memory; newapp retries");
+    return rc == 0;
+}
+static void replace_file(mcs_shell_t* sh, const char* path, bool shared);
+
 static mcs_result_t run_file(mcs_shell_t* sh, const char* path) {
 #if MCS_ENABLE_NET
     uint32_t checkpoint = mcs_net_scope_begin(sh->vm);
@@ -108,6 +117,16 @@ static mcs_result_t run_file(mcs_shell_t* sh, const char* path) {
     mcs_net_scope_end(sh->vm, checkpoint);
 #endif
     return r;
+}
+
+/* Boot and REPL entries stay shared. A user file Run replaces the application,
+ * before compilation, so previous callbacks/bytecode cannot occupy its heap. */
+static void replace_file(mcs_shell_t* sh, const char* path, bool shared) {
+    if (!exists(sh, path)) { err(sh, "no such file"); return; }
+    if (!shared && !prepare_application(sh)) return;
+    if (!sh->vm) { err(sh, "VM unavailable; newapp retries"); return; }
+    mcs_result_t r = run_file(sh, path);
+    if (r == MCS_OK) ok(sh); else err(sh, mcs_last_error(sh->vm));
 }
 
 static mcs_result_t run_first(mcs_shell_t* sh, const char* a, const char* b) {
@@ -400,15 +419,17 @@ static int cmd_df(mcs_shell_t* sh, const char* path) {
 
 static void cmd_help(mcs_shell_t* sh) {
     out(sh, "ls [dir] | cat <f> | put <f> <len> [win] | get <f> | rm <f> | mkdir <d> | mv <a> <b> | df [dir]\n"
-            "run <f> | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
-            "mem | info | caps | repl | quit   (Ctrl-C stops a running script)\n");
+            "run <f> [shared] | exec <code> | jobs | every <t> <f> | after <t> <f> | cancel <id>|all|scripts|files\n"
+            "newapp | mem | info | caps | repl | quit   (Ctrl-C stops a running script)\n");
     ok(sh);
 }
 
+#if MCS_ENABLE_COMPILER
 static void report(mcs_shell_t* sh, mcs_result_t r) {
     if (r == MCS_OK) ok(sh);
     else err(sh, mcs_last_error(sh->vm)[0] ? mcs_last_error(sh->vm) : "failed");
 }
+#endif
 
 static void dispatch(mcs_shell_t* sh, char* line) {
     while (*line == ' ') line++;
@@ -418,6 +439,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     /* exec keeps the rest of the line verbatim */
     if (!strncmp(line, "exec ", 5)) {
 #if MCS_ENABLE_COMPILER
+        if (!sh->vm) { err(sh, "VM unavailable; newapp retries"); return; }
         report(sh, mcs_exec_source(sh->vm, "<shell>", line + 5));
 #else
         err(sh, "no compiler in this build");
@@ -428,6 +450,15 @@ static void dispatch(mcs_shell_t* sh, char* line) {
     int argc = 0;
     for (char* p = strtok(line, " "); p && argc < 4; p = strtok(NULL, " ")) argv[argc++] = p;
     const char* c = argv[0];
+    if (!sh->vm && strcmp(c, "newapp") && strcmp(c, "info") && strcmp(c, "mem") &&
+        strcmp(c, "help") && strcmp(c, "quit") && strcmp(c, "exit")) {
+        err(sh, "VM unavailable; newapp retries"); return;
+    }
+    if (!strcmp(c, "newapp")) {
+        if (argc != 1 || !sh->prepare_application) { err(sh, "newapp requires a complete runtime"); return; }
+        if (prepare_application(sh)) ok(sh);
+        return;
+    }
     bool need_fs = strcmp(c, "help") && strcmp(c, "info") && strcmp(c, "caps") && strcmp(c, "mem") && strcmp(c, "quit") && strcmp(c, "exit") && strcmp(c, "jobs") && strcmp(c, "cancel") && strcmp(c, "repl");
     if (need_fs && !sh->vfs) { err(sh, "no filesystem"); return; }
     int e;
@@ -463,6 +494,8 @@ static void dispatch(mcs_shell_t* sh, char* line) {
 #if MCS_ENABLE_SCHED
     } else if (!strcmp(c, "project")) {
         if (!sh->sched || argc != 2) { err(sh, "usage: project <jobs.cfg> (requires scheduler)"); return; }
+        if (!exists(sh, argv[1])) { err(sh, "no such file"); return; }
+        if (!prepare_application(sh)) return;
         char* text; size_t len;
         e = mcs_vfs_read_file(sh->vfs, argv[1], &text, &len);
         if (e) { err(sh, mcs_vfs_strerror(e)); return; }
@@ -473,8 +506,10 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         else { outf(sh, "project loaded %d job%s\n", n, n == 1 ? "" : "s"); ok(sh); }
 #endif
     } else if (!strcmp(c, "run")) {
-        if (argc < 2) { err(sh, "usage: run <path>"); return; }
-        report(sh, run_file(sh, argv[1]));
+        if (argc < 2 || argc > 3 || (argc == 3 && strcmp(argv[2], "shared"))) {
+            err(sh, "usage: run <path> [shared]"); return;
+        }
+        replace_file(sh, argv[1], argc == 3);
     } else if (!strcmp(c, "mem")) {
         print_memory(sh);
         ok(sh);
@@ -482,6 +517,7 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         size_t count;
         const char* const* names = mcs_capability_names(&count);
         out(sh, "capabilities=1\n");
+        outf(sh, "Runtime.Replace=%d\n", sh->prepare_application ? 1 : 0);
         for (size_t i = 0; i < count; i++) outf(sh, "%s=%d\n", names[i], mcs_capability_has(sh->vm, names[i]) ? 1 : 0);
         ok(sh);
     } else if (!strcmp(c, "info")) {
@@ -542,7 +578,7 @@ static void repl_command(mcs_shell_t* sh, char* line) {
     else if ((!strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm") || !strcmp(c, "df")) && !sh->vfs) out(sh, "error: no filesystem\n");
     else if (!strcmp(c, "df")) { if ((e = cmd_df(sh, a))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
     else if (!strcmp(c, "mem") || !strcmp(c, "info") || !strcmp(c, "jobs") || !strcmp(c, "cancel") || !strcmp(c, "ls") || !strcmp(c, "cat") || !strcmp(c, "run") || !strcmp(c, "rm")) {
-        if (!strcmp(c, "run")) { if (*a) run_file(sh, a); else out(sh, "usage: .run <file>\n"); }
+        if (!strcmp(c, "run")) { if (*a) replace_file(sh, a, false); else out(sh, "usage: .run <file>\n"); }
         else if (!strcmp(c, "ls")) { if ((e = mcs_vfs_list(sh->vfs, *a ? a : "/", ls_cb, sh))) outf(sh, "error: %s\n", mcs_vfs_strerror(e)); }
         else if (!strcmp(c, "cat")) {
             char* d; size_t n;
@@ -686,10 +722,10 @@ bool mcs_shell_step(mcs_shell_t* sh, uint32_t timeout_ms) {
     while (sh->in_pos < sh->in_len && !sh->quit) feed(sh, sh->in[sh->in_pos++]);
     if (sh->in_pos >= sh->in_len) sh->in_pos = sh->in_len = 0;
 #if MCS_ENABLE_SCHED
-    if (sh->sched) mcs_sched_poll(sh->sched);
+    if (sh->vm && sh->sched) mcs_sched_poll(sh->sched);
 #endif
 #if MCS_ENABLE_HAL
-    if (mcs_hal_get(sh->vm)) mcs_hal_poll(sh->vm);
+    if (sh->vm && mcs_hal_get(sh->vm)) mcs_hal_poll(sh->vm);
 #endif
     return !sh->quit;
 }
@@ -698,7 +734,7 @@ void mcs_shell_run(mcs_shell_t* sh) {
     for (;;) {
         uint32_t wait = 100;
 #if MCS_ENABLE_HAL
-        if (mcs_hal_get(sh->vm)) wait = MCS_SLEEP_SLICE_MS;   /* keep interrupt callbacks responsive */
+        if (sh->vm && mcs_hal_get(sh->vm)) wait = MCS_SLEEP_SLICE_MS;   /* keep interrupt callbacks responsive */
 #endif
 #if MCS_ENABLE_SCHED
         if (sh->sched) {

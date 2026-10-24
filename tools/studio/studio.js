@@ -1584,6 +1584,7 @@ const App = {
   cwd: "/", entries: [], tabs: [], active: null, consMode: store.get("consMode", "repl"),
   capabilities: null, capabilitiesKnown: false,
   history: store.get("history", []), hpos: -1, echoQ: "", untitled: 1, info: "",
+  terminalHidden: !!store.get("terminalHidden", false),
   memExpanded: false, memReportText: "", memReportTitle: "",
 
   /* ---------- connection */
@@ -2355,7 +2356,18 @@ const App = {
     }
     return result;
   },
-  async saveBuild(target = this.tab(), project = false) {
+  async prepareRun() {
+    if (this.capabilities?.get("Runtime.Replace") !== true) {
+      term.line("— legacy firmware: automatic app cleanup is unavailable; update firmware to release old timers, peripherals and globals on Run —", "warn");
+      return;
+    }
+    await this.stopForUpload();
+    const r = await dev.op(() => dev.cmd("newapp", { idle: 0 }));
+    if (r.status !== "OK") throw new Error("Cannot replace previous app: " + r.status.replace(/^ERR /, ""));
+    this.projectRunning = false;
+    term.line("— previous application unloaded; files and device connection preserved —", "sys");
+  },
+  async saveBuild(target = this.tab(), project = false, replaceApplication = false) {
     ed.stash();
     if (!dev.connected) {
       if (project || !target?.local) throw new Error("Connect a device before building/saving a project.");
@@ -2395,6 +2407,7 @@ const App = {
       paths.add(t.path);
     }
     const sources = project ? await this.projectScripts() : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
+    if (replaceApplication) await this.prepareRun();
     await this.checkScripts(sources, project);
     ed.stash();
     if (this.workflowCancelled) throw new Error("Save/build cancelled.");
@@ -2409,7 +2422,7 @@ const App = {
   async runFilePath(path) {
     if (!dev.connected) return;
     return this.workflow(async () => {
-      if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false))) return false;
+      if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false, true))) return false;
       await this.runPath(path); return true;
     });
   },
@@ -2430,7 +2443,7 @@ const App = {
         await this.runPath(tmp, "selection", async () => { try { await dev.check("rm " + tmp); } catch {} });
         return true;
       }
-      if (!(await this.saveBuild(project ? null : t, project))) return false;
+      if (!(await this.saveBuild(project ? null : t, project, true))) return false;
       if (project) {
         await this.stopForUpload();
         const config = this.projectConfig();
@@ -2461,7 +2474,7 @@ const App = {
           } catch (e) { if (e instanceof TimeoutError) throw e; }
         }
         term.line(`▶ run ${label || path}`, "info");
-        const r = await dev.cmd("run " + path, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
+        const r = await dev.cmd("run " + path + (label === "selection" ? " shared" : ""), { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
         if (after) await after();
         return r;
       });
@@ -2572,11 +2585,26 @@ const App = {
   },
 
   /* ---------- misc */
+  setTerminalVisible(visible, focus = true) {
+    this.terminalHidden = !visible;
+    store.set("terminalHidden", this.terminalHidden);
+    const pane = $("consolePane"), hadFocus = pane.contains(document.activeElement);
+    $("center").classList.toggle("console-hidden", !visible);
+    $("btnTerminal").setAttribute("aria-expanded", String(visible));
+    $("btnTerminal").title = (visible ? "Hide" : "Show") + " terminal (Alt+Tab / Ctrl+J)";
+    plot.visible = visible && this.view === "plot";
+    if (focus) {
+      if (visible) ($("cin").disabled ? pane : $("cin")).focus();
+      else if (hadFocus) (this.tab() && !this.tab().binary ? ed.ta : $("btnTerminal")).focus();
+    }
+    requestAnimationFrame(() => { ed.syncScroll(); if (plot.visible) plot.draw(); });
+  },
+  toggleTerminal() { this.setTerminalVisible(this.terminalHidden); },
   setView(v) {
     this.view = v; store.set("view", v);
     $("consView").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
     document.querySelector(".console-pane").classList.toggle("plotting", v === "plot");
-    plot.visible = v === "plot";
+    plot.visible = !this.terminalHidden && v === "plot";
     if (plot.visible) requestAnimationFrame(() => plot.draw());
     $("btnClear").title = v === "plot" ? "Clear the chart" : "Clear the console";
   },
@@ -2734,6 +2762,7 @@ const App = {
       { label: "Download to this computer", icon: "download", disabled: !t, run: () => download(t.path ? baseName(t.path) : t.name || "file.cs", t.binary || enc.encode(t.text)) },
       { label: "Save as… (device)", icon: "save", disabled: !t || !!t.binary || !dev.connected, run: async () => { const old = t.path; t.path = null; if (!(await this.save(t)) && !t.path) t.path = old; } },
       "-",
+      { label: (this.terminalHidden ? "Show" : "Hide") + " terminal  Alt+Tab / Ctrl+J", icon: "term", run: () => this.toggleTerminal() },
       { label: "Find / Replace…  Ctrl+H", icon: "edit", disabled: !t || !!t.binary, run: () => ed.openFind(true) },
       { label: "Go to line…  Ctrl+G", icon: "edit", disabled: !t || !!t.binary, run: () => this.gotoLineDialog() },
       { label: "Format document  Shift+Alt+F", icon: "code", disabled: !t || !!t.binary || t.readOnly, run: () => ed.formatDocument() },
@@ -2744,7 +2773,7 @@ const App = {
       { label: (store.get("formatOnType", true) ? "✓ " : "") + "Automatic format while typing/pasting", icon: "code", run: () => store.set("formatOnType", !store.get("formatOnType", true)) },
       { label: (store.get("formatOnSave", true) ? "✓ " : "") + "Format C# on save", icon: "code", run: () => store.set("formatOnSave", !store.get("formatOnSave", true)) },
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
-      { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
+      { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setTerminalVisible(true); this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
       { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
       { label: (store.get("stopJobsOnRun", true) ? "✓ " : "") + "Stop script jobs before each Run", icon: "play", run: () => { const v = !store.get("stopJobsOnRun", true); store.set("stopJobsOnRun", v); toast(v ? "Run first cancels jobs left by earlier scripts (Scheduler.Every / After), so they do not pile up." : "Jobs from earlier runs keep running until you stop them (⋯ → Stop all jobs).", "info", 5000); } },
       "-",
@@ -2840,6 +2869,8 @@ const App = {
     $("btnProject").onclick = () => this.configureProject();
     $("btnStop").onclick = () => this.stop();
     $("btnCtrlC").onclick = () => this.stop();
+    $("btnTerminal").onclick = () => this.toggleTerminal();
+    $("btnCloseTerminal").onclick = () => this.setTerminalVisible(false);
     $("btnClear").onclick = () => { if (this.view === "plot") plot.clear(); else term.clear(); };
     $("consView").onclick = (e) => { const v = e.target.closest("button")?.dataset.v; if (v) this.setView(v); };
     $("consMode").onclick = (e) => { const m = e.target.closest("button")?.dataset.m; if (m) { this.setConsMode(m); $("cin").focus(); } };
@@ -2858,11 +2889,20 @@ const App = {
     addEventListener("dragover", (e) => e.preventDefault());
     addEventListener("drop", (e) => e.preventDefault());
 
+    // Capture before editor/REPL Tab handlers. The OS may reserve physical Alt+Tab;
+    // Ctrl+J and the toolbar button remain available on those desktops.
+    addEventListener("keydown", (e) => {
+      if ((e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === "Tab") ||
+          ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "j")) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (!e.repeat) this.toggleTerminal();
+      }
+    }, true);
     addEventListener("keydown", (e) => {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
       else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod, mod); }
-      else if (mod && e.key === "`") { e.preventDefault(); $("cin").focus(); }
+      else if (mod && e.key === "`") { e.preventDefault(); this.setTerminalVisible(true); }
       else if (e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); this.newScratch(); }
       else if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); this.gallery(); }
       else if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); $("openLocal").click(); }
@@ -2875,6 +2915,7 @@ const App = {
     addEventListener("beforeunload", (e) => { if (this.tabs.some((t) => t.dirty && t.text.trim())) { e.preventDefault(); e.returnValue = ""; } });
     this.renderFiles(); this.renderTabs(); this.activate(null);
     this.setView(store.get("view", "text"));
+    this.setTerminalVisible(!this.terminalHidden, false);
     this.restoreDrafts();
     term.line("MicroCS Studio — connect a board running MicroCS (USB). Output of scripts, jobs and the REPL appears here.", "sys");
   },

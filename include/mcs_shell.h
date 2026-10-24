@@ -65,6 +65,11 @@ typedef struct mcs_shell {
     /* Optional allocator/platform telemetry. It must not allocate from the VM. */
     void (*memory_info)(void* ud, mcs_shell_memory_t* st);
     void* memory_ud;
+    /* Runtime-owned application replacement; NULL for a standalone shared VM.
+     * Called only between executions. Must update vm/sched, preserving this
+     * shell, mounted VFS and queued transport bytes. */
+    int (*prepare_application)(void* ud);
+    void* application_ud;
     char line[MCS_SHELL_LINE_MAX];
     size_t len;
     uint8_t in[256];            /* input queue: all received bytes pass through it */

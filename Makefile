@@ -126,6 +126,8 @@ ble-test: mcs-ble
 # Built separately: the default `mcs` stays OS-free.
 THREADS_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_OS=MCS_OS_POSIX -pthread
 threads-test: | build
+	$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) tests/c/test_app_replace.c -lm -o build/test_app_replace_threads
+	./build/test_app_replace_threads
 	@$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_threads
 	@./build/mcs_threads --fs tests/threads tests/threads/t_threads.cs > build/threads.txt 2>&1; \
 	cmp -s build/threads.txt tests/threads/t_threads.out && echo "PASS tests/threads/t_threads.cs (POSIX threads)" || { echo "FAIL tests/threads/t_threads.cs"; diff build/threads.txt tests/threads/t_threads.out; exit 1; }
@@ -134,6 +136,8 @@ threads-test: | build
 	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_nothreads && ./build/test_nothreads | head -n 1
 # the same under ThreadSanitizer (data races between thread VMs, the console, the pool, the filesystem)
 tsan-test: | build
+	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_app_replace.c -lm -o build/test_app_replace_tsan
+	TSAN_OPTIONS=halt_on_error=1 ./build/test_app_replace_tsan
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_tsan
 	TSAN_OPTIONS=halt_on_error=1 ./build/mcs_tsan --fs tests/threads tests/threads/t_threads.cs > build/tsan.txt && cmp build/tsan.txt tests/threads/t_threads.out
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads_tsan
@@ -346,6 +350,7 @@ capabilities-test: | build
 	@for f in "" "-DMCS_ENABLE_BLE=1" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_NET=0 -DMCS_ENABLE_BLE=0"; do \
 	  $(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f $(SRC) $(MOD_SRC) tests/c/test_capabilities.c -lm -o build/test_capabilities && ./build/test_capabilities || exit 1; done
 	@node tests/studio/test_capabilities.js
+	@node tests/studio/test_app_replace.js
 	@node tests/studio/test_upload_stop.js
 	@python3 tests/test_template_metadata.py
 .PHONY: capabilities-test
@@ -353,8 +358,11 @@ capabilities-test: | build
 # Studio benchmark and capability report in the actual fixed-pool allocator.
 build/test_firmware_heap: tests/c/test_firmware_heap.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
-firmware-heap-test: build/test_firmware_heap
+build/test_app_replace: tests/c/test_app_replace.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+firmware-heap-test: build/test_firmware_heap build/test_app_replace
 	./build/test_firmware_heap
+	./build/test_app_replace
 .PHONY: firmware-heap-test
 
 build/test_power: tests/c/test_power.c $(OBJ)
@@ -393,7 +401,7 @@ project-test: build/test_project build/test_source_resolver build/test_posix_lis
 	./build/test_source_resolver
 	./build/test_posix_list_oom
 	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
@@ -430,6 +438,8 @@ memory-test: build/test_memory build/test_dynamic_stack
 oled-repeat-test: mcs-u8g2
 	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_repeat.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_repeat $(LDLIBS)
 	./build/test_oled_repeat
+	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_app_replace.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_app_replace $(LDLIBS)
+	./build/test_oled_app_replace
 .PHONY: oled-repeat-test
 
 # ISR quadrature decoder, resource ownership, repeated disposal and rollback.

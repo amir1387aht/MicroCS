@@ -1694,9 +1694,30 @@ const mcs_hal_t* mcs_hal_get(mcs_vm_t* vm) {
 void mcs_hal_close_lib(mcs_vm_t* vm) {
     hal_state_t* s = ST();
     if (!s) return;
+    /* Only the event-owning VM may detach board callbacks. Worker VMs share
+     * the HAL but never own the main VM's IRQs, timers or event queue. */
+    if (!s->no_events && s->hal) {
+        for (int i = 0; i < MCS_HAL_MAX_CALLBACKS; i++) {
+            hal_cb_t cb = s->cb[i];
+            s->cb[i].kind = CB_FREE;
+            if (cb.kind == CB_GPIO && s->hal->gpio_irq)
+                s->hal->gpio_irq(s->hal->ctx, cb.source, MCS_GPIO_EDGE_NONE);
+            else if (cb.kind == CB_TIMER && s->hal->timer_stop)
+                s->hal->timer_stop(s->hal->ctx, cb.source);
+        }
+    }
     encoder_close_all(vm);
     mcs__can_close_all(vm);
     mcs__dma_close(vm);                           /* stop / finish transfers still in flight */
+    if (!s->no_events && s->hal) {
+        /* Do not deliver an old app's pending tick/edge to a replacement that
+         * reuses its timer/pin. Drain a bounded snapshot, never run callbacks. */
+        mcs_hal_event_t ev;
+        if (s->hal->poll_event)
+            for (unsigned i = 0; i < MCS_HAL_EVENT_QUEUE * 2u; i++)
+                if (s->hal->poll_event(s->hal->ctx, &ev) != 1) break;
+        { MCS_HAL_CRITICAL_ENTER(); g_tail = g_head; MCS_HAL_CRITICAL_EXIT(); }
+    }
     mcs_set_ext(vm, MCS_EXT_HAL, NULL);
     mcs_set_idle(vm, NULL, NULL);
     int a = s->cb_pin, b = s->self_pin;
