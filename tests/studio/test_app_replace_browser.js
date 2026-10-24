@@ -5,11 +5,20 @@ const fs=require('fs'),path=require('path'),assert=require('assert');
 const root=path.resolve('build/studio-app-replace-fs');
 fs.rmSync(root,{recursive:true,force:true});fs.mkdirSync(root,{recursive:true});
 const proc=spawn(path.resolve('./build/test_app_replace'),['--fs',root]);
-let browser,page,chain=Promise.resolve();const errors=[];
+let browser,page,closing=false,chain=Promise.resolve();const errors=[];
+// Only shutdown may close the pipe; transport failures during the test still fail it.
+proc.stdin.on('error',e=>{if(!closing)errors.push('runtime stdin: '+e.message);});
+proc.on('error',e=>{if(!closing)errors.push('runtime process: '+e.message);});
+proc.on('exit',(code,signal)=>{if(!closing)errors.push('runtime exited: '+code+'/'+signal);});
 (async()=>{
  browser=await chromium.launch({executablePath:process.env.CHROME||'/usr/bin/chromium',args:['--no-sandbox']});
  page=await browser.newPage();page.on('pageerror',e=>errors.push(e.message));
- await page.exposeFunction('__write',a=>{proc.stdin.write(Buffer.from(a));});
+ await page.exposeFunction('__write',a=>{
+  if(closing)return;
+  return new Promise((resolve,reject)=>{
+   proc.stdin.write(Buffer.from(a),e=>{if(e&&!closing)reject(e);else resolve();});
+  });
+ });
  proc.stdout.on('data',d=>{chain=chain.then(()=>page.evaluate(a=>window.__push?.(a),[...d]).catch(()=>{}));});
  await page.addInitScript(()=>{
   let ctl;const port={async open(){port.readable=new ReadableStream({start(c){ctl=c;}});port.writable=new WritableStream({write(a){return window.__write([...a]);}});},async close(){},async setSignals(){}};
@@ -48,4 +57,9 @@ let browser,page,chain=Promise.resolve();const errors=[];
  assert(selection.includes('run /.studio_run.cs shared'));
  assert.deepStrictEqual(errors,[]);
  console.log('PASS real-runtime browser: 10 F5 reruns release encoder/timer, unload precedes check, files persist, Save preserves globals');
-})().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{proc.kill();if(browser)await browser.close();});
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
+ // Closing Chromium first stops pending Web Serial writes before the process exits.
+ closing=true;
+ try {if(browser)await browser.close();}
+ finally {proc.stdin.destroy();proc.kill();}
+});

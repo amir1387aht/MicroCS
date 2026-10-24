@@ -25,7 +25,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   115200 as the default, and remember custom rates across reloads/reconnects.
 
 * Fix compiler-free host builds: only compile the shell result-report helper
-  when its source-compiler commands are enabled.
+  when its source-compiler commands are enabled. Close the browser transport before
+  terminating its runtime fixture to prevent teardown-only broken-pipe failures.
 * Add a closeable Studio terminal with a toolbar/menu toggle, Alt+Tab when delivered
   by the OS, Ctrl+J fallback and Ctrl+` to reopen/focus. Preserve output, plotter
   selection and resized height; remember visibility without stopping the device.
