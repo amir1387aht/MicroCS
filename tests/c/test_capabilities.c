@@ -19,6 +19,8 @@ int main(void) {
     mcs_set_global(vm, "DefinedNull", mcs_null());
     CHECK(mcs_global_exists(vm, "DefinedNull"));
     CHECK(!mcs_capability_has(vm, "Imaginary"));
+    CHECK(mcs_capability_has(vm, "Json.TryParse") == (MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT));
+    CHECK(mcs_capability_has(vm, "Json.ComputedProperties") == (MCS_ENABLE_JSON && MCS_ENABLE_LIST && MCS_ENABLE_DICT));
     CHECK(!mcs_capability_has(NULL, "GPIO"));
     CHECK(!mcs_capability_has(vm, NULL));
 #if MCS_ENABLE_NET

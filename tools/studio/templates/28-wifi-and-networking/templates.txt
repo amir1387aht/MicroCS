@@ -61,3 +61,7 @@ Reach the board as greenhouse.local, advertise a web service and ping hosts.
 [mqtt_publish.cs] MQTT publish
 requires: List, Encoding, Wifi, TcpClient, ArrayExtra
 A tiny MQTT 3.1.1 client on TcpClient: connect to a broker and publish a reading.
+
+[http_json.cs] JSON API client
+requires: Http.Json, Dictionary, StringExtra
+GET parsed JSON, POST mixed data, check status and parse the reply. Configure your endpoint and network before sending requests.

@@ -20,6 +20,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 📟 | [Standalone firmware](STANDALONE.md) | `mcs_runtime`, the REPL, boot sequence, upload protocol, `mcs_remote.py` |
 | 🔧 | [Embedding](EMBEDDING.md) | the C API: VMs, running code, C bindings, calling scripts, limits, GC rules |
 | 🧩 | [Language](LANGUAGE.md) | the supported C# subset, feature by feature, and every known difference from .NET |
+| 📄 | [JSON](JSON.md) | Parse/serialize nested data, fields and computed properties, `TryParse`, HTTP JSON APIs, memory and precision limits |
 | 📚 | [Standard library](STDLIB.md) | generated reference of every class and member a script can call |
 | 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / TinyFS / LittleFS / YAFFS2 backends, flash ports, `File` / `Directory` / `Path` |
 | ⏱️ | [Scheduler](SCHEDULER.md) | startup / once / periodic jobs, `jobs.cfg` |

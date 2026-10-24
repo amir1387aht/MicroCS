@@ -42,7 +42,7 @@ be removed per VM with `cfg.stdlib` and at build time with the `MCS_ENABLE_*` fl
 | **Stopwatch** | static | — | `StartNew()` |  |
 | **Delegate / Action / Func** | instance | — | `Invoke(…)` `DynamicInvoke(…)` |  |
 | **ValueTuple** | instance | — | `ToString()` | `Item1..Item7` and element names are fields |
-| **Json** | static | — | `Parse(·)` `Deserialize(·)` `Stringify(…)` `Serialize(…)` `Escape(·)` | `Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent])`; also as `JsonSerializer.Serialize` / `Deserialize` ([NETWORK.md](NETWORK.md#json)) |
+| **Json** | static | — | `Parse(·)` `TryParse(·, ·)` `Deserialize(·)` `Stringify(…)` `Serialize(…)` `Escape(·)` | `Parse` → `Dictionary<string, object>` / `List<object>` / values; `Stringify(value[, indent[, includeHidden]])`; fields + computed getters, `TryParse`; also as `JsonSerializer` ([JSON.md](JSON.md)) |
 
 ## Strings
 
@@ -152,8 +152,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **TcpListener** | instance | `LocalPort` `Active` | `Start(…)` `Stop()` `Pending()` `AcceptTcpClient(…)` `Accept(…)` `Dispose()` | `new TcpListener(port)` or `(address, port)` |
 | **UdpClient** | instance | `RemoteAddress` `RemotePort` `LocalPort` `Available` `EnableBroadcast` `Timeout` | `Connect(·, ·)` `Send(…)` `Receive(…)` `ReceiveString(…)` `JoinMulticastGroup(·)` `DropMulticastGroup(·)` `Close()` `Dispose()` | `new UdpClient([port])` |
 | **Dns** | static | `HostName` | `Resolve(·)` `GetHostAddresses(·)` |  |
-| **Http** | static | `Timeout` `UserAgent` `FollowRedirects` | `Get(…)` `Head(…)` `Delete(…)` `Post(…)` `Put(…)` `Patch(…)` `Request(…)` `GetString(…)` `Download(…)` `UrlEncode(·)` | headers: `Dictionary<string, string>`, `"Name: value"` lines or `string[]` |
-| **HttpResponse** | instance | `StatusCode` `Reason` `IsSuccess` `Body` `Bytes` `ContentLength` `ContentType` `Url` `Headers` | `Header(·)` `EnsureSuccess()` `ToString()` | returned by every `Http` request |
+| **Http** | static | `Timeout` `UserAgent` `FollowRedirects` | `GetJson(…)` `PostJson(…)` `PutJson(…)` `PatchJson(…)` `Get(…)` `Head(…)` `Delete(…)` `Post(…)` `Put(…)` `Patch(…)` `Request(…)` `GetString(…)` `Download(…)` `UrlEncode(·)` | headers: `Dictionary<string, string>`, `"Name: value"` lines or `string[]` |
+| **HttpResponse** | instance | `StatusCode` `Reason` `IsSuccess` `Json` `Body` `Bytes` `ContentLength` `ContentType` `Url` `Headers` | `Header(·)` `EnsureSuccess()` `ToString()` | returned by every `Http` request |
 | **HttpServer** | instance | `WebSockets` `Port` `Running` `Requests` `Cors` | `On(…)` `Get(·, ·)` `Post(·, ·)` `Put(·, ·)` `Delete(·, ·)` `Patch(·, ·)` `NotFound(·)` `WebSocket(…)` `ServeFiles(·, ·)` `Start()` `Stop()` `Dispose()` `Poll(…)` `Run()` `Broadcast(·)` | `new HttpServer([port])` or `(address, port)`; handlers return a string (HTML), `byte[]` or an object (JSON) |
 | **HttpRequest** | instance | `Method` `Path` `Query` `Url` `Body` `Bytes` `Json` `ContentType` `ContentLength` `Headers` `Host` `RemoteAddress` `Sent` `Status` | `Header(·)` `Param(…)` `HasParam(·)` `Send(…)` `SendJson(…)` `SendStatus(·)` `SendFile(…)` `Redirect(…)` `SetHeader(·, ·)` `Authenticate(…)` `ToString()` | passed to every `HttpServer` route |
 | **WebSocket** | instance | `IsOpen` `State` `CloseStatus` `CloseReason` `Id` `Path` `Url` `RemoteAddress` `Timeout` `IsTls` | `Connect(…)` `Send(·)` `SendText(·)` `SendBinary(·)` `Ping(…)` `Receive(…)` `Close(…)` `Dispose()` `OnMessage(·)` `Poll(…)` `ToString()` | `new WebSocket([url[, timeoutMs]])` client, or a server-side connection from `HttpServer.WebSocket` |
@@ -203,4 +203,4 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1434 members in 118 tables._
+_1440 members in 118 tables._

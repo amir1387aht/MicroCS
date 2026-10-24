@@ -197,11 +197,11 @@ typedef struct {            /* used for both arrays and List<T> */
  * of a full key/value entry. */
 typedef struct {
     mcs_obj_t obj;
-    uint32_t count, cap;     /* entries in keys[]/vals[] */
+    uint32_t count, cap;     /* live entries; raw value slots in keys allocation */
     uint32_t icap, iused;    /* index slots (power of two); used = live + deleted */
     void* idx;
-    mcs_value_t* keys;
-    mcs_value_t* vals;
+    mcs_value_t* keys;       /* allocation base: cap/2 keys + cap/2 values, or cap set keys */
+    mcs_value_t* vals;       /* keys + cap/2 for dictionaries; NULL for sets */
 } mcs_dict_t;
 /* obj.aux flag: keys-only dictionary (HashSet storage, vals == NULL) */
 #define DICT_KEYS_ONLY 1

@@ -16,6 +16,7 @@
  * so Stop, Ctrl-C and HAL events keep working while a server waits for clients.
  */
 #include "mcs_net_internal.h"
+#include "mcs_native_internal.h"
 #if MCS_ENABLE_NET && MCS_ENABLE_SOCKETS
 #include "mcs_net_posix.h"
 #if MCS_ENABLE_FS
@@ -179,7 +180,11 @@ static mcs_value_t peer_ip(mcs_vm_t* vm, int fd) {
 }
 static mcs_value_t call_json(mcs_vm_t* vm, const char* fn, mcs_value_t arg) {
     mcs_value_t out = mcs_null();
-    if (mcs_call(vm, fn, 1, &arg, &out) != MCS_OK) return mcs_null();
+    mcs_result_t status = mcs_call(vm, fn, 1, &arg, &out);
+    if (status != MCS_OK) {
+        if (!mcs_has_exception(vm)) mcs_rethrow_native(vm, status);
+        return mcs_null();
+    }
     return out;
 }
 
