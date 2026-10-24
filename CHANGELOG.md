@@ -2,24 +2,11 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — Lightweight JSON and API helpers
+## Unreleased
 
-* Extend the existing dependency-free JSON engine with `TryParse`, computed and
-  inherited instance getters, mixed nested collections, explicit cycle detection
-  and optional inclusion of underscore-prefixed members.
-* Validate UTF-8 and surrogate pairs, preserve embedded NUL, reject malformed
-  number syntax, and parse complete numeric tokens without truncation. Native
-  numeric precision is unchanged; JSON numbers are not arbitrary precision.
-* Add `Http.GetJson`, `PostJson`, `PutJson`, `PatchJson` and `HttpResponse.Json`,
-  plus feature capabilities for older-firmware checks. JSON works offline on every
-  port with List and Dictionary; HTTP still needs the existing socket backend.
-* Release JSON scratch buffers on fatal OOM and fix partially committed dictionary
-  growth that could corrupt allocation accounting after a failed resize. Store
-  dictionary keys/values in one compact allocation, retain atomic OOM recovery
-  without a staged buffer, and compact power-of-two index checks to preserve
-  the unchanged 256 KiB Cortex-M0 flash limit.
-* Add a JSON guide, Studio signatures and templates, strict malformed-input and
-  allocation-failure tests, and 1,000 round trips in an unchanged 40 KiB test pool.
+* Allow custom Studio UART baud rates with preset suggestions including 74880,
+  19200 and 38400. Validate positive 32-bit integer rates before connecting, retain
+  115200 as the default, and remember custom rates across reloads/reconnects.
 
 ## 1.17.0 — Long-run upload memory recovery
 
