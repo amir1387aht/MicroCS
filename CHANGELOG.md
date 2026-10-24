@@ -4,6 +4,12 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Fix compiler-free host builds: only compile the shell result-report helper
+  when its source-compiler commands are enabled.
+* Add a closeable Studio terminal with a toolbar/menu toggle, Alt+Tab when delivered
+  by the OS, Ctrl+J fallback and Ctrl+` to reopen/focus. Preserve output, plotter
+  selection and resized height; remember visibility without stopping the device.
+
 * Automatically replace the previous application on runtime file/Project Run.
   Stop workers, jobs, GPIO/timer callbacks and encoders; release native objects,
   old globals and bytecode before compiling the replacement in the same pool.

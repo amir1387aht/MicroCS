@@ -111,6 +111,7 @@
             <button class="btn ghost sm" id="btnRunFile" title="Save/build and run only the active file (Ctrl+Enter)" disabled>Run file</button>
             <button class="btn sm run" id="btnRun" title="Save/build all and run (F5)" disabled><svg class="i"><use href="#i-play"/></svg>Run</button>
             <button class="btn sm danger" id="btnStop" title="Stop the running script (Ctrl+C on the device)" disabled><svg class="i"><use href="#i-stop"/></svg>Stop</button>
+            <button class="btn ghost sm icon" id="btnTerminal" aria-label="Toggle terminal" aria-controls="consolePane" aria-expanded="true" title="Toggle terminal (Alt+Tab / Ctrl+J)"><svg class="i"><use href="#i-term"/></svg></button>
             <button class="btn ghost sm icon" id="btnMore" title="More"><svg class="i"><use href="#i-dots"/></svg></button>
           </div>
         </div>
@@ -167,7 +168,7 @@
         </div>
       </div>
       <div class="split-h" id="splitCons"></div>
-      <div class="console-pane">
+      <div class="console-pane" id="consolePane" tabindex="-1" role="region" aria-label="Console - device output and REPL">
         <div class="panel-head">
           <div class="panel-title"><svg class="i"><use href="#i-term"/></svg>Console - device output and REPL</div>
           <div class="seg" id="consMode" title="C#: the device REPL · Shell: file/run/jobs commands (help)">
@@ -178,6 +179,7 @@
           </div>
           <button class="btn ghost sm" id="btnCtrlC" title="Send Ctrl+C: stop the running script" disabled><svg class="i"><use href="#i-stop"/></svg>Ctrl+C</button>
           <button class="btn ghost sm icon" id="btnClear" title="Clear the console"><svg class="i"><use href="#i-clear"/></svg></button>
+          <button class="btn ghost sm icon" id="btnCloseTerminal" aria-label="Hide terminal" title="Hide terminal (Alt+Tab / Ctrl+J)"><svg class="i"><use href="#i-x"/></svg></button>
         </div>
         <div class="term" id="term"></div>
         <div class="plot" id="plotWrap"><canvas id="plot"></canvas><div class="plothint" id="plotHint">Print numbers from your script - <code>Console.WriteLine($"temp:{t} hum:{h}");</code> or <code>Console.WriteLine(a + " " + b);</code> - and they are charted here live. Click the chart to pause.</div></div>

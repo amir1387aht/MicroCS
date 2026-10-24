@@ -424,10 +424,12 @@ static void cmd_help(mcs_shell_t* sh) {
     ok(sh);
 }
 
+#if MCS_ENABLE_COMPILER
 static void report(mcs_shell_t* sh, mcs_result_t r) {
     if (r == MCS_OK) ok(sh);
     else err(sh, mcs_last_error(sh->vm)[0] ? mcs_last_error(sh->vm) : "failed");
 }
+#endif
 
 static void dispatch(mcs_shell_t* sh, char* line) {
     while (*line == ' ') line++;

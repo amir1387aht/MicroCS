@@ -25,9 +25,15 @@ jobs:
           make CC=${{ matrix.cc }} check 2>&1 | tee /tmp/host-check.log
           result=${PIPESTATUS[0]}
           if [ "$result" != 0 ]; then
-            python3 -c 'from pathlib import Path; s=Path("/tmp/host-check.log").read_text()[-6000:]; print("::error title=Host check failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
+            python3 -c 'from pathlib import Path; s=Path("/tmp/host-check.log").read_text()[-3000:]; print("::error title=Host check failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
           fi
           exit "$result"
+      - name: Preserve full host failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-check-${{ matrix.cc }}
+          path: /tmp/host-check.log
 
   sanitizers:
     name: ASan + UBSan · fuzz
@@ -124,6 +130,8 @@ jobs:
         run: |
           make build/test_app_replace
           CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_app_replace_browser.js
+      - name: Terminal visibility and shortcuts
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_terminal.js
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: Explorer tree and legacy firmware compatibility
