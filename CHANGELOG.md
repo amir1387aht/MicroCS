@@ -12,6 +12,9 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   Keep Save busy until its existing refresh completes, preventing late file
   replies from racing the next save/build snapshot without extra device reads.
 
+* Make Studio Ctrl+` toggle the terminal both closed and open, including from
+  the REPL. Ignore held-key repeats and show the shortcut on toolbar/menu controls.
+
 * Extend the existing dependency-free JSON engine with `TryParse`, computed and
   inherited instance getters, mixed nested collections, explicit cycle detection
   and optional inclusion of underscore-prefixed members.
