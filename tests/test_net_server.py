@@ -7,12 +7,13 @@ simulated radio.
 usage: python3 tests/test_net_server.py ./mcs
 """
 import base64, difflib, hashlib, os, socket, struct, subprocess, sys, tempfile, threading, time
-import urllib.request, urllib.error
+import urllib.request, urllib.error, json
 
 def free_port(kind=socket.SOCK_STREAM):
     s = socket.socket(socket.AF_INET, kind); s.bind(("127.0.0.1", 0)); p = s.getsockname()[1]; s.close(); return p
 
 SERVER = r'''
+class Payload {public int Base=21; public int Twice=>Base*2;}
 var web = new HttpServer(PORT);
 var dns = new DnsServer("10.0.0.1");
 dns.Start(null, DNSPORT);
@@ -20,6 +21,8 @@ web.Get("/", req => "<h1>hi</h1>");
 web.Get("/led/{id}", req => { req.SetHeader("X-Led", req.Param("id")); return "led " + req.Param("id") + " on=" + req.Param("on", "?"); });
 web.Post("/form", req => "name=" + req.Param("name") + " pw=" + req.Param("pw"));
 web.Post("/json", req => { var d = req.Json; return new Dictionary<string, object> { ["got"] = d["a"], ["m"] = req.Method }; });
+web.Get("/computed", req => new Payload());
+web.Get("/json-null", req => {req.SendJson(null);});
 web.Get("/secret", req => { if (!req.Authenticate("admin", "pw")) return null; return "welcome"; });
 web.Get("/go", req => req.Redirect("/"));
 web.Get("/boom", req => { throw new InvalidOperationException("bad"); });
@@ -36,12 +39,14 @@ SERVER_EXPECT = """listening True
 open 1 /ws
 closed 1000
 Run threw: bad
-stopped, requests 13 dns 1
+stopped, requests 15 dns 1
 """
 CLIENT_EXPECT = """(200, '<h1>hi</h1>')
 200 led 7 on=1 7
 (200, 'name=Bob X pw=a&b')
 (200, '{"got":5,"m":"POST"}')
+computed 21 42
+(200, 'null')
 (401, '') (200, 'welcome')
 (200, '<h1>hi</h1>')
 (404, 'nope /missing')
@@ -71,6 +76,8 @@ def http_client(port, dnsport, out):
     s, b, h = get("/led/7?on=1"); p(s, b, h.get("X-Led"))
     p(get("/form", b"name=Bob+X&pw=a%26b", {"Content-Type": "application/x-www-form-urlencoded"})[:2])
     p(get("/json", b'{"a":5}', {"Content-Type": "application/json"})[:2])
+    computed = json.loads(get("/computed")[1]); p("computed", computed["Base"], computed["Twice"])
+    p(get("/json-null")[:2])
     p(get("/secret")[:2][0:1] + ("",), get("/secret", h={"Authorization": "Basic " + base64.b64encode(b"admin:pw").decode()})[:2])
     p(get("/go")[:2])
     p(get("/missing")[:2])

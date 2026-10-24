@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: encoder-test memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: json-test encoder-test memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -451,3 +451,11 @@ encoder-test: build/test_encoder
 	  $(CXX) -x c++ -std=gnu++11 -Wall -Wextra -Werror -DPICO_SDK_VERSION_MAJOR=$$v -Iinclude -Itests/c/encoder_sdk tests/c/test_pio_encoder.c -o build/test_pio_encoder_cpp && ./build/test_pio_encoder_cpp || exit 1; done
 	@if command -v node >/dev/null 2>&1; then node tests/studio/test_encoder.js; fi
 .PHONY: encoder-test
+
+# Strict JSON, protected scratch cleanup, exhaustive allocation failure recovery.
+build/test_json: tests/c/test_json.c $(OBJ)
+	$(CC) $(CFLAGS) -Werror $(OBJ) tests/c/test_json.c -o $@ $(LDLIBS)
+json-test: build/test_json
+	./build/test_json
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_json.js; fi
+.PHONY: json-test

@@ -396,22 +396,28 @@ setup* is a complete version with a network list.
 
 ## JSON
 
-Available on every port (with List + Dictionary; `MCS_ENABLE_JSON`).
+Available on every port with `MCS_ENABLE_JSON`, List and Dictionary enabled; it
+needs no network backend or external JSON dependency. See [JSON](JSON.md) for the
+complete API, supported values, strict parsing rules and memory/precision limits.
 
 ```csharp
-var doc = Json.Parse("{\"temp\": 21.5, \"tags\": [\"a\", \"b\"], \"ok\": true}");
-double t = doc["temp"];  string first = doc["tags"][0];
-string text = Json.Stringify(new Dictionary<string, object> { ["id"] = 7, ["on"] = true });
-string pretty = Json.Stringify(doc, true);          // indented
-class Reading { public string Name = "t1"; public double Value { get; set; } }
-Console.WriteLine(JsonSerializer.Serialize(new Reading()));   // {"Name":"t1","Value":0}
+var doc = Json.Parse("{\"temp\":21.5,\"tags\":[\"a\",\"b\"]}");
+Console.WriteLine(doc["temp"]);
+string pretty = Json.Serialize(doc, true);
+object result;
+if (Json.TryParse(pretty, out result)) Console.WriteLine(result["tags"][0]);
 ```
 
-Objects become `Dictionary<string, object>`, arrays `List<object>`, integral numbers `int`
-(`long` range with `MCS_INT64`) and others `double`. `Stringify` writes dictionaries,
-lists, arrays, `HashSet`, numbers (NaN/∞ → `null`), strings, chars, `bool`, `null` and the
-fields of script objects (names starting with `_` are skipped). `Json.Escape(s)` quotes a
-string. Errors: `FormatException` with the offset.
+On firmware reporting `Hal.Has("Http.Json")`, the HTTP client also offers
+`GetJson(url[, headers])`, `PostJson(url, value[, headers])`,
+`PutJson(url, value[, headers])`, `PatchJson(url, value[, headers])` and
+`HttpResponse.Json`. JSON POST/PUT/PATCH serialize the supplied value, including
+scalars and null, and set `application/json; charset=utf-8`; strings are encoded
+as JSON strings, not treated as pre-encoded documents. Continue using
+`Http.Post/Put/Patch` with an explicit content type to send raw JSON text.
+`GetJson` requires a 2xx response; the write helpers return an `HttpResponse` whose
+status must be checked before using `.Json`. `.Json` parses regardless of status.
+
 
 ## Errors and timeouts
 

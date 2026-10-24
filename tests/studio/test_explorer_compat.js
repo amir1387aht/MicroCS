@@ -79,7 +79,12 @@ const assert=require('assert'),path=require('path'),fs=require('fs');
   await page.evaluate(()=>{
    dev.port={};App.info='MicroCS 1.14.0';App.capabilities=legacyCapabilities('MicroCS 1.14.0 features=0xffff');App.capabilitiesKnown=false;App.gallery();
   });
-  assert.strictEqual(await page.locator('#gItems .item').count(),219,'legacy firmware must keep all templates');
+  const gallery = await page.evaluate(() => ({
+   shown: App.gal.list.map(t => t.src), bundled: TEMPLATES.map(t => t.src)
+  }));
+  assert(gallery.bundled.length > 0, 'template bundle must not be empty');
+  assert.deepStrictEqual(gallery.shown, gallery.bundled, 'legacy firmware must keep every bundled template');
+  assert.strictEqual(await page.locator('#gItems .item').count(), gallery.bundled.length, 'every bundled template is rendered');
   assert((await page.innerText('#gSupport')).includes('unknown'));
   await page.evaluate(()=>{App.gal.sel=App.gal.list.findIndex(t=>t.file==='encoder.cs');App.galPreview();});
   assert((await page.innerText('#gInfo')).includes('firmware >= 1.17.0'));

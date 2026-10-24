@@ -469,7 +469,7 @@ EspNow.Broadcast("hello");
 | Sockets | `TcpClient` (+ TLS), `TcpListener`, `UdpClient` (broadcast, multicast) |
 | HTTP | `Http.Get` / `Post` / `Put` / `Patch` / `Delete` / `Request` / `Download`, headers, redirects, chunked, `HttpResponse` |
 | Servers | `HttpServer` (routes with `{params}`, JSON replies, forms, Basic auth, CORS, `ServeFiles`), `WebSocket` server + client, `DnsServer` (captive portal) |
-| Data | `Json.Parse` / `Json.Stringify`, `JsonSerializer` |
+| Data | [JSON](docs/JSON.md): nested values, collections, object fields + computed properties, `TryParse`, `JsonSerializer`, JSON HTTP helpers |
 
 ESP32 release images include Wi-Fi and ESP-NOW on chips with an onboard Wi-Fi radio
 (not H2 / P4); the Pico W / Pico 2 W release images include Wi-Fi too

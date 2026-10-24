@@ -3,7 +3,7 @@
 
 usage: python3 tests/test_net.py ./mcs
 """
-import http.server, os, subprocess, sys, tempfile, threading
+import http.server, os, subprocess, sys, tempfile, threading, json
 
 class H(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -45,6 +45,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 except (BrokenPipeError, ConnectionResetError): break
             return
         if p == "/missing": return self.reply(404, b"nf!")
+        if p == "/invalid-json": return self.reply(200, b"{bad", "application/json")
         if p == "/json": return self.reply(200, b'{"temp":21.5,"ok":true}', "application/json")
         if p == "/big": return self.reply(200, b"B" * 70000)
         body = ("hello %s ua=%s key=%s" % (p, self.headers.get("User-Agent", ""), self.headers.get("X-Key"))).encode()
@@ -53,11 +54,14 @@ class H(http.server.BaseHTTPRequestHandler):
     def body_echo(self):
         n = int(self.headers.get("Content-Length", "0"))
         d = self.rfile.read(n)
+        if self.path == "/json-echo":
+            return self.reply(200, json.dumps({"method":self.command, "value":json.loads(d), "contentType":self.headers.get("Content-Type"), "key":self.headers.get("X-Key")}).encode(), "application/json")
         self.reply(201 if self.command == "POST" else 200,
                    b"%s %s ct=%s" % (self.command.encode(), d, self.headers.get("Content-Type", "-").encode()))
     do_POST = do_PUT = do_PATCH = do_DELETE = body_echo
 
 SCRIPT = r'''
+if (!Net.Has("Http.Json")) throw new Exception("JSON HTTP capability missing");
 var b = "http://127.0.0.1:PORT";
 var r = Http.Get(b + "/a", new string[] { "X-Key: 42" });
 Console.WriteLine(r + " | " + r.Body + " | " + r.ContentType + " | " + r.Header("content-length") + " | " + r.IsSuccess);
@@ -90,6 +94,15 @@ Http.UserAgent = "Greenhouse/2"; Console.WriteLine(Http.GetString(b + "/ua"));
 Http.Timeout = 3000; Console.WriteLine("timeout " + Http.Timeout);
 try { Http.Get("http://127.0.0.1:1/"); } catch (SocketException) { Console.WriteLine("refused"); }
 try { Http.Get("http://no-such-host.invalid/"); } catch (SocketException e) { Console.WriteLine("unresolved"); }
+Console.WriteLine("json get " + Http.GetJson(b + "/json")["temp"] + " " + Http.Get(b + "/json").Json["ok"]);
+class Payload { public int Count = 21; public int Twice => Count*2; }
+var j = Http.PostJson(b + "/json-echo", new Payload(), new string[]{"X-Key: json-key"}).Json;
+Console.WriteLine("json post " + j["method"] + " " + j["value"]["Twice"] + " " + j["contentType"] + " " + j["key"]);
+Console.WriteLine("json scalar " + Http.PutJson(b + "/json-echo", 42).Json["value"] + " " + (Http.PatchJson(b + "/json-echo", null).Json["value"] == null));
+Console.WriteLine("json list " + Http.PostJson(b + "/json-echo", new object[]{true, null, "x", 3}).Json["value"].Count);
+Console.WriteLine("json string " + Http.PostJson(b + "/json-echo", "quoted").Json["value"]);
+try { Http.GetJson(b + "/missing"); } catch(HttpRequestException) {Console.WriteLine("json HTTP error");}
+try { Http.GetJson(b + "/invalid-json"); } catch(FormatException) {Console.WriteLine("json parse error");}
 var c = new TcpClient("127.0.0.1", PORT);
 c.Write("GET /raw HTTP/1.0\r\nHost: x\r\n\r\n");
 Console.WriteLine(c.ReadLine());
@@ -131,6 +144,13 @@ hello /ua ua=Greenhouse/2 key=None
 timeout 3000
 refused
 unresolved
+json get 21.5 True
+json post POST 42 application/json; charset=utf-8 json-key
+json scalar 42 True
+json list 4
+json string quoted
+json HTTP error
+json parse error
 HTTP/1.1 200 OK
 hello /raw ua= key=None
 """

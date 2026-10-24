@@ -194,7 +194,13 @@
 #define MCS_ENABLE_BYTES 1         /* Encoding.UTF8/ASCII, BitConverter, BinaryPrimitives, Convert.To/FromBase64String, To/FromHexString */
 #endif
 #ifndef MCS_ENABLE_JSON
-#define MCS_ENABLE_JSON 1          /* Json.Parse / Json.Stringify (+ JsonSerializer); needs List + Dictionary (~4 KB) */
+#define MCS_ENABLE_JSON 1          /* Json / JsonSerializer; needs List + Dictionary */
+#endif
+#ifndef MCS_JSON_MAX_DEPTH
+#define MCS_JSON_MAX_DEPTH 32      /* bounded JSON parsing/serialization C-stack depth */
+#endif
+#if MCS_JSON_MAX_DEPTH < 1 || MCS_JSON_MAX_DEPTH > 64
+#error "MCS_JSON_MAX_DEPTH must be between 1 and 64"
 #endif
 #ifndef MCS_ENABLE_CONVERT
 #define MCS_ENABLE_CONVERT 1       /* the Convert class (ToInt32/ToString(x, base)/ToBoolean/...) */

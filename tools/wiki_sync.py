@@ -68,6 +68,7 @@ SECTIONS = [
     ("C# and the runtime", [
         ("docs/LANGUAGE.md", "Language"),
         ("docs/STDLIB.md", "Standard-Library"),
+        ("docs/JSON.md", "JSON"),
         ("docs/STANDALONE.md", "Standalone-Firmware"),
         ("tools/studio/README.md", "MicroCS-Studio"),
         ("examples/README.md", "Examples"),

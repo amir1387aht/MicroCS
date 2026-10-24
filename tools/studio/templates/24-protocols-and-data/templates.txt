@@ -32,3 +32,7 @@ Build JSON text for a host program or MQTT bridge.
 [ringbuffer.cs] Ring buffer (circular queue)
 requires: ADC, Float, Linq, Format
 A fixed-size buffer for samples - no allocation per sample.
+
+[json_roundtrip.cs] JSON values and computed properties
+requires: Json.TryParse, Json.ComputedProperties, Dictionary, List
+Serialize mixed data, fields and computed properties; validate JSON without throwing. No network or external library.
