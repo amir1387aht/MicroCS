@@ -39,7 +39,12 @@ const {spawn}=require('child_process'),fs=require('fs'),path=require('path'),ass
   assert.deepStrictEqual(commands.filter(x=>x.startsWith('run ')),['run /app.cs']);
   assert((await page.innerText('#term')).includes('without compile-only validation'));
   await page.evaluate(()=>App.gallery());
-  assert.strictEqual(await page.locator('#gItems .item').count(),219);
+  const gallery = await page.evaluate(() => ({
+   shown: App.gal.list.map(t => t.src), bundled: TEMPLATES.map(t => t.src)
+  }));
+  assert(gallery.bundled.length > 0, 'template bundle must not be empty');
+  assert.deepStrictEqual(gallery.shown, gallery.bundled, 'legacy firmware must keep every bundled template');
+  assert.strictEqual(await page.locator('#gItems .item').count(), gallery.bundled.length, 'every bundled template is rendered');
   assert((await page.innerText('#gSupport')).includes('unknown'));
   assert.deepStrictEqual(errors,[]);
   console.log('PASS legacy serial workflow: no caps/check, all templates, save-all without execution, run active file only, no repeated unsupported probes');
