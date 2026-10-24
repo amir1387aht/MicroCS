@@ -26,9 +26,21 @@ const path=require('path'),assert=require('assert');
   await page.evaluate(()=>App.pollOpenFile());
   assert.strictEqual(await page.locator('#ta').inputValue(),'{"value":3}');
   assert.deepStrictEqual(await page.evaluate(()=>[document.activeElement.id,ed.ta.selectionStart,ed.ta.selectionEnd]),['cin',2,5]);
-  // The actual timer, not just a direct call, observes callback writes.
-  await page.evaluate(()=>{__files['/settings.json']='{"value":4}';});
+  // Defaults generate NO recurring filesystem/serial reads, even after a write.
+  await page.evaluate(()=>{__gets=[];__files['/settings.json']='{"value":4}';});
+  await page.waitForTimeout(3000);
+  assert.deepStrictEqual(await page.evaluate(()=>__gets),[],'default must not poll the MCU');
+  assert.strictEqual(await page.locator('#ta').inputValue(),'{"value":3}');
+  await page.click('#btnMore');
+  await page.getByText('Live device file refresh (uses serial bandwidth)',{exact:true}).click();
+  // Opt-in polling uses the actual timer, not just a direct call.
+
   await page.waitForFunction(()=>__settings.text==='{"value":4}');
+  // Turning it off stops future recurring reads immediately.
+  await page.click('#btnMore');
+  await page.getByText('✓ Live device file refresh (uses serial bandwidth)',{exact:true}).click();
+  await page.evaluate(()=>{__gets=[];});await page.waitForTimeout(3000);
+  assert.deepStrictEqual(await page.evaluate(()=>__gets),[],'disabled polling must stay silent');
   // All unsafe states must make polling a no-op.
   for(const state of ['run','pending','workflow','handoff','repl','unknown','dirty']){
    const got=await page.evaluate(async state=>{
@@ -83,6 +95,6 @@ const path=require('path'),assert=require('assert');
    await page.waitForFunction(()=>$('ta').value==='run');
   }
   assert.deepStrictEqual(errors,[]);
-  console.log('PASS file refresh: same-size/nested changes, timer, tab selection, run/error/stop, drafts, focus/caret, serial/reconnect/save/rename/close races and missing files');
+  console.log('PASS file refresh: same-size/nested changes, zero default polling, opt-in/off timer, tab selection, run/error/stop, drafts, focus/caret, serial/reconnect/save/rename/close races and missing files');
  } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1858,7 +1858,8 @@ const App = {
     } catch { /* Deleted/unreadable files retain their last editor copy. */ }
     finally { delete t.reloading; }
   },
-  async pollOpenFile() {
+  async pollOpenFile(periodic = false) {
+    if (periodic && !store.get("liveFileRefresh", false)) return;
     // Machine-mode reads let scheduled callbacks keep running. Never switch a
     // REPL/unknown connection to machine mode or interrupt a foreground script.
     if (document.hidden || !dev.connected || dev.running || dev.pending ||
@@ -2800,6 +2801,7 @@ const App = {
       { label: (store.get("saveAllCs", true) ? "✓ " : "") + "Save/upload all open C# files and compile", icon: "save", run: () => { store.set("saveAllCs", !store.get("saveAllCs", true)); toast("Project mode always builds the whole project. File mode: " + (store.get("saveAllCs", true) ? "save/upload all enabled" : "single-file saving enabled")); } },
       { label: (store.get("formatOnType", true) ? "✓ " : "") + "Automatic format while typing/pasting", icon: "code", run: () => store.set("formatOnType", !store.get("formatOnType", true)) },
       { label: (store.get("formatOnSave", true) ? "✓ " : "") + "Format C# on save", icon: "code", run: () => store.set("formatOnSave", !store.get("formatOnSave", true)) },
+      { label: (store.get("liveFileRefresh", false) ? "✓ " : "") + "Live device file refresh (uses serial bandwidth)", icon: "file", run: () => { const enabled = !store.get("liveFileRefresh", false); store.set("liveFileRefresh", enabled); toast(enabled ? "Live reads enabled every 2.5 seconds while idle. This uses device filesystem time and serial bandwidth." : "Live reads disabled. Files still refresh after runs and on demand."); } },
       { label: "Run selection / line", icon: "play", disabled: !t || !dev.connected, run: () => this.runCurrent(true) },
       { label: "Show running jobs", icon: "term", disabled: !dev.connected, run: () => { this.setTerminalVisible(true); this.setConsMode("shell"); $("cin").value = "jobs"; this.consoleSend(); } },
       { label: "Stop all jobs", icon: "stop", disabled: !dev.connected || dev.running, run: () => { this.setConsMode("shell"); $("cin").value = "cancel all"; this.consoleSend(); } },
@@ -2945,7 +2947,8 @@ const App = {
     this.setView(store.get("view", "text"));
     this.setTerminalVisible(!this.terminalHidden, false);
     this.restoreDrafts();
-    setInterval(() => this.pollOpenFile(), 2500);
+    // No recurring device traffic by default; live reads are explicitly opt-in.
+    setInterval(() => this.pollOpenFile(true), 2500);
     addEventListener("focus", () => this.pollOpenFile());
     term.line("MicroCS Studio — connect a board running MicroCS (USB). Output of scripts, jobs and the REPL appears here.", "sys");
   },

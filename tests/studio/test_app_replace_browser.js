@@ -71,7 +71,7 @@ proc.on('exit',(code,signal)=>{if(!closing)errors.push('runtime exited: '+code+'
  await page.evaluate(async()=>{
   const settings=App.tabs.find(t=>t.path==='/settings.json');App.activate(settings.id);
   await dev.op(()=>dev.cmd('exec File.WriteAllText("/settings.json", "{\\\"value\\\":3}");'));
-  window.__commands=[];
+  store.set('liveFileRefresh',true);window.__commands=[];
  });
  await page.waitForFunction(()=>$('ta').value==='{"value":3}');
  assert(!(await page.evaluate(()=>window.__commands)).some(c=>/^(newapp|cancel|run|exec)\b/.test(c)),'idle refresh is read-only');
