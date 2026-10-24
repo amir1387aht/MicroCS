@@ -4,6 +4,16 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Automatically replace the previous application on runtime file/Project Run.
+  Stop workers, jobs, GPIO/timer callbacks and encoders; release native objects,
+  old globals and bytecode before compiling the replacement in the same pool.
+  Preserve filesystem mounts/RAM files, uploaded scripts and console/baud.
+* Studio Run requests replacement before build checks when firmware advertises
+  Runtime.Replace. Save/Check stay non-destructive; REPL/selection and explicit
+  `run <file> shared` retain shared state. Legacy firmware gets an explicit warning.
+* Add unchanged-app 2,000-cycle real-U8g2 64 KiB rerun coverage without manual
+  script cleanup, plus native cleanup, RAM-file, OOM/retry and browser regressions.
+
 * Allow custom Studio UART baud rates with preset suggestions including 74880,
   19200 and 38400. Validate positive 32-bit integer rates before connecting, retain
   115200 as the default, and remember custom rates across reloads/reconnects.

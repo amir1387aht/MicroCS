@@ -121,9 +121,11 @@ output, so an application printing the same text remains visible.
 | `put <f> <len> [<win>]` | reply `\x04READY`, then send exactly `<len>` raw bytes; written to `<f>.part` and renamed, so an interrupted or over-quota upload leaves the old file intact. With `<win>` (flow control, used by Studio and `mcs_remote.py`): reply `\x04READY <w>` (`w` ≤ `MCS_SHELL_PUT_WINDOW`, 256), send `w` bytes, wait for `\x04MORE`, repeat; the last window is answered with the status. Consoles that lose bytes while the flash is busy (ESP32 USB-Serial-JTAG) then never overflow |
 | `get <f>` | `\x04DATA <len>`, raw bytes, `\x04OK` |
 | `rm`, `mkdir`, `mv` | file management |
-| `run <f>` | run a source or image file (NOEXEC mounts refused) |
+| `run <f>` | replace the previous application, then compile/run a source or image file (NOEXEC mounts refused) |
+| `run <f> shared` | deliberately execute in the current VM, retaining globals and peripherals |
+| `newapp` | unload application jobs, callbacks, native objects and globals; recreate only the VM, preserving files and the console (complete runtime only) |
 | `check <source.cs>` | compile source without executing it (requires compiler; NOEXEC mounts refused) |
-| `project <jobs.cfg>` | validate config and its absolute `.cs` job sources, then replace all jobs without rebooting (requires compiler and scheduler); empty configs rejected |
+| `project <jobs.cfg>` | replace the application, validate config and its absolute `.cs` job sources, then schedule only its jobs without rebooting (requires compiler and scheduler); empty configs rejected |
 | `exec <code>` | compile + run one line |
 | `jobs`, `every <ms> <f>`, `after <ms> <f>` | scheduler: list jobs (`<id> <state> every\|once <ms> runs=<n> <file or <delegate>>`), add file jobs |
 | `cancel <id>` / `cancel all` / `cancel scripts` / `cancel files` | cancel one job, every job, the delegate jobs scripts started, or the file jobs (`jobs.cfg`, `every`/`after`); bulk forms print `cancelled <n>` |
@@ -133,6 +135,38 @@ output, so an application printing the same text remains visible.
 | `quit` | close the session |
 
 A 0x03 byte (Ctrl-C) received while a script runs aborts it at the next safe point.
+
+### Application replacement versus compile checks
+
+With the complete runtime, a file `run`, REPL `.run`, or `project` is a new
+application, not another allocation on top of the previous one. The runtime
+stops/joins worker threads, releases scheduled jobs, disables owned GPIO IRQs and
+hardware timers, closes encoders and native objects, discards stale queued events,
+and frees the old VM before creating its replacement in the **same pool**.
+There is no board reboot, second heap, larger allocation ceiling or hidden malloc.
+
+Mounted filesystems (including RAM files), uploaded scripts, filesystem locks,
+console connection/baud and the configured HAL remain. Native `cfg.setup` bindings
+are registered again. Boot scripts and built-in app images are **not** rerun;
+script globals from them are not retained. Put required script initialization in
+an entrypoint/dependency, or use `run <f> shared` when deliberately retaining state.
+Ordinary REPL `exec` and Studio Run Selection remain shared-state operations.
+
+Studio Run uploads first, then sends `newapp` **before** compile-only validation,
+so old app state cannot exhaust the next build's workspace. Therefore a Run that
+fails compilation leaves the old app stopped. Save/build-only `check` does not
+unload anything and preserves the live application's callbacks/globals, even on
+compile failure. Its peak demand can still be higher while that app is retained.
+
+`caps` advertises `Runtime.Replace=1` only when the shell has a runtime replacement
+hook. Older firmware and bare VM/shell embeddings keep their old behavior; Studio
+warns rather than sending cleanup code with guessed global or peripheral names.
+Update the firmware as well as Studio for automatic replacement. A standalone
+embedding can supply `prepare_application`, or opt into `mcs_runtime_*`.
+
+If worker threads cannot stop within the shutdown timeout, replacement is refused
+without freeing memory they might still use. If new VM allocation/registration
+fails, the protocol stays alive: `newapp` can retry; no replacement script is run.
 
 ## 5. From the PC: `tools/mcs_remote.py`
 

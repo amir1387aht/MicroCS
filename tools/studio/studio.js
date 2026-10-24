@@ -2355,7 +2355,18 @@ const App = {
     }
     return result;
   },
-  async saveBuild(target = this.tab(), project = false) {
+  async prepareRun() {
+    if (this.capabilities?.get("Runtime.Replace") !== true) {
+      term.line("— legacy firmware: automatic app cleanup is unavailable; update firmware to release old timers, peripherals and globals on Run —", "warn");
+      return;
+    }
+    await this.stopForUpload();
+    const r = await dev.op(() => dev.cmd("newapp", { idle: 0 }));
+    if (r.status !== "OK") throw new Error("Cannot replace previous app: " + r.status.replace(/^ERR /, ""));
+    this.projectRunning = false;
+    term.line("— previous application unloaded; files and device connection preserved —", "sys");
+  },
+  async saveBuild(target = this.tab(), project = false, replaceApplication = false) {
     ed.stash();
     if (!dev.connected) {
       if (project || !target?.local) throw new Error("Connect a device before building/saving a project.");
@@ -2395,6 +2406,7 @@ const App = {
       paths.add(t.path);
     }
     const sources = project ? await this.projectScripts() : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
+    if (replaceApplication) await this.prepareRun();
     await this.checkScripts(sources, project);
     ed.stash();
     if (this.workflowCancelled) throw new Error("Save/build cancelled.");
@@ -2409,7 +2421,7 @@ const App = {
   async runFilePath(path) {
     if (!dev.connected) return;
     return this.workflow(async () => {
-      if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false))) return false;
+      if (!(await this.saveBuild(this.tabs.find(t => !t.local && t.path === path) || null, false, true))) return false;
       await this.runPath(path); return true;
     });
   },
@@ -2430,7 +2442,7 @@ const App = {
         await this.runPath(tmp, "selection", async () => { try { await dev.check("rm " + tmp); } catch {} });
         return true;
       }
-      if (!(await this.saveBuild(project ? null : t, project))) return false;
+      if (!(await this.saveBuild(project ? null : t, project, true))) return false;
       if (project) {
         await this.stopForUpload();
         const config = this.projectConfig();
@@ -2461,7 +2473,7 @@ const App = {
           } catch (e) { if (e instanceof TimeoutError) throw e; }
         }
         term.line(`▶ run ${label || path}`, "info");
-        const r = await dev.cmd("run " + path, { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
+        const r = await dev.cmd("run " + path + (label === "selection" ? " shared" : ""), { onOut: (b) => { const s = dec.decode(b, { stream: true }); tail = (tail + s).slice(-600); term.write(s); plot.feed(s); }, idle: 0 });
         if (after) await after();
         return r;
       });

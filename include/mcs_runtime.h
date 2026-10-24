@@ -57,7 +57,7 @@ typedef struct {
     const uint8_t* app_image;
     size_t app_image_len;
     bool run_boot_scripts;      /* /boot.cs, /jobs.cfg, /main.cs from the filesystem */
-    /* your own C# bindings: called once after the VM and modules are ready */
+    /* your own C# bindings: called after VM creation, including application replacement */
     void (*setup)(mcs_vm_t* vm, void* ud);
     /* called every loop iteration: feed a watchdog, yield to the RTOS ... */
     void (*idle)(void* ud);
@@ -102,6 +102,12 @@ bool mcs_runtime_step(mcs_runtime_t* rt, uint32_t timeout_ms);
 /* start + step forever (until the console closes) + stop. */
 int mcs_runtime_run(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg);
 void mcs_runtime_stop(mcs_runtime_t* rt);
+/* Explicit replacement: stop/join workers, release jobs/callbacks/native objects
+ * and recreate the VM in the SAME pool. Preserve mounted files (including RAM
+ * files), transport, baud and board configuration. Does not run boot scripts.
+ * Call only between executions on the owning thread. 0 = ready; -2 = workers
+ * did not stop (old VM retained); -1 = unavailable/OOM (newapp can retry). */
+int mcs_runtime_reset_application(mcs_runtime_t* rt);
 
 #ifdef __cplusplus
 }

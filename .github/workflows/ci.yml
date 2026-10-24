@@ -120,6 +120,10 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("/tmp/studio-project-test.log").read_text()[-6000:]; print("::error title=Studio Project failure::" + s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))'
           fi
           exit "$result"
+      - name: Automatic app replacement through the complete runtime
+        run: |
+          make build/test_app_replace
+          CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_app_replace_browser.js
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: Explorer tree and legacy firmware compatibility
@@ -131,7 +135,7 @@ jobs:
           python3 -m pip install kconfiglib==14.1.0
           python3 tests/test_esp_config.py
       - name: Capability-aware template metadata and filtering
-        run: node tests/studio/test_capabilities.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && python3 tests/test_template_metadata.py
+        run: node tests/studio/test_capabilities.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && python3 tests/test_template_metadata.py
       - name: Script input echo ownership (machine protocol and raw REPL)
         run: python3 tests/test_readline_echo.py ./mcs
       - name: C# interpolated / verbatim string highlighting
