@@ -239,3 +239,25 @@ folders / 32 levels. Rename/move updates descendant tab paths and expanded branc
 Identifier highlighting is lexical rather than a full semantic compiler: declared fields,
 locals and parameters keep a consistent color irrespective of name casing or `this.` access.
 User-declared types, methods, keywords, literals and comments retain distinct classifications.
+
+### Files changed by scripts
+
+Clean device tabs reload after a run or Explorer Refresh, even for same-size
+changes and files in collapsed folders. Selecting a tab or returning focus to
+Studio checks the visible file when the connection is idle in machine mode.
+
+**Periodic device polling is off by default.** There are no recurring filesystem
+reads or serial transfers for this feature unless you enable **⋯ → Live device
+file refresh (uses serial bandwidth)**. The optional mode checks only the visible
+clean tab every 2.5 seconds while idle. File reads still use MCU filesystem time
+and serial bandwidth; this is not a zero-cost real-time filesystem watcher.
+Turning the option off prevents future periodic reads (an already-started read
+may finish). The preference is saved in the browser, not in firmware.
+
+Checks do not interrupt foreground scripts, active transfers, or the REPL.
+While a foreground script owns the connection, its changes become visible after
+it finishes/stops. Unsaved edits and local computer files are never overwritten;
+unreadable/deleted device files keep their last editor copy. Automatic updates
+retain the editor selection and scroll without moving keyboard focus. This fix
+changes no MCU/runtime code, timers, scheduling, or firmware configuration. The
+bounded post-run/on-demand file reads still have a transport/filesystem cost.
