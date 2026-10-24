@@ -1790,7 +1790,7 @@ const App = {
     this.entries = dirs.get(this.cwd) || [];
     this.renderFiles();
     this.refreshStorage();
-    this.syncOpenTabs(!quiet);
+    await this.syncOpenTabs();
   },
   async toggleFolder(path) {
     this.treeInit();
@@ -1812,31 +1812,59 @@ const App = {
     rows.forEach(r => r.tabIndex = r === selected ? 0 : -1);
     selected?.focus();
   },
-  /* re-read open, unmodified device files that changed on the device (a script wrote them);
-   * all = the user pressed Refresh: re-read them even if the size is the same */
-  async syncOpenTabs(all) {
+  /* Size is not a change token: settings often change without changing length.
+   * Read every clean device tab, even in collapsed/unselected directories. */
+  async syncOpenTabs() {
     for (const t of this.tabs.slice()) {
-      if (!t.path || t.local || t.dirty || dirName(t.path) !== this.cwd) continue;
-      const e = this.entries.find((x) => !x.dir && x.name === baseName(t.path));
-      if (!e) continue;
-      const size = t.binary ? t.binary.length : enc.encode(t.saved ?? "").length;
-      if (!all && e.size === size) continue;
+      if (!dev.connected || dev.running) return;
+      if (!t.path || t.local || t.dirty) continue;
       await this.reloadTab(t);
     }
   },
-  async reloadTab(t) {
-    let data;
-    try { data = await dev.op(() => dev.get(t.path)); } catch { return; }
-    if (!this.tabs.includes(t) || t.dirty) return;
-    if (t === this.tab()) ed.stash();
-    if (t.dirty) return;
-    if (isText(data)) {
-      const text = new TextDecoder().decode(data);
-      if (!t.binary && text === t.saved) return;
-      Object.assign(t, { text, saved: text, binary: null, readOnly: false });
-    } else Object.assign(t, { binary: data, text: "", saved: "", readOnly: true });
-    if (t === this.tab()) { ed.tab = null; this.activate(t.id); }   // show it without stashing the old text back
-    else this.renderTabs();
+  async reloadTab(t, idle = false) {
+    if (!dev.connected || dev.running || !t.path || t.local || t.dirty || t.reloading) return;
+    const epoch = dev.epoch, path = t.path, saved = t.saved;
+    const idleSafe = () => !dev.running && !this.workflowBusy && !this.workflowHandoff && dev.mode === "machine";
+    t.reloading = true;
+    try {
+      const data = await dev.op(() => {
+        // Recheck once we own the serial queue: never interrupt a new run/REPL.
+        if (epoch !== dev.epoch || t.path !== path || dev.running || (idle && !idleSafe())) return null;
+        return dev.get(path);
+      });
+      if (!data || !dev.connected || epoch !== dev.epoch || t.path !== path ||
+          !this.tabs.includes(t) || t.saved !== saved) return;
+      if (t === this.tab()) ed.stash();
+      // Input may have arrived during the download. Do not overwrite drafts,
+      // even if a caller has not recomputed the dirty flag yet.
+      if (t.dirty || (!t.binary && t.text !== saved)) return;
+      if (isText(data)) {
+        const text = new TextDecoder().decode(data);
+        if (!t.binary && text === t.saved) return;
+        Object.assign(t, { text, saved: text, binary: null, readOnly: false });
+      } else Object.assign(t, { binary: data, text: "", saved: "", readOnly: true });
+      if (t === this.tab()) {
+        // Updating a visible file must not steal focus from the console/dialog,
+        // reset its caret/scroll, or stash the old editor text over the new copy.
+        $("hex").style.display = t.binary ? "block" : "none";
+        if (t.binary) $("hex").innerHTML = this.hexDump(t.binary, t.path);
+        ed.ta.value = t.text; ed.ta.readOnly = !!t.readOnly;
+        ed.refresh(true);
+        ed.ta.setSelectionRange(Math.min(t.sel?.[0] || 0, t.text.length), Math.min(t.sel?.[1] || 0, t.text.length));
+        ed.ta.scrollTop = t.scroll?.[0] || 0; ed.ta.scrollLeft = t.scroll?.[1] || 0;
+        ed.syncScroll();
+      }
+      this.renderTabs();
+    } catch { /* Deleted/unreadable files retain their last editor copy. */ }
+    finally { delete t.reloading; }
+  },
+  async pollOpenFile() {
+    // Machine-mode reads let scheduled callbacks keep running. Never switch a
+    // REPL/unknown connection to machine mode or interrupt a foreground script.
+    if (document.hidden || !dev.connected || dev.running || dev.pending ||
+        this.workflowBusy || this.workflowHandoff || dev.mode !== "machine") return;
+    const t = this.tab();
+    if (t) await this.reloadTab(t, true);
   },
   async refreshStorage() {
     try {
@@ -2197,7 +2225,7 @@ const App = {
       const nm = t.path ? baseName(t.path) : t.name || "untitled";
       d.title = (t.path || nm) + (t.local ? " (on this computer)" : "");
       d.innerHTML = `<span class="ficon ${t.binary ? "img" : "cs"}">${icon(t.binary ? "chip" : "code")}</span><span class="tname">${esc(nm)}</span><button class="x" title="Close">${icon("x")}</button>`;
-      d.onclick = (e) => { if (e.target.closest(".x")) this.closeTab(t.id); else this.activate(t.id); };
+      d.onclick = (e) => { if (e.target.closest(".x")) this.closeTab(t.id); else { this.activate(t.id); this.pollOpenFile(); } };
       d.onauxclick = (e) => { if (e.button === 1) this.closeTab(t.id); };
       tl.appendChild(d);
     }
@@ -2490,7 +2518,7 @@ const App = {
       const tab = this.tab();
       if (m && tab && (tab.path === path || label === "selection")) ed.setError(label === "selection" ? 0 : +m[1]);
     }
-    this.refresh(true);
+    await this.refresh(true);
   },
   async stop() {
     this.workflowCancelled = true;
@@ -2530,7 +2558,7 @@ const App = {
         if (r.status.startsWith("ERR")) term.line(r.status.slice(4), "err");
         if (/^(rm|mv|mkdir|put)\b/.test(text)) this.refresh(true);
       } catch (e) { term.line(e.message, "err"); }
-      finally { await this.refreshMemory(); }
+      finally { await this.syncOpenTabs(); await this.refreshMemory(); }
       return;
     }
     const lines = text.split("\n");
@@ -2917,6 +2945,8 @@ const App = {
     this.setView(store.get("view", "text"));
     this.setTerminalVisible(!this.terminalHidden, false);
     this.restoreDrafts();
+    setInterval(() => this.pollOpenFile(), 2500);
+    addEventListener("focus", () => this.pollOpenFile());
     term.line("MicroCS Studio — connect a board running MicroCS (USB). Output of scripts, jobs and the REPL appears here.", "sys");
   },
 };

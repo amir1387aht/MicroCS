@@ -4,6 +4,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Refresh clean Studio device tabs after runs and explorer refreshes, including
+  same-size changes and files outside the selected folder. Check the visible
+  file while idle in machine mode without overwriting unsaved edits, stealing
+  focus, or interrupting foreground scripts and the REPL.
+
 * Extend the existing dependency-free JSON engine with `TryParse`, computed and
   inherited instance getters, mixed nested collections, explicit cycle detection
   and optional inclusion of underscore-prefixed members.

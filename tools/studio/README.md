@@ -240,3 +240,15 @@ folders / 32 levels. Rename/move updates descendant tab paths and expanded branc
 Identifier highlighting is lexical rather than a full semantic compiler: declared fields,
 locals and parameters keep a consistent color irrespective of name casing or `this.` access.
 User-declared types, methods, keywords, literals and comments retain distinct classifications.
+
+### Files changed by scripts
+
+Clean device tabs reload after a run or Explorer Refresh, even for same-size
+changes and files in collapsed folders. The visible tab is also checked every
+2.5 seconds while the connection is idle in machine mode, and when selected or
+Studio regains focus. Checks do not interrupt foreground scripts, active
+transfers, or the REPL. While a foreground script owns the connection, its file
+changes become visible after it finishes/stops. Unsaved edits and local computer
+files are never overwritten; unreadable/deleted device files keep their last
+editor copy. Automatic updates retain the editor selection and scroll without
+moving keyboard focus.

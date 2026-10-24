@@ -55,8 +55,28 @@ proc.on('exit',(code,signal)=>{if(!closing)errors.push('runtime exited: '+code+'
  const selection=await page.evaluate(()=>window.__commands);
  assert(!selection.includes('newapp'));
  assert(selection.includes('run /.studio_run.cs shared'));
+ // A script writes an already-open settings file without changing its size.
+ await page.evaluate(async()=>{
+  const scratch=App.tab();scratch.dirty=false;await App.closeTab(scratch.id);
+  await dev.op(()=>dev.put('/settings.json',enc.encode('{"value":1}')));
+  await App.openPath('/settings.json');
+  const app=App.tabs.find(t=>t.path==='/app.cs');App.activate(app.id);
+  ed.ta.value='File.WriteAllText("/settings.json", "{\\\"value\\\":2}");';ed.refresh();ed.onChange();
+ });
+ assert.strictEqual(await page.evaluate(()=>App.runCurrent(false,true)),true);
+ assert.strictEqual(fs.readFileSync(root+'/settings.json','utf8'),'{"value":2}');
+ assert.strictEqual(await page.evaluate(()=>App.tabs.find(t=>t.path==='/settings.json').text),'{"value":2}');
+ // Writes outside the toolbar Run path also update the visible file. The idle
+ // check uses get only; it must not unload the app or cancel callbacks.
+ await page.evaluate(async()=>{
+  const settings=App.tabs.find(t=>t.path==='/settings.json');App.activate(settings.id);
+  await dev.op(()=>dev.cmd('exec File.WriteAllText("/settings.json", "{\\\"value\\\":3}");'));
+  window.__commands=[];
+ });
+ await page.waitForFunction(()=>$('ta').value==='{"value":3}');
+ assert(!(await page.evaluate(()=>window.__commands)).some(c=>/^(newapp|cancel|run|exec)\b/.test(c)),'idle refresh is read-only');
  assert.deepStrictEqual(errors,[]);
- console.log('PASS real-runtime browser: 10 F5 reruns release encoder/timer, unload precedes check, files persist, Save preserves globals');
+ console.log('PASS real-runtime browser: 10 F5 reruns release encoder/timer, unload precedes check, files persist, Save preserves globals, same-size script writes and idle open-file refresh');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
  // Closing Chromium first stops pending Web Serial writes before the process exits.
  closing=true;
