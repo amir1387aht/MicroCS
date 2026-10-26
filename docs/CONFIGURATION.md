@@ -159,3 +159,14 @@ changed per VM — see [Embedding](EMBEDDING.md#1-create-a-vm).
   generated profile header, `-Werror`.
 - In your own build, a `#if`/`#error` against the option in any source file shows what the
   compiler sees, e.g. `#if MCS_ENABLE_COMPILER` … `#error "compiler on"`.
+
+## Filesystem streaming feature
+
+`MCS_ENABLE_FILE_STREAMS` follows `MCS_ENABLE_FS` by default. Set it to `0` to omit
+`FileStream`, stream-opening `File` helpers and the related native backend callbacks
+on flash-constrained builds; existing whole-file `File` APIs remain available.
+ESP-IDF exposes **MicroCS > FileStream** (`CONFIG_MICROCS_FILE_STREAMS`); ordinary
+CMake exposes `MICROCS_FILE_STREAMS` (default `ON`). This adds no background work.
+Use `Hal.Has("Filesystem.Streams")` before relying on it in a portable script.
+See [chunked filesystem I/O](FILESYSTEM.md#chunked-io-filestream) for API limits,
+backend capabilities and a reusable 50-byte buffer example.

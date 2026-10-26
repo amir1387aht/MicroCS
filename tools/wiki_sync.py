@@ -16,6 +16,7 @@ import argparse
 import os
 import re
 import sys
+import subprocess
 import unicodedata
 from urllib.parse import unquote
 
@@ -46,6 +47,8 @@ SECTIONS = [
         ("docs/HAL.md", "Hardware-API"),
         ("docs/POWER.md", "Power-Management"),
         ("docs/BLE.md", "Bluetooth-LE"),
+        ("docs/CAN.md", "CAN-Bus"),
+        ("docs/ENCODER.md", "Rotary-Encoders"),
         ("docs/PERIPHERALS.md", "Peripheral-Configuration"),
         ("docs/DMA.md", "DMA"),
         ("docs/DRIVERS.md", "Device-Drivers"),
@@ -63,7 +66,6 @@ SECTIONS = [
         ("ports/stm32/firmware/README.md", "Port-STM32-Firmware"),
         ("ports/zephyr/README.md", "Port-Zephyr"),
         ("ports/arduino/README.md", "Port-Arduino"),
-        ("ports/template/README.md", "Port-Template"),
     ]),
     ("C# and the runtime", [
         ("docs/LANGUAGE.md", "Language"),
@@ -71,23 +73,32 @@ SECTIONS = [
         ("docs/JSON.md", "JSON"),
         ("docs/STANDALONE.md", "Standalone-Firmware"),
         ("tools/studio/README.md", "MicroCS-Studio"),
+        ("tools/studio/templates/README.md", "Studio-Template-Authoring"),
         ("examples/README.md", "Examples"),
     ]),
     ("Embedding and tuning", [
         ("docs/EMBEDDING.md", "Embedding"),
         ("docs/CONFIGURATION.md", "Configuration"),
         ("docs/LOW_RESOURCE.md", "Small-MCUs"),
+        ("docs/MEMORY.md", "Memory-Budgets"),
+        ("examples/lowram/README.md", "Low-RAM-Firmware-Example"),
         ("docs/PERFORMANCE.md", "Performance"),
+        ("bench/compare/README.md", "Runtime-Benchmark-Comparison"),
     ]),
     ("Internals", [
         ("docs/ARCHITECTURE.md", "Architecture"),
         ("docs/BYTECODE.md", "Bytecode"),
         ("docs/SECURITY.md", "Security"),
         ("docs/TESTING.md", "Testing"),
+        ("tests/projects/oled_repeat/README.md", "Repeat-Upload-OLED-Regression"),
     ]),
     ("Project", [
         ("CHANGELOG.md", "Changelog"),
         ("CONTRIBUTING.md", "Contributing"),
+        ("CODE_OF_CONDUCT.md", "Code-of-Conduct"),
+        ("SECURITY.md", "Security-Policy"),
+        (".github/PULL_REQUEST_TEMPLATE.md", "Pull-Request-Template"),
+        ("docs/WIKI.md", "Wiki-Publishing"),
     ]),
 ]
 
@@ -96,12 +107,48 @@ FENCE = re.compile(r"^\s*(```|~~~)")
 
 
 def pages():
-    out = []
-    for title, items in SECTIONS:
-        for src, name in items:
-            if os.path.exists(os.path.join(ROOT, src)):
-                out.append((title, src, name))
-    return out
+    return [(title, src, name) for title, items in SECTIONS for src, name in items]
+
+
+def documentation_sources():
+    """Inventory tracked/new non-ignored Markdown; ignore downloaded build trees."""
+    try:
+        top = subprocess.check_output(
+            ["git", "-C", ROOT, "rev-parse", "--show-toplevel"],
+            stderr=subprocess.DEVNULL, text=True).strip()
+        if os.path.realpath(top) == os.path.realpath(ROOT):
+            raw = subprocess.check_output(
+                ["git", "-C", ROOT, "ls-files", "-z", "--cached", "--others",
+                 "--exclude-standard", "--", "*.md"])
+            return {os.fsdecode(p) for p in raw.split(b"\0") if p}
+    except (OSError, subprocess.CalledProcessError):
+        pass
+    # Source archives have no .git. Keep generation usable there too.
+    found = set()
+    skip = {".git", "build", "dist", "node_modules", ".venv", "__pycache__"}
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in skip]
+        for name in files:
+            if name.endswith(".md"):
+                found.add(os.path.relpath(os.path.join(base, name), ROOT).replace(os.sep, "/"))
+    return found
+
+
+def inventory_errors(plist, sources):
+    """Fail CI instead of silently omitting a new document or a missing mapping."""
+    errors, seen_src, seen_name = [], set(), {"home", "_sidebar", "_footer"}
+    for _, src, name in plist:
+        if src in seen_src:
+            errors.append("duplicate source mapping: " + src)
+        if name.casefold() in seen_name:
+            errors.append("duplicate/reserved wiki page name: " + name)
+        seen_src.add(src)
+        seen_name.add(name.casefold())
+        if not os.path.isfile(os.path.join(ROOT, src)):
+            errors.append("mapped documentation file is missing: " + src)
+    for src in sorted(sources - seen_src):
+        errors.append("documentation is missing from SECTIONS: " + src)
+    return errors
 
 
 def slug(heading):
@@ -187,6 +234,9 @@ def home(plist):
            "nRF / Zephyr boards, Arduino and the PC.", "",
            "**New here?** Pick the guide for your board below - each one goes from an empty folder to running C# "
            "on the chip, step by step. The reference pages explain every option.", ""]
+    if BRANCH != "main":
+        out += ["> **Development preview:** these docs come from `%s`, not `main`. "
+                "Unmerged APIs may require preview firmware." % BRANCH, ""]
     for title, items in SECTIONS:
         rows = [(src, name) for (src, name) in items if any(p[1] == src for p in plist)]
         if not rows:
@@ -233,7 +283,12 @@ def main():
     a = ap.parse_args()
     plist = pages()
     page_of = {src: name for (_, src, name) in plist}
-    errors, cache, result = [], {}, {}
+    errors = inventory_errors(plist, documentation_sources())
+    if errors:
+        for error in errors:
+            print("wiki:", error, file=sys.stderr)
+        return 1
+    cache, result = {}, {}
     ver = version()
     for _, src, name in plist:
         with open(os.path.join(ROOT, src), encoding="utf-8") as f:
@@ -247,10 +302,17 @@ def main():
         result[name + ".md"] = body.rstrip("\n") + "\n"
     result["Home.md"] = home(plist)
     result["_Sidebar.md"] = sidebar(plist)
-    result["_Footer.md"] = ("Generated from the [MicroCS repository](https://github.com/%s) - "
-                            "edit the files there, not in the wiki.\n" % REPO)
+    revision = os.environ.get("MICROCS_WIKI_REVISION", "")
+    source = "[source branch](https://github.com/%s/tree/%s)" % (REPO, BRANCH)
+    if re.fullmatch(r"[0-9a-fA-F]{40}", revision):
+        source += " · [revision %s](https://github.com/%s/commit/%s)" % (revision[:7], REPO, revision)
+    result["_Footer.md"] = ("Generated from the MicroCS repository (%s). "
+                            "Edit the source files, not the wiki.\n" % source)
     for e in errors:
         print("wiki:", e, file=sys.stderr)
+    if errors:
+        print("wiki: %d problem(s)" % len(errors), file=sys.stderr)
+        return 1
     if a.out:
         os.makedirs(a.out, exist_ok=True)
         keep = set(result)
@@ -263,9 +325,6 @@ def main():
         print("wiki: %d pages -> %s" % (len(result), a.out))
     elif not a.check:
         ap.error("give --out DIR or --check")
-    if errors:
-        print("wiki: %d problem(s)" % len(errors), file=sys.stderr)
-        return 1
     if a.check:
         print("wiki: %d pages, links OK" % len(result))
     return 0

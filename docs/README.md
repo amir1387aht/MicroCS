@@ -8,6 +8,8 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 🧭 | [Step-by-step guides](guides/README.md) | from nothing to C# on your board: PC, ESP32, ESP32-C3 + OLED, Raspberry Pi Pico, STM32, Arduino, Zephyr |
 | 🚀 | [Getting started](GETTING_STARTED.md) | build, first script, simulator, REPL, precompiling, embedding — in 10 minutes |
 | 🔌 | [Hardware API](HAL.md) | GPIO, UART, I²C, SPI, ADC, DAC, PWM, timers, I²S, QSPI, CAN, watchdog, RTC; interrupts; writing a board table |
+| 🎚️ | [Rotary encoders](ENCODER.md) | hardware-first PCNT / TIM / PIO counting, GPIO fallback, wiring, button handling and backend capabilities |
+| 🚍 | [CAN bus](CAN.md) | classic CAN, native controllers and MCP2515, wiring, capabilities and per-port setup |
 | 💤 | [Power management](POWER.md) | cooperative sleep, wake-input selection, light/deep sleep, shutdown; per-port capabilities and Studio/recovery precautions |
 | 🎛️ | [Peripheral configuration](PERIPHERALS.md) | `GpioConfig`, `SpiConfig`, `UartConfig` …: pins, pulls, drive strength, filters, board options; what each board supports; implementing it in a port |
 | ⚡ | [DMA](DMA.md) | `DmaBuffer`, `SPI.WriteAsync` & co., `DmaTransfer`, memory DMA; ordering and lifetime rules; per-board support; implementing it in a port |
@@ -22,10 +24,11 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 🧩 | [Language](LANGUAGE.md) | the supported C# subset, feature by feature, and every known difference from .NET |
 | 📄 | [JSON](JSON.md) | Parse/serialize nested data, fields and computed properties, `TryParse`, HTTP JSON APIs, memory and precision limits |
 | 📚 | [Standard library](STDLIB.md) | generated reference of every class and member a script can call |
-| 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / TinyFS / LittleFS / YAFFS2 backends, flash ports, `File` / `Directory` / `Path` |
+| 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / TinyFS / LittleFS / YAFFS2 backends, flash ports, `File` / `Directory` / `Path`, bounded-memory `FileStream` byte reads/writes and seeking |
 | ⏱️ | [Scheduler](SCHEDULER.md) | startup / once / periodic jobs, `jobs.cfg` |
 | 🧵 | [Threads](THREADS.md) | optional real OS threads: FreeRTOS / Zephyr / POSIX, second core, `Channel` |
 | 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, GC tuning, measured results |
+| 🧮 | [Memory budgets](MEMORY.md) | VM vs device heap counters, reserves, application replacement and reproducible low-RAM tests |
 | 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
 | 🏗️ | [Architecture](ARCHITECTURE.md) | pipeline, VM, GC, modules, invariants for contributors |
 | 🧱 | [Bytecode](BYTECODE.md) | `.mcsb` image format, loader validation, full instruction set |
@@ -34,9 +37,19 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 
 Port guides: [STM32](../ports/stm32/README.md) · [ESP32](../ports/esp32/README.md) ·
 [RP2040/RP2350](../ports/rp2/README.md) · [Zephyr](../ports/zephyr/README.md) ·
-[Arduino](../ports/arduino/README.md) · examples: [examples/](../examples/README.md)
+[Arduino](../ports/arduino/README.md) · [STM32 firmware](../ports/stm32/firmware/README.md)
+
+Tools and examples: [Studio](../tools/studio/README.md) ·
+[Template authoring](../tools/studio/templates/README.md) ·
+[Examples](../examples/README.md) · [Low-RAM firmware](../examples/lowram/README.md) ·
+[Runtime benchmark comparison](../bench/compare/README.md) ·
+[Repeat-upload OLED regression](../tests/projects/oled_repeat/README.md)
 
 The same pages are on the [wiki](https://github.com/amir1387aht/MicroCS/wiki) (published from
-this folder on every push to `main` by `tools/wiki_sync.py`; edit them here).
+the repository on every documentation push to `main` by `tools/wiki_sync.py`;
+edit the source files, not generated wiki pages). See [wiki publishing](WIKI.md)
+for the full coverage check, preview generation and publishing workflow.
 
-Project history: [CHANGELOG](../CHANGELOG.md) · [Contributing](../CONTRIBUTING.md)
+Project: [Changelog](../CHANGELOG.md) · [Contributing](../CONTRIBUTING.md) ·
+[Code of conduct](../CODE_OF_CONDUCT.md) · [Security policy](../SECURITY.md) ·
+[Pull request checklist](../.github/PULL_REQUEST_TEMPLATE.md)

@@ -218,14 +218,19 @@ snapshot. See [memory budgets](../../docs/MEMORY.md) for scope, exclusions and t
 
 ## Older firmware and template compatibility
 
-All templates and categories stay visible, online and offline. Each template shows
-**Requirements supported**, **Support unknown**, **Not supported**, or **Not checked**.
-The preview lists exact missing/unreported requirements and any declared minimum firmware.
-A missing legacy report is unknown, not proof that hardware exists. The old compiler feature
-bit can establish source compilation support; HAL/network bits do not establish individual
-peripherals. Templates can always be opened/copied for adaptation; that does not execute them.
-Support checks cannot prove that external sensors are attached or that every custom API matches.
-Optional `min firmware: major.minor.patch` metadata belongs before a template's description.
+The gallery defaults to **Supported only**, remembered locally. On a connected board,
+only examples whose exact requirements and minimum firmware are confirmed are shown;
+unsupported examples and unknown legacy requirements are hidden. Turn the toggle off
+to browse every category and copy/open examples for adaptation. Offline, all examples
+remain visible and are marked **Not checked**. Adding a template does not run it.
+
+Each preview shows **Requirements supported**, **Support unknown**, **Not supported**,
+or **Not checked**, and lists exact missing/unreported requirements and any declared
+minimum firmware. A missing legacy report is unknown, not proof that hardware exists.
+The old compiler feature bit can establish source compilation support; HAL/network bits
+do not establish individual peripherals. Checks cannot prove that external sensors are
+attached or that every custom API matches. Optional `min firmware: major.minor.patch`
+metadata belongs before a template's description. See the [template authoring guide](templates/README.md).
 
 ## Device Explorer tree
 
@@ -284,9 +289,3 @@ Test a supported higher rate on the actual board/cable. USB serial implementatio
 may not use the UART baud setting for physical throughput. Do not disable upload
 flow control or enlarge firmware buffers blindly on a low-RAM board. These Studio
 changes require no firmware update and add no polling or application-runtime work.
-
-The template gallery defaults to **Supported only** (saved locally). On a connected
-board it shows only examples whose exact firmware capabilities and minimum version
-are confirmed; Wi-Fi being absent hides Wi-Fi examples. Unknown legacy requirements
-are not guessed. Turn the toggle off to browse/adapt every example, including unknown
-or unsupported ones. Offline browsing always shows all examples, marked not checked.

@@ -229,6 +229,7 @@ check: test docs-check
 # Documentation: every relative link and #anchor resolves (the same pages go to the wiki),
 # and the Studio template bundle matches tools/studio/templates/
 docs-check:
+	python3 tests/test_wiki_sync.py
 	python3 tools/wiki_sync.py --check
 	python3 tools/studio/gen_templates.py --check
 # MicroCS Studio's template gallery: tools/studio/templates/<nn-category>/ -> tools/studio/templates.js

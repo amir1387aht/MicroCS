@@ -320,6 +320,30 @@ than requested. Process only that many entries. Offsets/counts address the
 **buffer**; `Seek` / `Position` address the **file**. These are byte offsets, not
 Unicode character positions; a block can split a UTF-8 character.
 
+To choose a **1-based block number**, calculate `(blockNumber - 1) * blockSize`:
+block 1 starts at byte 0, block 2 at 50, block 3 at 100. For example, inside the
+open stream's `try` block above:
+
+```csharp
+int blockNumber = 3;
+int blockSize = 50;
+if (blockNumber < 1)
+    throw new ArgumentException("Block numbers start at 1");
+file.Seek((blockNumber - 1) * blockSize, SeekOrigin.Begin);
+int used = 0;
+while (used < buffer.Length)
+{
+    int n = file.Read(buffer, used, buffer.Length - used);
+    if (n == 0) break;
+    used += n;
+}
+// Only buffer[0..used-1] belongs to this block; used == 0 means EOF.
+```
+
+The loop handles short reads without skipping part of a block. Validate large
+block numbers against the signed 32-bit position limit before multiplication.
+Reading successive blocks needs no Seek: the stream advances automatically.
+
 * `new FileStream(path, FileMode[, FileAccess])` and `File.Open(path, mode[, access])`.
 * `File.OpenRead(path)`: open existing, read only.
 * `File.OpenWrite(path)`: open or create, write only, starts at byte 0, **does not
@@ -382,4 +406,5 @@ includes a little metadata overhead. A RAM filesystem without a quota reports 2 
 Errors map to .NET types and messages: FileNotFoundException,
 DirectoryNotFoundException, UnauthorizedAccessException, IOException,
 DriveNotFoundException.
-There are no streams (`FileStream`) yet — whole-file operations only (planned).
+For bounded-memory byte-range access, use [FileStream](#chunked-io-filestream).
+Whole-file helpers above still allocate the complete result in the VM pool.

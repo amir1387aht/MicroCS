@@ -7,19 +7,22 @@ number or "supported" claim in the docs points at a test or a measurement.
 
 | Command | What it runs | Needs |
 |---|---|---|
-| `make test` | 79 script runs (25 programs as **source**, as a copied **bytecode image** and as an image **executed in place**, plus 4 diagnostics tests), 180 C unit checks (incl. `test_runtime`), 20 thread checks, 25 network checks (`tests/test_net.py`), 42 flash-driver checks (`test_flash`: SPI NOR/NAND drivers on simulated chips), 16 shell-protocol checks, the project config header (`test_config`: `mcs_user_config.h` found on the include path, named with `MCS_USER_CONFIG_FILE`, forced with `MCS_USER_CONFIG=1`, skipped with `=0`; precedence `-D` > header > profile), the examples (`tour.cs` byte-exact, every `examples/hardware/*.cs` script on the simulator, `examples/quickstart_embed.c`, `examples/lowram` built with the lowram profile from its `mcs_user_config.h`) | C compiler, python3 |
-| `make check` | `make test` + GC-stress build (collect at every safepoint) running every `t*.cs` + 38 feature-flag / profile / config-header builds with `-Werror` (every profile by `MCS_PROFILE`, the legacy `MCS_USER_CONFIG_FILE` form, `MCS_DEFAULT_PROFILE`, the unmodified `config/mcs_user_config.h` template) + the whole script suite under 8 alternative configurations (`ALT_CONFIGS`: compact values, no XIP, big tables, no computed goto / field cache, tiny GC threshold + 16-byte pool alignment, eager classes, eager registrations, built-in tiny printf) | same |
-| `make lfs-test` | LittleFS backend on a RAM block device and on simulated SPI NOR / SPI NAND chips (bad blocks): mount, remount, ENOSPC, atomic upload, churn | curl (downloads littlefs 2.9.3) |
-| `make yaffs-test` | YAFFS2 backend on simulated SPI NAND (in-band and spare tags, a block wearing out) and SPI NOR | curl (downloads a pinned yaffs2 revision, GPLv2 - test binary only) |
+| `make test` | Script fixtures as source, copied bytecode and XIP; native module/runtime, file stream, shell/network, simulated hardware, configuration, example and low-RAM regressions. The runner prints the current check totals; see the Makefile for the exact target list. | C compiler, python3 |
+| `make check` | `make test`, GC-stress scripts, strict feature-flag/profile/configuration builds and the full script suite under `ALT_CONFIGS`. Counts evolve with the suite; `FLAG_SETS` and `ALT_CONFIGS` in the Makefile are authoritative. | same |
+| `make lfs-test` | LittleFS backend on a RAM block device and on simulated SPI NOR / SPI NAND chips (bad blocks): mount, remount, ENOSPC, atomic upload, churn and FileStream reads/writes/seeks | curl (downloads littlefs 2.9.3) |
+| `make yaffs-test` | YAFFS2 backend on simulated SPI NAND (in-band and spare tags, a block wearing out) and SPI NOR, including FileStream operations | curl (downloads a pinned yaffs2 revision, GPLv2 - test binary only) |
 | `make cm-check` | builds 8 Cortex-M firmwares and executes 7 of them instruction by instruction (`m0-runtime`, `m0-lowram`, `m0-node`, `m0-16k` = 16 KB RAM, `m0-64k` = min profile in 64 KB flash / 16 KB RAM, `m4-full`, `m33-full`; output must equal the host byte-for-byte), 7 UART protocol checks on the M33 shell build | `arm-none-eabi-gcc`, `pip3 install unicorn` |
 | `tools/check_ports.sh stm32 <family> <device> <cpu>` | compiles the STM32 port and its example with `-Werror` against the official STM32Cube HAL headers (downloaded into `build/sdk`) | `arm-none-eabi-gcc`, git |
-| CI `pico` job | builds `ports/rp2/example` for `pico` (RP2040) and `pico2` (RP2350) with the pico-sdk | — |
-| CI `esp-idf` job | builds `ports/esp32/example` (Wi-Fi and networking included) for ESP32, ESP32-S3, ESP32-C2, ESP32-C3, ESP32-C6 in the `espressif/idf:v5.3.2` container | — |
+| CI `pico` job | Pico/Pico 2 and configured RP2040 board variants, filesystem choices, FreeRTOS SMP, U8g2 and Pico W/Pico 2 W Wi-Fi/BLE builds; see the workflow matrix for exact combinations. | pico-sdk / SDK dependencies downloaded in CI |
+| CI `esp-idf` job | Builds the ESP32 example for the targets and LittleFS/YAFFS2/TinyFS, threads, U8g2 and NimBLE configurations listed in `.github/workflows/ci.yml`. The matrix chooses an IDF version where newer SoCs require it; these are build checks, not physical-board runtime tests. | ESP-IDF CI containers |
 | `python3 tests/test_net.py ./mcs` (in `make test`) | 25 socket / HTTP checks against a local HTTP server: GET / POST / PUT / HEAD, headers, chunked bodies, redirects, `Download`, errors and timeouts | python3 |
 | CI `cmake` job | configures and builds the library + CLI with CMake and runs a script; builds `tests/c/config` (config header found next to `CMakeLists.txt`, `MICROCS_PROFILE`, `-D`) and runs `test_config` | cmake |
 | `tools/verify_dotnet.sh` | compiles `t02 t05 t10 t11 t13 t14` and `examples/tour.cs` with **.NET 8** and diffs the output against MicroCS's `.out` | `dotnet` 8+ |
 | `make asan-test` | the whole suite under AddressSanitizer + UBSan | gcc/clang with sanitizers |
 | `python3 tools/fuzz.py` | mutation fuzzer (source or images), see below | a sanitizer build |
+| `make docs-check` | Complete Markdown-to-wiki coverage, page-name validation, relative links/anchors, wiki regression tests and generated Studio template consistency | python3 |
+| `make file-streams-test` | Bounded transfer reads from a synthetic 64 MiB file, partial/error paths, access/lock checks, mount-dispatch stability and handle cleanup in a hard 64 KiB VM pool | C compiler |
+| `make tinyfs-test` | TinyFS regression/power-cut fixtures and sequential stream writes/random-access reads | C compiler |
 | `make bench` | startup / compile / image load / run timings | — |
 
 ## Script tests (`tests/`)
@@ -44,6 +47,7 @@ number or "supported" claim in the docs points at a test or a measurement.
 | `t16_bytes` | `Encoding.UTF8`/`ASCII`, `BitConverter` |
 | `t24_net` | `Wifi` (scan, connect errors, options, static IP, saved networks, soft AP, events), `EspNow`, `Ntp`, `Mdns`, `Ping` on the `--sim` radio; `TcpClient` / `TcpListener` / `UdpClient` over loopback; `Dns`, `Http` helpers |
 | `t25_json` | `Json.Parse` / `Stringify` (indent, unicode, numbers, objects, `HashSet` / `Stack`), `JsonSerializer`, `FormatException` |
+| `t_file_streams` | first/next 50-byte chunks, buffer offsets, EOF, seek/position, byte I/O, mode/access errors, append, sparse RAMFS writes and disposal |
 | `err_*` | compile errors, runtime errors, member errors, limits — exact diagnostics |
 
 A test can pass CLI options on its first line: `// args: --heap 131072`.
@@ -96,3 +100,11 @@ is why it loads and disassembles instead of executing. Final 1.2 runs under ASan
 arguments and unsafe worker/DMA entry without sleeping the host. ESP SDK stubs test
 wake-source selection, radio rejection and error cleanup; these are not electrical
 wake or current-consumption measurements. `make check` includes the policy tests.
+
+## Documentation and wiki coverage
+
+The wiki contains every repository Markdown document, not only files under `docs/`.
+`make docs-check` fails if a new tracked/non-ignored Markdown file is missing from the
+wiki map, a page name collides, or a mapped source/relative link/heading disappears.
+It also exercises the map and conversion rules with `tests/test_wiki_sync.py`.
+See [wiki publishing](WIKI.md) for local generation and Actions publication.

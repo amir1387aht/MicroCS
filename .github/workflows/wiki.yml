@@ -9,6 +9,7 @@ on:
     paths:
       - "**.md"
       - "tools/wiki_sync.py"
+      - "tests/test_wiki_sync.py"
       - ".github/workflows/wiki.yml"
   workflow_dispatch:
 
@@ -24,7 +25,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check documentation coverage and links
+        run: |
+          python3 tests/test_wiki_sync.py
+          python3 tools/wiki_sync.py --check
       - name: Build the pages
+        env:
+          MICROCS_WIKI_BRANCH: ${{ github.ref_name }}
+          MICROCS_WIKI_REVISION: ${{ github.sha }}
         run: python3 tools/wiki_sync.py --out build/wiki
       - name: Push to the wiki
         env:
