@@ -127,7 +127,7 @@ and a console transport, which is all `mcs_runtime` needs.
 
 | Hook | Bare metal | FreeRTOS | Zephyr | ESP-IDF | pico-sdk |
 |---|---|---|---|---|---|
-| `realloc_fn` | `mcs_pool_realloc` on a static buffer (recommended everywhere) | same | same | same | same |
+| `realloc_fn` | `mcs_pool_realloc` on static or automatic bounded regions | same | same | same | same |
 | `write_fn` | UART TX | UART driver | `printk` / UART API | `fwrite(stdout)` / `uart_write_bytes` | `stdio_put_string` |
 | `ticks_fn` | SysTick ms | `xTaskGetTickCount() * portTICK_PERIOD_MS` | `k_uptime_get_32()` | `esp_timer_get_time() / 1000` | `to_ms_since_boot(get_absolute_time())` |
 | `delay_fn` | busy wait / `WFI` | `vTaskDelay(pdMS_TO_TICKS(ms))` | `k_msleep(ms)` | `vTaskDelay` | `sleep_ms` |
@@ -220,3 +220,13 @@ CAN peripheral. See [CAN port contract and setup](CAN.md#firmware-integration-an
 PIO backends do not decode GPIO edges on the CPU. For fallback, GPIO producers
 call `mcs_hal_gpio_edge(ctx, pin)` before enqueueing and set `gpio_capture` only
 with both-edge interrupts and ISR-safe reads.
+
+### Automatic region provider
+
+The runtime supports `heap=NULL` and `heap_size=backing_cap` on malloc-backed
+ports without supplying memory addresses. For bare-metal ports without malloc,
+keep the static buffer or provide `cfg.heap_provider` with safe platform
+acquire/release callbacks. Drivers must not use VM allocations from those
+callbacks. The default provider does not know platform-native reserves; ESP32
+uses a capability/reserve-aware provider. See [memory](MEMORY.md#automatic-bounded-regions-all-ports)
+for ownership, synchronization, trimming, contiguous-object limits and accounting.

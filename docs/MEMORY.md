@@ -10,11 +10,15 @@ New firmware also reports:
 - `stack` / `frames`: live entries, currently allocated capacity, peak live entries
   and configured maximum. Idle snapshots normally show zero live entries, not
   zero capacity. Capacity bytes are already included in the VM/pool totals.
-- `pool`: actual aligned fixed-pool capacity, occupied bytes including block
+- `pool`: actual currently committed, aligned pool capacity, occupied bytes including block
   headers/alignment, successful-allocation high-water mark, total free bytes and
   largest allocatable contiguous payload. This includes the VM allocation itself,
   collector scratch, runtime VFS source/read buffers, RAMFS and thread heaps when
   they share the pool. Free bytes alone do not guarantee a large allocation fits.
+- `pool_backing`: optional automatic-pool backing bytes committed, configured
+  backing-byte ceiling, and region count. Backing includes region descriptors and
+  alignment padding, so it is slightly larger than usable `pool` capacity. The
+  ceiling is not preallocated and is not a promise that native RAM is available.
 - `device_heap`: optional board HAL telemetry. ESP32 reports the ESP-IDF
   `MALLOC_CAP_8BIT` heap: allocated + free capacity, allocated, free, SDK minimum
   free and largest free block. It includes SDK/drivers/task allocations and the
@@ -65,13 +69,81 @@ Use a flash filesystem for this budget: a RAM filesystem consumes the same pool.
 The example keeps its 192 KiB ceiling and uses zero (profile defaults) for
 stack/frame ceilings: 1024 / 64 with the default full profile, 512 / 64 with
 the embedded profile. Existing profile-specific defaults are preserved. The
-configured pool is a ceiling; preserving driver reserves may make it smaller.
-Startup prints the actual allocated pool and ceiling and fails closed if it
-cannot allocate a usable pool. A failed pool must never silently enable malloc.
-Custom `app_main` code must set the same runtime fields and check `heap != NULL`
-before starting the runtime; example menuconfig settings do not modify custom
-entrypoints. Rebuild after changing them. Wi-Fi/BLE reserves and task stacks
-remain additional device costs, not part of the 40 KiB VM pool.
+configured pool is a ceiling, not an upfront allocation. The ESP32 example uses
+an automatic multi-region provider and prints the ceiling and native reserve at
+startup. It requests internal byte-addressable blocks only when existing pool
+space cannot satisfy a request. Each request preserves a 32 KiB base native
+headroom, enabled Wi-Fi/BLE reserves, and an 8 KiB contiguous-block margin.
+Allocator overhead is checked after acquisition too. These samples do not reserve
+RAM against asynchronous SDK allocations; test actual peripheral peak workloads.
+A failed growth request returns OOM; there is no unbounded fallback.
+Custom `app_main` code must opt into the same provider (see below); menuconfig
+settings alone do not change custom entrypoints. Wi-Fi/BLE reserves and task
+stacks remain outside the VM pool. Static BLE buffers also consume static SRAM.
+
+## Automatic bounded regions (all ports)
+
+On malloc-backed targets, no region addresses are required:
+
+```c
+mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+cfg.heap = NULL;
+cfg.heap_size = 192 * 1024;  /* cap on the SUM of backing allocations */
+/* configure transport, time, filesystem and board as usual */
+```
+
+This selects the portable malloc/free region provider, not unbounded per-object
+malloc. Existing static-buffer configurations remain valid and unchanged. A
+bare-metal target with no allocator must keep its static buffer or supply a safe
+provider; MicroCS never probes SRAM addresses or assumes linker-reserved memory
+is free. The generic C allocator cannot query native-driver headroom: on such
+ports choose a conservative cap or supply a reserve-aware provider.
+
+ESP32 applications should use the provider already wired into the example:
+
+```c
+static mcs_esp32_heap_t backing; /* mcs_port_esp32.h */
+mcs_esp32_heap_init(&backing, native_reserve_bytes);
+cfg.heap = NULL;
+cfg.heap_size = 192 * 1024;
+cfg.heap_provider = &backing.provider;
+```
+
+`native_reserve_bytes` includes base headroom and configured radio reserves.
+The ESP32 provider uses `MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT`, not DMA-only,
+instruction-only or automatically selected PSRAM. PSRAM policy needs an explicit
+capability-aware provider and validation of native users' requirements.
+
+`MCS_ENABLE_POOL_REGIONS` defaults to `MCS_ENABLE_MALLOC`; allocator-free boards
+using a custom provider must enable it explicitly. Constrained static-only
+reference builds can disable it without changing the static pool or language.
+
+The portable `mcs_pool_provider_t` has acquire/release callbacks. Acquire receives
+minimum/preferred backing sizes and returns the actual size. It may choose a
+smaller block that still satisfies the minimum; the core checks its bounds.
+Callbacks and context must outlive the runtime, must return distinct owned blocks,
+and must not re-enter the VM. Calls use the runtime's existing shared-pool lock
+when workers are active. `mcs_pool_init_dynamic()` also supports direct C users.
+
+Growth prefers 16 KiB chunks, increasing only to fit a larger individual request.
+Both persistent and temporary allocations share the same bounded free list.
+There is no recursive GC inside allocation: existing VM safepoints retain their
+rooting guarantees. Realloc may move/copy a block between regions; failed growth
+preserves the old allocation. Every single allocation must fit within ONE region.
+The cap includes region metadata/alignment and live RAMFS/worker allocations;
+thread stacks and SDK allocations remain separate costs.
+
+Entirely empty owned regions are released at application replacement, after
+workers stop and the old VM is freed; live RAM filesystem regions remain. Direct
+users can call `mcs_pool_trim()` at an idle/synchronized boundary. Shutdown frees
+all owned regions after all clients are destroyed. There is no periodic scan,
+per-free region scan, moving collection, raw-address discovery, or promise of zero
+allocation-path overhead. Static buffers are never freed by the runtime.
+
+`make firmware-heap-test` covers automatic backing caps, cross-region realloc,
+misalignment, adjacent regions that must not merge, randomized allocation/OOM,
+repeated runtime replacement with persistent files, cold-start fault injection,
+shutdown release, and the ESP32 reserve-aware provider with a fake SDK allocator.
 
 ## Automatic application replacement on Run
 

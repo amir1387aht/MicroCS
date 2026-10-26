@@ -248,11 +248,21 @@ limits are in [docs/NETWORK.md](../../docs/NETWORK.md).
 
 ## Memory
 
-The example allocates up to 192 KB for the VM with `heap_caps_malloc`, clamped to the largest
-free block minus a 32 KB reserve for drivers and FreeRTOS, plus the Wi-Fi reserve when Wi-Fi is
-built in (~90 KB on the C2); a RAM disk (a
-sixth of the heap) is only used when there is no `storage` partition; 96 KB is plenty
-for the REPL on the C3. On boards with PSRAM you can pass `MALLOC_CAP_SPIRAM`.
+The example grows a bounded multi-region VM pool on demand, up to
+`CONFIG_MICROCS_VM_HEAP_KB` (192 KiB by default). No region addresses are needed.
+`mcs_esp32_heap_init()` supplies an ESP-IDF provider using internal byte-addressable
+RAM. Each growth request keeps a 32 KiB base native reserve plus configured Wi-Fi
+and BLE reserves, and leaves an 8 KiB contiguous allocation margin. The pool cap
+includes all acquired region backing and metadata; one object still needs one
+contiguous block. Empty owned regions can be returned on application replacement.
+A RAM disk (one sixth of the cap) is used only without a `storage` partition.
+
+This avoids the old whole-pool single-block limit, not the chip's physical RAM
+limit. Enabling BLE uses native/static RAM outside the pool as well as managed
+C# objects inside it. Reserves are headroom, not extra VM allocations. SDK heap
+samples cannot guarantee future concurrent native allocations will succeed.
+PSRAM is not automatically selected; use an explicit custom provider if required.
+See [automatic regions and accounting](../../docs/MEMORY.md#automatic-bounded-regions-all-ports).
 
 ## Build profile per chip
 
@@ -327,8 +337,9 @@ The example firmware exposes `MICROCS_VM_HEAP_KB`, `MICROCS_VM_STACK_SLOTS` and
 `MICROCS_VM_MAX_FRAMES` in menuconfig. The pool ceiling remains 192 KiB; slots and frames grow on demand. Zero stack/frame settings
 preserve profile defaults (full: 1024/64, embedded: 512/64). For the representative 40 KiB OLED/menu Project use **40 / 0 / 0**
 and a flash filesystem. This bounds the pool while retaining normal profile execution ceilings, not a smaller build profile.
-The example prints actual pool capacity, never exceeds its ceiling and stops
-startup if pool allocation fails instead of silently falling back to malloc.
+The example prints its ceiling and native reserve. Shell/Studio report currently
+committed capacity, backing bytes, ceiling and region count. It never exceeds the
+backing ceiling or silently falls back to unbounded malloc on growth failure.
 Custom entrypoints must set/check these values themselves. HAL initialization
 also installs device-heap telemetry for the shell/Studio automatically.
 See [memory budgets](../../docs/MEMORY.md): the device heap includes the reserved

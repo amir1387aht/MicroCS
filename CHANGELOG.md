@@ -11,6 +11,14 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   verification; changed/new files still upload and compile checks remain intact.
   Device flow control, upload window and firmware RAM budgets are unchanged.
 
+* Add portable, automatically growing multi-region pools with a hard combined
+  backing cap, cross-region realloc, and ownership-safe idle trimming/shutdown.
+  Static buffers remain supported; OS-backed targets need only a cap, while
+  allocator-free MCUs retain static buffers or a board-provided safe provider.
+* Use an internal-RAM, native-reserve-aware provider in the ESP32 example instead
+  of requiring the entire VM pool to fit in one native allocation. Preserve radio
+  headroom; report committed backing, ceiling and region count in shell/Studio.
+
 * Refresh clean Studio device tabs after runs and explorer refreshes, including
   same-size changes and files outside the selected folder. Check the visible
   file on demand while idle in machine mode without overwriting unsaved edits,
