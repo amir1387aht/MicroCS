@@ -85,7 +85,9 @@ void mcs_threads_console_lock(void) { if (G.console) mcs_os_mutex_lock(G.console
 void mcs_threads_console_unlock(void) { if (G.console) mcs_os_mutex_unlock(G.console); }
 void mcs_threads_heap_lock(void) { if (G.heap) mcs_os_mutex_lock(G.heap); }
 void mcs_threads_heap_unlock(void) { if (G.heap) mcs_os_mutex_unlock(G.heap); }
-bool mcs_threads_active(void) { return G.active; }
+/* Readers include allocator callbacks on workers. Volatile alone does not
+ * synchronize publication, including repeated true stores for later workers. */
+bool mcs_threads_active(void) { return AT_LOAD(G.active); }
 #if MCS_ENABLE_FS
 static void fs_enter(void* ud) { mcs_os_mutex_lock((mcs_os_mutex_t*)ud); }
 static void fs_leave(void* ud) { mcs_os_mutex_unlock((mcs_os_mutex_t*)ud); }
@@ -425,7 +427,7 @@ static int start_ex(const mcs_thread_spec_t* s, uint8_t* args, size_t args_len) 
     mcs_os_mutex_unlock(G.lock);
     if (slot < 0) { mcs_os_sem_free(w->done); heap_free(w->heap, w->heap_size); mcs_os_free(w); return -1; }
     w->args = args; w->args_len = args_len;
-    G.active = true;
+    AT_STORE(G.active, true);
     char name[16];
     snprintf(name, sizeof name, "mcs%d", w->id);
     mcs_os_thread_cfg_t tc = { name, w->stack_size, w->prio, w->core };
@@ -544,7 +546,7 @@ int mcs_threads_shutdown(uint32_t timeout_ms) {
             mcs_os_free(c->q); mcs_os_free(c);
             G.ch[i] = NULL;
         }
-        G.active = false;
+        AT_STORE(G.active, false);
     }
     return left;
 }

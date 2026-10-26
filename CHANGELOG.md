@@ -4,6 +4,9 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Publish/read worker activity atomically so concurrent runtime pool callbacks
+  do not race when additional workers start or workers finish shutdown.
+
 * Coalesce repeated Studio file-open clicks by normalized path and connection,
   prevent duplicate device tabs, ignore stale downloads after reconnect, and
   preserve conflicting old drafts as untitled recovery copies.
