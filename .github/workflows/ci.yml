@@ -136,6 +136,8 @@ jobs:
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_file_refresh.js
       - name: Terminal visibility and shortcuts
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_terminal.js
+      - name: Supported-only template filter and saved preference
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_supported_filter.js
       - name: Template gallery geometry (desktop, phone, compact window)
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_gallery_layout.js
       - name: Explorer tree and legacy firmware compatibility

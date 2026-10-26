@@ -39,6 +39,9 @@ const {spawn}=require('child_process'),fs=require('fs'),path=require('path'),ass
   assert.deepStrictEqual(commands.filter(x=>x.startsWith('run ')),['run /app.cs']);
   assert((await page.innerText('#term')).includes('without compile-only validation'));
   await page.evaluate(()=>App.gallery());
+  assert(await page.isChecked('#gSupportedOnly'), 'supported-only filter defaults on');
+  assert(await page.evaluate(() => App.gal.list.every(t => templateSupport(t, App.capabilities, true, App.info).state === 'supported')), 'unknown is not assumed supported');
+  await page.uncheck('#gSupportedOnly');
   const gallery = await page.evaluate(() => ({
    shown: App.gal.list.map(t => t.src), bundled: TEMPLATES.map(t => t.src)
   }));

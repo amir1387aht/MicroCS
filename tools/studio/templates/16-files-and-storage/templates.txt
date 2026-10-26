@@ -28,3 +28,7 @@ Store numbers in a binary file with BitConverter.
 [kv.cs] Simple key-value store
 requires: Filesystem, Dictionary, Linq
 Persist settings across reboots in a file.
+
+[file_chunks.cs] Read a file in 50-byte blocks
+requires: Compiler, Filesystem, Filesystem.Streams
+Read, seek and reuse a byte buffer without loading the entire file.

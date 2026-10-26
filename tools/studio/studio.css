@@ -408,3 +408,6 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
 .file .twisty.branch::before { content: ""; display: inline-block; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(-45deg); }
 .file[aria-expanded="true"] .twisty.branch::before { transform: rotate(45deg); vertical-align: 2px; }
 .gallery .compat b { display: inline; }
+
+.gallery .supported-toggle { display:flex; align-items:center; gap:5px; white-space:nowrap; font-size:12px; cursor:pointer; }
+.gallery .supported-toggle input { width:auto; margin:0; accent-color:var(--accent, #007acc); }

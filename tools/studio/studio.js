@@ -2689,7 +2689,7 @@ const App = {
   /* ---------- template gallery ("Add New Item")
    * TEMPLATES comes from templates.js, generated from tools/studio/templates/<nn-category>/ */
   gallery(insertMode) {
-    const g = this.gal || (this.gal = { cat: "All", sel: 0, list: [], q: "" });
+    const g = this.gal || (this.gal = { cat: "All", sel: 0, list: [], q: "", supportedOnly: store.get("galSupportedOnly", true) !== false });
     $("galleryBg").classList.add("show");
     $("gSearch").value = g.q = "";
     this.galRender();
@@ -2712,12 +2712,13 @@ const App = {
   galRender() {
     const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
     for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
-    const available = TEMPLATES; // Never hide examples just because firmware cannot report support.
+    $("gSupportedOnly").checked = g.supportedOnly;
+    const available = g.supportedOnly ? TEMPLATES.filter(t => templateCompatible(t, this.capabilities, dev.connected, this.info)) : TEMPLATES;
     const recent = this.galRecent().map((src) => available.find((t) => t.src === src)).filter(Boolean);
     const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(available.map((t) => t.cat))];
-    const states = available.map(t => templateSupport(t, this.capabilities, dev.connected, this.info).state);
+    const states = TEMPLATES.map(t => templateSupport(t, this.capabilities, dev.connected, this.info).state);
     $("gSupport").textContent = !dev.connected ? "Offline: all templates are visible. Connect a board to check support." :
-      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. All templates remain visible; external hardware is not detected.`;
+      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. ${g.supportedOnly ? "Showing only confirmed support; turn off Supported only to see unknown or unavailable examples." : "All templates are visible."} External hardware is not detected.`;
     if (!cats.includes(g.cat)) g.cat = "All";
     const pool = (c) => (c === "All" ? available : c === "Recent" ? recent : available.filter((t) => t.cat === c));
     const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
@@ -2731,7 +2732,7 @@ const App = {
       const cs = /\.cs$/.test(t.file), support = templateSupport(t, this.capabilities, dev.connected, this.info);
       return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
         `<small class="compat ${support.state}" title="${esc(support.reason)}">${esc(support.label)}</small><em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
-    }).join("") : `<div class="none">No template matches “${esc(g.q)}”.${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+    }).join("") : `<div class="none">${g.supportedOnly && dev.connected ? "No supported template matches. Turn off Supported only to see all examples." : `No template matches “${esc(g.q)}”.`}${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
     const all = $("gAll");
     if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();
@@ -2778,6 +2779,11 @@ const App = {
     this.galPreview();
   },
   galWire() {
+    $("gSupportedOnly").onchange = () => {
+      this.gal.supportedOnly = $("gSupportedOnly").checked;
+      store.set("galSupportedOnly", this.gal.supportedOnly);
+      this.gal.sel = 0; this.galRender();
+    };
     $("gCats").onclick = (e) => { const d = e.target.closest("[data-c]"); if (d) { this.gal.cat = d.dataset.c; this.gal.sel = 0; this.galRender(); } };
     /* select without re-rendering the list: replacing the clicked element between the two clicks
      * of a double-click kept the browser from firing dblclick */
@@ -2805,7 +2811,7 @@ const App = {
       else if (e.key === "PageDown" || e.key === "PageUp") { e.preventDefault(); this.galMove(e.key === "PageDown" ? page : -page); }
       else if ((e.key === "Home" || e.key === "End") && !inSearch && !inName) { e.preventDefault(); this.galMove(e.key === "Home" ? "home" : "end"); }
       else if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); this.galAdd(true); }
-      else if (e.key === "Enter" && !["gInsert", "gCancel", "gClose", "gCopy"].includes(e.target.id) && e.target.tagName !== "A") { e.preventDefault(); this.galAdd(false); }
+      else if (e.key === "Enter" && !["gInsert", "gCancel", "gClose", "gCopy", "gSupportedOnly"].includes(e.target.id) && e.target.tagName !== "A") { e.preventDefault(); this.galAdd(false); }
       else if (e.key.toLowerCase() === "e" && e.ctrlKey) { e.preventDefault(); $("gSearch").focus(); $("gSearch").select(); }
     });
   },

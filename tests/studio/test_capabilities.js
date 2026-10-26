@@ -66,3 +66,6 @@ assert.strictEqual(templateSupport(encoder,new Map([['Compiler',true],['RotaryEn
 assert.strictEqual(templateSupport(encoder,new Map([['Compiler',true],['RotaryEncoder',true]]),true,'MicroCS 1.17.0').state,'supported');
 assert.strictEqual(templateSupport(encoder,new Map([['Compiler',true],['RotaryEncoder',true]]),true).state,'unknown');
 console.log('PASS template support states: supported, unknown, unsupported, offline and minimum firmware');
+
+assert(!templateCompatible({requires:["Filesystem.Streams"]},new Map([["Filesystem",true]]),true));
+assert(templateCompatible({requires:["Filesystem.Streams"]},new Map([["Filesystem.Streams",true]]),true));

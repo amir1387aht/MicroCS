@@ -284,3 +284,9 @@ Test a supported higher rate on the actual board/cable. USB serial implementatio
 may not use the UART baud setting for physical throughput. Do not disable upload
 flow control or enlarge firmware buffers blindly on a low-RAM board. These Studio
 changes require no firmware update and add no polling or application-runtime work.
+
+The template gallery defaults to **Supported only** (saved locally). On a connected
+board it shows only examples whose exact firmware capabilities and minimum version
+are confirmed; Wi-Fi being absent hides Wi-Fi examples. Unknown legacy requirements
+are not guessed. Turn the toggle off to browse/adapt every example, including unknown
+or unsupported ones. Offline browsing always shows all examples, marked not checked.

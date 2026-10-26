@@ -79,6 +79,9 @@ const assert=require('assert'),path=require('path'),fs=require('fs');
   await page.evaluate(()=>{
    dev.port={};App.info='MicroCS 1.14.0';App.capabilities=legacyCapabilities('MicroCS 1.14.0 features=0xffff');App.capabilitiesKnown=false;App.gallery();
   });
+  assert(await page.isChecked('#gSupportedOnly'), 'supported-only filter defaults on');
+  assert(await page.evaluate(() => App.gal.list.every(t => templateSupport(t, App.capabilities, true, App.info).state === 'supported')), 'unknown is not assumed supported');
+  await page.uncheck('#gSupportedOnly');
   const gallery = await page.evaluate(() => ({
    shown: App.gal.list.map(t => t.src), bundled: TEMPLATES.map(t => t.src)
   }));

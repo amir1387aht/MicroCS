@@ -223,6 +223,9 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     App.capabilities = new Map([['Compiler', true], ['GPIO', true]]);
     App.capabilitiesKnown = true; App.gal.cat = 'All'; App.gal.q = ''; App.galRender();
   });
+  check(await page.isChecked('#gSupportedOnly'), 'supported-only filter defaults on');
+  check(await page.evaluate(() => App.gal.list.every(t => templateSupport(t, App.capabilities, true, App.info).state === 'supported')), 'filter shows only confirmed support');
+  await page.uncheck('#gSupportedOnly');
   check(await page.$('#gCats div[data-c="Wi-Fi and networking"]') !== null && await page.$('#gCats div[data-c="Bluetooth LE"]') !== null, 'radio categories remain visible');
   check(await page.evaluate(() => App.gal.list.length === TEMPLATES.length), 'all templates remain visible');
   check(await page.evaluate(() => App.gal.list.filter(t => t.requires.includes('GPIO.IRQ')).every(t => templateSupport(t, App.capabilities, true).state === 'unknown')), 'GPIO does not imply interrupt support');
