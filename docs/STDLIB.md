@@ -76,9 +76,10 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 
 | Type | Kind | Properties | Methods | Notes |
 |---|---|---|---|---|
-| **File** | static | — | `ReadAllText(·)` `WriteAllText(·, ·)` `AppendAllText(·, ·)` `ReadAllLines(·)` `WriteAllLines(·, ·)` `AppendAllLines(·, ·)` `ReadAllBytes(·)` `WriteAllBytes(·, ·)` `Exists(·)` `Delete(·)` `Copy(…)` `Move(·, ·)` `GetLength(·)` | `mcs_fs_open_lib` |
+| **File** | static | — | `OpenRead(·)` `OpenWrite(·)` `Open(…)` `Create(·)` `ReadAllText(·)` `WriteAllText(·, ·)` `AppendAllText(·, ·)` `ReadAllLines(·)` `WriteAllLines(·, ·)` `AppendAllLines(·, ·)` `ReadAllBytes(·)` `WriteAllBytes(·, ·)` `Exists(·)` `Delete(·)` `Copy(…)` `Move(·, ·)` `GetLength(·)` | `mcs_fs_open_lib` |
 | **Directory** | static | — | `Exists(·)` `CreateDirectory(·)` `GetFiles(·)` `GetDirectories(·)` `GetFileSystemEntries(·)` `Delete(…)` `GetCurrentDirectory()` |  |
 | **Path** | static | — | `Combine(…)` `GetFileName(·)` `GetExtension(·)` `GetFileNameWithoutExtension(·)` `GetDirectoryName(·)` `GetFullPath(·)` |  |
+| **FileStream** | instance | `Position` `Length` `CanRead` `CanWrite` `CanSeek` | `Read(·, ·, ·)` `Write(·, ·, ·)` `ReadByte()` `WriteByte(·)` `Seek(·, ·)` `Flush()` `Close()` `Dispose()` | `new FileStream(path, mode[, access])`; [chunked I/O](FILESYSTEM.md#chunked-io-filestream) |
 | **DriveInfo** | instance | `Name` `TotalSize` `TotalFreeSpace` `AvailableFreeSpace` `DriveFormat` `IsReady` | `ToString()` | `new DriveInfo(path)`; size of the mount holding `path` |
 | **DriveInfo** | static | — | `GetDrives()` |  |
 
@@ -203,4 +204,7 @@ Enums: `StringSplitOptions` (`None`, `RemoveEmptyEntries`, `TrimEntries`), `Stri
 `IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;
 its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.
 
-_1440 members in 118 tables._
+File enums: `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`),
+`FileAccess` (`Read`, `Write`, `ReadWrite`), `SeekOrigin` (`Begin`, `Current`, `End`).
+
+_1457 members in 119 tables._

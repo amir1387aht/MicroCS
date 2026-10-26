@@ -46,9 +46,11 @@ static int l_open(void* ctx, const char* path, int flags, void** fh) {
     int slot = -1;
     for (int i = 0; i < MCS_LFS_MAX_FILES; i++) if (!g_used[i]) { slot = i; break; }
     if (slot < 0) return MCS_VFS_ENOMEM;
-    int lf = LFS_O_RDONLY;
-    if (flags & MCS_VFS_WRITE) lf = LFS_O_WRONLY | LFS_O_CREAT | LFS_O_TRUNC;
-    else if (flags & MCS_VFS_APPEND) lf = LFS_O_WRONLY | LFS_O_CREAT | LFS_O_APPEND;
+    int lf = (flags & MCS_VFS_WRITABLE) ? ((flags & MCS_VFS_READ) ? LFS_O_RDWR : LFS_O_WRONLY) : LFS_O_RDONLY;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE)) lf |= LFS_O_CREAT;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) lf |= LFS_O_TRUNC;
+    if (flags & MCS_VFS_APPEND) lf |= LFS_O_APPEND;
+    if (flags & MCS_VFS_EXCL) lf |= LFS_O_EXCL;
     struct lfs_info info;
     if (lfs_stat(lfs, path, &info) == 0 && info.type == LFS_TYPE_DIR) return MCS_VFS_EISDIR;
     int e = lfs_file_open(lfs, &g_files[slot], path, lf);
@@ -68,6 +70,14 @@ static int l_close(void* ctx, void* fh) {
     g_used[(lfs_file_t*)fh - g_files] = false;
     return map_err(e);
 }
+#if MCS_ENABLE_FILE_STREAMS
+static int l_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    lfs_soff_t p = lfs_file_seek((lfs_t*)ctx, (lfs_file_t*)fh, off, origin == 0 ? LFS_SEEK_SET : origin == 1 ? LFS_SEEK_CUR : LFS_SEEK_END);
+    if (p < 0) return map_err((int)p);
+    *out = (int32_t)p; return 0;
+}
+static int l_flush(void* ctx, void* fh) { return map_err(lfs_file_sync((lfs_t*)ctx, (lfs_file_t*)fh)); }
+#endif
 static int l_stat(void* ctx, const char* path, mcs_vfs_stat_t* st) {
     struct lfs_info info;
     int e = lfs_stat((lfs_t*)ctx, path, &info);
@@ -111,7 +121,13 @@ static int l_statfs(void* ctx, mcs_vfs_statfs_t* st) {
     st->format = "littlefs";
     return MCS_VFS_OK;
 }
-const mcs_vfs_ops_t mcs_lfs_ops = { l_open, l_read, l_write, l_close, l_stat, l_remove, l_mkdir, l_rename, l_list, l_statfs };
+const mcs_vfs_ops_t mcs_lfs_ops = { l_open, l_read, l_write, l_close, l_stat, l_remove, l_mkdir, l_rename, l_list, l_statfs,
+#if MCS_ENABLE_FILE_STREAMS
+    l_seek, l_flush
+#else
+    NULL, NULL
+#endif
+};
 #endif
 
 /* ---- LittleFS block device over mcs_flash_t ---- */

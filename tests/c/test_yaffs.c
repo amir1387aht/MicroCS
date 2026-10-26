@@ -10,6 +10,7 @@
 #include "yaffsfs.h"
 #include "yaffs_guts.h"
 
+#include "file_stream_smoke.h"
 static char g_out[4096]; static size_t g_len;
 static void out(void* ud, const char* s, size_t n) { (void)ud; if (g_len + n < sizeof g_out) { memcpy(g_out + g_len, s, n); g_len += n; g_out[g_len] = 0; } }
 static int fails, checks;
@@ -31,6 +32,7 @@ static void exercise(const char* tag, struct yaffs_dev* dev, const char* name, u
 #define T(s) (snprintf(what, sizeof what, "%s: %s", tag, s), what)
     CHECK(yaffs_mount(name) == 0, T("yaffs_mount (formats a blank device)"));
     CHECK(mcs_vfs_mount(&vfs, "/data", &mcs_yaffs_ops, dev, 0) == 0, T("mount at /data"));
+    CHECK(file_stream_smoke(&vfs, "/data", true) == MCS_OK, T("FileStream chunk/seek/write/close"));
     int r = run(&vfs,
         "Directory.CreateDirectory(\"/data/app\");\n"
         "File.WriteAllText(\"/data/app/main.cs\", \"Console.WriteLine(6*7);\");\n"

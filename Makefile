@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: json-test encoder-test memory-test smallheap-test project-test fs-memory-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -469,3 +469,9 @@ json-test: build/test_json
 	./build/test_json
 	@if command -v node >/dev/null 2>&1; then node tests/studio/test_json.js; fi
 .PHONY: json-test
+
+.PHONY: file-streams-test
+build/test_file_streams: tests/c/test_file_streams.c tests/c/file_stream_smoke.h $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+file-streams-test: build/test_file_streams
+	./build/test_file_streams

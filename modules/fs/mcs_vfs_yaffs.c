@@ -68,9 +68,11 @@ static int map_err(void) {
 static int y_open(void* ctx, const char* path, int flags, void** fh) {
     struct yaffs_stat st;
     if (yaffs_stat_reldev(DEV(ctx), path, &st) == 0 && S_ISDIR(st.st_mode)) return MCS_VFS_EISDIR;
-    int of = O_RDONLY;
-    if (flags & MCS_VFS_WRITE) of = O_WRONLY | O_CREAT | O_TRUNC;
-    else if (flags & MCS_VFS_APPEND) of = O_WRONLY | O_CREAT | O_APPEND;
+    int of = (flags & MCS_VFS_WRITABLE) ? ((flags & MCS_VFS_READ) ? O_RDWR : O_WRONLY) : O_RDONLY;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE)) of |= O_CREAT;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) of |= O_TRUNC;
+    if (flags & MCS_VFS_APPEND) of |= O_APPEND;
+    if (flags & MCS_VFS_EXCL) of |= O_EXCL;
     int fd = yaffs_open_reldev(DEV(ctx), path, of, S_IREAD | S_IWRITE);
     if (fd < 0) return map_err();
     *fh = (void*)(intptr_t)(fd + 1);
@@ -91,6 +93,17 @@ static int y_close(void* ctx, void* fh) {
     (void)ctx;
     return yaffs_close(FD(fh)) < 0 ? map_err() : MCS_VFS_OK;
 }
+#if MCS_ENABLE_FILE_STREAMS
+static int y_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    (void)ctx;
+    Y_LOFF_T old = yaffs_lseek(FD(fh), 0, SEEK_CUR);
+    Y_LOFF_T p = yaffs_lseek(FD(fh), off, origin == 0 ? SEEK_SET : origin == 1 ? SEEK_CUR : SEEK_END);
+    if (p < 0) return map_err();
+    if ((uint64_t)p > 0x7fffffff) { (void)yaffs_lseek(FD(fh), old, SEEK_SET); return MCS_VFS_EINVAL; }
+    *out = (int32_t)p; return 0;
+}
+static int y_flush(void* ctx, void* fh) { (void)ctx; return yaffs_fsync(FD(fh)) < 0 ? map_err() : 0; }
+#endif
 static int y_stat(void* ctx, const char* path, mcs_vfs_stat_t* out) {
     struct yaffs_stat st;
     if (yaffs_stat_reldev(DEV(ctx), path, &st) < 0) return map_err();
@@ -142,7 +155,13 @@ static int y_statfs(void* ctx, mcs_vfs_statfs_t* st) {
     st->format = "yaffs2";
     return MCS_VFS_OK;
 }
-const mcs_vfs_ops_t mcs_yaffs_ops = { y_open, y_read, y_write, y_close, y_stat, y_remove, y_mkdir, y_rename, y_list, y_statfs };
+const mcs_vfs_ops_t mcs_yaffs_ops = { y_open, y_read, y_write, y_close, y_stat, y_remove, y_mkdir, y_rename, y_list, y_statfs,
+#if MCS_ENABLE_FILE_STREAMS
+    y_seek, y_flush
+#else
+    NULL, NULL
+#endif
+};
 
 /* ---- YAFFS2 driver over mcs_flash_t ---- */
 #if MCS_ENABLE_FLASH

@@ -54,6 +54,7 @@ MAP = {
     "file_fns": ("Filesystem (modules/fs)", "File", "static", "`mcs_fs_open_lib`"),
     "dir_fns": ("Filesystem (modules/fs)", "Directory", "static", ""),
     "path_fns": ("Filesystem (modules/fs)", "Path", "static", ""),
+    "stream_members": ("Filesystem (modules/fs)", "FileStream", "instance", "`new FileStream(path, mode[, access])`; [chunked I/O](FILESYSTEM.md#chunked-io-filestream)"),
     "drive_members": ("Filesystem (modules/fs)", "DriveInfo", "instance", "`new DriveInfo(path)`; size of the mount holding `path`"),
     "drive_statics": ("Filesystem (modules/fs)", "DriveInfo", "static", ""),
     "power_fns": ("Hardware (modules/hal)", "Power", "static", "capability-gated hardware modes; [power management](POWER.md)"),
@@ -242,6 +243,9 @@ w("(`Ordinal`, `OrdinalIgnoreCase`, `CurrentCulture`, `CurrentCultureIgnoreCase`
 w("`InvariantCultureIgnoreCase`; culture variants compare ordinally). A trailing `StringComparison` is honored by")
 w("`IndexOf` `LastIndexOf` `Contains` `StartsWith` `EndsWith` `Replace` `Equals` and `string.Equals` / `string.Compare`;")
 w("its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never taken for a start index.")
+w("")
+w("File enums: `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`),")
+w("`FileAccess` (`Read`, `Write`, `ReadWrite`), `SeekOrigin` (`Begin`, `Current`, `End`).")
 w("")
 w("_%d members in %d tables._" % (total, len([t for t in tables if t in MAP])))
 print("\n".join(out))

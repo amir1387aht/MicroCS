@@ -106,14 +106,23 @@ int mcs_vfs_statfs(mcs_vfs_t* vfs, const char* path, mcs_vfs_statfs_t* st) {
 
 int mcs_vfs_open(mcs_vfs_t* vfs, const char* path, int flags, mcs_vfs_file_t* f) {
     RESOLVE(path);
-    if ((flags & (MCS_VFS_WRITE | MCS_VFS_APPEND)) && (m->flags & MCS_VFS_RDONLY)) return MCS_VFS_EACCES;
-    f->m = m;
+    if ((flags & MCS_VFS_WRITABLE) && (m->flags & MCS_VFS_RDONLY)) return MCS_VFS_EACCES;
+    /* Legacy backends may ignore unfamiliar flags: fail rather than corrupt data. */
+    if ((flags & (MCS_VFS_UPDATE | MCS_VFS_CREATE | MCS_VFS_EXCL | MCS_VFS_TRUNC)) && !m->ops->seek) return MCS_VFS_EINVAL;
+    f->m = m; f->ops = m->ops; f->ctx = m->ctx;
     f->lock = vfs->lock;
     return LOCKED(vfs->lock, m->ops->open(m->ctx, rel, flags, &f->fh));
 }
-int mcs_vfs_read(mcs_vfs_file_t* f, void* buf, size_t n) { return LOCKED(f->lock, f->m->ops->read(f->m->ctx, f->fh, buf, n)); }
-int mcs_vfs_write(mcs_vfs_file_t* f, const void* buf, size_t n) { return LOCKED(f->lock, f->m->ops->write(f->m->ctx, f->fh, buf, n)); }
-int mcs_vfs_close(mcs_vfs_file_t* f) { return LOCKED(f->lock, f->m->ops->close(f->m->ctx, f->fh)); }
+int mcs_vfs_read(mcs_vfs_file_t* f, void* buf, size_t n) { return LOCKED(f->lock, f->ops->read(f->ctx, f->fh, buf, n)); }
+int mcs_vfs_write(mcs_vfs_file_t* f, const void* buf, size_t n) { return LOCKED(f->lock, f->ops->write(f->ctx, f->fh, buf, n)); }
+int mcs_vfs_close(mcs_vfs_file_t* f) { return LOCKED(f->lock, f->ops->close(f->ctx, f->fh)); }
+int mcs_vfs_seek(mcs_vfs_file_t* f, int32_t offset, int origin, int32_t* position) {
+    if (!position || origin < 0 || origin > 2 || !f->ops->seek) return MCS_VFS_EINVAL;
+    return LOCKED(f->lock, f->ops->seek(f->ctx, f->fh, offset, origin, position));
+}
+int mcs_vfs_flush(mcs_vfs_file_t* f) {
+    return f->ops->flush ? LOCKED(f->lock, f->ops->flush(f->ctx, f->fh)) : MCS_VFS_OK;
+}
 
 static bool is_mount_point(mcs_vfs_t* vfs, const char* norm) {
     for (int i = 0; i < vfs->count; i++) if (!strcmp(vfs->mounts[i].prefix, norm)) return true;

@@ -325,6 +325,9 @@
 #ifndef MCS_ENABLE_FS
 #define MCS_ENABLE_FS 1            /* VFS + C# File/Directory      */
 #endif
+#ifndef MCS_ENABLE_FILE_STREAMS
+#define MCS_ENABLE_FILE_STREAMS MCS_ENABLE_FS /* C# FileStream incremental byte I/O */
+#endif
 #ifndef MCS_ENABLE_FLASH
 #define MCS_ENABLE_FLASH MCS_ENABLE_FS /* mcs_flash.h: NOR/NAND device layer + SPI NOR/NAND drivers */
 #endif

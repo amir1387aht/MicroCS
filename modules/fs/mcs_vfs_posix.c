@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -55,7 +56,16 @@ static int p_open(void* ctx, const char* path, int flags, void** fh) {
     HOST(path);
     struct stat st;
     if (!stat(hp, &st) && S_ISDIR(st.st_mode)) return MCS_VFS_EISDIR;
-    FILE* f = fopen(hp, (flags & MCS_VFS_APPEND) ? "ab" : (flags & MCS_VFS_WRITE) ? "wb" : "rb");
+    bool write = (flags & MCS_VFS_WRITABLE) != 0;
+    int of = write ? ((flags & MCS_VFS_READ) ? O_RDWR : O_WRONLY) : O_RDONLY;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE)) of |= O_CREAT;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) of |= O_TRUNC;
+    if (flags & MCS_VFS_APPEND) of |= O_APPEND;
+    if (flags & MCS_VFS_EXCL) of |= O_EXCL;
+    int fd = open(hp, of, 0666);
+    if (fd < 0) return map_errno(errno);
+    FILE* f = fdopen(fd, write ? ((flags & MCS_VFS_READ) ? "r+b" : "wb") : "rb");
+    if (!f) { int e = map_errno(errno); close(fd); return e; }
     if (!f) return map_errno(errno);
     *fh = f;
     return MCS_VFS_OK;
@@ -73,6 +83,17 @@ static int p_write(void* ctx, void* fh, const void* buf, size_t n) {
     return w == 0 && n ? map_errno(errno) : (int)w;
 }
 static int p_close(void* ctx, void* fh) { (void)ctx; return fclose((FILE*)fh) ? MCS_VFS_EIO : MCS_VFS_OK; }
+#if MCS_ENABLE_FILE_STREAMS
+static int p_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    (void)ctx; FILE* f = (FILE*)fh;
+    long old = ftell(f);
+    if (old < 0 || fseek(f, off, origin == 0 ? SEEK_SET : origin == 1 ? SEEK_CUR : SEEK_END)) return MCS_VFS_EINVAL;
+    long p = ftell(f);
+    if (p < 0 || (uint64_t)p > 0x7fffffff) { (void)fseek(f, old, SEEK_SET); return MCS_VFS_EINVAL; }
+    *out = (int32_t)p; return 0;
+}
+static int p_flush(void* ctx, void* fh) { (void)ctx; return fflush((FILE*)fh) ? MCS_VFS_EIO : 0; }
+#endif
 static int p_stat(void* ctx, const char* path, mcs_vfs_stat_t* out) {
     HOST(path);
     struct stat st;
@@ -165,5 +186,11 @@ static int p_statfs(void* ctx, mcs_vfs_statfs_t* st) {
 #define P_STATFS NULL
 #endif
 
-const mcs_vfs_ops_t mcs_posixfs_ops = { p_open, p_read, p_write, p_close, p_stat, p_remove, p_mkdir, p_rename, p_list, P_STATFS };
+const mcs_vfs_ops_t mcs_posixfs_ops = { p_open, p_read, p_write, p_close, p_stat, p_remove, p_mkdir, p_rename, p_list, P_STATFS,
+#if MCS_ENABLE_FILE_STREAMS
+    p_seek, p_flush
+#else
+    NULL, NULL
+#endif
+};
 #endif

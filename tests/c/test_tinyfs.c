@@ -10,6 +10,7 @@
 #include <string.h>
 #include "mcs_vfs.h"
 
+#include "file_stream_smoke.h"
 static int fails, checks;
 #define CHECK(c) do { checks++; if (!(c)) { fails++; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
 
@@ -526,6 +527,7 @@ static void test_flashfs(void) {
     mcs_vfs_t vfs;
     mcs_vfs_init(&vfs);
     CHECK(mcs_vfs_mount(&vfs, "/flash", ffs.ops, ffs.ctx, 0) == 0);
+    CHECK(file_stream_smoke(&vfs, "/flash", false) == MCS_OK);
     CHECK(mcs_vfs_write_file(&vfs, "/flash/hello.cs", "Console.WriteLine(1);", 21, false) == 0);
     CHECK(mcs_vfs_write_file(&vfs, "/flash/hello.cs", "// more\n", 8, true) == 0);
     char* data; size_t n;

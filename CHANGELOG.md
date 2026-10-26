@@ -4,6 +4,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Add bounded-memory C# FileStream byte-range reads/writes, seek/position,
+  flush/disposal and portable backend operations with automatic handle cleanup.
+* Default Studio templates to a persistent Supported only filter; show all
+  remains available, including unknown/legacy requirements and offline browsing.
+
 * Coalesce repeated Studio file-open clicks by normalized path and connection,
   prevent duplicate device tabs, ignore stale downloads after reconnect, and
   preserve conflicting old drafts as untitled recovery copies.
