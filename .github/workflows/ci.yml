@@ -130,6 +130,8 @@ jobs:
         run: |
           make build/test_app_replace
           CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_app_replace_browser.js
+      - name: Duplicate device opens and incremental File-mode saves
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_open_upload.js
       - name: Device-side file changes in open tabs
         run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_file_refresh.js
       - name: Terminal visibility and shortcuts
