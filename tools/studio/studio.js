@@ -2185,6 +2185,11 @@ const App = {
   },
   tab() { return this.tabs.find((t) => t.id === this.active) || null; },
   openTab({ path = null, text = "", saved = null, binary = null, local = false, name = null }) {
+    if (path && !local) {
+      path = normPath(path);
+      const have = this.tabs.find(t => !t.local && t.path && normPath(t.path) === path);
+      if (have) { this.activate(have.id); return have; } // never replace an existing draft
+    }
     const t = { id: Math.random().toString(36).slice(2), path, name, text, saved, binary, local, readOnly: !!binary, dirty: saved === null || saved !== text };
     if (binary) t.dirty = false;
     this.tabs.push(t);
@@ -2233,18 +2238,32 @@ const App = {
     this.updateButtons();
   },
   async openPath(path, size) {
-    const have = this.tabs.find((t) => t.path === path && !t.local);
-    if (have) {
-      this.activate(have.id);
-      if (!have.dirty) await this.reloadTab(have);   // the device copy may have changed since it was opened
-      return;
-    }
-    if (size > 512 * 1024 && !(await dialog({ title: "Large file", text: `${baseName(path)} is ${fmtBytes(size)}. Downloading it over serial may take a while.`, ok: "Open anyway" }))) return;
-    try {
-      const data = await this.fetchFile(path);
-      if (isText(data)) { const text = new TextDecoder().decode(data); this.openTab({ path, text, saved: text }); }
-      else this.openTab({ path, binary: data, text: "", saved: "" });
-    } catch (e) { toast(`Cannot open ${path}: ${e.message}`, "err"); }
+    path = normPath(path);
+    const epoch = dev.epoch, key = epoch + ":" + path;
+    const opening = this.openingFiles || (this.openingFiles = new Map());
+    if (opening.has(key)) return opening.get(key);
+    // Install one in-flight operation for each canonical path and connection.
+    // Repeated clicks share the dialog/download instead of queueing duplicates.
+    const task = (async () => {
+      const have = this.tabs.find(t => !t.local && t.path && normPath(t.path) === path);
+      if (have) {
+        this.activate(have.id);
+        if (!have.dirty) await this.reloadTab(have);
+        return have;
+      }
+      if (!dev.connected) return;
+      if (size > 512 * 1024 && !(await dialog({ title: "Large file", text: `${baseName(path)} is ${fmtBytes(size)}. Downloading it over serial may take a while.`, ok: "Open anyway" }))) return;
+      if (!dev.connected || dev.epoch !== epoch) return;
+      try {
+        const data = await this.fetchFile(path);
+        if (!dev.connected || dev.epoch !== epoch) return; // stale device reply
+        if (isText(data)) { const text = new TextDecoder().decode(data); return this.openTab({ path, text, saved: text }); }
+        return this.openTab({ path, binary: data, text: "", saved: "" });
+      } catch (e) { if (dev.connected && dev.epoch === epoch) toast(`Cannot open ${path}: ${e.message}`, "err"); }
+    })();
+    opening.set(key, task);
+    try { return await task; }
+    finally { if (opening.get(key) === task) opening.delete(key); }
   },
   hexDump(b, path) {
     const n = Math.min(b.length, 64 * 1024);
@@ -2421,7 +2440,7 @@ const App = {
       // commands can replace/delete files without changing the editor's saved text.
       const text = t.text;
       let same = false;
-      if (project && t.path && !t.local) {
+      if (t.path && !t.local && (project || text === t.saved)) {
         try {
           const data = await dev.op(() => dev.get(t.path));
           const wanted = enc.encode(text);
@@ -2650,7 +2669,14 @@ const App = {
   restoreDrafts() {
     const d = store.get("drafts", []);
     if (!Array.isArray(d) || !d.length) return;
-    for (const x of d) if (x && typeof x.text === "string") this.openTab({ path: x.path || null, name: x.name || (x.path ? null : "untitled.cs"), text: x.text, saved: null, local: !!x.local });
+    for (const x of d) if (x && typeof x.text === "string") {
+      const path = x.path && !x.local ? normPath(x.path) : x.path || null;
+      const have = path && !x.local && this.tabs.find(t => !t.local && t.path === path);
+      // Old sessions may contain two different drafts for one device path.
+      // Keep the extra text as an untitled recovery copy, never silently drop it.
+      if (have && have.text !== x.text) this.openTab({ name: "recovered-" + baseName(path), text: x.text, saved: null });
+      else this.openTab({ path, name: x.name || (path ? null : "untitled.cs"), text: x.text, saved: null, local: !!x.local });
+    }
     term.line(`— restored ${d.length} unsaved file${d.length === 1 ? "" : "s"} from the last session —`, "sys");
   },
   async gotoLineDialog() {

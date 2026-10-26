@@ -4,6 +4,13 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased
 
+* Coalesce repeated Studio file-open clicks by normalized path and connection,
+  prevent duplicate device tabs, ignore stale downloads after reconnect, and
+  preserve conflicting old drafts as untitled recovery copies.
+* Skip identical saved-file uploads in File mode after fresh device-byte
+  verification; changed/new files still upload and compile checks remain intact.
+  Device flow control, upload window and firmware RAM budgets are unchanged.
+
 * Refresh clean Studio device tabs after runs and explorer refreshes, including
   same-size changes and files outside the selected folder. Check the visible
   file on demand while idle in machine mode without overwriting unsaved edits,

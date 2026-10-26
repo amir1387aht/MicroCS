@@ -28,14 +28,16 @@ proc.on('exit',(code,signal)=>{if(!closing)errors.push('runtime exited: '+code+'
  await page.goto('file://'+path.resolve('tools/studio/index.html'));await page.click('#btnConnect');
  await page.waitForFunction(()=>App.capabilities?.get('Runtime.Replace')===true);
  await page.evaluate(()=>{
-  const cmd=dev.cmd;window.__commands=[];
+  const cmd=dev.cmd,put=dev.put;window.__commands=[];window.__uploads=[];
+  dev.put=function(p,...a){window.__uploads.push(p);return put.call(this,p,...a);};
   dev.cmd=function(c,...a){window.__commands.push(c);return cmd.call(this,c,...a);};
   App.openTab({path:'/app.cs',saved:null,text:'class Demo { public int Value = 42; } var app = new Demo(); var encoder = new RotaryEncoder(18,7,2,8); Timer.Start(0,60000000,()=>{}); File.AppendAllText("/runs","x");'});
  });
  for(let i=0;i<10;i++){
-  const result=await page.evaluate(async()=>{window.__commands=[];return await App.runCurrent(false,true);});
+  const result=await page.evaluate(async()=>{window.__commands=[];window.__uploads=[];return await App.runCurrent(false,true);});
   assert.strictEqual(result,true);
   const commands=await page.evaluate(()=>window.__commands);
+  assert.deepStrictEqual(await page.evaluate(()=>window.__uploads),i===0?['/app.cs']:[],'unchanged File-mode reruns must not reupload');
   assert(commands.indexOf('newapp')>=0 && commands.indexOf('newapp')<commands.indexOf('check /app.cs'));
   assert.strictEqual(fs.readFileSync(root+'/runs','utf8'),'x'.repeat(i+1));
  }
@@ -76,7 +78,7 @@ proc.on('exit',(code,signal)=>{if(!closing)errors.push('runtime exited: '+code+'
  await page.waitForFunction(()=>$('ta').value==='{"value":3}');
  assert(!(await page.evaluate(()=>window.__commands)).some(c=>/^(newapp|cancel|run|exec)\b/.test(c)),'idle refresh is read-only');
  assert.deepStrictEqual(errors,[]);
- console.log('PASS real-runtime browser: 10 F5 reruns release encoder/timer, unload precedes check, files persist, Save preserves globals, same-size script writes and idle open-file refresh');
+ console.log('PASS real-runtime browser: 10 F5 reruns release encoder/timer without repeated uploads, unload precedes check, files persist, Save preserves globals, same-size script writes and idle open-file refresh');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{
  // Closing Chromium first stops pending Web Serial writes before the process exits.
  closing=true;

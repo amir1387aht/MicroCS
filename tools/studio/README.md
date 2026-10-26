@@ -59,9 +59,11 @@ The ⋯ menu has three independent options, **on by default**:
   `Shift+Alt+F` formats explicitly. This is a conservative formatter, not Roslyn: it leaves
   ambiguous operators/generic brackets alone and preserves strings and comments byte-for-byte.
   Documents with multiline literals/comments retain their line structure.
-* **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file upload every
-  editable open C# tab in **File mode**, even unchanged ones, plus the explicitly saved file.
-  **Project mode** uploads only new/changed device files (see below). New/local tabs
+* **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file save/build every
+  editable open C# tab in **File mode**, plus the explicitly saved file. Saved files
+  are verified against the device and identical uploads are skipped; known changed
+  File-mode files upload directly. **Project mode** verifies all candidates before
+  uploading only new/changed files (see below). New/local tabs
   ask for a device path; duplicate open paths are rejected. Compile-only checks never execute
   scripts. A cancelled/failed upload or compilation prevents the requested run.
 
@@ -261,3 +263,24 @@ unreadable/deleted device files keep their last editor copy. Automatic updates
 retain the editor selection and scroll without moving keyboard focus. This fix
 changes no MCU/runtime code, timers, scheduling, or firmware configuration. The
 bounded post-run/on-demand file reads still have a transport/filesystem cost.
+
+### Duplicate tabs and upload speed
+
+Repeated clicks on one device path share a single download and focus one tab.
+Normalized aliases such as `/lib/../app.cs` also reuse that tab. Existing unsaved
+edits are not replaced; conflicting drafts from old sessions are recovered as
+untitled `recovered-...` copies requiring an explicit destination when saved.
+
+For repeated File-mode saves/runs, saved files are checked against live device
+bytes instead of uploaded again. Missing/externally changed files still upload;
+checks and automatic application cleanup are not skipped. No persistent device
+content cache is trusted. Dirty files upload directly in File mode, avoiding an
+extra pre-upload download on the common edited-file path.
+
+UART speed is still limited by baud rate, filesystem writes and the firmware's
+acknowledged upload windows. A higher baud rate must be configured **both** in
+the firmware console and in Studio; changing only Studio breaks communication.
+Test a supported higher rate on the actual board/cable. USB serial implementations
+may not use the UART baud setting for physical throughput. Do not disable upload
+flow control or enlarge firmware buffers blindly on a low-RAM board. These Studio
+changes require no firmware update and add no polling or application-runtime work.
