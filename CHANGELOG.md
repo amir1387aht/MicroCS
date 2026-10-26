@@ -2,7 +2,7 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased
+## 1.18.0 — File streams and Studio improvements
 
 * Add bounded-memory C# FileStream byte-range reads/writes, seek/position,
   flush/disposal and portable backend operations with automatic handle cleanup.
