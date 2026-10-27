@@ -273,7 +273,7 @@ NATIVE(fs_read) {
     while (done < count) {
         size_t n = count - done; if (n > sizeof buf) n = sizeof buf;
         if (n > 0x7fffffffu - (uint32_t)s->position) n = 0x7fffffffu - (uint32_t)s->position;
-        if (!n) return io_fail(vm, MCS_VFS_EINVAL, s->path, false);
+        if (!n) break; /* Maximum supported position is also EOF. */
         int r = mcs_vfs_read(&s->file, buf, n);
         if (r < 0) return io_fail(vm, r, s->path, false);
         if ((size_t)r > n) return io_fail(vm, MCS_VFS_EIO, s->path, false);

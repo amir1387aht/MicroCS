@@ -1351,6 +1351,21 @@ bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len) {
     return false;
 }
 
+/* A registration is detached while applying it so nested resolution cannot
+ * apply it twice. Keep that detached allocation owned across an OOM longjmp;
+ * this guard runs only once per lazy registration, never on normal API calls. */
+typedef struct { mcs_vm_t* vm; mcs_lazy_t* registration; } lazy_apply_t;
+static void lazy_apply(void* ud) {
+    lazy_apply_t* a = (lazy_apply_t*)ud;
+    mcs_vm_t* vm = a->vm; mcs_lazy_t* z = a->registration;
+    if (z->def) define_native_class(vm, z->def);
+    else {
+        mcs_class_t* c = module_for(vm, z->name);
+        if (z->regs) mcs_add_regs(vm, c, z->regs, true);
+        add_consts(vm, c, z->consts);
+    }
+}
+
 bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
     bool any = false;
     int area, x;
@@ -1364,13 +1379,10 @@ bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
         mcs_lazy_t* z = *pp;
         if (!name_is(z->name, name, len)) { pp = &z->next; continue; }
         *pp = z->next;   /* unlink first: applying may resolve other names */
-        if (z->def) define_native_class(vm, z->def);
-        else {
-            mcs_class_t* c = module_for(vm, z->name);
-            if (z->regs) mcs_add_regs(vm, c, z->regs, true);
-            add_consts(vm, c, z->consts);
-        }
+        lazy_apply_t apply = { vm, z };
+        int code = mcs_protect_native(vm, lazy_apply, &apply);
         mcs_realloc(vm, z, sizeof(mcs_lazy_t) + strlen(z->name), 0);
+        if (code) mcs_rethrow_native(vm, code);
         any = true;
     }
     vm->gc_pause--;

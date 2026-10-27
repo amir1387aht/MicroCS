@@ -66,7 +66,6 @@ static int p_open(void* ctx, const char* path, int flags, void** fh) {
     if (fd < 0) return map_errno(errno);
     FILE* f = fdopen(fd, write ? ((flags & MCS_VFS_READ) ? "r+b" : "wb") : "rb");
     if (!f) { int e = map_errno(errno); close(fd); return e; }
-    if (!f) return map_errno(errno);
     *fh = f;
     return MCS_VFS_OK;
 }
@@ -99,7 +98,9 @@ static int p_stat(void* ctx, const char* path, mcs_vfs_stat_t* out) {
     struct stat st;
     if (stat(hp, &st)) return map_errno(errno);
     out->is_dir = S_ISDIR(st.st_mode);
-    out->size = out->is_dir ? 0 : (uint32_t)st.st_size;
+    /* Preserve an oversized sentinel instead of wrapping >4 GiB files to a
+     * small size; FileStream must reject these under its signed 32-bit limit. */
+    out->size = out->is_dir ? 0 : ((uint64_t)st.st_size > UINT32_MAX ? UINT32_MAX : (uint32_t)st.st_size);
     return MCS_VFS_OK;
 }
 static int p_remove(void* ctx, const char* path) {
@@ -154,7 +155,7 @@ static int p_list(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud) {
             snprintf(full, sizeof full, "%s/%s", hp, names[i]);
             struct stat st;
             mcs_vfs_stat_t vs = { 0, false };
-            if (!stat(full, &st)) { vs.is_dir = S_ISDIR(st.st_mode); vs.size = vs.is_dir ? 0 : (uint32_t)st.st_size; }
+            if (!stat(full, &st)) { vs.is_dir = S_ISDIR(st.st_mode); vs.size = vs.is_dir ? 0 : ((uint64_t)st.st_size > UINT32_MAX ? UINT32_MAX : (uint32_t)st.st_size); }
             if (cb(ud, names[i], &vs)) break;
         }
     }

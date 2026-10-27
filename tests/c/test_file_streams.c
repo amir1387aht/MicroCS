@@ -4,12 +4,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__unix__) || defined(__APPLE__)
+#include <unistd.h>
+#include <fcntl.h>
+#endif
 #include "file_stream_smoke.h"
 static int checks, failures;
 #define CHECK(c) do { checks++; if (!(c)) { failures++; fprintf(stderr,"FAIL %d: %s\n", __LINE__,#c); } } while (0)
 typedef struct { uint32_t pos; size_t bytes, largest; int handles, locked, calls, fail_read; } fake_t;
 static int fo(void* ctx,const char* p,int flags,void** out) { (void)p;(void)flags;fake_t* f=ctx;CHECK(f->locked==1); f->pos=0;f->handles++;*out=f;return 0; }
-static int fr(void* ctx,void* h,void* buf,size_t n) { (void)h;fake_t* f=ctx;CHECK(f->locked==1);f->calls++;if(f->fail_read)return MCS_VFS_EIO;if(n>f->largest)f->largest=n;if(n>64u*1024*1024-f->pos)n=64u*1024*1024-f->pos;for(size_t i=0;i<n;i++)((uint8_t*)buf)[i]=(uint8_t)(f->pos+i);f->pos+=(uint32_t)n;f->bytes+=n;return (int)n; }
+static int fr(void* ctx,void* h,void* buf,size_t n) { (void)h;fake_t* f=ctx;CHECK(f->locked==1);f->calls++;if(f->fail_read)return MCS_VFS_EIO;if(n>f->largest)f->largest=n;if(f->pos>=64u*1024*1024)n=0;else if(n>64u*1024*1024-f->pos)n=64u*1024*1024-f->pos;for(size_t i=0;i<n;i++)((uint8_t*)buf)[i]=(uint8_t)(f->pos+i);f->pos+=(uint32_t)n;f->bytes+=n;return (int)n; }
 static int fc(void* ctx,void* h) { (void)h;fake_t* f=ctx;CHECK(f->locked==1);f->handles--;return 0; }
 static int fst(void* ctx,const char* p,mcs_vfs_stat_t* st) { (void)p;fake_t* f=ctx;CHECK(f->locked==1);st->size=64u*1024*1024;st->is_dir=false;return 0; }
 static int fsk(void* ctx,void* h,int32_t off,int origin,int32_t* out) { (void)h;fake_t* f=ctx;CHECK(f->locked==1);int64_t p=(origin==0?0:origin==1?(int64_t)f->pos:64*1024*1024)+off;if(p<0||p>0x7fffffff)return MCS_VFS_EINVAL;f->pos=(uint32_t)p;*out=(int32_t)p;return 0; }
@@ -25,6 +29,7 @@ static void test_large(void) {
     mcs_vm_t* vm=mcs_new(&cfg);CHECK(vm!=NULL);if(!vm)return;mcs_fs_open_lib(vm,&v);
     CHECK(mcs_exec_source(vm,"ranges.cs", "var f=File.OpenRead(\"/huge\"); byte[] b=new byte[50]; if(f.Read(b,0,50)!=50 || b[49]!=49) throw new Exception(\"first\"); if(f.Read(b,0,50)!=50 || b[0]!=50) throw new Exception(\"second\"); f.Seek(1000000,SeekOrigin.Begin); if(f.ReadByte()!=64) throw new Exception(\"seek\"); f.Close();") == MCS_OK);
     CHECK(f.handles==0 && f.bytes==101 && f.largest<=50);
+    CHECK(mcs_exec_source(vm,"boundary.cs", "var edge=File.OpenRead(\"/huge\"); edge.Position=2147483647; byte[] endbuf=new byte[1]; if(edge.Read(endbuf,0,1)!=0 || edge.ReadByte()!=-1 || edge.Position!=2147483647) throw new Exception(\"EOF boundary\"); edge.Close();") == MCS_OK);
     CHECK(mcs_exec_source(vm,"fault.cs","var f=File.OpenRead(\"/huge\");") == MCS_OK);CHECK(f.handles==1);f.fail_read=1;
     CHECK(mcs_exec_source(vm,"fault2.cs","bool caught=false;try { f.ReadByte(); } catch(IOException e) { caught=true; } if(!caught)throw new Exception(\"fault\");f.Close();") == MCS_OK);
     CHECK(f.handles==0);f.fail_read=0;
@@ -39,6 +44,31 @@ static void test_large(void) {
     CHECK(!mcs_vfs_close(&held)); CHECK(second.handles==0 && f.handles==0);
 
 }
+typedef struct { mcs_pool_t pool; int enabled, calls, fail_at, injected; } fault_alloc_t;
+static void* fault_realloc(void* ud,void* ptr,size_t old,size_t size) {
+    fault_alloc_t* a=ud;
+    if(size && a->enabled && a->calls++==a->fail_at){a->injected=1;return NULL;}
+    return mcs_pool_realloc(&a->pool,ptr,old,size);
+}
+static void quiet(void* ud,const char* p,size_t n){(void)ud;(void)p;(void)n;}
+static void test_oom(void) {
+    int completed=0;
+    for(int fault=0;fault<2000;fault++) {
+        uint8_t heap[64*1024]; fault_alloc_t a={0};mcs_pool_init(&a.pool,heap,sizeof heap);
+        fake_t f={0};mcs_vfs_t v;mcs_vfs_init(&v);mcs_vfs_lock_t lock={enter,leave,&f};v.lock=&lock;
+        CHECK(!mcs_vfs_mount(&v,"/",&ops,&f,0));
+        mcs_config_t cfg;mcs_config_default(&cfg);cfg.realloc_fn=fault_realloc;cfg.alloc_ud=&a;
+        cfg.heap_limit=sizeof heap-2048;cfg.error_fn=quiet;cfg.write_fn=quiet;
+        mcs_vm_t* vm=mcs_new(&cfg);CHECK(vm!=NULL);if(!vm)break;mcs_fs_open_lib(vm,&v);
+        a.fail_at=fault;a.enabled=1;
+        int rc=mcs_exec_source(vm,"oom-stream.cs","var f=File.OpenRead(\"/huge\");byte[] b=new byte[3];f.Read(b,0,3);");
+        a.enabled=0;
+        if(!a.injected){CHECK(rc==MCS_OK);completed=1;}
+        mcs_free(vm);if(f.handles||f.locked||a.pool.used)fprintf(stderr,"OOM fault=%d calls=%d rc=%d handles=%d locked=%d pool=%zu\n",fault,a.calls,rc,f.handles,f.locked,a.pool.used);CHECK(f.handles==0 && f.locked==0 && a.pool.used==0);
+        if(completed)break;
+    }
+    CHECK(completed);
+}
 static void test_ram(void) {
     mcs_ramfs_t fs; mcs_ramfs_init(&fs, 8192, NULL, NULL);
     mcs_vfs_t v; mcs_vfs_init(&v); CHECK(!mcs_vfs_mount(&v,"/",&mcs_ramfs_ops,&fs,0));
@@ -51,4 +81,28 @@ static void test_ram(void) {
     CHECK(mcs_vfs_open(&v,"/ro/no",MCS_VFS_UPDATE|MCS_VFS_CREATE,&f)==MCS_VFS_EACCES);
     mcs_ramfs_free(&fs);
 }
-int main(void){test_large();test_ram();printf("file streams: %d checks, %d failures\n",checks,failures);return failures!=0;}
+#if defined(__unix__) || defined(__APPLE__)
+static void test_host_size(void) {
+    /* Sparse file: validate >4 GiB metadata without allocating/file-sized I/O. */
+    if (sizeof(off_t) < 8) return;
+    char dir[]="/tmp/mcs-stream-size-XXXXXX";
+    CHECK(mkdtemp(dir)!=NULL);
+    char path[256]; snprintf(path,sizeof path,"%s/large",dir);
+    int fd=open(path,O_CREAT|O_RDWR|O_EXCL,0600); CHECK(fd>=0);
+    if(fd<0){rmdir(dir);return;}
+    CHECK(!ftruncate(fd,(off_t)UINT64_C(4294967297))); CHECK(!close(fd));
+    mcs_posixfs_t host; CHECK(!mcs_posixfs_init(&host,dir));
+    mcs_vfs_t v; mcs_vfs_init(&v); CHECK(!mcs_vfs_mount(&v,"/",&mcs_posixfs_ops,&host,0));
+    mcs_vfs_stat_t st; CHECK(!mcs_vfs_stat(&v,"/large",&st)); CHECK(st.size==UINT32_MAX);
+    mcs_config_t cfg; mcs_config_default(&cfg);cfg.error_fn=print;
+    mcs_vm_t* vm=mcs_new(&cfg); CHECK(vm!=NULL);
+    if(vm){mcs_fs_open_lib(vm,&v);
+        CHECK(mcs_exec_source(vm,"large-size.cs","bool rejected=false;try{var f=File.OpenRead(\"/large\");f.Close();}catch(IOException e){rejected=true;}if(!rejected)throw new Exception(\"wrapped file size\");")==MCS_OK);
+        mcs_free(vm);
+    }
+    CHECK(!unlink(path)); CHECK(!rmdir(dir));
+}
+#else
+static void test_host_size(void) {}
+#endif
+int main(void){test_large();test_ram();test_host_size();test_oom();printf("file streams: %d checks, %d failures\n",checks,failures);return failures!=0;}
