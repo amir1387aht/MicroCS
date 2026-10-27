@@ -13,7 +13,7 @@ options (U8g2 displays, pins, filesystem, profile) you choose.
    (`--port COM5` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbmodem…` on macOS):
 
    ```sh
-   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.17.0-esp32c3.bin
+   esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0 microcs-1.18.0-esp32c3.bin
    ```
 
    If esptool cannot connect: hold **BOOT**, tap **RESET** (EN), release BOOT, try again.

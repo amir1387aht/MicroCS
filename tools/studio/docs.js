@@ -350,6 +350,11 @@ new() | Empty stack
 .Clear(): void | Removes everything
 
 @File | Files on the device filesystem (System.IO)
+OpenRead(string path): FileStream | Open an existing file for incremental reading
+OpenWrite(string path): FileStream | Open/create for writing without truncating
+Create(string path): FileStream | Create/truncate a file, read/write
+Open(string path, FileMode mode): FileStream | Open with default access
+Open(string path, FileMode mode, FileAccess access): FileStream | Open with explicit access
 ReadAllText(string path): string | Whole file as text
 WriteAllText(string path, string text): void | Creates / overwrites
 AppendAllText(string path, string text): void | Appends (creates when missing)
@@ -1737,4 +1742,36 @@ new(string message, Exception inner) | Wrapping another exception
 
 @TimeSpan | (not available - use Stopwatch / Environment.TickCount)
 @DateTime | (not available - use RTC.Now, Unix seconds)
+
+@FileStream | Bounded-memory synchronous byte streams
+new(string path, FileMode mode) | Default ReadWrite; Append uses Write
+new(string path, FileMode mode, FileAccess access) | Explicit access
+.Read(byte[] buffer, int offset, int count): int | Read into reusable buffer; returns bytes read, zero at EOF
+.Write(byte[] buffer, int offset, int count): void | Write the requested buffer slice
+.ReadByte(): int | Read one byte; minus one at EOF
+.WriteByte(int value): void | Write a byte in 0..255
+.Seek(int offset, SeekOrigin origin): int | Set position relative to Begin, Current or End
+.Position: int | Get/set byte offset
+.Length: int | File length in bytes
+.CanRead: bool | Open and readable
+.CanWrite: bool | Open and writable
+.CanSeek: bool | Open with backend seek support
+.Flush(): void | Flush buffered writes
+.Close(): void | Close the handle; safe to repeat
+.Dispose(): void | Close the handle; safe to repeat
+@FileMode | File opening mode
+const CreateNew: int | Create only if absent
+const Create: int | Create or truncate
+const Open: int | Open existing
+const OpenOrCreate: int | Open or create without truncating
+const Truncate: int | Truncate an existing file
+const Append: int | Open/create at end, write only
+@FileAccess | Stream access
+const Read: int | Read only
+const Write: int | Write only
+const ReadWrite: int | Read and write
+@SeekOrigin | File offset origin
+const Begin: int | Offset from byte zero
+const Current: int | Offset from current position
+const End: int | Offset from file end
 `;

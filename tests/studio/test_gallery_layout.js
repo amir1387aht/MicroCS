@@ -29,7 +29,7 @@ fs.mkdirSync(OUT, { recursive: true });
               visible:getComputedStyle(e).display !== 'none', scrollWidth:e.scrollWidth, clientWidth:e.clientWidth }; };
           return { dialog:box('.gallery'), head:box('.gh'), status:box('#gSupport'), body:box('.gb'),
             cats:box('#gCats'), items:box('#gItems'), preview:box('.prev'), info:box('#gInfo'), code:box('#gPrev'),
-            foot:box('.gf'), actions:['#gName','#gInsert','#gAdd','#gCancel','#gSearch','#gClose'].map(box) };
+            foot:box('.gf'), actions:['#gName','#gInsert','#gAdd','#gCancel','#gSearch','#gClose','#gSupportedOnly'].map(box) };
         });
         const label = `${width}x${height} ${state}`;
         assert(boxes.actions[0].width > 160, `${label}: filename remains editable`);

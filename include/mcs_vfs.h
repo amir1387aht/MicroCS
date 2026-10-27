@@ -31,6 +31,11 @@ enum {
 #define MCS_VFS_READ   0x01
 #define MCS_VFS_WRITE  0x02    /* create + truncate */
 #define MCS_VFS_APPEND 0x04    /* create + append   */
+#define MCS_VFS_UPDATE 0x08    /* write without truncating/creating */
+#define MCS_VFS_CREATE 0x10    /* create if missing (with UPDATE) */
+#define MCS_VFS_EXCL   0x20    /* fail if already present */
+#define MCS_VFS_TRUNC  0x40    /* truncate an existing file */
+#define MCS_VFS_WRITABLE (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_UPDATE)
 /* mount flags */
 #define MCS_VFS_RDONLY 0x01
 #define MCS_VFS_NOEXEC 0x02    /* files may be read but not run as scripts */
@@ -56,6 +61,10 @@ typedef struct mcs_vfs_ops {
     int (*rename)(void* ctx, const char* from, const char* to);    /* may be NULL */
     int (*list)(void* ctx, const char* path, mcs_vfs_list_cb cb, void* ud);
     int (*statfs)(void* ctx, mcs_vfs_statfs_t* st);                /* may be NULL */
+    /* Optional stream operations. Offsets/positions are limited to INT32_MAX.
+     * seek returns an error code and fills position; origin: 0 begin, 1 current, 2 end. */
+    int (*seek)(void* ctx, void* fh, int32_t offset, int origin, int32_t* position);
+    int (*flush)(void* ctx, void* fh);
 } mcs_vfs_ops_t;
 
 typedef struct {
@@ -82,7 +91,15 @@ typedef struct mcs_vfs {
     const mcs_vfs_lock_t* lock;  /* NULL = single-threaded */
 } mcs_vfs_t;
 
-typedef struct { mcs_vfs_mount_t* m; void* fh; const mcs_vfs_lock_t* lock; } mcs_vfs_file_t;
+/* Snapshot dispatch: mount-table compaction must not retarget a live stream.
+ * The backend context and lock must outlive all open handles. */
+typedef struct {
+    mcs_vfs_mount_t* m; /* legacy reference; do not dereference after mount changes */
+    void* fh;
+    const mcs_vfs_lock_t* lock;
+    const mcs_vfs_ops_t* ops;
+    void* ctx;
+} mcs_vfs_file_t;
 
 void mcs_vfs_init(mcs_vfs_t* vfs);
 int mcs_vfs_mount(mcs_vfs_t* vfs, const char* prefix, const mcs_vfs_ops_t* ops, void* ctx, uint8_t flags);
@@ -95,6 +112,8 @@ int mcs_vfs_open(mcs_vfs_t* vfs, const char* path, int flags, mcs_vfs_file_t* f)
 int mcs_vfs_read(mcs_vfs_file_t* f, void* buf, size_t n);
 int mcs_vfs_write(mcs_vfs_file_t* f, const void* buf, size_t n);
 int mcs_vfs_close(mcs_vfs_file_t* f);
+int mcs_vfs_seek(mcs_vfs_file_t* f, int32_t offset, int origin, int32_t* position);
+int mcs_vfs_flush(mcs_vfs_file_t* f);
 int mcs_vfs_stat(mcs_vfs_t* vfs, const char* path, mcs_vfs_stat_t* st);
 int mcs_vfs_remove(mcs_vfs_t* vfs, const char* path);
 int mcs_vfs_mkdir(mcs_vfs_t* vfs, const char* path);

@@ -845,16 +845,22 @@ static int zpath(void* ctx, const char* path, char* out, size_t cap) {
 static int zf_open(void* ctx, const char* path, int flags, void** fh) {
     ZP(path);
     struct fs_dirent st;
-    if (fs_stat(zp, &st) == 0 && st.type == FS_DIR_ENTRY_DIR) return MCS_VFS_EISDIR;
+    int stat_rc = fs_stat(zp, &st);
+    if (!stat_rc && st.type == FS_DIR_ENTRY_DIR) return MCS_VFS_EISDIR;
+    if (!stat_rc && (flags & MCS_VFS_EXCL)) return MCS_VFS_EEXIST;
+    if (stat_rc && !(flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE))) return fs_err(stat_rc);
     int slot = -1;
     for (int i = 0; i < MCS_ZEPHYR_FS_FILES; i++) if (!g_files[i].used) { slot = i; break; }
     if (slot < 0) return MCS_VFS_ENOMEM;
     struct fs_file_t* f = &g_files[slot].f;
     fs_file_t_init(f);
-    fs_mode_t m = (flags & (MCS_VFS_WRITE | MCS_VFS_APPEND)) ? (FS_O_WRITE | FS_O_CREATE | ((flags & MCS_VFS_APPEND) ? FS_O_APPEND : 0)) : FS_O_READ;
+    fs_mode_t m = (flags & MCS_VFS_WRITABLE) ? FS_O_WRITE : FS_O_READ;
+    if (flags & MCS_VFS_READ) m |= FS_O_READ;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE)) m |= FS_O_CREATE;
+    if (flags & MCS_VFS_APPEND) m |= FS_O_APPEND;
     int r = fs_open(f, zp, m);
     if (r) return fs_err(r);
-    if ((flags & MCS_VFS_WRITE) && !(flags & MCS_VFS_APPEND) && (r = fs_truncate(f, 0)) != 0) { fs_close(f); return fs_err(r); }
+    if ((flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) && !(flags & MCS_VFS_APPEND) && (r = fs_truncate(f, 0)) != 0) { fs_close(f); return fs_err(r); }
     g_files[slot].used = true;
     *fh = f;
     return MCS_VFS_OK;
@@ -875,6 +881,18 @@ static int zf_close(void* ctx, void* fh) {
     for (int i = 0; i < MCS_ZEPHYR_FS_FILES; i++) if (&g_files[i].f == fh) g_files[i].used = false;
     return fs_err(r);
 }
+#if MCS_ENABLE_FILE_STREAMS
+static int zf_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    (void)ctx; struct fs_file_t* f = (struct fs_file_t*)fh;
+    off_t old = fs_tell(f);
+    int rc = fs_seek(f, off, origin == 0 ? FS_SEEK_SET : origin == 1 ? FS_SEEK_CUR : FS_SEEK_END);
+    if (rc) return fs_err(rc);
+    off_t p = fs_tell(f);
+    if (p < 0 || (uint64_t)p > 0x7fffffff) { (void)fs_seek(f, old, FS_SEEK_SET); return MCS_VFS_EINVAL; }
+    *out = (int32_t)p; return 0;
+}
+static int zf_flush(void* ctx, void* fh) { (void)ctx; return fs_err(fs_sync((struct fs_file_t*)fh)); }
+#endif
 static int zf_stat(void* ctx, const char* path, mcs_vfs_stat_t* out) {
     if (!strcmp(path, "/")) { out->is_dir = true; out->size = 0; return MCS_VFS_OK; }   /* mount points have no dirent */
     ZP(path);
@@ -920,7 +938,13 @@ static int zf_statfs(void* ctx, mcs_vfs_statfs_t* st) {
     st->format = fs->format ? fs->format : "zephyr";
     return MCS_VFS_OK;
 }
-const mcs_vfs_ops_t mcs_zephyr_fs_ops = { zf_open, zf_read, zf_write, zf_close, zf_stat, zf_remove, zf_mkdir, zf_rename, zf_list, zf_statfs };
+const mcs_vfs_ops_t mcs_zephyr_fs_ops = { zf_open, zf_read, zf_write, zf_close, zf_stat, zf_remove, zf_mkdir, zf_rename, zf_list, zf_statfs,
+#if MCS_ENABLE_FILE_STREAMS
+    zf_seek, zf_flush
+#else
+    NULL, NULL
+#endif
+};
 
 int mcs_zephyr_fs_init(mcs_zephyr_fs_t* fs, const char* mount_point, const char* format) {
     size_t n = strlen(mount_point);

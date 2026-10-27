@@ -194,7 +194,219 @@ NATIVE(f_length) {
     return mcs_int((mcs_int_t)st.size);
 }
 
+#if MCS_ENABLE_FILE_STREAMS
+/* FileStream: one small native handle, caller-owned byte[] and fixed 64-byte
+ * transfer scratch. No file-sized temporary allocations or background work. */
+typedef struct {
+    mcs_vfs_file_t file;
+    char path[MCS_VFS_PATH_MAX];
+    int32_t position, length, append_start;
+    uint8_t access, opened, append, last_op;
+} file_stream_t;
+static const mcs_class_def_t stream_def;
+static void stream_ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
+    file_stream_t* s = (file_stream_t*)mcs_userdata(self);
+    if (argc < 2 || argc > 3) { mcs_raise(vm, "ArgumentException", "FileStream(path, FileMode[, FileAccess]) expected"); return; }
+    const char* path = mcs_cstr(argv[0]);
+    if (!path) { mcs_raise(vm, mcs_is_null(argv[0]) ? "ArgumentNullException" : "ArgumentException", "File path must be a string"); return; }
+    if (!*path) { mcs_raise(vm, "ArgumentException", "File path cannot be empty"); return; }
+    mcs_int_t mode = mcs_to_int(vm, argv[1]);
+    mcs_int_t access = argc == 3 ? mcs_to_int(vm, argv[2]) : mode == 6 ? 2 : 3;
+    if (mcs_has_exception(vm)) return;
+    if (mode < 1 || mode > 6 || access < 1 || access > 3 || (mode != 3 && !(access & 2)) || (mode == 6 && access != 2)) {
+        mcs_raise(vm, "ArgumentException", "Invalid FileMode/FileAccess combination"); return;
+    }
+    int e = mcs_vfs_normalize(path, s->path, sizeof s->path);
+    if (e) { io_fail(vm, e, path, false); return; }
+    mcs_vfs_t* vfs = VFS();
+    if (!vfs) { mcs_raise(vm, "IOException", "No filesystem mounted"); return; }
+    mcs_vfs_stat_t st;
+    e = mcs_vfs_stat(vfs, s->path, &st);
+    if (e && e != MCS_VFS_ENOENT) { io_fail(vm, e, s->path, false); return; }
+    if (!e && st.is_dir) { io_fail(vm, MCS_VFS_EACCES, s->path, false); return; }
+    if (!e && st.size > 0x7fffffff) { mcs_raise(vm, "IOException", "FileStream supports files up to 2 GiB - 1 byte"); return; }
+    int flags = (access & 1) ? MCS_VFS_READ : 0;
+    if (access & 2) flags |= MCS_VFS_UPDATE;
+    switch (mode) {
+    case 1: flags |= MCS_VFS_CREATE | MCS_VFS_EXCL; break;
+    case 2: flags |= MCS_VFS_WRITE; break;
+    case 4: flags |= MCS_VFS_CREATE; break;
+    case 5: flags |= MCS_VFS_TRUNC; break;
+    case 6: flags |= MCS_VFS_APPEND; break;
+    }
+    e = mcs_vfs_open(vfs, s->path, flags, &s->file);
+    if (e) { io_fail(vm, e, s->path, false); return; }
+    s->opened = 1; s->access = (uint8_t)access;
+    s->length = (!e && mode != 1 && mode != 2 && mode != 5 && mcs_vfs_stat(vfs, s->path, &st) == 0) ? (int32_t)st.size : 0;
+    if (mode == 6) { s->append = 1; s->append_start = s->length; s->position = s->length; }
+}
+static void stream_free(mcs_vm_t* vm, void* data) {
+    (void)vm; file_stream_t* s = (file_stream_t*)data;
+    if (s->opened) { s->opened = 0; (void)mcs_vfs_close(&s->file); }
+}
+#define STREAM() file_stream_t* s = (file_stream_t*)mcs_check_userdata(vm, self, &stream_def); \
+    if (!s) return mcs_null(); \
+    if (!s->opened) { mcs_raise(vm, "ObjectDisposedException", "FileStream"); return mcs_null(); }
+static bool stream_access(mcs_vm_t* vm, file_stream_t* s, int access) {
+    if (!(s->access & access)) { mcs_raise(vm, "NotSupportedException", access == 1 ? "Stream is not readable" : "Stream is not writable"); return false; }
+    if (s->last_op && s->last_op != access && s->file.ops->seek) {
+        int32_t p;
+        int e = mcs_vfs_seek(&s->file, 0, 1, &p);
+        if (e) { io_fail(vm, e, s->path, false); return false; }
+        s->position = p;
+    }
+    s->last_op = (uint8_t)access;
+    return true;
+}
+static bool stream_slice(mcs_vm_t* vm, int argc, mcs_value_t* a, uint32_t* off, uint32_t* count) {
+    if (argc != 3 || mcs_obj_kind(a[0]) != MCS_O_ARRAY) { mcs_raise(vm, "ArgumentException", "Expected (byte[] buffer, int offset, int count)"); return false; }
+    mcs_int_t o = mcs_to_int(vm, a[1]), n = mcs_to_int(vm, a[2]);
+    if (mcs_has_exception(vm)) return false;
+    uint32_t len = mcs_len(a[0]);
+    if (o < 0 || n < 0 || (uint64_t)o > len || (uint64_t)n > len - (uint64_t)o) { mcs_raise(vm, "ArgumentOutOfRangeException", "Buffer offset/count out of range"); return false; }
+    *off = (uint32_t)o; *count = (uint32_t)n; return true;
+}
+NATIVE(fs_read) {
+    STREAM(); uint32_t off, count;
+    if (!stream_slice(vm, argc, argv, &off, &count) || !stream_access(vm, s, 1)) return mcs_null();
+    uint8_t buf[64]; uint32_t done = 0;
+    while (done < count) {
+        size_t n = count - done; if (n > sizeof buf) n = sizeof buf;
+        if (n > 0x7fffffffu - (uint32_t)s->position) n = 0x7fffffffu - (uint32_t)s->position;
+        if (!n) break; /* Maximum supported position is also EOF. */
+        int r = mcs_vfs_read(&s->file, buf, n);
+        if (r < 0) return io_fail(vm, r, s->path, false);
+        if ((size_t)r > n) return io_fail(vm, MCS_VFS_EIO, s->path, false);
+        if (!r) break;
+        for (int i = 0; i < r; i++) mcs_set_index(argv[0], off + done + (uint32_t)i, mcs_int(buf[i]));
+        done += (uint32_t)r; s->position += r;
+        if ((size_t)r < n) break; /* .NET Read may return fewer bytes than requested. */
+    }
+    return mcs_int((mcs_int_t)done);
+}
+static bool stream_written(mcs_vm_t* vm, file_stream_t* s) {
+    /* O_APPEND backends write at EOF even after a forward seek. Report the
+     * backend's actual position, not the stale requested offset. */
+    if (s->append && s->file.ops->seek) {
+        int32_t p; int e = mcs_vfs_seek(&s->file, 0, 1, &p);
+        if (e) { io_fail(vm, e, s->path, false); return false; }
+        s->position = p;
+    }
+    if (s->position > s->length) s->length = s->position;
+    return true;
+}
+NATIVE(fs_write) {
+    STREAM(); uint32_t off, count;
+    if (!stream_slice(vm, argc, argv, &off, &count) || !stream_access(vm, s, 2)) return mcs_null();
+    if (count > 0x7fffffffu - (uint32_t)s->position) { mcs_raise(vm, "IOException", "Stream exceeds position limit"); return mcs_null(); }
+    /* Validate before writing any data, so a bad byte cannot partially write a file. */
+    for (uint32_t i = 0; i < count; i++) {
+        mcs_int_t v = mcs_to_int(vm, mcs_index(argv[0], off + i));
+        if (mcs_has_exception(vm)) return mcs_null();
+        if (v < 0 || v > 255) { mcs_raise(vm, "ArgumentOutOfRangeException", "Byte value outside 0..255"); return mcs_null(); }
+    }
+    uint8_t buf[64]; uint32_t done = 0;
+    while (done < count) {
+        size_t n = count - done; if (n > sizeof buf) n = sizeof buf;
+        for (size_t i = 0; i < n; i++) buf[i] = (uint8_t)mcs_to_int(vm, mcs_index(argv[0], off + done + (uint32_t)i));
+        size_t sent = 0;
+        while (sent < n) {
+            int r = mcs_vfs_write(&s->file, buf + sent, n - sent);
+            if (r <= 0 || (size_t)r > n - sent) return io_fail(vm, r < 0 ? r : MCS_VFS_EIO, s->path, false);
+            sent += (size_t)r; s->position += r;
+            if (!s->append && s->position > s->length) s->length = s->position;
+        }
+        done += (uint32_t)n;
+    }
+    if (count) (void)stream_written(vm, s);
+    return mcs_null();
+}
+NATIVE(fs_read_byte) {
+    STREAM(); if (!stream_access(vm, s, 1)) return mcs_null();
+    uint8_t b; int r = mcs_vfs_read(&s->file, &b, 1);
+    if (r < 0) return io_fail(vm, r, s->path, false);
+    if (r > 1 || (r && s->position == 0x7fffffff)) return io_fail(vm, MCS_VFS_EINVAL, s->path, false);
+    if (r) s->position++;
+    return mcs_int(r ? b : -1);
+}
+NATIVE(fs_write_byte) {
+    STREAM(); if (!stream_access(vm, s, 2)) return mcs_null();
+    mcs_int_t v = mcs_to_int(vm, argv[0]); if (mcs_has_exception(vm)) return mcs_null();
+    if (v < 0 || v > 255) { mcs_raise(vm, "ArgumentOutOfRangeException", "Byte value outside 0..255"); return mcs_null(); }
+    if (s->position == 0x7fffffff) return io_fail(vm, MCS_VFS_ENOSPC, s->path, false);
+    uint8_t b = (uint8_t)v; int r = mcs_vfs_write(&s->file, &b, 1);
+    if (r != 1) return io_fail(vm, r < 0 ? r : MCS_VFS_EIO, s->path, false);
+    s->position++; (void)stream_written(vm, s);
+    return mcs_null();
+}
+NATIVE(fs_seek) {
+    STREAM(); mcs_int_t off = mcs_to_int(vm, argv[0]), origin = mcs_to_int(vm, argv[1]);
+    if (mcs_has_exception(vm)) return mcs_null();
+    if (origin < 0 || origin > 2 || off < -2147483647 || (uint64_t)(off < 0 ? -off : off) > 0x7fffffff) { mcs_raise(vm, "ArgumentOutOfRangeException", "Invalid seek offset/origin"); return mcs_null(); }
+    if (!s->file.ops->seek) { mcs_raise(vm, "NotSupportedException", "Backend does not support seeking"); return mcs_null(); }
+    int32_t p, old = s->position;
+    int e = mcs_vfs_seek(&s->file, (int32_t)off, (int)origin, &p);
+    if (e) return io_fail(vm, e, s->path, false);
+    if (s->append && p < s->append_start) { (void)mcs_vfs_seek(&s->file, old, 0, &p); mcs_raise(vm, "IOException", "Cannot seek before the append origin"); return mcs_null(); }
+    s->position = p; s->last_op = 0; return mcs_int(p);
+}
+NATIVE(fs_position) { STREAM(); return mcs_int(s->position); }
+NATIVE(fs_set_position) {
+    mcs_value_t args[2] = { argv[0], mcs_int(0) };
+    return fs_seek(vm, self, 2, args);
+}
+NATIVE(fs_length) {
+    STREAM();
+    if (s->file.ops->seek) {
+        int32_t length, p;
+        int e = mcs_vfs_seek(&s->file, 0, 2, &length);
+        if (e) return io_fail(vm, e, s->path, false);
+        e = mcs_vfs_seek(&s->file, s->position, 0, &p);
+        if (e) return io_fail(vm, e, s->path, false);
+        s->length = length;
+    }
+    return mcs_int(s->length);
+}
+NATIVE(fs_can_read) { file_stream_t* s = mcs_check_userdata(vm, self, &stream_def); return mcs_bool(s && s->opened && (s->access & 1)); }
+NATIVE(fs_can_write) { file_stream_t* s = mcs_check_userdata(vm, self, &stream_def); return mcs_bool(s && s->opened && (s->access & 2)); }
+NATIVE(fs_can_seek) { file_stream_t* s = mcs_check_userdata(vm, self, &stream_def); return mcs_bool(s && s->opened && s->file.ops->seek); }
+NATIVE(fs_flush) { STREAM(); int e = mcs_vfs_flush(&s->file); return e ? io_fail(vm, e, s->path, false) : mcs_null(); }
+NATIVE(fs_close) {
+    file_stream_t* s = mcs_check_userdata(vm, self, &stream_def);
+    if (s && s->opened) { s->opened = 0; int e = mcs_vfs_close(&s->file); if (e) return io_fail(vm, e, s->path, false); }
+    return mcs_null();
+}
+static const mcs_reg_t stream_members[] = {
+    MCS_FN("Read", fs_read, 3), MCS_FN("Write", fs_write, 3),
+    MCS_FN("ReadByte", fs_read_byte, 0), MCS_FN("WriteByte", fs_write_byte, 1),
+    MCS_FN("Seek", fs_seek, 2), MCS_FN("Flush", fs_flush, 0),
+    MCS_FN("Close", fs_close, 0), MCS_FN("Dispose", fs_close, 0),
+    MCS_GET("Position", fs_position), MCS_SET("Position", fs_set_position), MCS_GET("Length", fs_length),
+    MCS_GET("CanRead", fs_can_read), MCS_GET("CanWrite", fs_can_write), MCS_GET("CanSeek", fs_can_seek), MCS_REG_END
+};
+static const mcs_class_def_t stream_def = { "FileStream", sizeof(file_stream_t), stream_ctor, stream_free, stream_members, NULL };
+static const mcs_const_t file_modes[] = { {"CreateNew", 1}, {"Create", 2}, {"Open", 3}, {"OpenOrCreate", 4}, {"Truncate", 5}, {"Append", 6}, {NULL, 0} };
+static const mcs_const_t file_access[] = { {"Read", 1}, {"Write", 2}, {"ReadWrite", 3}, {NULL, 0} };
+static const mcs_const_t seek_origins[] = { {"Begin", 0}, {"Current", 1}, {"End", 2}, {NULL, 0} };
+static mcs_value_t stream_new(mcs_vm_t* vm, mcs_value_t path, int mode, int access) {
+    mcs_value_t args[3] = { path, mcs_int(mode), mcs_int(access) }, out = mcs_null();
+    (void)mcs_new_object(vm, "FileStream", 3, args, &out); return out;
+}
+NATIVE(f_open_read) { return stream_new(vm, argv[0], 3, 1); }
+NATIVE(f_open_write) { return stream_new(vm, argv[0], 4, 2); }
+NATIVE(f_create) { return stream_new(vm, argv[0], 2, 3); }
+NATIVE(f_open) {
+    if (argc < 2 || argc > 3) { mcs_raise(vm, "ArgumentException", "File.Open(path, mode[, access]) expected"); return mcs_null(); }
+    mcs_value_t out = mcs_null(); (void)mcs_new_object(vm, "FileStream", argc, argv, &out); return out;
+}
+
+
+#endif /* MCS_ENABLE_FILE_STREAMS */
 static const mcs_reg_t file_fns[] = {
+#if MCS_ENABLE_FILE_STREAMS
+    MCS_FN("OpenRead", f_open_read, 1), MCS_FN("OpenWrite", f_open_write, 1),
+    MCS_FN("Open", f_open, -1), MCS_FN("Create", f_create, 1),
+#endif
     MCS_FN("ReadAllText", f_read_text, 1),
     MCS_FN("WriteAllText", f_write_text, 2),
     MCS_FN("AppendAllText", f_append_text, 2),
@@ -435,6 +647,13 @@ static const mcs_class_def_t drive_def = { "DriveInfo", sizeof(drive_t), drive_c
 
 void mcs_fs_open_lib(mcs_vm_t* vm, mcs_vfs_t* vfs) {
     mcs_set_ext(vm, MCS_EXT_VFS, vfs);
+
+#if MCS_ENABLE_FILE_STREAMS
+    mcs_register_class(vm, &stream_def);
+    mcs_register_consts(vm, "FileMode", file_modes);
+    mcs_register_consts(vm, "FileAccess", file_access);
+    mcs_register_consts(vm, "SeekOrigin", seek_origins);
+#endif
     mcs_register_module(vm, "File", file_fns);
     mcs_register_module(vm, "Directory", dir_fns);
     mcs_register_module(vm, "Path", path_fns);

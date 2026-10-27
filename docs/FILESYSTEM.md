@@ -287,6 +287,105 @@ Zephyr `native_sim` firmware with LittleFS and with YAFFS2. For LittleFS and YAF
 power-cut testing relies on their own power-loss guarantees.
 
 ## C# API
+
+### Chunked I/O (`FileStream`)
+
+Enabled by default with filesystem support (`MCS_ENABLE_FILE_STREAMS=MCS_ENABLE_FS`).
+ESP-IDF: menuconfig > MicroCS > FileStream. CMake: `MICROCS_FILE_STREAMS=ON`
+(default); custom config headers can set `MCS_ENABLE_FILE_STREAMS=0` to omit
+these APIs on flash-constrained targets. The 256 KiB Cortex-M0 emulation reference
+keeps its linker limit by explicitly opting out; normal port defaults remain on.
+
+Use `File.OpenRead(path)` to keep a file open and read only the requested bytes:
+
+```csharp
+var file = File.OpenRead("/data.bin");
+try
+{
+    byte[] buffer = new byte[50];
+    int first = file.Read(buffer, 0, 50);  // bytes 0..49 (or fewer at EOF)
+    int second = file.Read(buffer, 0, 50); // next 50 bytes, reuses the buffer
+    file.Seek(50, SeekOrigin.Begin);      // jump directly to the second block
+    int count = file.Read(buffer, 0, buffer.Length);
+    Console.WriteLine($"read {count} bytes at position {file.Position}");
+}
+finally
+{
+    file.Dispose();
+}
+```
+
+`Read` returns the number of bytes actually read, `0` at EOF; it may return fewer
+than requested. Process only that many entries. Offsets/counts address the
+**buffer**; `Seek` / `Position` address the **file**. These are byte offsets, not
+Unicode character positions; a block can split a UTF-8 character.
+
+To choose a **1-based block number**, calculate `(blockNumber - 1) * blockSize`:
+block 1 starts at byte 0, block 2 at 50, block 3 at 100. For example, inside the
+open stream's `try` block above:
+
+```csharp
+int blockNumber = 3;
+int blockSize = 50;
+if (blockNumber < 1)
+    throw new ArgumentException("Block numbers start at 1");
+file.Seek((blockNumber - 1) * blockSize, SeekOrigin.Begin);
+int used = 0;
+while (used < buffer.Length)
+{
+    int n = file.Read(buffer, used, buffer.Length - used);
+    if (n == 0) break;
+    used += n;
+}
+// Only buffer[0..used-1] belongs to this block; used == 0 means EOF.
+```
+
+The loop handles short reads without skipping part of a block. Validate large
+block numbers against the signed 32-bit position limit before multiplication.
+Reading successive blocks needs no Seek: the stream advances automatically.
+
+* `new FileStream(path, FileMode[, FileAccess])` and `File.Open(path, mode[, access])`.
+* `File.OpenRead(path)`: open existing, read only.
+* `File.OpenWrite(path)`: open or create, write only, starts at byte 0, **does not
+  truncate** existing contents. Use `File.Create` to replace a file completely.
+* `File.Create(path)`: create/truncate, read/write.
+* Modes: `FileMode.CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`.
+  Access: `FileAccess.Read`, `Write`, `ReadWrite`. Default access is ReadWrite,
+  except Append which is Write only. Creating/truncating modes require write access.
+* Instance: `Read(byte[] buffer, int offset, int count)`,
+  `Write(byte[] buffer, int offset, int count)`, `ReadByte()` (`-1` at EOF),
+  `WriteByte(value)`, `Seek(offset, SeekOrigin.Begin/Current/End)`,
+  `Flush()`, `Close()`, `Dispose()`.
+* Properties: `Position` (get/set), `Length`, `CanRead`, `CanWrite`, `CanSeek`.
+* Close/Dispose are idempotent; later I/O raises `ObjectDisposedException`.
+  GC and VM teardown also close abandoned handles, but explicit disposal is
+  recommended: small embedded filesystems have a limited number of open handles.
+* A stream owns one native handle and a small fixed-size descriptor. Transfers
+  use a **64-byte C scratch buffer**, not a whole-file buffer. Your reusable
+  byte array remains VM/pool-accounted. There is no polling/background work.
+* RAMFS, POSIX, LittleFS, YAFFS2 and the Zephyr VFS adapter implement seek/flush.
+  TinyFS supports random-access **reads**, but writes remain sequential; seeking
+  a writable TinyFS handle away from EOF fails rather than silently rewriting.
+  RAMFS rejects deletion of an open file to prevent dangling handles.
+* This is a synchronous MCU-oriented .NET subset, not all of `System.IO`:
+  no async/FileShare/FileOptions/SetLength/StreamReader overloads. Positions and
+  lengths are limited to 2 GiB minus 1 byte. Backend errors become IO exceptions;
+  read-only handles/mounts and invalid buffer ranges are rejected.
+* `Hal.Has("Filesystem.Streams")` reports this API independently of basic File
+  support, so older firmware never claims support for these new examples.
+
+For custom VFS backends, `mcs_vfs_ops_t` has optional trailing `seek` and `flush`
+callbacks. Seek returns an error code and writes the new signed 32-bit position;
+origins are 0/1/2. Implement the new UPDATE/CREATE/EXCL/TRUNC flags before providing
+seek. Existing READ/WRITE/APPEND meanings are unchanged. Old backends keep
+sequential `File.OpenRead`; unsupported advanced open flags fail safely. Use
+`mcs_vfs_seek` / `mcs_vfs_flush` to preserve the VFS's per-operation locking.
+Rebuild custom positional initializers with two trailing callbacks (or NULLs).
+Open handles snapshot backend dispatch, so mount-table changes cannot retarget them.
+Backend contexts and locks must outlive their open handles; dispose streams before
+unmounting/destroying a filesystem.
+
+
 `File`: ReadAllText, WriteAllText, AppendAllText, ReadAllLines, WriteAllLines,
 AppendAllLines, ReadAllBytes, WriteAllBytes, Exists, Delete, Copy(src, dst[, overwrite]),
 Move, GetLength (MicroCS extension; .NET uses `FileInfo.Length`).
@@ -307,4 +406,5 @@ includes a little metadata overhead. A RAM filesystem without a quota reports 2 
 Errors map to .NET types and messages: FileNotFoundException,
 DirectoryNotFoundException, UnauthorizedAccessException, IOException,
 DriveNotFoundException.
-There are no streams (`FileStream`) yet — whole-file operations only (planned).
+For bounded-memory byte-range access, use [FileStream](#chunked-io-filestream).
+Whole-file helpers above still allocate the complete result in the VM pool.

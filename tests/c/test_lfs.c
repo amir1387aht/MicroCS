@@ -7,6 +7,7 @@
 #include "lfs.h"
 #include "flash_sim.h"
 
+#include "file_stream_smoke.h"
 #define BLOCK 512
 #define NBLOCKS 256
 static uint8_t g_flash[BLOCK * NBLOCKS];
@@ -45,6 +46,7 @@ static void exercise_flash(const char* tag, mcs_flash_part_t* part, unsigned fil
     CHECK(lfs_format(&fl, &fc) == 0 && lfs_mount(&fl, &fc) == 0, T("format + mount"));
     mcs_vfs_t v; mcs_vfs_init(&v);
     mcs_vfs_mount(&v, "/f", &mcs_lfs_ops, &fl, 0);
+    CHECK(file_stream_smoke(&v, "/f", true) == MCS_OK, T("FileStream chunk/seek/write/close"));
     int r = run(&v, "Directory.CreateDirectory(\"/f/app\"); File.WriteAllText(\"/f/app/main.cs\", \"Console.WriteLine(6*7);\");\n"
                     "File.AppendAllText(\"/f/log\", \"a\"); File.AppendAllText(\"/f/log\", \"b\"); Console.WriteLine(File.ReadAllText(\"/f/log\"));");
     CHECK(r == MCS_OK && !strcmp(g_out, "ab\n"), T("C# File API"));

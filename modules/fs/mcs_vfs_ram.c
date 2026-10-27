@@ -10,6 +10,7 @@ typedef struct mcs_ramfs_node {
     char* path;
     size_t path_len;
     bool dir;
+    uint16_t opens; /* uses the padding before data on 32/64-bit targets */
     uint8_t* data;
     size_t len, cap;
 } node_t;
@@ -78,14 +79,20 @@ static int r_open(void* ctx, const char* path, int flags, void** fh) {
     node_t* n = find(fs, path);
     int e = MCS_VFS_OK;
     if (n && n->dir) return MCS_VFS_EISDIR;
+#if MCS_ENABLE_FILE_STREAMS
+    if (n && (flags & MCS_VFS_EXCL)) return MCS_VFS_EEXIST;
+    if (!n && (flags & MCS_VFS_TRUNC)) return MCS_VFS_ENOENT;
+#endif
     if (!n) {
-        if (!(flags & (MCS_VFS_WRITE | MCS_VFS_APPEND))) return MCS_VFS_ENOENT;
+        if (!(flags & (MCS_VFS_WRITE | MCS_VFS_APPEND | MCS_VFS_CREATE))) return MCS_VFS_ENOENT;
         if (!(n = create(fs, path, false, &e))) return e;
     }
+    if (n->opens == UINT16_MAX) return MCS_VFS_ENOMEM;
     handle_t* h = (handle_t*)ram_alloc(fs, NULL, 0, sizeof *h);
     if (!h) return MCS_VFS_ENOMEM;
     h->n = n; h->flags = flags; h->pos = 0;
-    if (flags & MCS_VFS_WRITE) n->len = 0;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) n->len = 0;
+    n->opens++;
     if (flags & MCS_VFS_APPEND) h->pos = n->len;
     *fh = h;
     return MCS_VFS_OK;
@@ -105,9 +112,11 @@ static int r_read(void* ctx, void* fh, void* buf, size_t len) {
 static int r_write(void* ctx, void* fh, const void* buf, size_t len) {
     mcs_ramfs_t* fs = (mcs_ramfs_t*)ctx;
     handle_t* h = (handle_t*)fh;
-    if (!(h->flags & (MCS_VFS_WRITE | MCS_VFS_APPEND))) return MCS_VFS_EACCES;
+    if (!(h->flags & MCS_VFS_WRITABLE)) return MCS_VFS_EACCES;
     node_t* n = h->n;
     if (len > 0x7fffffff) len = 0x7fffffff;
+    if (h->flags & MCS_VFS_APPEND) h->pos = n->len;
+    if (len > 0x7fffffffu - h->pos) return MCS_VFS_ENOSPC;
     size_t need = h->pos + len;
     if (need > n->cap) {
         size_t cap = n->cap ? n->cap : 32;
@@ -121,14 +130,26 @@ static int r_write(void* ctx, void* fh, const void* buf, size_t len) {
         fs->used += cap - n->cap;
         n->data = d; n->cap = cap;
     }
+#if MCS_ENABLE_FILE_STREAMS
+    if (len && h->pos > n->len) memset(n->data + n->len, 0, h->pos - n->len);
+#endif
     if (len) memcpy(n->data + h->pos, buf, len);
     h->pos += len;
     if (h->pos > n->len) n->len = h->pos;
     return (int)len;
 }
 
-static int r_close(void* ctx, void* fh) { ram_alloc((mcs_ramfs_t*)ctx, fh, sizeof(handle_t), 0); return MCS_VFS_OK; }
+static int r_close(void* ctx, void* fh) { ((handle_t*)fh)->n->opens--; ram_alloc((mcs_ramfs_t*)ctx, fh, sizeof(handle_t), 0); return MCS_VFS_OK; }
 
+#if MCS_ENABLE_FILE_STREAMS
+static int r_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    (void)ctx; handle_t* h = (handle_t*)fh;
+    int64_t p = (origin == 0 ? 0 : origin == 1 ? (int64_t)h->pos : (int64_t)h->n->len) + off;
+    if (p < 0 || p > 0x7fffffff) return MCS_VFS_EINVAL;
+    h->pos = (size_t)p; *out = (int32_t)p; return 0;
+}
+static int r_flush(void* ctx, void* fh) { (void)ctx; (void)fh; return 0; }
+#endif
 static int r_stat(void* ctx, const char* path, mcs_vfs_stat_t* st) {
     if (!strcmp(path, "/")) { st->size = 0; st->is_dir = true; return MCS_VFS_OK; }
     node_t* n = find((mcs_ramfs_t*)ctx, path);
@@ -148,6 +169,7 @@ static int r_remove(void* ctx, const char* path) {
     while (*pp && strcmp((*pp)->path, path)) pp = &(*pp)->next;
     if (!*pp) return MCS_VFS_ENOENT;
     node_t* n = *pp;
+    if (n->opens) return MCS_VFS_EACCES;
     if (n->dir) {
         size_t dl = strlen(path);
         for (node_t* c = fs->nodes; c; c = c->next) if (is_child_of(c, path, dl)) return MCS_VFS_ENOTEMPTY;
@@ -231,5 +253,11 @@ static int r_statfs(void* ctx, mcs_vfs_statfs_t* st) {
     st->format = "ramfs";
     return MCS_VFS_OK;
 }
-const mcs_vfs_ops_t mcs_ramfs_ops = { r_open, r_read, r_write, r_close, r_stat, r_remove, r_mkdir, r_rename, r_list, r_statfs };
+const mcs_vfs_ops_t mcs_ramfs_ops = { r_open, r_read, r_write, r_close, r_stat, r_remove, r_mkdir, r_rename, r_list, r_statfs,
+#if MCS_ENABLE_FILE_STREAMS
+    r_seek, r_flush
+#else
+    NULL, NULL
+#endif
+};
 #endif

@@ -93,6 +93,14 @@ menu "MicroCS"
                 the GPLv2 (or a commercial licence from Aleph One).
     endchoice
 
+    config MICROCS_FILE_STREAMS
+        bool "FileStream (incremental file reads, writes and seeking)"
+        default y
+        help
+            C# FileStream, File.OpenRead/OpenWrite/Open/Create, FileMode,
+            FileAccess and SeekOrigin. Uses bounded transfer scratch, not whole
+            file buffers. Disable on extremely flash-constrained builds.
+
     config MICROCS_WS2812
         bool "WS2812 / NeoPixel driver (C# LedStrip, RMT)"
         default y

@@ -506,10 +506,12 @@ static int t_open(void* ctx, const char* path, int flags, void** fh) {
     flush_all(fs);
     ent_t* e = find_path(fs, path);
     if (e && e->dir) return MCS_VFS_EISDIR;
-    if (flags & MCS_VFS_WRITE) {
+    if (e && (flags & MCS_VFS_EXCL)) return MCS_VFS_EEXIST;
+    if (!e && (flags & MCS_VFS_TRUNC)) return MCS_VFS_ENOENT;
+    if (flags & (MCS_VFS_WRITE | MCS_VFS_TRUNC)) {
         if ((r = create_entry(fs, path, false, &e))) return r;
     } else if (!e) {
-        if (!(flags & MCS_VFS_APPEND)) return MCS_VFS_ENOENT;
+        if (!(flags & (MCS_VFS_APPEND | MCS_VFS_CREATE))) return MCS_VFS_ENOENT;
         if ((r = create_entry(fs, path, false, &e))) return r;
     }
     memset(h, 0, sizeof *h);
@@ -551,7 +553,7 @@ static int t_read(void* ctx, void* fh, void* buf, size_t n) {
 static int t_write(void* ctx, void* fh, const void* buf, size_t n) {
     tfs_t* fs = (tfs_t*)ctx;
     hnd_t* h = (hnd_t*)fh;
-    if (!(h->flags & (MCS_VFS_WRITE | MCS_VFS_APPEND))) return MCS_VFS_EACCES;
+    if (!(h->flags & MCS_VFS_WRITABLE)) return MCS_VFS_EACCES;
     ent_t* e = by_id(fs, h->id);
     if (!e) return MCS_VFS_EIO;
     if (h->err) return h->err;
@@ -577,6 +579,18 @@ static int t_close(void* ctx, void* fh) {
     return r;
 }
 
+#if MCS_ENABLE_FILE_STREAMS
+static int t_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    tfs_t* fs = (tfs_t*)ctx; hnd_t* h = (hnd_t*)fh;
+    int rc = flush_handle(fs, h); if (rc) return rc;
+    ent_t* e = by_id(fs, h->id); if (!e) return MCS_VFS_ENOENT;
+    int64_t p = (origin == 0 ? 0 : origin == 1 ? (int64_t)h->pos : (int64_t)e->size) + off;
+    if (p < 0 || p > 0x7fffffff) return MCS_VFS_EINVAL;
+    if ((h->flags & MCS_VFS_WRITABLE) && p != e->size) return MCS_VFS_EINVAL;
+    h->pos = (uint32_t)p; *out = (int32_t)p; return 0;
+}
+static int t_flush(void* ctx, void* fh) { return flush_handle((tfs_t*)ctx, (hnd_t*)fh); }
+#endif
 static int t_stat(void* ctx, const char* path, mcs_vfs_stat_t* st) {
     tfs_t* fs = (tfs_t*)ctx;
     if (!strcmp(path, "/")) { st->size = 0; st->is_dir = true; return MCS_VFS_OK; }
@@ -660,5 +674,11 @@ static int t_statfs(void* ctx, mcs_vfs_statfs_t* st) {
     return MCS_VFS_OK;
 }
 
-const mcs_vfs_ops_t mcs_tinyfs_ops = { t_open, t_read, t_write, t_close, t_stat, t_remove, t_mkdir, t_rename, t_list, t_statfs };
+const mcs_vfs_ops_t mcs_tinyfs_ops = { t_open, t_read, t_write, t_close, t_stat, t_remove, t_mkdir, t_rename, t_list, t_statfs,
+#if MCS_ENABLE_FILE_STREAMS
+    t_seek, t_flush
+#else
+    NULL, NULL
+#endif
+};
 #endif

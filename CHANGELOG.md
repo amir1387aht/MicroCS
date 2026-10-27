@@ -2,7 +2,26 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased
+## 1.18.0 — File streams and Studio improvements
+
+* Release detached lazy API registrations when initialization runs out of
+  memory; fault-injection tests verify complete pool and file-handle cleanup.
+* Fix EOF reads at the FileStream position ceiling and prevent oversized POSIX
+  file metadata from wrapping to a small length; add allocation-failure cleanup
+  and sparse-file boundary regressions.
+* Fetch CI dependencies from signed official HTTPS Ubuntu repositories instead
+  of the runner's unreliable Azure HTTP mirror, retaining bounded timeouts.
+
+* Integrate automatic multi-region heaps with the FileStream build, preserving
+  both opt-outs in the static-pool, flash-constrained Cortex-M0 reference.
+* Bound CI package mirror requests, retries and installation time; fail on missing
+  indexes instead of stalling the Pico build before compilation for six hours.
+
+
+* Add bounded-memory C# FileStream byte-range reads/writes, seek/position,
+  flush/disposal and portable backend operations with automatic handle cleanup.
+* Default Studio templates to a persistent Supported only filter; show all
+  remains available, including unknown/legacy requirements and offline browsing.
 
 * Publish/read worker activity atomically so concurrent runtime pool callbacks
   do not race when additional workers start or workers finish shutdown.

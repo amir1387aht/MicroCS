@@ -68,13 +68,20 @@ links each preview to its file here.
 
 ## Connected-board compatibility
 
-Studio sends the allocation-free shell command `caps` after connecting. **All examples
-remain visible**, with supported, unknown, unsupported or offline/not-checked badges.
+Studio sends the allocation-free shell command `caps` after connecting. The
+**Supported only** toggle is **on by default** and remembered locally. When connected,
+it shows only examples with confirmed exact capabilities and minimum firmware;
+missing features (for example Wi-Fi) and unknown legacy requirements are hidden.
+Turn it off to show every example with supported, unknown or unsupported badges.
+Offline, every example remains visible and is marked not checked.
+
 The preview lists missing/unreported requirements and any declared minimum firmware.
-Older firmware without `caps` can still use the gallery; unverified peripherals stay
-unknown rather than being hidden or claimed available. Only explicitly reported
-feature bits are used; a HAL/network build bit does not prove a particular peripheral.
-Reconnecting refreshes support and clears the cached compile-check availability.
+Older firmware without `caps` can still use the gallery: turn off Supported only to
+browse/adapt unverified examples. Only explicitly reported feature bits are used;
+a HAL/network build bit does not prove a particular peripheral. Reconnecting refreshes
+support and clears cached compile-check availability. Opening the gallery does not
+start new capability polling or runtime work. For FileStream examples, declare the
+exact `Filesystem.Streams` capability, not only `Filesystem`.
 
 Templates can always be copied or opened for adaptation; adding one does not run it.
 Studio does not probe buses or start radios to discover support. A supported bus does
