@@ -40,3 +40,16 @@ function walk(dir) {
 }
 walk(path.join(__dirname, '../../tools/studio/templates'));
 console.log('PASS formatter preservation/idempotence across '+templateCount+' shipped C# templates');
+const mixed='class Demo{void Run(){var text=@"line one\n  line two  ";if(true){Console.WriteLine(text);}}}';
+const mixedOut=F.format(mixed,{reflow:true});
+assert(mixedOut.includes('class Demo\n{'),'reflow code around multiline literals');
+assert(mixedOut.includes('if (true)\n'),'format later blocks, not just indentation');
+assert.deepStrictEqual(F.lex(mixedOut).ranges.map(r=>mixedOut.slice(r.start,r.end)),F.lex(mixed).ranges.map(r=>mixed.slice(r.start,r.end)));
+assert.strictEqual(F.format(mixedOut,{reflow:true}),mixedOut);
+const crlf=F.format('if(true){\r\nint x=1;\r\n}',{reflow:true});
+assert(!/(?<!\r)\n/.test(crlf),'new line breaks follow CRLF documents');
+assert(F.format('if(true){x=1;}',{reflow:true,indentSize:2}).includes('\n  x = 1;'));
+const literal='if(true){var s="a   b";}',formatted=F.format(literal,{reflow:true});
+const caret=literal.indexOf('   ')+1;
+assert.strictEqual(F.mapOffset(literal,formatted,caret),formatted.indexOf('"a   b"')+3,'caret inside protected whitespace stays exact');
+console.log('PASS formatter 1.19: multiline-aware reflow, CRLF, indentation size and literal caret mapping');

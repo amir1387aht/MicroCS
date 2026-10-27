@@ -59,26 +59,29 @@
     return out + code(src.slice(at));
   }
   function reflow(src) {
-    const l = lex(src); let out = "", parens = 0;
-    const newline = () => { out = out.replace(/[ \t]+$/, ""); if (!out.endsWith("\n")) out += "\n"; };
+    const l = lex(src), protectedAt = new Map(l.ranges.map(r => [r.start, r]));
+    const eol = src.includes("\r\n") ? "\r\n" : "\n"; let out = "", parens = 0;
+    const newline = () => { out = out.replace(/[ \t\r]+$/, ""); if (!out.endsWith("\n")) out += eol; };
     for (let i = 0; i < src.length; i++) {
+      const protectedRange = protectedAt.get(i);
+      if (protectedRange) { out += src.slice(i, protectedRange.end); i = protectedRange.end - 1; continue; }
       const c = src[i];
       if (l.mask[i] !== c || /\s/.test(c)) { out += c; continue; }
       if (c === "(") parens++; else if (c === ")") parens = Math.max(0, parens - 1);
-      if (c === "{") { newline(); out += c; if (src[i + 1] !== "\n") newline(); }
+      if (c === "{") { newline(); out += c; if (!/^\r?\n/.test(src.slice(i + 1, i + 3))) newline(); }
       else if (c === "}") {
         newline(); out += c;
         const tail = src.slice(i + 1).trimStart();
-        if (tail && !tail.startsWith("//") && !/^[;,).\]]/.test(tail) && src[i + 1] !== "\n") newline();
-      } else { out += c; if (c === ";" && !parens && src.slice(i + 1).trim() && !src.slice(i + 1).trimStart().startsWith("//") && src[i + 1] !== "\n") newline(); }
+        if (tail && !tail.startsWith("//") && !/^[;,).\]]/.test(tail) && !/^\r?\n/.test(src.slice(i + 1, i + 3))) newline();
+      } else { out += c; if (c === ";" && !parens && src.slice(i + 1).trim() && !src.slice(i + 1).trimStart().startsWith("//") && !/^\r?\n/.test(src.slice(i + 1, i + 3))) newline(); }
     }
-    return out.replace(/^\n/, "");
+    return out.replace(/^\r?\n/, "");
   }
   function format(src, options = {}) {
     // Do not normalize CRLF inside literals: preserve every protected byte.
-    const original = lex(src);
-    if (options.reflow && !original.ranges.some(r => src.slice(r.start, r.end).includes("\n"))) src = reflow(src);
+    if (options.reflow) src = reflow(src);
     const l = lex(src), lines = src.split("\n"), blanks = l.mask.split("\n");
+    const indent = [2, 4, 8].includes(options.indentSize) ? options.indentSize : 4;
     const out = [], stack = []; let offset = 0, single = -1;
     for (let i = 0; i < lines.length; i++) {
       const raw = lines[i], t = raw.trim(), b = blanks[i].trim(), top = stack[stack.length - 1];
@@ -91,14 +94,14 @@
         else if (/^(\.(?!\.)|\?\?|&&|\|\||\?(?![.\[])|:(?!:))/.test(b) && !top?.sw) ind++;
       }
       const orig = /^[ \t]*/.exec(raw)[0].replace(/\t/g, "    ").length;
-      let col = 4 * Math.max(0, ind);
+      let col = indent * Math.max(0, ind);
       if (top && (top.ch !== "{" || top.inline) && !/^[}\])]/.test(b) && orig > col) col = orig;
       const tailProtected = l.ranges.some(r => r.start < offset + raw.length && r.end >= offset + raw.length);
       const content = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
       const spaced = spacing(content, offset, l.ranges).trimStart();
       const body = tailProtected ? spaced : spaced.trimEnd();
-      out.push(l.protectedLines.has(i) ? raw : !t ? "" : /^#/.test(t) ? content.trimEnd() + (raw.endsWith("\r") ? "\r" : "") : " ".repeat(col) + body + (raw.endsWith("\r") ? "\r" : ""));
-      const lineInd = col / 4 | 0;
+      out.push(l.protectedLines.has(i) ? raw : !t ? (raw.endsWith("\r") ? "\r" : "") : /^#/.test(t) ? content.trimEnd() + (raw.endsWith("\r") ? "\r" : "") : " ".repeat(col) + body + (raw.endsWith("\r") ? "\r" : ""));
+      const lineInd = col / indent | 0;
       for (let k = 0; k < b.length; k++) {
         const c = b[k];
         if ("{([".includes(c)) {
@@ -114,6 +117,10 @@
   }
   function mapOffset(before, after, pos) {
     if (pos >= before.length) return after.length;
+    const oldRanges = lex(before).ranges, newRanges = lex(after).ranges;
+    const index = oldRanges.findIndex(r => pos >= r.start && pos < r.end);
+    if (index >= 0 && newRanges[index] && before.slice(oldRanges[index].start, oldRanges[index].end) === after.slice(newRanges[index].start, newRanges[index].end))
+      return newRanges[index].start + pos - oldRanges[index].start;
     let count = 0;
     for (let i = 0; i < pos; i++) if (!/\s/.test(before[i])) count++;
     let p = 0;

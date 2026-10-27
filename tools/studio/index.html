@@ -53,6 +53,7 @@
 
 <div class="app">
   <header>
+    <button class="btn ghost icon" id="btnExplorer" aria-label="Toggle explorer" aria-controls="main" title="Toggle explorer (Ctrl+B)"><svg class="i"><use href="#i-folder"/></svg></button>
     <div class="brand"><div class="logo">C#</div><b>MicroCS Studio</b></div>
     <button class="btn primary" id="btnConnect"><svg class="i"><use href="#i-plug"/></svg><span>Connect</span></button>
     <input class="baud-input" id="baud" type="text" inputmode="numeric" list="baudRates" value="115200"
@@ -65,6 +66,7 @@
     </datalist>
     <span class="chip" id="connChip"><span class="dot" id="connDot"></span><span id="connText">Not connected</span></span>
     <div class="spacer"></div>
+    <button class="btn boxed command-launch" id="btnCommands" title="Command palette (Ctrl+Shift+P)"><svg class="i"><use href="#i-code"/></svg><span>Commands</span><kbd>Ctrl+Shift+P</kbd></button>
     <button class="btn boxed" id="btnReset" disabled title="Reset the board (EN pin via RTS, like esptool)"><svg class="i"><use href="#i-power"/></svg>Reset board</button>
     <div class="sep"></div>
     <button class="btn ghost icon" id="btnTheme" title="Light / dark theme"><svg class="i"><use href="#i-sun"/></svg></button>
@@ -101,8 +103,9 @@
     <section class="center" id="center">
       <div class="editor-pane">
         <div class="tabs">
-          <div class="tablist" id="tablist"></div>
+          <div class="tablist" id="tablist" role="tablist" aria-label="Open files"></div>
           <div class="toolbar">
+            <button class="btn ghost sm" id="btnFormat" title="Format document (Shift+Alt+F)"><svg class="i"><use href="#i-code"/></svg>Format</button>
             <button class="btn ghost sm" id="btnTemplates" title="New file from a template"><svg class="i"><use href="#i-template"/></svg>Templates</button>
             <button class="btn ghost sm icon" id="btnOpenLocal" title="Open a file from this computer"><svg class="i"><use href="#i-open"/></svg></button>
             <button class="btn ghost sm icon" id="btnSave" title="Save to device (Ctrl+S)" disabled><svg class="i"><use href="#i-save"/></svg></button>
@@ -115,6 +118,7 @@
             <button class="btn ghost sm icon" id="btnMore" title="More"><svg class="i"><use href="#i-dots"/></svg></button>
           </div>
         </div>
+        <nav class="document-bar" id="documentBar" aria-label="Active file"></nav>
         <div class="editor" id="editor">
           <div class="gutter" id="gutter"><div id="gutterIn"></div></div>
           <div class="code" id="code">
@@ -122,7 +126,7 @@
             <div class="errline" id="errline"></div>
             <div class="marks" id="marks"></div>
             <pre id="hl" aria-hidden="true"></pre>
-            <textarea id="ta" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
+            <textarea id="ta" aria-label="Source editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off"></textarea>
             <div class="complete" id="complete"></div>
           </div>
           <div class="findbar" id="findbar">
@@ -148,7 +152,7 @@
                 <button class="btn" id="wConnect"><svg class="i"><use href="#i-plug"/></svg>Connect a device<small>Web Serial</small></button>
                 <button class="btn" id="wNew"><svg class="i"><use href="#i-code"/></svg>New C# file<small>Alt+N</small></button>
                 <button class="btn" id="wTemplates"><svg class="i"><use href="#i-template"/></svg>Templates and examples<small>Alt+T</small></button>
-                <button class="btn" id="wOpen"><svg class="i"><use href="#i-open"/></svg>Open a file from this computer<small>Ctrl+O</small></button>
+                <button class="btn" id="wOpen"><svg class="i"><use href="#i-open"/></svg>Open local file<small>Ctrl+O</small></button>
               </div>
               <div id="noSerial"></div>
               <div class="keys">
@@ -197,7 +201,7 @@
     <span class="sp"></span>
     <span id="sbBusy"></span>
     <span id="sbPos"></span>
-    <span>C# · UTF-8</span>
+    <span>C# · UTF-8</span><span id="studioVersion">Studio 1.19.0</span>
   </footer>
 </div>
 
@@ -221,13 +225,21 @@
       <button class="btn boxed" id="gCancel">Cancel</button></div>
   </div>
 </div>
+<div class="command-bg" id="commandBg" hidden>
+  <section class="command-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="command-input-row"><svg class="i"><use href="#i-code"/></svg><input id="commandInput" role="combobox" aria-label="Search commands" aria-autocomplete="list" aria-controls="commandList" aria-expanded="true" autocomplete="off" spellcheck="false"><button class="btn icon" id="commandClose" aria-label="Close command palette"><svg class="i"><use href="#i-x"/></svg></button></div>
+    <div id="commandList" role="listbox" aria-label="Commands"></div>
+    <div class="command-hint"><span>↑ ↓ navigate · Enter select</span><span>Esc close</span></div>
+  </section>
+</div>
 <div class="toasts" id="toasts"></div>
 <script src="api.js"></script>
 <script src="docs.js"></script>
+<script src="format.js"></script>
 <script src="lang.js"></script>
 <script src="templates.js"></script>
 <script src="snippets.js"></script>
-<script src="format.js"></script>
 <script src="studio.js"></script>
+<script src="workbench.js"></script>
 </body>
 </html>

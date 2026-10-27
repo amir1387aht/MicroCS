@@ -74,7 +74,15 @@
     if (!m) return { base: t, args: [], raw: t };
     let base = m[1].replace(/^System\.(?:Collections\.Generic\.|Text\.|IO\.)?/, "");
     base = ALIAS[base] || base;
-    const args = m[2] ? parseParams(m[2].replace(/(\w)\s*(,|$)/g, "$1 _$2")).map((p) => p.type) : [];
+    const args = []; let depth = 0, at = 0;
+    if (m[2]) {
+      for (let i = 0; i <= m[2].length; i++) {
+        const ch = m[2][i];
+        if (ch === "<" || ch === "(" || ch === "[") depth++;
+        else if (ch === ">" || ch === ")" || ch === "]") depth--;
+        if (i === m[2].length || ch === "," && !depth) { args.push(m[2].slice(at,i).trim()); at=i+1; }
+      }
+    }
     return { base, args, raw: t };
   }
   /* element type of a collection type string */
@@ -99,6 +107,7 @@
   /* ---------------------------------------------------------------- user code */
   /* strip comments and string contents (same length, so offsets stay valid) */
   function blank(src) {
+    if (window.StudioFormat) return window.StudioFormat.lex(src).mask;
     return src.replace(/\/\/[^\n]*|\/\*[\s\S]*?(?:\*\/|$)|\$?@"(?:[^"]|"")*"?|\$?"(?:[^"\\\n]|\\.)*"?|'(?:[^'\\\n]|\\.)*'?/g,
       (m) => (m[0] === "/" ? m.replace(/[^\n]/g, " ") : m[0] + m.slice(1, -1).replace(/[^\n]/g, " ") + (m.length > 1 ? m[m.length - 1] : "")));
   }
@@ -114,6 +123,33 @@
     return [...out];
   }
   const TYPE_RE = String.raw`(?:[A-Za-z_][\w.]*(?:\s*<[^<>;(){}=]*(?:<[^<>;(){}=]*>[^<>;(){}=]*)*>)?(?:\[[,\s]*\])*\??|\([^()]*\))`;
+  function scopesOf(b) {
+    const scopes = [], pairs = [], braces = [], parens = [];
+    for (let i = 0; i < b.length; i++) {
+      if (b[i] === "{") { const scope = { start: i, end: b.length }; scopes.push(scope); braces.push(scope); }
+      else if (b[i] === "}" && braces.length) braces.pop().end = i;
+      else if (b[i] === "(") parens.push(i);
+      else if (b[i] === ")" && parens.length) pairs.push({ start: parens.pop(), end: i });
+    }
+    return { scopes, pairs };
+  }
+  function visible(sy, at, pos) {
+    // Parameters belong to their method/control body, not to the enclosing class.
+    const header = sy.pairs.filter(p => at > p.start && at < p.end).sort((a,b) => b.start-a.start)[0];
+    if (header) {
+      const tail = sy.b.slice(header.end + 1), ws = /^\s*/.exec(tail)[0].length;
+      const start = header.end + 1 + ws;
+      if (sy.b[start] === "{") {
+        const body = sy.scopes.find(s => s.start === start);
+        if (body) return pos > header.start && pos <= body.end;
+      } else if (tail.trimStart().startsWith("=>") || /\b(?:for|foreach|using|catch)\s*$/.test(sy.b.slice(0, header.start))) {
+        const end = sy.b.indexOf(";", start);
+        return pos > header.start && pos <= (end < 0 ? sy.b.length : end);
+      }
+    }
+    const scope = sy.scopes.filter(s => at > s.start && at < s.end).sort((a,b) => b.start-a.start)[0];
+    return !scope || pos > scope.start && pos <= scope.end;
+  }
   let cacheSrc = null, cache = null;
   function symbols(src) {
     if (src === cacheSrc) return cache;
@@ -166,7 +202,7 @@
       if (inClass) continue;
       (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(m[4]), ret: type, doc: "local function (this file)", cls: "" });
     }
-    cacheSrc = src; cache = { user, funcs, enums, b };
+    cacheSrc = src; cache = { user, funcs, enums, b, ...scopesOf(b) };
     return cache;
   }
   function memberDecl(c, d, clsName) {
@@ -253,6 +289,8 @@
       let m;
       while ((m = re.exec(b))) {
         if (m.index > upto) break;
+        const decl = m.index + m[0].lastIndexOf(name);
+        if (!visible(sy, decl, upto)) continue;
         const t = m[1];
         if (/^(return|new|else|case|throw|in|is|as|await|yield|using|static|readonly|const|public|private|out|ref|params|this)$/.test(t)) continue;
         if (!best || m.index > best.at) best = { at: m.index, t, k, m };
@@ -298,8 +336,17 @@
       const p = parts[i];
       if (i === 0 && !startType) {
         if (p.name === "S") return null;
+        if (p.name === "this" || p.name === "base") {
+          const owner = Object.values(symbols(src).user).filter(c => pos > c.start && pos < c.end).sort((a,b) => b.start-a.start)[0];
+          if (!owner) return null;
+          type = p.name === "base" ? owner.base[0] : owner.name; isStatic = false;
+          if (!type) return null;
+          continue;
+        }
         if (p.call) {                                    // local function call
-          const f = symbols(src).funcs[p.name]; if (!f) return null;
+          const sy = symbols(src);
+          const owner = Object.values(sy.user).find(c => pos > c.start && pos < c.end);
+          const f = sy.funcs[p.name] || (owner && (owner.i[p.name] || owner.s[p.name])); if (!f) return null;
           type = f[0].ret; isStatic = false;
         } else if (/^(string|int|double|bool|char|long|float|byte)$/.test(p.name)) { type = ALIAS[p.name] || p.name; isStatic = true; }
         else {
@@ -319,7 +366,7 @@
         type = bindRet(pick.ret, type); isStatic = false;
         if (!type) return null;
       }
-      for (let k = 0; k < p.index; k++) type = elemType(type) || (splitType(type)?.base === "Dictionary" ? splitType(type).args[1] : null);
+      for (let k = 0; k < p.index; k++) type = splitType(type)?.base === "Dictionary" ? splitType(type).args[1] || null : elemType(type);
       if (!type) return null;
     }
     return type && type !== "void" ? type : null;
@@ -327,17 +374,17 @@
   /* "a.b(x, y).c[0]" -> [{name:a},{name:b,call},{name:c,index:1}] ; null if not a plain chain */
   function splitChain(expr) {
     const out = []; let i = 0;
-    const s = expr.trim();
+    const s = expr.trim(), masked = blank(s);
     while (i < s.length) {
       const m = /^\s*(@?[A-Za-z_]\w*)\s*(?:<[\w\s,<>\[\]]*>(?=\s*\())?/.exec(s.slice(i));
-      if (!m) return out.length ? out : null;
+      if (!m) return null;
       const part = { name: m[1].replace(/^@/, ""), call: false, index: 0 };
       i += m[0].length;
       for (;;) {
         const c = s[i];
         if (c === "(" || c === "[") {
           const close = c === "(" ? ")" : "]"; let d = 0, j = i;
-          for (; j < s.length; j++) { if (s[j] === c) d++; else if (s[j] === close && --d === 0) break; }
+          for (; j < s.length; j++) { if (masked[j] === c) d++; else if (masked[j] === close && --d === 0) break; }
           if (c === "(") part.call = true; else part.index++;
           i = j + 1;
         } else if (c === " ") i++;
@@ -376,6 +423,10 @@
       const c = b[i];
       if (c === "(" || c === "[" || c === "{") stack.push({ c, at: from + i, args: 0 });
       else if (c === ")" || c === "]" || c === "}") stack.pop();
+      else if (c === "<" && /[\w>]\s*$/.test(b.slice(0, i))) {
+        const generic = /^<\s*[\w.]+(?:[\w.\s,<>{}\[\]?]*?)>\s*(?=[(,)>\[])/.exec(b.slice(i));
+        if (generic) i += generic[0].trimEnd().length - 1;
+      }
       else if (c === "," && stack.length) stack[stack.length - 1].args++;
       else if (c === ";" && stack.length && stack[stack.length - 1].c === "{") { /* statement end */ }
     }
@@ -427,7 +478,7 @@
     let m;
     while ((m = re.exec(b))) {
       if (KEYW.has(m[2]) || /^(return|new|else|case|throw|in|is|as|await|using|namespace|class|struct|enum|goto)$/.test(m[1])) continue;
-      out.set(m[2], m[1] === "var" ? null : m[1]);
+      if (visible(sy, m.index + m[0].lastIndexOf(m[2]), p)) out.set(m[2], m[1] === "var" ? null : m[1]);
     }
     return out;
   }

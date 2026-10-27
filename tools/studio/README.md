@@ -1,7 +1,7 @@
 # MicroCS Studio
 
 A browser IDE for boards running MicroCS: file manager, C# editor and REPL over USB
-(Web Serial). Visual Studio 2022 Dark look.
+(Web Serial). A focused dark/light workbench with keyboard-first commands.
 
 ## Run it
 
@@ -18,6 +18,7 @@ the editor works there, but it can't connect to a board.
 |---|---|
 | `index.html` | page layout |
 | `studio.css` | look: Visual Studio 2022 Dark / Light, C# colours (`--t-*` variables) |
+| `workbench.js` | command palette, open-file switcher, explorer visibility and file breadcrumbs; browser-only |
 | `studio.js` | the app: serial link and shell protocol, editor, file manager, console |
 | `templates/` | the templates and examples: one folder per category, plain `.cs` files + a `templates.txt` describing them ([how to add one](templates/README.md)) |
 | `templates.js` | **generated** from `templates/` by `python3 gen_templates.py` (the page loads it; CI checks it is current) |
@@ -34,6 +35,8 @@ No build step for the app: edit a file and reload the page. After changing a tem
 
 | Keys | Action |
 |---|---|
+| Ctrl+Shift+P · Ctrl+P | command palette · switch between open files (no device scan) |
+| Ctrl+B | hide/show the explorer |
 | Ctrl+Space · Ctrl+Shift+Space | completion (with docs) · parameter info (↑/↓ switch overloads) |
 | Ctrl+F · Ctrl+H · F3 / Shift+F3 | find · replace · next / previous match |
 | Ctrl+G · Ctrl+] | go to line · jump to the matching bracket |
@@ -58,7 +61,7 @@ The ⋯ menu has three independent options, **on by default**:
 * **Format C# on save**: format the whole document, including Allman-style braces.
   `Shift+Alt+F` formats explicitly. This is a conservative formatter, not Roslyn: it leaves
   ambiguous operators/generic brackets alone and preserves strings and comments byte-for-byte.
-  Documents with multiline literals/comments retain their line structure.
+  Multiline literal/comment bytes remain unchanged while surrounding code can be reflowed.
 * **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file save/build every
   editable open C# tab in **File mode**, plus the explicitly saved file. Saved files
   are verified against the device and identical uploads are skipped; known changed
@@ -289,3 +292,23 @@ Test a supported higher rate on the actual board/cable. USB serial implementatio
 may not use the UART baud setting for physical throughput. Do not disable upload
 flow control or enlarge firmware buffers blindly on a low-RAM board. These Studio
 changes require no firmware update and add no polling or application-runtime work.
+
+
+## Studio 1.19 editor improvements
+
+The command palette lists available actions and marks device-dependent commands
+unavailable while offline. Escape restores the previous focus. Ctrl+P searches
+only already-open tabs, without reading the device or overwriting drafts.
+Document tabs support Left/Right and Home/End navigation; the breadcrumb bar shows
+the active path, local/device origin and unsaved state.
+
+IntelliSense filters declarations by lexical scope and infers `this`, `base`,
+unqualified method results, nested generic arguments and dictionary value indexing.
+Raw strings and multiline comments cannot introduce fake declarations. Unknown
+receivers offer broad fallback members only on explicit Ctrl+Space. This remains
+an offline lightweight language service, not Roslyn or a compiler diagnostic engine.
+
+Formatter options accept `indentSize: 2`, `4` (default), or `8` through the
+`StudioFormat.format` JavaScript API. The editor keeps its four-space convention.
+Formatting remains whitespace-only, preserves literal/comment bytes and CRLF,
+and maps selections/carets through edits. No new serial polling is introduced.
