@@ -4,6 +4,12 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## 1.18.0 — File streams and Studio improvements
 
+* Integrate automatic multi-region heaps with the FileStream build, preserving
+  both opt-outs in the static-pool, flash-constrained Cortex-M0 reference.
+* Bound CI package mirror requests, retries and installation time; fail on missing
+  indexes instead of stalling the Pico build before compilation for six hours.
+
+
 * Add bounded-memory C# FileStream byte-range reads/writes, seek/position,
   flush/disposal and portable backend operations with automatic handle cleanup.
 * Default Studio templates to a persistent Supported only filter; show all

@@ -19,6 +19,8 @@ jobs:
         cc: [gcc, clang]
     steps:
       - uses: actions/checkout@v4
+      - name: CI dependency installer regression checks
+        run: python3 tests/test_ci_apt.py
       - name: make check (tests, GC stress, feature-flag and profile builds)
         run: |
           set +e
@@ -55,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: 32-bit C runtime and real U8g2
-        run: sudo apt-get update && sudo apt-get install -y gcc-multilib
+        run: sh tools/ci_apt.sh gcc-multilib
       - run: make fetch-u8g2
       - name: 32-bit with 8-byte numeric alignment, repeated Project cycles within 40960 bytes
         run: >-
@@ -176,9 +178,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Toolchain + emulator
+        timeout-minutes: 20
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi
+          sh tools/ci_apt.sh gcc-arm-none-eabi libnewlib-arm-none-eabi
           pip install unicorn
       - name: Cortex-M build and emulator checks
         run: |
@@ -274,9 +276,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain + pico-sdk
+        timeout-minutes: 20
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
+          sh tools/ci_apt.sh gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib cmake ninja-build
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git $HOME/pico-sdk
           git -C $HOME/pico-sdk submodule update --init --depth 1 lib/tinyusb
           if [ "${{ matrix.wifi }}" = true ] || [ "${{ matrix.ble }}" = true ]; then git -C $HOME/pico-sdk submodule update --init --depth 1 lib/cyw43-driver lib/lwip; fi
@@ -515,9 +517,9 @@ jobs:
           key: stm32-sdk-${{ matrix.family }}-${{ hashFiles('Makefile') }}
           restore-keys: stm32-sdk-${{ matrix.family }}-
       - name: Arm GCC
+        timeout-minutes: 20
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi > /dev/null
+          sh tools/ci_apt.sh gcc-arm-none-eabi libnewlib-arm-none-eabi
       - name: Compile the port (default, no ws2812/servo, no drivers, auto profile, internal flash + LittleFS / YAFFS2 / TinyFS) in parallel
         run: sh tools/check_ports.sh stm32 ${{ matrix.family }} ${{ matrix.device }} ${{ matrix.cpu }}
 
@@ -551,9 +553,9 @@ jobs:
           path: ~/renode
           key: renode-1.16.1
       - name: Arm GCC
+        timeout-minutes: 20
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends gcc-arm-none-eabi libnewlib-arm-none-eabi > /dev/null
+          sh tools/ci_apt.sh gcc-arm-none-eabi libnewlib-arm-none-eabi
       - name: Build the firmware (.elf / .bin / .hex)
         run: sh tools/build_stm32_firmware.sh ${{ matrix.board }}
       - name: Boot it in Renode and use the REPL
