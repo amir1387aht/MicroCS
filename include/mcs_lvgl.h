@@ -25,6 +25,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+typedef struct { const char* name; const lv_font_t* font; } mcs_lvgl_font_t;
 typedef struct {
     lv_obj_t* root;                 /* live host object; never owned by MicroCS */
     void* ctx;
@@ -33,6 +34,8 @@ typedef struct {
     bool (*is_vm_thread)(void* ctx); /* owner check; never calls LVGL or the VM */
     void* (*alloc)(void* ctx, size_t bytes); /* native storage, aligned like malloc */
     void (*free)(void* ctx, void* ptr);
+    const mcs_lvgl_font_t* fonts; /* optional borrowed, named native fonts */
+    size_t font_count;           /* table/names/fonts outlive this VM */
 } mcs_lvgl_config_t;
 enum { MCS_LVGL_OK = 0, MCS_LVGL_INVALID = -1, MCS_LVGL_NOT_READY = -2,
        MCS_LVGL_NO_MEMORY = -3, MCS_LVGL_ALREADY_ATTACHED = -4 };

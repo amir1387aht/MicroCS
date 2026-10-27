@@ -13,7 +13,7 @@ DroppedEvents: int | Saturating count of newest events dropped by the bounded qu
 Dispatch(int maxEvents): int | Dispatch at most 0..16 queued records (default capacity); VM owner thread, no rendering/ticking
 
 @LvObject | Application-owned widget; GC does not delete it, Dispose or VM replacement does
-new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch or Arc; widget must be enabled
+new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch, Arc or Image; widget must be enabled
 .IsAlive: bool | False after native/parent deletion or Dispose
 .Dispose(): void | Idempotently delete this script-owned subtree
 .Center(): void | Center in parent
@@ -21,6 +21,8 @@ new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, C
 .SetPosition(int x, int y): void | Pixel coordinates -32767..32767
 .SetBackground(int rgb): void | Object-owned opaque background, RGB 0x000000..0xFFFFFF
 .SetTextColor(int rgb): void | Object-owned text color, RGB 0x000000..0xFFFFFF
+.SetFont(string nameOrPath): void | Default, a host-registered font name, or an LVGL binary font path such as S:/fonts/ui.fnt; owned file fonts are released on replacement/teardown
+.Source: string | Write-only Image file path through an existing LVGL filesystem; requires a host-configured decoder
 .Text: string | Write-only copied text; Label or Checkbox only
 .Value: int | 0..100, Slider/Bar/Arc only; animation disabled
 .Checked: bool | Checkbox/Switch only

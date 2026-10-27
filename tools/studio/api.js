@@ -3,4 +3,4 @@ window.MCS_API = {"RotaryEncoder":{"s":[],"i":["Backend","Position","Reset","But
 
 // Optional, attached host LVGL; availability is reported by firmware, not inferred.
 window.MCS_API.Lvgl={s:["Ready","Supports","DroppedEvents","Dispatch"],i:[]};
-window.MCS_API.LvObject={s:[],i:["IsAlive","Dispose","Center","SetSize","SetPosition","SetBackground","SetTextColor","Text","Value","Checked","OnClicked","OnChanged","ClearEvent"]};
+window.MCS_API.LvObject={s:[],i:["IsAlive","Dispose","Center","SetSize","SetPosition","SetBackground","SetTextColor","SetFont","Source","Text","Value","Checked","OnClicked","OnChanged","ClearEvent"]};

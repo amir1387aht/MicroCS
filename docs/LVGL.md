@@ -52,9 +52,11 @@ threading or allocation; the host must deliberately supply them:
 static void setup(mcs_vm_t* vm, void* user) {
     struct app* app = user;
     mcs_lvgl_config_t cfg = {
-        app->script_root, app,
-        app_gui_lock, app_gui_unlock, app_on_vm_thread,
-        app_gui_alloc, app_gui_free
+        .root = app->script_root, .ctx = app,
+        .lock = app_gui_lock, .unlock = app_gui_unlock,
+        .is_vm_thread = app_on_vm_thread,
+        .alloc = app_gui_alloc, .free = app_gui_free,
+        .fonts = NULL, .font_count = 0
     };
     int rc = mcs_lvgl_attach(vm, &cfg);
     if (rc != MCS_LVGL_OK) {
@@ -72,7 +74,8 @@ execution. Do not initialize the screen in a C# template.
 
 The VM must be idle on its owner thread during attachment. Attach only once per
 VM (`ALREADY_ATTACHED` on a second call). Config is copied, but the context and
-callbacks must outlive the VM. `INVALID`, `NOT_READY` and `NO_MEMORY` distinguish
+callbacks must outlive the VM. A nonempty native font table, its names and fonts
+must also outlive the VM (the table is borrowed, not copied). `INVALID`, `NOT_READY` and `NO_MEMORY` distinguish
 contract errors, absent display/root and wrapper initialization failure.
 Registration runs under a VM OOM recovery guard; on registration failure the
 container and attachment storage are freed, but discard the VM because a subset
@@ -127,18 +130,21 @@ Names are case-sensitive; unknown kinds return false. Disabled widgets produce
 | `Checkbox` | `Text` (write-only, copied), `Checked` | `LV_USE_CHECKBOX` |
 | `Switch` | `Checked` | `LV_USE_SWITCH` |
 | `Arc` | `Value`, range 0–100, no animation | `LV_USE_ARC` |
+| `Image` | `Source` (write-only LVGL file path) | v8 `LV_USE_IMG`, v9 `LV_USE_IMAGE` |
 
 All objects expose `IsAlive`, idempotent `Dispose()`, `Center()`,
 `SetPosition(x,y)`, `SetSize(width,height)`, `SetBackground(rgb24)`,
-`SetTextColor(rgb24)`, `OnClicked(action)`, `OnChanged(action)` and `ClearEvent()`.
+`SetTextColor(rgb24)`, `SetFont(nameOrPath)`, `OnClicked(action)`, `OnChanged(action)` and `ClearEvent()`.
 Positions are -32767..32767; sizes 0..32767; colors 0..0xFFFFFF. Kind-incompatible
 properties throw. No screen wrapper, arbitrary native-object wrapping,
 reparenting, display/input setup or pointer-as-integer access is exposed.
-Images, external fonts, shared style descriptors, animations, complex widgets,
-layout engines and the rest of the LVGL API are **not exposed yet**. Inline
-color styles use LVGL's object-owned storage. Text setters use LVGL's copying
-APIs, never static pointers into script strings. No retained image/font/style
-backing storage is accepted by this API, so firmware must not infer support.
+File images and binary fonts are supported as described below. Shared style
+handles, animations, complex widgets, layout engines and most native methods
+are **not exposed yet**. Inline styles use LVGL's object-owned storage. Text and
+image-path setters use LVGL copying APIs, never retained script-string pointers.
+There is no arbitrary descriptor, native pointer or script byte-array image API.
+See the reproducible API inventory in [testing](LVGL_TESTING.md#api-inventory-and-backlog);
+version compatibility does **not** mean full API coverage.
 
 ```csharp
 if (!Lvgl.Ready || !Lvgl.Supports("Label") || !Lvgl.Supports("Button"))
@@ -153,6 +159,68 @@ button.OnClicked(() => { text.Text = "Clicked"; });
 // Call Lvgl.Dispatch(16) from your existing application loop.
 // The host continues to own rendering and ticking.
 ```
+
+## Fonts, images and LVGL filesystem paths
+
+`obj.SetFont("Default")` selects `LV_FONT_DEFAULT`. Other names resolve through
+`mcs_lvgl_config_t.fonts`, an optional array of `{name, const lv_font_t*}` entries.
+These native fonts are borrowed and never destroyed by MicroCS. A name with a
+second-character colon, e.g. `S:/fonts/ui.fnt`, instead loads a native **binary
+font** using LVGL 8 `lv_font_load` or LVGL 9 `lv_binfont_create`. Each successful
+file load belongs to that widget's slot; replacement frees the previous owned
+font. Parent font inheritance works normally. Native deletion defers font
+release until the deleted subtree has finished its destructors. Missing drives,
+files and load failures throw; failed loads preserve the old selection.
+
+`image.Source = "S:/images/logo.bin"` requires an enabled Image widget, a
+registered LVGL drive and a decoder able to read the file header with nonzero
+size. Failure preserves the old source. Header acceptance does not guarantee
+that every pixel can subsequently be decoded from a damaged/truncated file.
+The host enables/configures PNG/JPEG/etc. decoders if needed. LVGL 8/9 binary
+image formats differ: convert assets for the host's version, color depth and
+configuration. Font assets must also match the host loader. Use trusted assets;
+this wrapper does not harden native decoders against malicious files.
+
+Source replacement and image deletion invalidate that source's LVGL cache,
+never the entire host cache. This can evict a shared file's cached pixels used
+by another widget (it can reload); no host widget is deleted. Font/image buffers
+are LVGL/native allocations, not pinned VM strings. There is no automatic drive
+registration or resource polling. Paths also work with a drive the firmware
+already registered independently of MicroCS's VFS.
+
+### Optional bounded MicroCS VFS adapter
+
+With both `MCS_ENABLE_LVGL=1` and `MCS_ENABLE_FS=1`, include `mcs_lvgl_fs.h`.
+Register **once per host LVGL lifetime**, not per VM:
+
+```c
+static mcs_lvgl_fs_t gui_assets; /* zeroed; persists until host lv_deinit */
+/* AFTER host lv_init and VFS mount setup, under the host GUI lock: */
+int rc = mcs_lvgl_fs_register(&gui_assets, &app_vfs, 'S', "/assets");
+/* S:/fonts/ui.fnt now reads VFS /assets/fonts/ui.fnt. Check rc. */
+```
+
+The existing VFS can use RAMFS, flash or another mounted backend with read/seek
+support. No C# calls, VM allocation, whole-file buffer or filesystem cache is
+added in the adapter. Open files have a fixed `MCS_LVGL_FS_MAX_FILES` limit
+(default 4); exhausting it fails the open. The adapter is read-only, with no
+write/directory callbacks; read sizes, positions and nonnegative seek offsets
+are limited to INT32_MAX. Normalize-before-prefix prevents `..` from escaping
+the configured VFS root; backend symlink/security behavior remains host policy.
+
+All driver operations, registration and disable must share the GUI lock, including
+native LVGL font/image use. Lock order is **GUI then VFS**. Never call into GUI
+while holding the VFS lock. Serialize mount changes with asset operations; keep
+VFS, mounts, backend and lock valid while assets can access them.
+
+LVGL 8/9 register a driver pointer and have no public unregister operation.
+After destroying widgets/fonts and releasing relevant decoder caches, call
+`mcs_lvgl_fs_disable(&gui_assets)` under the GUI lock before destroying the VFS.
+This closes open files and makes subsequent requests fail; it does **not** free
+or unregister driver storage. Keep `gui_assets` valid until host `lv_deinit`.
+A disabled bridge cannot be rebound within that LVGL lifetime. Only after host
+shutdown may its storage be cleared/reused. VM teardown never disables a host
+shared drive. This lifetime rule is mandatory even when every VM has stopped.
 
 ## Lifetime, memory and failure policy
 
@@ -188,6 +256,21 @@ allocation, depending on upstream release/configuration. The binding cannot
 turn every such failure into a C# exception. Provision native headroom and follow
 the host LVGL allocator/assert policy; tests do not establish arbitrary LVGL
 native-OOM recovery. Do not use longjmp-based LVGL assertions across held locks.
+
+## Disabled-build overhead contract
+
+With `MCS_ENABLE_LVGL=0`, no LVGL header/library is required, the native sources
+emit no LVGL runtime symbols, and the VM adds no extension slot, state, allocation,
+cleanup call, timer, polling or event processing. The capability row itself is
+also compiled out. `tests/lvgl/test_disabled.sh BASELINE_CHECKOUT` compares actual
+VM/capability machine code, VM structure/extension count and startup memory with
+the pre-feature baseline, using identical compiler/configuration. CI repeats it
+against the PR base without installing LVGL. This host proof is not a promise
+about arbitrary compiler/linker debug sections or every MCU toolchain.
+
+When enabled, binding calls, bounded state, native widgets and asset loading
+necessarily cost CPU/RAM. The host's rendering/decoder/allocator costs also
+remain. No wrapper can offer all GUI functionality at zero enabled cost.
 
 ## Builds
 

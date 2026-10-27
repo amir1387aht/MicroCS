@@ -70,7 +70,7 @@ updates from C# versus direct native calls. Script timing includes compilation;
 when instrumented, both sides carry sanitizer overhead. They are reproducibility
 checks, **not MCU performance promises or a clean native-call overhead benchmark**.
 
-Default capacities on the tested x86-64 ABI use **1,552 bytes** of native attachment
+Default capacities on the tested x86-64 ABI use **1,824 bytes** of native attachment
 storage, plus one LVGL-owned container and the actual LVGL widgets/text/styles.
 Handle payloads are **8 bytes**, excluding VM userdata headers and GC metadata.
 The active fixture application reports around **8.6 KB VM tracked storage**;
@@ -94,8 +94,9 @@ native LVGL 8 allocator fault coverage.
   test plus ASan/UBSan is not a substitute for TSan or MCU scheduler testing.
 - Combined device-native/LVGL/VM memory totals or rendering performance on real
   hardware. No framebuffer allocation is attributed to the VM pool.
-- API coverage beyond the eight documented kinds and their listed operations;
-  retained image/font/shared-style descriptors are intentionally not exposed.
+- API coverage beyond the nine documented kinds and their listed operations;
+  most public methods, complex widgets, shared styles, animations and layouts
+  remain unwrapped. File images/fonts do not imply arbitrary descriptor support.
 
 These gaps must remain visible in review; do not merge on the basis of a demo
 or rename this work a full LVGL API binding.
@@ -106,8 +107,10 @@ The default Unix build (`cc` / GNU 11.5.0, `-O2 -g`) and untouched main at
 `b930916e4a7325ecfee643735885f0c6464c264e` both reported these `size` section totals:
 text 822,033 bytes, data 1,564 bytes and BSS 30,664 bytes. The disabled binding
 object has no undefined symbols; the VM object's `.text` bytes match baseline.
-This is a host build comparison, not an MCU flash/latency guarantee. The canonical
-capability vocabulary still gains an LVGL entry; no polling/GUI work is added.
+This is a host build comparison, not an MCU flash/latency guarantee. The disabled
+capability row is now compiled out, not merely set to false; no polling/GUI work
+is added. The new strict disabled proof compares both VM and capability machine
+code, structure size, extension slots and startup memory against that baseline.
 
 Default script regressions: 106 passed, 0 failed. Studio language and formatter
 checks passed, including preservation/idempotence across 222 C# templates.
@@ -117,3 +120,56 @@ this was not a board build. All core/module translation units passed `-Werror`
 syntax checks with LVGL enabled, compiler/malloc/HAL/drivers disabled. The enabled
 missing-header and missing-host-target diagnostics, explicit header spelling,
 nested-header discovery and unsupported-major rejection were checked locally.
+
+## Asset and disabled-build extension checks
+
+Real RAMFS-backed LVGL drive tests load the upstream checkout's binary font
+fixture and a generated 2x2 binary image, then render through the host handler.
+They exercise transient script strings/GC, missing resources, native font names,
+font inheritance, parent destruction, explicit dispose and VM teardown over 20
+VMs. Read/seek/tell/EOF, open-limit exhaustion, read-only access, root confinement,
+permanent drive disable and close-before-VFS-destruction are checked. No copied
+third-party font binary is added to MicroCS. A missing upstream fixture is a
+configuration failure rather than a silent test skip.
+
+Local ASan/UBSan/leak runs with these extensions passed on v8.0.2 (628 checks;
+upstream display removal still skipped), v8.4.0/v9.0.0/v9.2.2/v9.6.0 (629 each),
+and v9.2.2 minimal-widget/no-HAL/no-drivers (627). The tests caught LVGL 9.0's
+binary-image info callback accepting an unsuccessful file open; the wrapper now
+also rejects zero-dimension headers. The bounded bridge uses 432 native bytes
+on the tested x86-64 ABI (440 with v9.6.0); this is caller-owned host storage,
+not per-VM allocation. Owned font pointers increase attachment storage to 1,824
+bytes. These counts apply only to the stated host configuration.
+
+To reproduce the disabled proof without LVGL installed:
+
+```sh
+sh tests/lvgl/test_disabled.sh /path/to/pre-feature-checkout
+```
+
+Local GNU 11.5.0 result: identical VM/capability `.text`, VM size 2,680 bytes,
+9 extension slots, startup tracked memory 1,082 bytes and 11 objects; no LVGL
+runtime symbols. No MCU timing claim is inferred from this host result.
+
+## API inventory and backlog
+
+```sh
+python3 tools/lvgl_api_inventory.py /path/to/lvgl --json build/lvgl-api-inventory.json
+```
+
+The JSON lists discovered public-looking header declarations and maps explicit
+C# operations to their native counterparts. **It is a review inventory, not an
+exact preprocessed ABI or a full-coverage certificate.** Private-named headers
+and internal-suffixed helpers are excluded; macros, types, generated declarations
+and function-pointer typedefs are not counted. Disabled feature declarations
+are included. Newer LVGL's `include/` and older `src/` layouts are both scanned.
+CI uploads an inventory per compatibility tag.
+
+`binding-operation` means only that a constrained operation in the documented
+wrapper represents some of that function's behavior, not that all its arguments,
+selectors, callbacks or variants are exposed. `host-owned` marks explicitly
+identified initialization/scheduling entrypoints. `unwrapped-review` is the
+remaining backlog, **not** a claim that every missing API is unsafe or host-only.
+A native function called internally for bookkeeping does not count as a public
+C# wrapper. This makes incomplete coverage visible rather than hiding it behind
+an LVGL 8/9 compatibility claim. Full API binding remains unfinished.

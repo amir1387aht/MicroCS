@@ -255,6 +255,9 @@
 #ifndef MCS_LVGL_EVENT_QUEUE
 #define MCS_LVGL_EVENT_QUEUE 16
 #endif
+#ifndef MCS_LVGL_FS_MAX_FILES
+#define MCS_LVGL_FS_MAX_FILES 4
+#endif
 /* Optional alternate host header; matching host library/config still required. */
 //#define MCS_LVGL_INCLUDE "vendor/lvgl.h"
 

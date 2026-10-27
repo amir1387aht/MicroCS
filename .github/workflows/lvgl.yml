@@ -5,6 +5,17 @@ on:
 permissions:
   contents: read
 jobs:
+  disabled-overhead:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - name: No LVGL dependency, runtime symbols, VM memory or VM/capability code overhead
+        run: sh tests/lvgl/test_disabled.sh baseline
   compatibility:
     runs-on: ubuntu-24.04
     strategy:
@@ -15,6 +26,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch exact upstream test dependency (not production integration)
         run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Inventory public-looking declarations and unwrapped backlog
+        run: python3 tools/lvgl_api_inventory.py /tmp/host-lvgl --json build/lvgl-api-inventory.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lvgl-api-${{ matrix.lvgl }}
+          path: build/lvgl-api-inventory.json
       - name: Configure, instrument both libraries, and test
         run: |
           cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON

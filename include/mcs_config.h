@@ -415,6 +415,9 @@
 #ifndef MCS_LVGL_EVENT_QUEUE
 #define MCS_LVGL_EVENT_QUEUE 16
 #endif
+#ifndef MCS_LVGL_FS_MAX_FILES
+#define MCS_LVGL_FS_MAX_FILES 4
+#endif
 
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
  * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by

@@ -11,6 +11,7 @@ typedef struct {
     lv_obj_t* obj;
     uint32_t generation, subscription;
     int pin, kind;
+    lv_font_t* owned_font;
     lv_event_code_t filter;
 } slot_t;
 typedef struct { unsigned slot; uint32_t generation, subscription; } queued_t;
@@ -26,7 +27,7 @@ struct session {
 typedef struct { unsigned slot; uint32_t generation; } handle_t;
 static const mcs_class_def_t object_def;
 void mcs_lvgl_vm_cleanup(mcs_vm_t* vm);
-static const char* const kinds[] = { "Object", "Label", "Button", "Slider", "Bar", "Checkbox", "Switch", "Arc" };
+static const char* const kinds[] = { "Object", "Label", "Button", "Slider", "Bar", "Checkbox", "Switch", "Arc", "Image" };
 static bool supported(int k) {
     switch (k) {
     case 0: return true;
@@ -37,11 +38,12 @@ static bool supported(int k) {
     case 5: return LV_USE_CHECKBOX != 0;
     case 6: return LV_USE_SWITCH != 0;
     case 7: return LV_USE_ARC != 0;
+    case 8: return MCS_LV_USE_IMAGE != 0;
     default: return false;
     }
 }
 static int kind_id(const char* name) {
-    for (int i = 0; i < 8; ++i) if (!strcmp(name, kinds[i])) return i;
+    for (int i = 0; i < 9; ++i) if (!strcmp(name, kinds[i])) return i;
     return -1;
 }
 static session_t* session(mcs_vm_t* vm) {
@@ -53,13 +55,23 @@ static session_t* session(mcs_vm_t* vm) {
     }
     return s;
 }
+static void drop_image(slot_t* r) {
+#if MCS_LV_USE_IMAGE
+    if(r->obj && r->kind==8) {
+        const void* src=mcs_lv_image_get_src(r->obj);
+        if(src)mcs_lv_image_cache_drop(src); /* never drop all host caches via NULL */
+    }
+#else
+    (void)r;
+#endif
+}
 /* Called ONLY while holding host lock; no VM access, allocation, or dispatch. */
 static void event_cb(lv_event_t* e) {
     slot_t* r = lv_event_get_user_data(e);
     session_t* s = r->session;
     lv_event_code_t code = lv_event_get_code(e);
     if (lv_event_get_target(e) != r->obj) return; /* ignore bubbled child events */
-    if (code == LV_EVENT_DELETE) { r->obj = NULL; return; }
+    if (code == LV_EVENT_DELETE) { drop_image(r); r->obj = NULL; return; }
     if (r->pin < 0 || code != r->filter) return;
     if (s->count == MCS_LVGL_EVENT_QUEUE) {
         if (s->dropped != UINT32_MAX) ++s->dropped;
@@ -77,6 +89,9 @@ static void root_deleted(lv_event_t* e) {
 static void reap(mcs_vm_t* vm, session_t* s) {
     for (unsigned i = 0; i < MCS_LVGL_MAX_OBJECTS; ++i) {
         slot_t* r = &s->slots[i];
+        /* Defer font destruction until the complete native delete traversal has
+         * returned: children may still inherit the parent's font in destructors. */
+        if (!r->obj && r->owned_font) { mcs_lv_font_destroy(r->owned_font); r->owned_font=NULL; }
         if (!r->obj && r->pin >= 0) { mcs_unpin(vm, r->pin); r->pin = -1; }
     }
 }
@@ -115,6 +130,9 @@ static lv_obj_t* create(int k, lv_obj_t* p) {
 #endif
 #if LV_USE_ARC
     case 7: return lv_arc_create(p);
+#endif
+#if MCS_LV_USE_IMAGE
+    case 8: return mcs_lv_image_create(p);
 #endif
     default: return NULL;
     }
@@ -212,6 +230,64 @@ NATIVE(set_text) {
     s->host.unlock(s->host.ctx);
     if (!r) invalid(vm);
     else if (!ok) mcs_raise(vm,"NotSupportedException","Text requires Label or Checkbox");
+    return mcs_null();
+}
+NATIVE(set_font) {
+    (void)argc;
+    const char* name=mcs_to_cstr(vm,argv[0]);if(mcs_has_exception(vm))return mcs_null();
+    int error=0; BEGIN;
+    if(r) {
+        const lv_font_t* font=NULL;lv_font_t* owned=NULL;
+        if(!strcmp(name,"Default"))font=LV_FONT_DEFAULT;
+        else if(name[0] && name[1]==':') {
+            if(!lv_fs_get_drv(name[0]))error=1;
+            else { owned=mcs_lv_font_load(name);font=owned;if(!font)error=2; }
+        } else {
+            for(size_t i=0;i<s->host.font_count;++i)
+                if(s->host.fonts[i].name && !strcmp(name,s->host.fonts[i].name)){font=s->host.fonts[i].font;break;}
+            if(!font)error=3;
+        }
+        if(font) {
+            lv_font_t* old=r->owned_font;
+            lv_obj_set_style_text_font(r->obj,font,0);
+            r->owned_font=owned;
+            if(old)mcs_lv_font_destroy(old);
+        }
+    }
+    s->host.unlock(s->host.ctx);
+    if(!r)invalid(vm);
+    else if(error)mcs_raise(vm,error==3 ? "NotSupportedException" : "IOException","%s",error==1 ? "LVGL font drive is not registered" : error==2 ? "LVGL binary font could not be loaded" : "LVGL native font name is not registered");
+    return mcs_null();
+}
+NATIVE(set_source) {
+    (void)argc;
+    const char* path=mcs_to_cstr(vm,argv[0]);if(mcs_has_exception(vm))return mcs_null();
+    if(!path[0] || path[1]!=':'){mcs_raise(vm,"ArgumentException","Image Source requires an LVGL file path, e.g. S:/logo.bin");return mcs_null();}
+    int error=0; BEGIN;
+    if(r) {
+#if MCS_LV_USE_IMAGE
+        if(r->kind!=8)error=1;
+        else if(!lv_fs_get_drv(path[0]))error=2;
+        else {
+#if LVGL_VERSION_MAJOR == 8
+            lv_img_header_t header={0};
+            bool valid=lv_img_decoder_get_info(path,&header)==LV_RES_OK;
+#else
+            lv_image_header_t header={0};
+            bool valid=lv_image_decoder_get_info(path,&header)==LV_RESULT_OK;
+#endif
+            /* Early LVGL 9.0 bin decoder can return OK after an open failure.
+             * A usable file image must still have nonzero dimensions. */
+            if(!valid || !header.w || !header.h)error=3;
+            else { drop_image(r);mcs_lv_image_set_src(r->obj,path); }
+        }
+#else
+        error=1;
+#endif
+    }
+    s->host.unlock(s->host.ctx);
+    if(!r)invalid(vm);
+    else if(error)mcs_raise(vm,error==1 ? "NotSupportedException" : "IOException","%s",error==1 ? "Source requires an enabled Image widget" : error==2 ? "LVGL image drive is not registered" : "LVGL image header could not be decoded");
     return mcs_null();
 }
 static mcs_value_t value(mcs_vm_t* vm, mcs_value_t self, mcs_value_t* argv, bool set) {
@@ -327,6 +403,7 @@ static const mcs_reg_t members[] = {
     MCS_FN("Dispose",dispose,0), MCS_GET("IsAlive",alive), MCS_FN("Center",center,0),
     MCS_FN("SetSize",set_size,2), MCS_FN("SetPosition",set_pos,2),
     MCS_FN("SetBackground",set_bg,1), MCS_FN("SetTextColor",set_fg,1), MCS_SET("Text",set_text),
+    MCS_FN("SetFont",set_font,1), MCS_SET("Source",set_source),
     MCS_GET("Value",get_value), MCS_SET("Value",set_value),
     MCS_GET("Checked",get_checked), MCS_SET("Checked",set_checked),
     MCS_FN("OnClicked",on_clicked,1), MCS_FN("OnChanged",on_changed,1), MCS_FN("ClearEvent",clear_event,0), MCS_REG_END
@@ -343,7 +420,7 @@ static void open_api(mcs_vm_t* vm) {
 }
 size_t mcs_lvgl_storage_size(void) { return sizeof(session_t); }
 int mcs_lvgl_attach(mcs_vm_t* vm, const mcs_lvgl_config_t* c) {
-    if (!vm || !c || !c->root || !c->lock || !c->unlock || !c->is_vm_thread || !c->alloc || !c->free || !c->is_vm_thread(c->ctx) || mcs_running(vm)) return MCS_LVGL_INVALID;
+    if (!vm || !c || !c->root || !c->lock || !c->unlock || !c->is_vm_thread || !c->alloc || !c->free || (c->font_count && !c->fonts) || !c->is_vm_thread(c->ctx) || mcs_running(vm)) return MCS_LVGL_INVALID;
     if (mcs_get_ext(vm,MCS_EXT_LVGL)) return MCS_LVGL_ALREADY_ATTACHED;
     session_t* s=c->alloc(c->ctx,sizeof(*s)); if (!s) return MCS_LVGL_NO_MEMORY;
     memset(s,0,sizeof(*s)); s->host=*c;
