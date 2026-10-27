@@ -2,6 +2,7 @@
  * Object, Type, exceptions, primitive types, Console, Convert, Math,
  * Environment, Thread, GC, Random, Stopwatch, Debug, Delegate.          */
 #include "mcs_lib.h"
+#include "mcs_native_internal.h"
 #if (!MCS_ENABLE_CONVERT || !MCS_ENABLE_DIAGNOSTICS) && defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-const-variable"
