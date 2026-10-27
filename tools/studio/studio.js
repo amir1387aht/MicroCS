@@ -1040,8 +1040,7 @@ class Editor {
     this.refresh(); this.onChange();
   }
   inString(p) {
-    const line = this.ta.value.slice(this.ta.value.lastIndexOf("\n", p - 1) + 1, p);
-    return (line.replace(/\\./g, "").split('"').length - 1) % 2 === 1;
+    return StudioFormat.lex(this.ta.value).ranges.some(r => p > r.start && p <= r.end);
   }
   toggleComment() {
     const ta = this.ta, v = ta.value, [a, b] = this.lineRange();
@@ -1084,8 +1083,8 @@ class Editor {
           if (stat && m0.kind === "m" && m0.inst) continue;
           add({ label: name, kind: m0.kind === "m" ? "m" : m0.kind === "c" ? "f" : "p", detail: (m0.ret ? Lang.bindRet(m0.ret, type) : "") + (ov.length > 1 ? `  (+${ov.length - 1})` : ""), mems: ov, owner: own === "Array_i" ? type : own, recvType: type });
         }
-      } else {
-        /* unknown receiver: every member name we know */
+      } else if (explicit) {
+        /* Explicit fallback only: do not flood unknown receivers while typing. */
         const names = new Set();
         for (const c of Object.values(Lang.classes)) for (const n in c.i) names.add(n);
         for (const c of Object.values(API)) for (const n of c.i || []) names.add(n);
@@ -1104,13 +1103,17 @@ class Editor {
         for (const c of ["List<int>", "List<string>", "Dictionary<string, int>", "Dictionary<string, string>", "HashSet<int>", "Queue<string>", "Stack<int>", "byte[]", "int[]", "string[]"]) add({ label: c, kind: "c", detail: "type" });
       } else {
         for (const [name, type] of Lang.locals(model, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, model, p) || "var"), local: true });
+        const owner = Object.values(sy.user).filter(c => p > c.start && p < c.end).sort((a,b) => b.start-a.start)[0];
+        if (owner) for (const [name, ov] of Object.entries({...owner.s, ...owner.i})) {
+          const m = ov[0]; add({ label: name, kind: m.kind === "m" ? "m" : "p", detail: m.ret, mems: ov, owner: owner.name });
+        }
         for (const name of Object.keys(sy.funcs)) add({ label: name, kind: "m", detail: sy.funcs[name][0].ret, mems: sy.funcs[name], owner: "" });
         for (const name of Object.keys(sy.user)) add({ label: name, kind: "c", detail: sy.user[name].kind, cls: name });
         for (const name of Object.keys(sy.enums)) add({ label: name, kind: "e", detail: "enum" });
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });
         for (const c of new Set([...Object.keys(Lang.classes), ...Object.keys(API)])) if (c !== "*" && !/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: Lang.classes[c] ? "class" : "class", cls: c });
         for (const k of KEYWORDS) add({ label: k, kind: "k", detail: "keyword" });
-        for (const id of new Set(model.match(/[A-Za-z_]\w{2,}/g) || [])) if (id !== prefix && !KEYWORDS.has(id) && !API[id] && !Lang.classes[id]) add({ label: id, kind: "w", detail: "" });
+        // Suggestions come from declarations, not words in comments or strings.
       }
     }
     const lp = prefix.toLowerCase();
@@ -2231,12 +2234,22 @@ const App = {
       const d = document.createElement("div");
       d.className = "tab" + (t.id === this.active ? " active" : "") + (t.dirty ? " dirty" : "");
       const nm = t.path ? baseName(t.path) : t.name || "untitled";
+      d.setAttribute("role", "tab"); d.setAttribute("aria-selected", String(t.id === this.active));
+      d.tabIndex = t.id === this.active ? 0 : -1; d.dataset.tabId = t.id;
+      d.onkeydown = e => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault(); const index = this.tabs.indexOf(t), n = this.tabs.length;
+        const next = e.key === "Home" ? 0 : e.key === "End" ? n - 1 : (index + (e.key === "ArrowRight" ? 1 : n - 1)) % n;
+        this.activate(this.tabs[next].id);
+        tl.querySelector('[data-tab-id="' + this.active + '"]')?.focus();
+      };
       d.title = (t.path || nm) + (t.local ? " (on this computer)" : "");
-      d.innerHTML = `<span class="ficon ${t.binary ? "img" : "cs"}">${icon(t.binary ? "chip" : "code")}</span><span class="tname">${esc(nm)}</span><button class="x" title="Close">${icon("x")}</button>`;
+      d.innerHTML = `<span class="ficon ${t.binary ? "img" : "cs"}">${icon(t.binary ? "chip" : "code")}</span><span class="tname">${esc(nm)}</span><button class="x" title="Close" aria-label="Close ${esc(nm)}" tabindex="-1">${icon("x")}</button>`;
       d.onclick = (e) => { if (e.target.closest(".x")) this.closeTab(t.id); else { this.activate(t.id); this.pollOpenFile(); } };
       d.onauxclick = (e) => { if (e.button === 1) this.closeTab(t.id); };
       tl.appendChild(d);
     }
+    document.dispatchEvent(new Event("studio:tabs"));
     this.updateButtons();
   },
   async openPath(path, size) {
@@ -2856,7 +2869,7 @@ const App = {
     ed.measure(); ed.refresh(true); ed.syncScroll();
   },
   theme(toggle) {
-    let light = store.get("light", false);          // Visual Studio Dark by default
+    let light = store.get("light", matchMedia("(prefers-color-scheme: light)").matches);
     if (toggle) { light = !light; store.set("light", light); }
     document.documentElement.classList.toggle("light", light);
     $("btnTheme").innerHTML = icon(light ? "moon" : "sun");

@@ -2,6 +2,20 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## 1.19.0 — Studio workbench and editor intelligence
+
+* Refresh Studio with calmer dark/light chrome, separate action/document rows,
+  file breadcrumbs, keyboard-accessible tabs and a collapsible explorer.
+* Add a keyboard-driven command palette (Ctrl+Shift+P) and open-file switcher
+  (Ctrl+P), with disabled-state checks and focus restoration.
+* Improve scope-aware completion, this/base and method-return inference,
+  nested generic/dictionary value types and signature argument counting.
+* Share protected-string/comment masking between the formatter and language
+  service. Format code around multiline literals without rewriting their bytes;
+  preserve CRLF, support indentation widths and retain carets inside literals.
+* Editor changes are browser-only: no new firmware polling, runtime dependency
+  or per-read heap work. Upgrade project/package versions to 1.19.0.
+
 ## 1.18.0 — File streams and Studio improvements
 
 * Release detached lazy API registrations when initialization runs out of
