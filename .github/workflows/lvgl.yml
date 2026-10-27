@@ -48,6 +48,18 @@ jobs:
       - run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
       - name: No HAL, no drivers, optional widgets disabled, explicit header override
         run: |
-          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DMINIMAL_WIDGETS=ON -DMICROCS_LVGL_INCLUDE=lvgl.h '-DCMAKE_C_FLAGS=-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_DRIVERS=0'
+          extra=
+          if [ '${{ matrix.lvgl }}' = v8.4.0 ]; then extra=-DLV_USE_USER_DATA=0; fi
+          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DMINIMAL_WIDGETS=ON -DNO_COMPRESSED_FONTS=ON -DMICROCS_LVGL_INCLUDE=lvgl.h "-DCMAKE_C_FLAGS=-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_DRIVERS=0 $extra"
+          cmake --build build/lvgl --target test_lvgl -j2
+          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --output-on-failure
+  font-config:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 --branch v9.3.0 https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Reject unsupported compressed font before native rendering
+        run: |
+          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DNO_COMPRESSED_FONTS=ON
           cmake --build build/lvgl --target test_lvgl -j2
           ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --output-on-failure

@@ -171,6 +171,10 @@ file load belongs to that widget's slot; replacement frees the previous owned
 font. Parent font inheritance works normally. Native deletion defers font
 release until the deleted subtree has finished its destructors. Missing drives,
 files and load failures throw; failed loads preserve the old selection.
+Compressed file fonts are rejected with `NotSupportedException` when the host
+sets `LV_USE_FONT_COMPRESSED=0`; loading alone does not prove glyph support.
+The wrapper never changes the host setting. Registered native fonts remain the
+host's responsibility, including their feature/fallback compatibility.
 
 `image.Source = "S:/images/logo.bin"` requires an enabled Image widget, a
 registered LVGL drive and a decoder able to read the file header with nonzero
@@ -203,7 +207,7 @@ int rc = mcs_lvgl_fs_register(&gui_assets, &app_vfs, 'S', "/assets");
 The existing VFS can use RAMFS, flash or another mounted backend with read/seek
 support. No C# calls, VM allocation, whole-file buffer or filesystem cache is
 added in the adapter. Open files have a fixed `MCS_LVGL_FS_MAX_FILES` limit
-(default 4); exhausting it fails the open. The adapter is read-only, with no
+(default 4); exhausting it fails the open. The adapter does not require LVGL 8 `LV_USE_USER_DATA`. It is read-only, with no
 write/directory callbacks; read sizes, positions and nonnegative seek offsets
 are limited to INT32_MAX. Normalize-before-prefix prevents `..` from escaping
 the configured VFS root; backend symlink/security behavior remains host policy.

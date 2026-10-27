@@ -16,7 +16,7 @@ typedef struct {
     bool used;
 } mcs_lvgl_fs_file_t;
 typedef struct {
-    lv_fs_drv_t driver;
+    lv_fs_drv_t driver; /* must be first: callbacks recover context without LV_USE_USER_DATA */
     mcs_vfs_t* vfs;
     char root[MCS_VFS_PATH_MAX];
     mcs_lvgl_fs_file_t files[MCS_LVGL_FS_MAX_FILES];

@@ -18,9 +18,9 @@ static mcs_lvgl_fs_file_t* checked(mcs_lvgl_fs_t* b, void* p) {
     for(unsigned i=0;i<MCS_LVGL_FS_MAX_FILES;++i)if(p==&b->files[i] && b->files[i].used)return &b->files[i];
     return NULL;
 }
-static bool ready(lv_fs_drv_t* drv) { return ((mcs_lvgl_fs_t*)drv->user_data)->active; }
+static bool ready(lv_fs_drv_t* drv) { return ((mcs_lvgl_fs_t*)drv)->active; }
 static void* open_file(lv_fs_drv_t* drv,const char* path,lv_fs_mode_t mode) {
-    mcs_lvgl_fs_t* b=drv->user_data;
+    mcs_lvgl_fs_t* b=(mcs_lvgl_fs_t*)drv;
     if(!b->active || mode!=LV_FS_MODE_RD || !path)return NULL;
     char relative[MCS_VFS_PATH_MAX],joined[MCS_VFS_PATH_MAX];
     if(mcs_vfs_normalize(path,relative,sizeof relative))return NULL;
@@ -37,12 +37,12 @@ static void* open_file(lv_fs_drv_t* drv,const char* path,lv_fs_mode_t mode) {
     return NULL;
 }
 static lv_fs_res_t close_file(lv_fs_drv_t* drv,void* file) {
-    mcs_lvgl_fs_t* b=drv->user_data;mcs_lvgl_fs_file_t* f=checked(b,file);
+    mcs_lvgl_fs_t* b=(mcs_lvgl_fs_t*)drv;mcs_lvgl_fs_file_t* f=checked(b,file);
     if(!f)return LV_FS_RES_INV_PARAM;
     int rc=mcs_vfs_close(&f->file);f->used=false;return result(rc);
 }
 static lv_fs_res_t read_file(lv_fs_drv_t* drv,void* file,void* buffer,uint32_t count,uint32_t* read) {
-    mcs_lvgl_fs_t* b=drv->user_data;*read=0;
+    mcs_lvgl_fs_t* b=(mcs_lvgl_fs_t*)drv;*read=0;
     mcs_lvgl_fs_file_t* f=checked(b,file);
     if(!b->active || !f || count>INT32_MAX || count>INT32_MAX-f->position)return LV_FS_RES_INV_PARAM;
     int n=mcs_vfs_read(&f->file,buffer,count);
@@ -50,7 +50,7 @@ static lv_fs_res_t read_file(lv_fs_drv_t* drv,void* file,void* buffer,uint32_t c
     f->position+=(uint32_t)n;*read=(uint32_t)n;return LV_FS_RES_OK;
 }
 static lv_fs_res_t seek_file(lv_fs_drv_t* drv,void* file,uint32_t position,lv_fs_whence_t origin) {
-    mcs_lvgl_fs_t* b=drv->user_data;mcs_lvgl_fs_file_t* f=checked(b,file);
+    mcs_lvgl_fs_t* b=(mcs_lvgl_fs_t*)drv;mcs_lvgl_fs_file_t* f=checked(b,file);
     if(!b->active || !f || position>INT32_MAX)return LV_FS_RES_INV_PARAM;
     int whence=origin==LV_FS_SEEK_SET ? 0 : origin==LV_FS_SEEK_CUR ? 1 : origin==LV_FS_SEEK_END ? 2 : -1;
     if(whence<0)return LV_FS_RES_INV_PARAM;
@@ -59,7 +59,7 @@ static lv_fs_res_t seek_file(lv_fs_drv_t* drv,void* file,uint32_t position,lv_fs
     return result(rc);
 }
 static lv_fs_res_t tell_file(lv_fs_drv_t* drv,void* file,uint32_t* position) {
-    mcs_lvgl_fs_t* b=drv->user_data;mcs_lvgl_fs_file_t* f=checked(b,file);
+    mcs_lvgl_fs_t* b=(mcs_lvgl_fs_t*)drv;mcs_lvgl_fs_file_t* f=checked(b,file);
     if(!b->active || !f)return LV_FS_RES_INV_PARAM;
     *position=f->position;return LV_FS_RES_OK;
 }
@@ -68,7 +68,7 @@ int mcs_lvgl_fs_register(mcs_lvgl_fs_t* b,mcs_vfs_t* vfs,char letter,const char*
     if(b->registered)return MCS_LVGL_ALREADY_ATTACHED;
     if(lv_fs_get_drv(letter))return MCS_LVGL_ALREADY_ATTACHED;
     if(mcs_vfs_normalize(root,b->root,sizeof b->root))return MCS_LVGL_INVALID;
-    lv_fs_drv_init(&b->driver);b->driver.letter=letter;b->driver.user_data=b;
+    lv_fs_drv_init(&b->driver);b->driver.letter=letter;
     b->driver.ready_cb=ready;b->driver.open_cb=open_file;b->driver.close_cb=close_file;
     b->driver.read_cb=read_file;b->driver.seek_cb=seek_file;b->driver.tell_cb=tell_file;
     /* No filesystem cache, write API, directory snapshot, heap buffer or VM state. */

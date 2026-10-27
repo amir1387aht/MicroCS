@@ -241,7 +241,16 @@ NATIVE(set_font) {
         if(!strcmp(name,"Default"))font=LV_FONT_DEFAULT;
         else if(name[0] && name[1]==':') {
             if(!lv_fs_get_drv(name[0]))error=1;
-            else { owned=mcs_lv_font_load(name);font=owned;if(!font)error=2; }
+            else {
+                owned=mcs_lv_font_load(name);font=owned;if(!font)error=2;
+#if !LV_USE_FONT_COMPRESSED
+                /* Binary loaders can accept compressed data even when native
+                 * glyph decompression is off. Reject before any rendering. */
+                if(owned && ((const lv_font_fmt_txt_dsc_t*)owned->dsc)->bitmap_format!=LV_FONT_FMT_TXT_PLAIN) {
+                    mcs_lv_font_destroy(owned);owned=NULL;font=NULL;error=4;
+                }
+#endif
+            }
         } else {
             for(size_t i=0;i<s->host.font_count;++i)
                 if(s->host.fonts[i].name && !strcmp(name,s->host.fonts[i].name)){font=s->host.fonts[i].font;break;}
@@ -256,7 +265,7 @@ NATIVE(set_font) {
     }
     s->host.unlock(s->host.ctx);
     if(!r)invalid(vm);
-    else if(error)mcs_raise(vm,error==3 ? "NotSupportedException" : "IOException","%s",error==1 ? "LVGL font drive is not registered" : error==2 ? "LVGL binary font could not be loaded" : "LVGL native font name is not registered");
+    else if(error)mcs_raise(vm,(error==3 || error==4) ? "NotSupportedException" : "IOException","%s",error==1 ? "LVGL font drive is not registered" : error==2 ? "LVGL binary font could not be loaded" : error==4 ? "Binary font requires host LV_USE_FONT_COMPRESSED" : "LVGL native font name is not registered");
     return mcs_null();
 }
 NATIVE(set_source) {

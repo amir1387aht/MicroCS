@@ -16,6 +16,11 @@
 #define LV_USE_STDLIB_STRING LV_STDLIB_CLIB
 #define LV_USE_STDLIB_SPRINTF LV_STDLIB_CLIB
 #define LV_USE_LOG 0
+#ifdef MCS_LVGL_TEST_NO_COMPRESSED
+#define LV_USE_FONT_COMPRESSED 0
+#else
+#define LV_USE_FONT_COMPRESSED 1 /* upstream binary font fixture is compressed */
+#endif
 #if !defined(__ASSEMBLER__)
 #ifdef __cplusplus
 extern "C"

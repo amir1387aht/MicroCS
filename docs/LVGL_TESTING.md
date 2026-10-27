@@ -101,7 +101,7 @@ native LVGL 8 allocator fault coverage.
 These gaps must remain visible in review; do not merge on the basis of a demo
 or rename this work a full LVGL API binding.
 
-## Recorded local checks
+## Recorded local checks — initial implementation
 
 The default Unix build (`cc` / GNU 11.5.0, `-O2 -g`) and untouched main at
 `b930916e4a7325ecfee643735885f0c6464c264e` both reported these `size` section totals:
@@ -132,11 +132,19 @@ permanent drive disable and close-before-VFS-destruction are checked. No copied
 third-party font binary is added to MicroCS. A missing upstream fixture is a
 configuration failure rather than a silent test skip.
 
-Local ASan/UBSan/leak runs with these extensions passed on v8.0.2 (628 checks;
-upstream display removal still skipped), v8.4.0/v9.0.0/v9.2.2/v9.6.0 (629 each),
-and v9.2.2 minimal-widget/no-HAL/no-drivers (627). The tests caught LVGL 9.0's
-binary-image info callback accepting an unsuccessful file open; the wrapper now
-also rejects zero-dimension headers. The bounded bridge uses 432 native bytes
+The extension tests caught LVGL 9.0's binary-image info callback accepting an
+unsuccessful file open; the wrapper now also rejects zero-dimension headers.
+They also exposed an important font configuration gap: a compressed font can
+load successfully with `LV_USE_FONT_COMPRESSED=0`, yet LVGL 9.3's software glyph
+renderer dereferences a null bitmap. The wrapper now destroys/rejects that file
+font before it is applied. Full fixture builds explicitly enable decompression
+for the upstream compressed font; minimal builds turn it off and test rejection.
+A separate 9.3 full-widget CI job (`-DNO_COMPRESSED_FONTS=ON`) renders
+with the host setting off after the
+rejected font leaves the default font intact. The fixture also executes the shipped button and asset examples against
+the real attached GUI and populated drive when the required widgets/HAL are
+enabled, checking the expected panel or caught-error cleanup. No rendering or
+font test is silently skipped to make the matrix pass. The bounded bridge uses 432 native bytes
 on the tested x86-64 ABI (440 with v9.6.0); this is caller-owned host storage,
 not per-VM allocation. Owned font pointers increase attachment storage to 1,824
 bytes. These counts apply only to the stated host configuration.
@@ -173,3 +181,28 @@ remaining backlog, **not** a claim that every missing API is unsafe or host-only
 A native function called internally for bookkeeping does not count as a public
 C# wrapper. This makes incomplete coverage visible rather than hiding it behind
 an LVGL 8/9 compatibility claim. Full API binding remains unfinished.
+
+### Full-binding acceptance work still required
+
+The inventory is only the starting point. Closing the requested full-API goal
+requires a reviewed decision for each public function/type/macro across both
+majors and feature configurations, not automatically exposing raw C signatures:
+
+1. Wrap the remaining safe widget methods, getters, layout/scroll/flex/grid,
+   style selectors, flags/states, groups/focus and theme operations with checked
+   handles, explicit ranges and usable enums/value types.
+2. Design separate owned handles for shared styles, animations/timelines,
+   chart/canvas buffers and image/font descriptors. Establish copying/pinning,
+   dependency lifetimes, native deletion, cancellation and VM teardown semantics.
+3. Marshal event payloads and version-specific structures without storing stack
+   pointers or invoking the VM from the GUI thread. Keep bounded queues/overflow
+   behavior explicit; do not add background work to disabled or unattached VMs.
+4. Identify genuinely host-owned initialization/scheduling/display/input APIs
+   separately from merely unimplemented safe APIs. Do not classify the latter
+   as unsafe to inflate reported coverage.
+5. Add per-operation semantic, feature-off, version, GC, native-delete, resource
+   replacement, callback and failure tests plus docs/Studio examples. Generate
+   configured/preprocessed API comparisons before calling coverage exhaustive.
+
+Until that work is implemented and validated, this is a constrained binding,
+not a completed full-LVGL C# API. No merge or release should imply otherwise.
