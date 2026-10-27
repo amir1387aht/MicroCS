@@ -8,9 +8,10 @@ menu "MicroCS"
         range 16 1024
         default 192
         help
-            Hard ceiling for ports/esp32/example/main/main.c. The actual pool
-            can be smaller if the device cannot preserve its driver reserve.
-            Allocation failure stops startup; it never falls back to malloc.
+            Combined backing-byte ceiling for the example's automatic regions.
+            Memory grows on demand; native driver/radio headroom is rechecked
+            for each region. Actual capacity can remain below the ceiling.
+            Allocation failure reports OOM; no unbounded fallback is used.
             For the small OLED Project regression use 40 and leave execution ceilings at defaults.
             SDK/FreeRTOS, static RAM and task stacks are outside this pool.
 

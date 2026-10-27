@@ -138,7 +138,7 @@ if(ESP_PLATFORM)
         list(APPEND _mcs_net_reqs esp_driver_pcnt)
     endif()
     idf_component_register(
-        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
+        SRCS ${MICROCS_CORE_SRCS} ${MICROCS_MODULE_SRCS} ports/esp32/mcs_port_esp32.c ports/esp32/mcs_port_esp32_heap.c ${_mcs_net_srcs} ${_mcs_fs_srcs} ${_mcs_u8g2_srcs}
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)

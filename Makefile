@@ -126,6 +126,8 @@ ble-test: mcs-ble
 # Built separately: the default `mcs` stays OS-free.
 THREADS_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_OS=MCS_OS_POSIX -pthread
 threads-test: | build
+	$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) tests/c/test_pool_regions.c -lm -o build/test_pool_regions_threads
+	./build/test_pool_regions_threads
 	$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) tests/c/test_app_replace.c -lm -o build/test_app_replace_threads
 	./build/test_app_replace_threads
 	@$(CC) $(THREADS_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_threads
@@ -136,6 +138,8 @@ threads-test: | build
 	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_nothreads && ./build/test_nothreads | head -n 1
 # the same under ThreadSanitizer (data races between thread VMs, the console, the pool, the filesystem)
 tsan-test: | build
+	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_pool_regions.c -lm -o build/test_pool_regions_tsan
+	TSAN_OPTIONS=halt_on_error=1 ./build/test_pool_regions_tsan
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_app_replace.c -lm -o build/test_app_replace_tsan
 	TSAN_OPTIONS=halt_on_error=1 ./build/test_app_replace_tsan
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_tsan
@@ -185,7 +189,7 @@ config-check: | build
 	  && echo "OK config template: profile mismatch warns" || { echo "FAIL config template: no profile mismatch warning"; exit 1; }
 
 # Full verification: tests, GC torture, every feature-flag combination
-FLAG_SETS = "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
+FLAG_SETS = "-DMCS_ENABLE_POOL_REGIONS=0" "-DMCS_ENABLE_MALLOC=0 -DMCS_ENABLE_POOL_REGIONS=1" "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
 	"-DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_LINES=0 -DMCS_ENABLE_BYTECODE_SAVE=0" "-DMCS_INT64=1" \
 	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_ENCODER=0" "-DMCS_ENABLE_ENCODER_HW=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
@@ -360,7 +364,14 @@ build/test_firmware_heap: tests/c/test_firmware_heap.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
 build/test_app_replace: tests/c/test_app_replace.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
-firmware-heap-test: build/test_firmware_heap build/test_app_replace
+build/test_pool_regions: tests/c/test_pool_regions.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+build/test_esp_heap: tests/c/test_esp_heap.c ports/esp32/mcs_port_esp32_heap.c
+	@mkdir -p build
+	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $^ -o $@
+firmware-heap-test: build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap
+	./build/test_pool_regions
+	./build/test_esp_heap
 	./build/test_firmware_heap
 	./build/test_app_replace
 .PHONY: firmware-heap-test

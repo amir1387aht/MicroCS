@@ -22,7 +22,8 @@ M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 # transport (there is no physical SPI CAN controller in this reference board).
 # No native encoder counter exists in this simulated board; retain GPIO fallback.
 # Native/simulated CAN remains enabled. Keep the actual 256 KB linker limit.
-M0_SLIM := -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
+# These small reference boards use only a static pool and a 2 KiB libc heap.
+M0_SLIM := -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
 m0-runtime_F := $(M0)  $(RUNTIME) $(M0_SLIM) -DMCS_ENABLE_HAL_DMA=0 -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048

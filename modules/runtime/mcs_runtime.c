@@ -75,11 +75,16 @@ static void rt_memory_info(void* ud, mcs_shell_memory_t* st) {
     mcs_runtime_t* rt = (mcs_runtime_t*)ud;
     memset(st, 0, sizeof *st);
 #if MCS_ENABLE_POOL_HEAP
-    if (rt->cfg.heap && rt->cfg.heap_size) {
+    if (rt->cfg.heap_size) {
 #if MCS_ENABLE_THREADS
         mcs_threads_heap_lock();
 #endif
         mcs_pool_stats(&rt->pool, &st->pool);
+        if (rt->pool.dynamic) {
+            st->pool_committed = rt->pool.dynamic->committed;
+            st->pool_limit = rt->pool.dynamic->limit;
+            st->pool_regions = rt->pool.dynamic->count;
+        }
 #if MCS_ENABLE_THREADS
         mcs_threads_heap_unlock();
 #endif
@@ -99,7 +104,7 @@ static int rt_new_vm(mcs_runtime_t* rt) {
     mcs_config_t c;
     mcs_config_default(&c);
 #if MCS_ENABLE_POOL_HEAP
-    if (cfg->heap && cfg->heap_size) {
+    if (cfg->heap_size) {
         c.realloc_fn = rt_pool_realloc;
         c.temporary_realloc_fn = rt_pool_temporary_realloc;
         c.alloc_ud = &rt->pool;
@@ -148,7 +153,7 @@ static void rt_open_modules(void* ud) {
         tc.write = rt_write_raw;            /* called with the console lock held */
         tc.write_ud = rt;
 #if MCS_ENABLE_POOL_HEAP
-        if (cfg->heap && cfg->heap_size) { tc.heap_fn = rt_pool_realloc; tc.heap_ud = &rt->pool; }
+        if (cfg->heap_size) { tc.heap_fn = rt_pool_realloc; tc.heap_ud = &rt->pool; }
 #endif
         tc.setup = cfg->thread_setup;
         tc.ud = cfg->ud;
@@ -198,6 +203,9 @@ int mcs_runtime_reset_application(mcs_runtime_t* rt) {
     if (mcs_threads_shutdown(2000)) return -2;
 #endif
     rt_free_vm(rt);
+#if MCS_ENABLE_POOL_HEAP
+    mcs_pool_trim(&rt->pool); /* no live worker; RAM files remain owned */
+#endif
     return rt_attach_vm(rt);
 }
 static int rt_prepare_application(void* ud) {
@@ -208,13 +216,18 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     memset(rt, 0, sizeof *rt);
     rt->cfg = *cfg;
 #if MCS_ENABLE_POOL_HEAP
+    if (cfg->heap_provider && (cfg->heap || !cfg->heap_size)) return -1;
     if (cfg->heap && cfg->heap_size) mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
+    else if (cfg->heap_size && !mcs_pool_init_dynamic(&rt->pool, &rt->pool_dynamic,
+        cfg->heap_provider ? cfg->heap_provider : mcs_pool_system_provider(), cfg->heap_size, 0)) return -1;
+#else
+    if (cfg->heap_provider || (!cfg->heap && cfg->heap_size)) return -1;
 #endif
     struct mcs_vfs* vfs = NULL;
 #if MCS_ENABLE_FS
     mcs_vfs_init(&rt->vfs);
 #if MCS_ENABLE_POOL_HEAP
-    if (cfg->heap && cfg->heap_size) {
+    if (cfg->heap_size) {
         /* Whole-file source/read buffers belong to the same physical budget,
          * not a hidden malloc allocation outside the VM pool. */
         rt->vfs.realloc_fn = rt_pool_temporary_realloc; rt->vfs.alloc_ud = &rt->pool;
@@ -224,7 +237,7 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     if (cfg->fs_ops) e = mcs_vfs_mount(&rt->vfs, "/", cfg->fs_ops, cfg->fs_ctx, 0);
     else if (cfg->ramfs_size) {
 #if MCS_ENABLE_POOL_HEAP
-        if (cfg->heap && cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, rt_pool_realloc, &rt->pool);
+        if (cfg->heap_size) mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, rt_pool_realloc, &rt->pool);
         else
 #endif
         mcs_ramfs_init(&rt->ramfs, cfg->ramfs_size, NULL, NULL);
@@ -284,6 +297,9 @@ void mcs_runtime_stop(mcs_runtime_t* rt) {
     rt_free_vm(rt);
 #if MCS_ENABLE_FS
     if (!rt->cfg.fs_ops && rt->cfg.ramfs_size) mcs_ramfs_free(&rt->ramfs);
+#endif
+#if MCS_ENABLE_POOL_HEAP
+    if (rt->pool.dynamic) mcs_pool_destroy(&rt->pool);
 #endif
     rt->running = false;
 }
