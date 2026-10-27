@@ -1,0 +1,237 @@
+# LVGL — optional C# wrapper over a host-owned GUI
+
+MicroCS is a portable C99 C# subset compiler/VM, not .NET. This optional
+binding consumes **the firmware's existing LVGL 8.x or 9.x**. It is off by
+default (`MCS_ENABLE_LVGL=0`), independent of HAL/drivers, and bundles no LVGL.
+There is no version bump or release associated with this feature.
+
+## Version compatibility versus API coverage
+
+The version policy accepts major **8 and 9**, with minor/patch releases handled
+by a small spelling/API bridge (`include/mcs_lvgl_compat.h`). Other majors fail
+at compile time. This is not a claim that every past/future minor or arbitrary
+vendor fork was tested, or that every LVGL API is exposed. The checked release
+matrix and remaining validation gaps live in [LVGL testing](LVGL_TESTING.md).
+The exact header, library binary, configuration and compiler ABI must match.
+Consume the same host build target; adding a header path alone cannot guarantee
+that an independently built binary has the same `lv_conf.h` or layout. There is
+no reliable runtime check for every possible configuration/ABI mismatch.
+
+The bridge covers LVGL 8 `lv_btn_create`, object deletion/state APIs and the
+LVGL 9.0 void-returning event-registration API. For LVGL 8 (including early minors),
+a registered display is the readiness check. No wrapper changes `lv_conf.h`,
+font settings, color depth, precision or the host allocator.
+
+## Firmware responsibilities
+
+Before attachment, firmware must initialize LVGL and a working display, draw
+buffers, flush callback, input devices, tick source and task/timer handling.
+Those resources remain host-owned. The wrapper **never** calls `lv_init`,
+registers a display/input device, allocates framebuffers, increments ticks,
+calls `lv_timer_handler`, starts a task, or installs VM idle polling.
+
+Choose a live host root on the desired display. Attachment adds one transparent,
+full-size **script-owned container** under it. All script objects are created
+inside this private subtree. Root layout/coordinates still obey normal LVGL
+layout rules; reserve an appropriate root region in the native UI. Do not move
+host-owned widgets into this subtree, reparent script widgets outside it, or
+remove the binding's native deletion observers. No raw pointer is exposed to C#.
+Host display/root/widgets survive VM destruction. Deleting a host ancestor
+natively deletes the container and invalidates script descendants.
+
+### Attachment
+
+Include `mcs_lvgl.h` with the feature enabled. The config has no defaults for
+threading or allocation; the host must deliberately supply them:
+
+```c
+/* Run from mcs_runtime_cfg_t.setup after the host GUI is initialized.
+ * app_gui_lock/unlock use the SAME mutex as all native GUI operations and
+ * the GUI task. app_on_vm_thread must identify this VM's owner thread.
+ * app_gui_alloc/free return aligned native memory (not VM scratch storage). */
+static void setup(mcs_vm_t* vm, void* user) {
+    struct app* app = user;
+    mcs_lvgl_config_t cfg = {
+        app->script_root, app,
+        app_gui_lock, app_gui_unlock, app_on_vm_thread,
+        app_gui_alloc, app_gui_free
+    };
+    int rc = mcs_lvgl_attach(vm, &cfg);
+    if (rc != MCS_LVGL_OK) {
+        /* Surface rc and reject this application start; do not run GUI scripts.
+         * If registration OOM occurred, destroy/recreate this VM. */
+        app_report_gui_attach_failure(app, rc);
+    }
+}
+```
+
+This is integration pseudocode: the application supplies `struct app`, callbacks
+and failure policy. Match the runtime's actual setup callback signature (see
+`mcs_runtime_cfg_t`); a direct embedder calls `mcs_lvgl_attach(vm,&cfg)` before
+execution. Do not initialize the screen in a C# template.
+
+The VM must be idle on its owner thread during attachment. Attach only once per
+VM (`ALREADY_ATTACHED` on a second call). Config is copied, but the context and
+callbacks must outlive the VM. `INVALID`, `NOT_READY` and `NO_MEMORY` distinguish
+contract errors, absent display/root and wrapper initialization failure.
+Registration runs under a VM OOM recovery guard; on registration failure the
+container and attachment storage are freed, but discard the VM because a subset
+of API declarations may already exist. No VM allocation occurs while holding
+the GUI mutex.
+
+## Synchronization and events
+
+Every native GUI operation, including host deletion, must use the same lock as
+the binding. The host GUI handler must serialize with it too (respect the host
+LVGL OS integration's existing internal locking; do not deadlock by taking a
+nonrecursive mutex twice). A genuinely single-threaded host may supply no-op
+lock/unlock functions, but must still supply an owner-thread check. Calling C#
+GUI methods on a worker VM or wrong thread is rejected. All other VM access,
+GC, attachment and destruction must also obey MicroCS's single-owner contract.
+
+Native events only enqueue fixed-size slot/generation records while holding the
+GUI lock. They **never call a VM**, allocate, retain `lv_event_t*`, or unpin on a
+GUI thread. The script calls `Lvgl.Dispatch(maxEvents)` explicitly on its VM
+thread, between 0 and `MCS_LVGL_EVENT_QUEUE`. The default queue holds 16 records;
+full queues drop the newest notification and increment saturated
+`Lvgl.DroppedEvents`. Dispatch consumes at most the requested records, including
+stale ones. Delegates take **zero arguments**; read current widget state in the
+callback (events do not snapshot historical values).
+
+Each object supports **one** subscription: `OnClicked(action)` or
+`OnChanged(action)` replaces the old one; `ClearEvent()` / a null callback
+removes it. Delegates are pinned until replacement, disposal, VM teardown, or
+the next VM-side reap/dispatch after native deletion. Queued events are checked at dequeue and rejected by both object and subscription generations, even when slots/native
+pointers are reused. Dispatch is non-reentrant; callback exceptions/abort stop
+that dispatch and propagate through normal VM handling. Remaining queued events
+stay bounded; VM teardown discards them before destroying pins/objects. No old
+VM callback survives runtime application replacement. Host deletion just after
+a valid dequeue can invalidate a handle before its callback runs; subsequent
+widget operations still perform the same locked validity checks.
+
+## C# API and coverage
+
+`Lvgl.Ready` means the attachment's private subtree still exists. It is separate
+from firmware capability `Lvgl`, which only means the API was attached/registered.
+`Lvgl.Supports("Label")` checks the widget's **actual compile-time setting**.
+Names are case-sensitive; unknown kinds return false. Disabled widgets produce
+`NotSupportedException` and no unresolved references.
+
+| Kind for `new LvObject(kind[, parent])` | Specific operations | LVGL configuration |
+| --- | --- | --- |
+| `Object` | Base container | Core |
+| `Label` | `Text` (write-only, copied) | `LV_USE_LABEL` |
+| `Button` | Base/event operations; add a child Label for its text | v8 `LV_USE_BTN`, v9 `LV_USE_BUTTON` |
+| `Slider` | `Value`, range 0–100, no animation | `LV_USE_SLIDER` |
+| `Bar` | `Value`, range 0–100, no animation | `LV_USE_BAR` |
+| `Checkbox` | `Text` (write-only, copied), `Checked` | `LV_USE_CHECKBOX` |
+| `Switch` | `Checked` | `LV_USE_SWITCH` |
+| `Arc` | `Value`, range 0–100, no animation | `LV_USE_ARC` |
+
+All objects expose `IsAlive`, idempotent `Dispose()`, `Center()`,
+`SetPosition(x,y)`, `SetSize(width,height)`, `SetBackground(rgb24)`,
+`SetTextColor(rgb24)`, `OnClicked(action)`, `OnChanged(action)` and `ClearEvent()`.
+Positions are -32767..32767; sizes 0..32767; colors 0..0xFFFFFF. Kind-incompatible
+properties throw. No screen wrapper, arbitrary native-object wrapping,
+reparenting, display/input setup or pointer-as-integer access is exposed.
+Images, external fonts, shared style descriptors, animations, complex widgets,
+layout engines and the rest of the LVGL API are **not exposed yet**. Inline
+color styles use LVGL's object-owned storage. Text setters use LVGL's copying
+APIs, never static pointers into script strings. No retained image/font/style
+backing storage is accepted by this API, so firmware must not infer support.
+
+```csharp
+if (!Lvgl.Ready || !Lvgl.Supports("Label") || !Lvgl.Supports("Button"))
+    throw new Exception("Host GUI or required widgets unavailable");
+var button = new LvObject("Button");
+button.SetSize(110, 40);
+button.Center();
+var text = new LvObject("Label", button);
+text.Text = "Click me";
+text.Center();
+button.OnClicked(() => { text.Text = "Clicked"; });
+// Call Lvgl.Dispatch(16) from your existing application loop.
+// The host continues to own rendering and ticking.
+```
+
+## Lifetime, memory and failure policy
+
+Handles contain a slot and generation, not a native pointer. Script aliases
+share the same handle. Parent/native deletion invalidates descendants; generation
+exhaustion retires slots rather than reviving stale handles. The default maximum
+is 32 live script widgets per VM (plus the private container). Set
+`MCS_LVGL_MAX_OBJECTS` and `MCS_LVGL_EVENT_QUEUE` consistently for every translation
+unit to change capacities. Repeated creation/disposal reuses bounded slots.
+
+Widgets are **application/VM-owned, not GC-owned**: collecting a handle does not
+delete a visible widget. Keep a handle if you need to dispose early. `Dispose`
+deletes its subtree under the host lock; finalizers never call LVGL. Before VM
+object/pin teardown, `mcs_free` automatically deletes all script-owned widgets,
+removes all native registrations by deleting the private subtree, unpins delegates
+and frees native attachment storage. Runtime stop/rerun/application replacement
+uses that path; custom embedders must destroy the old VM on app replacement.
+A failed/aborted execution leaves the VM's application resources until explicit
+disposal or normal VM/application teardown; it does not reset the host GUI.
+
+Attachment allocates one fixed native storage block through the supplied host
+allocator. `mcs_lvgl_storage_size()` gives its exact size. VM userdata, delegates,
+compilation and pin tables consume VM memory; LVGL objects, copied text/styles,
+display buffers and OS state consume **host/LVGL memory**. These are not all in
+the MicroCS pool. Never add pool usage to device-heap usage when the pool is
+backed by that device heap: it would double-count physical RAM. No heap defaults
+or native reserve policies are changed by the wrapper.
+
+Wrapper native allocation, object/pin limits and VM OOM have recovery/cleanup
+paths. **LVGL itself is not generally recoverable from native allocator OOM**:
+some constructors and style/string operations assert or assume successful
+allocation, depending on upstream release/configuration. The binding cannot
+turn every such failure into a C# exception. Provision native headroom and follow
+the host LVGL allocator/assert policy; tests do not establish arbitrary LVGL
+native-OOM recovery. Do not use longjmp-based LVGL assertions across held locks.
+
+## Builds
+
+### Plain CMake — existing host target only
+
+Create/link your configured LVGL target **before** adding MicroCS:
+
+```cmake
+# Your firmware already defines a configured target: host_lvgl.
+set(MICROCS_LVGL ON CACHE BOOL "" FORCE)
+set(MICROCS_LVGL_TARGET host_lvgl CACHE STRING "" FORCE)
+add_subdirectory(path/to/MicroCS)
+target_link_libraries(firmware PRIVATE MicroCS::microcs)
+```
+
+The host target must export its include directories and configuration definitions.
+`MICROCS_LVGL_DIR` adds an explicit header directory; `MICROCS_LVGL_INCLUDE` sets
+an alternate header spelling. It still requires the existing target. The default
+target name is `lvgl::lvgl`. No automatic download or second LVGL build occurs.
+Modules must be enabled. With plain Make/manual builds, use
+`-DMCS_ENABLE_LVGL=1`, matching include/config flags and the **same host library**
+in `CFLAGS` / `LDLIBS`; compile the normal `src/*.c` and `modules/*/*.c` sets.
+Header discovery tries `<lvgl.h>`, then `<lvgl/lvgl.h>`; `MCS_LVGL_INCLUDE` overrides
+both, e.g. `-DMCS_LVGL_INCLUDE='"vendor/lvgl.h"'`.
+
+### Firmware packaging (build hooks, not hardware certification)
+
+- **ESP-IDF:** enable `CONFIG_MICROCS_LVGL`, set
+  `CONFIG_MICROCS_LVGL_COMPONENT` to the already configured host component's name
+  (default `lvgl__lvgl`). The component must export matching config/includes.
+- **Zephyr:** `CONFIG_LVGL=y`, `CONFIG_MICROCS_LVGL=y`; consume Zephyr's existing
+  LVGL target and attach in application setup. Supported upstream major required.
+- **Arduino:** `python3 tools/make_arduino.py --lvgl`. Install/configure one host
+  LVGL 8.x/9.x library. Dependency-discovery glue includes its header but never
+  initializes it. No automatic dependency install or version selection occurs.
+- **PlatformIO/manual SDKs:** define `MCS_ENABLE_LVGL=1` consistently and make
+  your one host LVGL dependency/configuration visible to the MicroCS build.
+  Packaging already includes headers/modules; no second copy is bundled.
+
+All these builds still require native host display initialization and attachment.
+Physical-device operation, RAM/timing limits and SDK-specific GUI lock behavior
+must be validated on the actual firmware; generic host compilation proves none
+of those hardware properties.
+
+Official upstream contracts: [LVGL 8.4 objects](https://docs.lvgl.io/8.4/overview/object.html),
+[LVGL 9.2 events](https://docs.lvgl.io/9.2/overview/event.html),
+[LVGL 9.2 OS integration](https://docs.lvgl.io/9.2/porting/os.html).

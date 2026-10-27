@@ -2,6 +2,16 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased
+
+* Add an off-by-default wrapper for host-owned LVGL 8.x/9.x, with per-VM
+  attachment, opaque generational handles and bounded queued script events.
+* Isolate script widgets in a private subtree; release them automatically on
+  VM/app replacement without deleting native firmware widgets or displays.
+* Add host-target build integration, explicit widget feature checks, Studio
+  reference entries and real-LVGL headless sanitizer fixtures. See
+  `docs/LVGL.md` and `docs/LVGL_TESTING.md` for coverage and validation limits.
+
 ## 1.19.0 — Studio workbench and editor intelligence
 
 * Refresh Studio with calmer dark/light chrome, separate action/document rows,

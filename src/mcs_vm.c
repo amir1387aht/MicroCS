@@ -1,5 +1,8 @@
 /* MicroCS virtual machine: dispatch loop, calls, members, exceptions, API. */
 #include "mcs_internal.h"
+#if MCS_ENABLE_LVGL
+void mcs_lvgl_vm_cleanup(mcs_vm_t* vm); /* private optional teardown hook */
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -2167,6 +2170,17 @@ static void guard_recover(mcs_vm_t* vm, const mcs_guard_state_t* saved) {
     if ((_code = setjmp(_jb)) != 0) { guard_recover(vm, &_guard); return (mcs_result_t)_code; }
 #define GUARD_END(vm) (vm)->panic = _guard.panic
 
+#if MCS_ENABLE_LVGL
+/* Optional attachment registration needs an OOM recovery boundary outside exec.
+ * No LVGL lock is held here; guard recovery restores GC/root/native state. */
+mcs_result_t mcs_lvgl_register_api(mcs_vm_t* vm, void (*open)(mcs_vm_t*)) {
+    GUARD_BEGIN(vm);
+    open(vm);
+    GUARD_END(vm);
+    return MCS_OK;
+}
+#endif
+
 mcs_result_t mcs_call_value(mcs_vm_t* vm, mcs_value_t callee, int argc, const mcs_value_t* argv, mcs_value_t* result) {
     GUARD_BEGIN(vm);
     mcs_result_t r = mcs_call_internal(vm, callee, mcs_null(), argc, argv, result);
@@ -2559,6 +2573,9 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
 void mcs_free(mcs_vm_t* vm) {
     if (!vm) return;
     vm->gc_pause++;
+#if MCS_ENABLE_LVGL
+    mcs_lvgl_vm_cleanup(vm);
+#endif
     native_args_restore(vm, NULL);
     mcs_free_objects(vm);
     mcs_lazy_free(vm);

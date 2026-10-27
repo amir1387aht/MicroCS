@@ -144,6 +144,7 @@ def main():
     ap.add_argument("--no-ws2812", action="store_true", help="leave out the ws2812 driver (C# LedStrip)")
     ap.add_argument("--no-servo", action="store_true", help="leave out the servo driver (C# Servo)")
     ap.add_argument("--ble", action="store_true", help="C# Ble (docs/BLE.md): needs the ArduinoBLE library")
+    ap.add_argument("--lvgl", action="store_true", help="C# wrapper; requires already configured host LVGL 8.x/9.x")
     ap.add_argument("--u8g2", action="store_true", help="C# U8g2 / U8x8 (needs the U8g2 library)")
     ap.add_argument("--u8g2-displays", help="comma list of u8g2 displays to compile in")
     ap.add_argument("--u8g2-fonts", help="comma list of U8g2 fonts in flash")
@@ -173,6 +174,8 @@ def main():
     defines = list(a.define) + (["MCS_ENABLE_WS2812=0"] if a.no_ws2812 else []) + (["MCS_ENABLE_SERVO=0"] if a.no_servo else [])
     if a.profile:
         defines.append("MCS_PROFILE=MCS_PROFILE_" + a.profile.upper())
+    if a.lvgl:
+        defines.append("MCS_ENABLE_LVGL=1")
     if a.ble:
         defines.append("MCS_ENABLE_BLE=1")
     if a.u8g2 or a.u8g2_displays or a.u8g2_fonts or a.u8x8_fonts:

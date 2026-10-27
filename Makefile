@@ -487,3 +487,13 @@ build/test_file_streams: tests/c/test_file_streams.c tests/c/file_stream_smoke.h
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
 file-streams-test: build/test_file_streams
 	./build/test_file_streams
+
+# Test-only headless host owns its LVGL build; production consumes the host target.
+# make lvgl-test LVGL_DIR=/path/to/lvgl-8.x-or-9.x [LVGL_SANITIZE=ON]
+LVGL_SANITIZE ?= OFF
+.PHONY: lvgl-test
+lvgl-test:
+	@test -n "$(LVGL_DIR)" || { echo 'Set LVGL_DIR to a local LVGL 8.x/9.x checkout (never downloaded automatically)'; exit 1; }
+	cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR="$(abspath $(LVGL_DIR))" -DSANITIZE=$(LVGL_SANITIZE)
+	cmake --build build/lvgl --target test_lvgl -j2
+	ctest --test-dir build/lvgl --output-on-failure

@@ -161,6 +161,15 @@ config MICROCS_CONSOLE_ECHO
 	bool "Echo console input (raw UART terminals)"
 	default y
 
+config MICROCS_LVGL
+	bool "C# wrapper for host-owned LVGL 8.x/9.x"
+	depends on LVGL
+	default n
+	help
+	  Attach to the existing host LVGL environment; no display or timer setup.
+	  Requires a matching supported LVGL major and application attachment.
+	  See docs/LVGL.md; no physical-port validation is implied.
+
 config MICROCS_U8G2
 	bool "U8g2 displays (C# U8g2 / U8x8 on olikraus' u8g2 library)"
 	help

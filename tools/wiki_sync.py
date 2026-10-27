@@ -54,6 +54,8 @@ SECTIONS = [
         ("docs/DRIVERS.md", "Device-Drivers"),
         ("docs/NETWORK.md", "Wi-Fi-and-Networking"),
         ("docs/U8G2.md", "U8g2-Displays"),
+        ("docs/LVGL.md", "LVGL"),
+        ("docs/LVGL_TESTING.md", "LVGL-Testing"),
         ("docs/FILESYSTEM.md", "Filesystem"),
         ("docs/THREADS.md", "Threads"),
         ("docs/SCHEDULER.md", "Scheduler"),

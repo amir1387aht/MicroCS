@@ -433,7 +433,11 @@ uint32_t mcs_features(void);
 /* Per-VM extension slots. Optional modules (filesystem, HAL, scheduler, shell)
  * keep their context here so their natives can find it from `vm`. */
 enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
-       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT_BLE, MCS_EXT__COUNT };
+       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT_BLE,
+#if MCS_ENABLE_LVGL
+       MCS_EXT_LVGL,
+#endif
+       MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
 

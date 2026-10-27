@@ -193,3 +193,11 @@ the template `config/mcs_user_config.h`), the
 backends in the ports, a test in `tests/` (simulator backend) and a row in this file.
 `modules/*/*.c` is picked up by every build system (Make, CMake, ESP-IDF, Zephyr,
 PlatformIO, Arduino packaging).
+
+## Host-owned LVGL (optional)
+
+The [LVGL binding](LVGL.md) attaches C# widgets to an existing, initialized
+LVGL 8.x/9.x host environment. It does not supply LCD/input drivers, buffers,
+ticks or a GUI task. Enable it only in a firmware with a working native GUI.
+See the guide for build hooks, synchronization, API coverage and validation
+limits; packaging support does not imply physical-device certification.

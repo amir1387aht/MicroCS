@@ -352,3 +352,11 @@ or arbitrary-app 40 KiB guarantee is implied by the host regression.
 with software GPIO decoding only when no native backend supports the selected
 pins. `encoder.Backend` reports the actual selection. See the guide for pin
 bindings, resource ownership, setup and counter-service limits.
+
+## Host-owned LVGL (optional)
+
+The [LVGL binding](../../docs/LVGL.md) attaches C# widgets to an existing, initialized
+LVGL 8.x/9.x host environment. It does not supply LCD/input drivers, buffers,
+ticks or a GUI task. Enable it only in a firmware with a working native GUI.
+See the guide for build hooks, synchronization, API coverage and validation
+limits; packaging support does not imply physical-device certification.

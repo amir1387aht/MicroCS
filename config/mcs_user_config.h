@@ -245,6 +245,19 @@
 #ifndef MCS_ENABLE_SERVO
 #define MCS_ENABLE_SERVO          MCS_ENABLE_DRIVERS    /* built-in "servo" driver: C# Servo (hobby servos on a PWM channel) */
 #endif
+/* Host-owned LVGL (docs/LVGL.md); never supplies display initialization. */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL 0
+#endif
+#ifndef MCS_LVGL_MAX_OBJECTS
+#define MCS_LVGL_MAX_OBJECTS 32
+#endif
+#ifndef MCS_LVGL_EVENT_QUEUE
+#define MCS_LVGL_EVENT_QUEUE 16
+#endif
+/* Optional alternate host header; matching host library/config still required. */
+//#define MCS_LVGL_INCLUDE "vendor/lvgl.h"
+
 /* u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8, needs olikraus' u8g2 library (the build finds
  * or downloads it). Displays and fonts compiled in - names: `python3 tools/u8g2.py displays`,
  * `python3 tools/u8g2.py fonts`; other fonts load from MCS_U8G2_FONT_DIR at run time. */

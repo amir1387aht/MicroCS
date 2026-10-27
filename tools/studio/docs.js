@@ -6,6 +6,28 @@
  *   Name: Type | doc                 static property        const Name: Type | doc   constant
  *   @Class < Other                   also inherits Other's instance members        */
 window.MCS_DOCS_SRC = String.raw`
+@Lvgl | Optional wrapper over host-owned LVGL 8.x/9.x; firmware must initialize and attach it
+Ready: bool | True while the attached script subtree exists; not just a compiled capability
+Supports(string kind): bool | Checks a widget against the host lv_conf.h; case-sensitive
+DroppedEvents: int | Saturating count of newest events dropped by the bounded queue
+Dispatch(int maxEvents): int | Dispatch at most 0..16 queued records (default capacity); VM owner thread, no rendering/ticking
+
+@LvObject | Application-owned widget; GC does not delete it, Dispose or VM replacement does
+new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch or Arc; widget must be enabled
+.IsAlive: bool | False after native/parent deletion or Dispose
+.Dispose(): void | Idempotently delete this script-owned subtree
+.Center(): void | Center in parent
+.SetSize(int width, int height): void | Pixel sizes 0..32767
+.SetPosition(int x, int y): void | Pixel coordinates -32767..32767
+.SetBackground(int rgb): void | Object-owned opaque background, RGB 0x000000..0xFFFFFF
+.SetTextColor(int rgb): void | Object-owned text color, RGB 0x000000..0xFFFFFF
+.Text: string | Write-only copied text; Label or Checkbox only
+.Value: int | 0..100, Slider/Bar/Arc only; animation disabled
+.Checked: bool | Checkbox/Switch only
+.OnClicked(Action callback): void | Pin one zero-argument delegate, replacing any old subscription
+.OnChanged(Action callback): void | Pin one zero-argument delegate for value changes, replacing any old subscription
+.ClearEvent(): void | Remove the subscription and invalidate queued notifications
+
 @Console | Text output to the serial console / REPL
 WriteLine(): void | Writes a line ending
 WriteLine(object value): void | Writes the value (ToString()) and a line ending

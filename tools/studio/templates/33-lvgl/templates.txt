@@ -1,0 +1,6 @@
+category: LVGL (host GUI)
+requires: Lvgl
+
+[button.cs] Host-owned LVGL button
+save as: main.cs
+Requires an already initialized and attached native LVGL environment with Label and Button enabled. The host owns rendering and ticks; this template starts no display or GUI loop.

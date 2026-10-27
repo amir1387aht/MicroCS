@@ -230,3 +230,11 @@ acquire/release callbacks. Drivers must not use VM allocations from those
 callbacks. The default provider does not know platform-native reserves; ESP32
 uses a capability/reserve-aware provider. See [memory](MEMORY.md#automatic-bounded-regions-all-ports)
 for ownership, synchronization, trimming, contiguous-object limits and accounting.
+
+## Host-owned LVGL (optional)
+
+The [LVGL binding](LVGL.md) attaches C# widgets to an existing, initialized
+LVGL 8.x/9.x host environment. It does not supply LCD/input drivers, buffers,
+ticks or a GUI task. Enable it only in a firmware with a working native GUI.
+See the guide for build hooks, synchronization, API coverage and validation
+limits; packaging support does not imply physical-device certification.

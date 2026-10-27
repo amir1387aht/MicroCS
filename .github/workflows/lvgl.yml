@@ -1,0 +1,36 @@
+name: Optional host-owned LVGL
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        lvgl: [v8.0.2, v8.1.0, v8.2.0, v8.3.11, v8.4.0, v9.0.0, v9.1.0, v9.2.2, v9.3.0, v9.4.0, v9.5.0, v9.6.0]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact upstream test dependency (not production integration)
+        run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Configure, instrument both libraries, and test
+        run: |
+          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON
+          cmake --build build/lvgl --target test_lvgl -j2
+          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --output-on-failure
+  minimal:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        lvgl: [v8.4.0, v9.2.2, v9.6.0]
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: No HAL, no drivers, optional widgets disabled, explicit header override
+        run: |
+          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DMINIMAL_WIDGETS=ON -DMICROCS_LVGL_INCLUDE=lvgl.h '-DCMAKE_C_FLAGS=-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_DRIVERS=0'
+          cmake --build build/lvgl --target test_lvgl -j2
+          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --output-on-failure

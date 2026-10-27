@@ -405,6 +405,17 @@
 #define MCS_ENABLE_SERVO 0
 #endif
 
+/* Host-owned LVGL wrapper. Independent of HAL/drivers; no dependency when off. */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL 0
+#endif
+#ifndef MCS_LVGL_MAX_OBJECTS
+#define MCS_LVGL_MAX_OBJECTS 32
+#endif
+#ifndef MCS_LVGL_EVENT_QUEUE
+#define MCS_LVGL_EVENT_QUEUE 16
+#endif
+
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
  * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by
  * default; the build looks for it (or downloads it) when this is 1. docs/U8G2.md.
