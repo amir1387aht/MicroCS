@@ -262,6 +262,12 @@
 #ifndef MCS_ENABLE_POOL_HEAP
 #define MCS_ENABLE_POOL_HEAP 1
 #endif
+/* Optional automatic backing regions; malloc-free boards can explicitly enable
+ * this with a board-owned provider. Static buffers need no region machinery. */
+#ifndef MCS_ENABLE_POOL_REGIONS
+#define MCS_ENABLE_POOL_REGIONS MCS_ENABLE_MALLOC
+#endif
+
 /* Block alignment of the pool allocator (also its per-block header size).
  * 8 is safe everywhere. 4 saves 4+ bytes per allocation and is safe on
  * Cortex-M (ARMv6-M/v7-M/v8-M only need word alignment for every load,

@@ -1894,6 +1894,7 @@ const App = {
   },
   memoryData(text) {
     const logical = /^heap (\d+) bytes in use, peak (\d+)/m.exec(text);
+    const backing = /^pool_backing (\d+) committed, (\d+) limit, (\d+) regions/m.exec(text);
     const pool = /^pool (\d+) total, (\d+) used, (\d+) peak, (\d+) free, (\d+) largest/m.exec(text);
     const device = /^device_heap (\d+) total, (\d+) used, (\d+) free, (\d+) minimum_free, (\d+) largest/m.exec(text);
     const stack = /^stack (\d+) used, (\d+) allocated, (\d+) peak, (\d+) limit/m.exec(text);
@@ -1913,6 +1914,7 @@ const App = {
     if (limit) lines.push(`VM allocation limit: ${+limit[1] ? bytes(limit[1]) : "unlimited"}`);
     if (stack) lines.push(`Stack slots: ${stack[1]} used · ${stack[2]} allocated · peak ${stack[3]} · max ${stack[4]}`);
     if (frames) lines.push(`Call frames: ${frames[1]} used · ${frames[2]} allocated · peak ${frames[3]} · max ${frames[4]}`);
+    if (backing) lines.push(`Pool backing: ${bytes(backing[1])} committed · ceiling: ${bytes(backing[2])} · regions: ${backing[3]}`);
     if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
     else lines.push("Device heap unavailable on this firmware");
     return { summary, detail: lines.join("\n") };

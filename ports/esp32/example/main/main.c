@@ -15,6 +15,7 @@
 
 static mcs_runtime_t rt;
 static mcs_hal_t hal;
+static mcs_esp32_heap_t vm_heap;
 
 static void idle(void* ud) { (void)ud; taskYIELD(); }
 
@@ -38,34 +39,25 @@ void app_main(void) {
 #ifdef CONFIG_MICROCS_VM_MAX_FRAMES
     cfg.max_frames = CONFIG_MICROCS_VM_MAX_FRAMES;
 #endif
-    size_t heap_size = target, reserve = 32 * 1024;
+    size_t reserve = 32 * 1024;
 #if MCS_ESP32_WIFI && defined(CONFIG_MICROCS_WIFI_RESERVE_KB)
     reserve += (size_t)CONFIG_MICROCS_WIFI_RESERVE_KB * 1024;
 #endif
 #if MCS_ESP32_BLE && defined(CONFIG_MICROCS_BLE_RESERVE_KB)
     reserve += (size_t)CONFIG_MICROCS_BLE_RESERVE_KB * 1024;   /* NimBLE host + controller, started later */
 #endif
-    size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-    size_t total = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-    size_t available = total > reserve ? total - reserve : 0;
-    size_t contiguous = largest > 8 * 1024 ? largest - 8 * 1024 : 0;
-    if (heap_size > available) heap_size = available;
-    if (heap_size > contiguous) heap_size = contiguous;
-    heap_size &= ~(size_t)1023;
-    if (heap_size < 16 * 1024) {
-        printf("MicroCS: insufficient heap for a bounded VM pool\n");
-        return;
-    }
-    uint8_t* heap = heap_caps_malloc(heap_size, MALLOC_CAP_8BIT);
-    if (!heap) {
-        printf("MicroCS: VM pool allocation failed (%u bytes); startup stopped\n", (unsigned)heap_size);
-        return; /* Never silently replace a failed fixed pool with unbounded malloc. */
-    }
-    printf("MicroCS: VM pool %u bytes, ceiling %u bytes, driver reserve %u bytes\n",
-           (unsigned)heap_size, (unsigned)target, (unsigned)reserve);
-    cfg.heap = heap;
-    cfg.heap_size = heap_size;
-    if (!on_flash) cfg.ramfs_size = heap_size / 6;     /* RAM disk, taken from the heap */
+    /* Regions are acquired only as needed, up to the combined target. The
+     * provider rechecks internal native headroom on every growth attempt. */
+    mcs_esp32_heap_init(&vm_heap, reserve);
+    cfg.heap = NULL;
+    cfg.heap_size = target;
+    cfg.heap_provider = &vm_heap.provider;
+    printf("MicroCS: automatic VM pool, ceiling %u bytes, native reserve %u bytes\n",
+           (unsigned)target, (unsigned)reserve);
+    printf("MicroCS: internal heap free %u bytes, largest %u bytes (before VM growth)\n",
+           (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),
+           (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL));
+    if (!on_flash) cfg.ramfs_size = target / 6; /* same bounded pool; may fail if native RAM is insufficient */
     mcs_vfs_statfs_t sf;
     if (on_flash && cfg.fs_ops->statfs && cfg.fs_ops->statfs(cfg.fs_ctx, &sf) == 0)
         printf("MicroCS: %s on flash, %u of %u KB free\n", sf.format, (unsigned)(sf.free / 1024), (unsigned)(sf.total / 1024));
@@ -81,5 +73,11 @@ void app_main(void) {
     cfg.delay = mcs_esp32_delay;
     cfg.hal = &hal;
     cfg.idle = idle;
-    for (;;) mcs_runtime_run(&rt, &cfg);
+    for (;;) {
+        int rc = mcs_runtime_run(&rt, &cfg);
+        if (rc) {
+            printf("MicroCS: runtime startup failed (%d); native reserve/cap may leave insufficient RAM\n", rc);
+            return; /* fail closed, not an allocation retry loop */
+        }
+    }
 }

@@ -325,13 +325,44 @@ typedef struct { size_t bytes_in_use; size_t peak_bytes; size_t next_gc; uint32_
 typedef struct { size_t total, used, peak, free, largest_free; } mcs_heap_stats_t;
 void mcs_mem_stats(mcs_vm_t* vm, mcs_mem_stats_t* st);
 
+/* A port obtains memory from its own safe allocator; never scan raw addresses.
+ * Return NULL, or a distinct writable block of *actual bytes, min <= actual <=
+ * preferred. All backing bytes (including alignment/metadata) count to the cap.
+ * Callbacks execute under the caller's pool lock; must not recurse into the VM.
+ * provider and ud must outlive the pool. release must accept the original block. */
+typedef struct {
+    void* (*acquire)(void* ud, size_t minimum, size_t preferred, size_t* actual);
+    void (*release)(void* ud, void* block, size_t bytes);
+    void* ud;
+} mcs_pool_provider_t;
+
 #if MCS_ENABLE_POOL_HEAP
 /* Simple first-fit pool allocator over a static buffer. Use as:
  *   static uint8_t heap[48*1024]; mcs_pool_t pool;
  *   mcs_pool_init(&pool, heap, sizeof heap);
  *   cfg.realloc_fn = mcs_pool_realloc; cfg.alloc_ud = &pool; */
-typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_t peak; } mcs_pool_t;
+typedef struct mcs_pool_dynamic {
+    const mcs_pool_provider_t* provider;
+    struct mcs_pool_region* regions;
+    size_t committed, limit, chunk, count;
+} mcs_pool_dynamic_t;
+typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_t peak;
+    mcs_pool_dynamic_t* dynamic; /* NULL: unchanged static-buffer path */
+} mcs_pool_t;
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
+/* Empty, automatically growing pool. No initial allocation; limit is a hard
+ * cap on acquired backing bytes. chunk=0 selects 16 KiB preferred growth.
+ * No GC is run inside the allocator (C locals may not yet be rooted). */
+bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
+    const mcs_pool_provider_t* provider, size_t limit, size_t chunk);
+/* C-library provider; NULL when MCS_ENABLE_MALLOC=0. A platform with native
+ * drivers should provide its own reserve/capability-aware provider instead. */
+const mcs_pool_provider_t* mcs_pool_system_provider(void);
+/* Release only entirely empty owned regions, at an idle/synchronized boundary.
+ * No pointer relocation. Static buffers are never released. */
+size_t mcs_pool_trim(mcs_pool_t* pool);
+/* Release ALL owned regions; only after every client/worker is destroyed. */
+void mcs_pool_destroy(mcs_pool_t* pool);
 /* Free is unallocated pool space; largest_free is allocatable payload (header
  * excluded). Caller must
  * synchronize with concurrent allocations, just like mcs_pool_realloc. */

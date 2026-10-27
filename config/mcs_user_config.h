@@ -154,6 +154,9 @@
 #ifndef MCS_ENABLE_POOL_HEAP
 #define MCS_ENABLE_POOL_HEAP      1    /* built-in fixed-pool allocator (mcs_pool_realloc) */
 #endif
+#ifndef MCS_ENABLE_POOL_REGIONS
+#define MCS_ENABLE_POOL_REGIONS MCS_ENABLE_MALLOC /* bounded automatic backing; static-only builds may disable */
+#endif
 #ifndef MCS_POOL_ALIGN
 #define MCS_POOL_ALIGN            8    /* pool block alignment; 4 is safe on Cortex-M and saves RAM */
 #endif

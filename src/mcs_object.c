@@ -117,14 +117,137 @@ void* mcs_mem_realloc(mcs_vm_t* vm, void* p, size_t old_size, size_t new_size) {
 #if MCS_ENABLE_POOL_HEAP
 typedef struct pool_blk { size_t size; struct pool_blk* next; } pool_blk_t;
 
+/* Region descriptors occupy a reserved prefix of each acquired block. Besides
+ * accounting for ownership, this leaves a gap between adjacent arenas: the
+ * existing free-list coalescer/realloc can never join separate allocations. */
+typedef struct mcs_pool_region {
+    struct mcs_pool_region* next;
+    void* raw;
+    size_t bytes;
+    uint8_t* base;
+    size_t size;
+} pool_region_t;
+
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size) {
+    memset(pool, 0, sizeof *pool);
+    if (!buf || (uintptr_t)buf > UINTPTR_MAX - (POOL_ALIGN - 1)) return;
     uintptr_t a = ((uintptr_t)buf + POOL_ALIGN - 1) & ~(uintptr_t)(POOL_ALIGN - 1);
-    size -= (size_t)(a - (uintptr_t)buf);
-    size &= ~(size_t)(POOL_ALIGN - 1);
-    pool->base = (uint8_t*)a; pool->size = size; pool->used = 0; pool->peak = 0;
+    size_t skip = (size_t)(a - (uintptr_t)buf);
+    if (size < skip) return;
+    size = (size - skip) & ~(size_t)(POOL_ALIGN - 1);
+    if (size < sizeof(pool_blk_t)) return;
+    pool->base = (uint8_t*)a; pool->size = size;
     pool_blk_t* b = (pool_blk_t*)a; b->size = size; b->next = NULL;
     pool->free_list = b;
 }
+
+#if MCS_ENABLE_POOL_REGIONS
+bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
+    const mcs_pool_provider_t* provider, size_t limit, size_t chunk) {
+    memset(pool, 0, sizeof *pool);
+    memset(state, 0, sizeof *state);
+    if (!provider || !provider->acquire || !provider->release || !limit) return false;
+    state->provider = provider; state->limit = limit;
+    state->chunk = chunk ? chunk : 16 * 1024;
+    pool->dynamic = state;
+    return true;
+}
+#if MCS_ENABLE_MALLOC
+static void* pool_system_acquire(void* ud, size_t minimum, size_t preferred, size_t* actual) {
+    (void)ud;
+    size_t n = preferred;
+    for (;;) {
+        void* p = malloc(n);
+        if (p) { *actual = n; return p; }
+        if (n == minimum) return NULL;
+        n = n / 2 < minimum ? minimum : n / 2;
+    }
+}
+static void pool_system_release(void* ud, void* block, size_t bytes) {
+    (void)ud; (void)bytes; free(block);
+}
+#endif
+const mcs_pool_provider_t* mcs_pool_system_provider(void) {
+#if MCS_ENABLE_MALLOC
+    static const mcs_pool_provider_t provider = { pool_system_acquire, pool_system_release, NULL };
+    return &provider;
+#else
+    return NULL;
+#endif
+}
+
+static bool pool_grow(mcs_pool_t* pool, size_t need) {
+    mcs_pool_dynamic_t* d = pool->dynamic;
+    if (!d) return false;
+    size_t overhead = POOL_ROUND(sizeof(pool_region_t)) + POOL_ALIGN - 1;
+    if (need > SIZE_MAX - overhead) return false;
+    size_t minimum = need + overhead, left = d->limit - d->committed;
+    if (minimum > left) return false;
+    size_t preferred = d->chunk > minimum ? d->chunk : minimum;
+    if (preferred > left) preferred = left;
+    size_t bytes = 0;
+    void* raw = d->provider->acquire(d->provider->ud, minimum, preferred, &bytes);
+    if (!raw) return false;
+    if (bytes < minimum || bytes > preferred || (uintptr_t)raw > UINTPTR_MAX - bytes) {
+        d->provider->release(d->provider->ud, raw, bytes); return false;
+    }
+    uintptr_t aligned = ((uintptr_t)raw + POOL_ALIGN - 1) & ~(uintptr_t)(POOL_ALIGN - 1);
+    pool_region_t* r = (pool_region_t*)aligned;
+    uint8_t* base = (uint8_t*)r + POOL_ROUND(sizeof *r);
+    size_t size = (bytes - (size_t)(base - (uint8_t*)raw)) & ~(size_t)(POOL_ALIGN - 1);
+    r->raw = raw; r->bytes = bytes; r->base = base; r->size = size;
+    r->next = d->regions; d->regions = r;
+    d->committed += bytes; d->count++;
+    pool->size += size;
+    pool_blk_t* b = (pool_blk_t*)base;
+    b->size = size;
+    pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
+    while (*pp && (uintptr_t)*pp < (uintptr_t)b) pp = &(*pp)->next;
+    b->next = *pp; *pp = b;
+    return true;
+}
+
+size_t mcs_pool_trim(mcs_pool_t* pool) {
+    mcs_pool_dynamic_t* d = pool->dynamic;
+    if (!d) return 0;
+    size_t released = 0;
+    pool_region_t** rr = &d->regions;
+    while (*rr) {
+        pool_region_t* r = *rr;
+        pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
+        while (*pp && (uintptr_t)*pp < (uintptr_t)r->base) pp = &(*pp)->next;
+        if (*pp && (uint8_t*)*pp == r->base && (*pp)->size == r->size) {
+            *pp = (*pp)->next; *rr = r->next;
+            void* raw = r->raw; size_t bytes = r->bytes;
+            pool->size -= r->size; d->committed -= bytes; d->count--; released += bytes;
+            d->provider->release(d->provider->ud, raw, bytes);
+        } else rr = &r->next;
+    }
+    return released;
+}
+void mcs_pool_destroy(mcs_pool_t* pool) {
+    mcs_pool_dynamic_t* d = pool->dynamic;
+    if (d) {
+        pool_region_t* r = d->regions;
+        while (r) {
+            pool_region_t* next = r->next;
+            d->provider->release(d->provider->ud, r->raw, r->bytes); r = next;
+        }
+        memset(d, 0, sizeof *d);
+    }
+    memset(pool, 0, sizeof *pool);
+}
+
+#else
+bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
+    const mcs_pool_provider_t* provider, size_t limit, size_t chunk) {
+    (void)provider; (void)limit; (void)chunk;
+    memset(pool, 0, sizeof *pool); memset(state, 0, sizeof *state); return false;
+}
+const mcs_pool_provider_t* mcs_pool_system_provider(void) { return NULL; }
+size_t mcs_pool_trim(mcs_pool_t* pool) { (void)pool; return 0; }
+void mcs_pool_destroy(mcs_pool_t* pool) { memset(pool, 0, sizeof *pool); }
+#endif
 
 void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st) {
     memset(st, 0, sizeof *st);
@@ -141,7 +264,7 @@ static void pool_free(mcs_pool_t* pool, void* ptr) {
     pool->used -= b->size;
     /* insert sorted by address and coalesce */
     pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
-    while (*pp && *pp < b) pp = &(*pp)->next;
+    while (*pp && (uintptr_t)*pp < (uintptr_t)b) pp = &(*pp)->next;
     b->next = *pp; *pp = b;
     if (b->next && (uint8_t*)b + b->size == (uint8_t*)b->next) { b->size += b->next->size; b->next = b->next->next; }
     if (pp != (pool_blk_t**)&pool->free_list) {
@@ -157,6 +280,9 @@ static void* pool_alloc(mcs_pool_t* pool, size_t n, bool temporary) {
     /* Persistent objects grow from low addresses; transient compiler/VFS blocks
      * grow from high addresses. Do not scatter persistent objects into holes
      * between temporary token/AST allocations. */
+#if MCS_ENABLE_POOL_REGIONS
+retry:;
+#endif
     pool_blk_t** best = NULL;
     for (pool_blk_t** pp = (pool_blk_t**)&pool->free_list; *pp; pp = &(*pp)->next) {
         if ((*pp)->size >= need) {
@@ -184,6 +310,9 @@ static void* pool_alloc(mcs_pool_t* pool, size_t n, bool temporary) {
         if (pool->used > pool->peak) pool->peak = pool->used;
         return (uint8_t*)b + POOL_HDR;
     }
+#if MCS_ENABLE_POOL_REGIONS
+    if (pool_grow(pool, need)) goto retry;
+#endif
     return NULL;
 }
 
@@ -205,7 +334,7 @@ static void* pool_realloc_impl(void* ud, void* ptr, size_t old, size_t nsz, bool
             return ptr;
         }
         pool_blk_t** pp = (pool_blk_t**)&pool->free_list;
-        while (*pp && (uint8_t*)*pp < (uint8_t*)b + b->size) pp = &(*pp)->next;
+        while (*pp && (uintptr_t)*pp < (uintptr_t)b + b->size) pp = &(*pp)->next;
         pool_blk_t* next = *pp;
         if (next && (uint8_t*)next == (uint8_t*)b + b->size && next->size >= need - b->size) {
             size_t total = b->size + next->size;

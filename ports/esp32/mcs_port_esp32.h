@@ -26,6 +26,7 @@
 #ifndef MCS_PORT_ESP32_H
 #define MCS_PORT_ESP32_H
 #include "mcs.h"
+#include "mcs_esp32_heap.h"
 #include "mcs_hal.h"
 #include "mcs_shell.h"
 #ifdef __cplusplus

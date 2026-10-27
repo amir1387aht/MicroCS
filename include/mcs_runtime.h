@@ -36,7 +36,7 @@ typedef enum {
 } mcs_runtime_mode_t;
 
 typedef struct {
-    /* memory: one static buffer for the VM heap (and the RAM filesystem) */
+    /* memory: static buffer, or heap=NULL + heap_size=automatic backing cap. */
     void* heap;
     size_t heap_size;
     /* filesystem: your backend (e.g. &mcs_lfs_ops + a mounted lfs_t) or a RAM
@@ -68,20 +68,26 @@ typedef struct {
     uint8_t stdlib;             /* MCS_LIB_* mask, 0 = MCS_LIB_ALL */
     uint32_t time_limit_ms;     /* per top-level run (REPL line, job, callback); 0 = none */
     /* OS threads (MCS_ENABLE_THREADS, docs/THREADS.md; ignored without an OS):
-     * thread heaps come from `heap` (or the OS heap when heap is NULL) */
+     * thread heaps share the configured static/automatic pool (or the OS heap
+     * when no pool budget is configured) */
     void (*thread_setup)(mcs_vm_t* vm, void* ud);  /* your bindings for every thread VM (gets ud) */
     uint32_t thread_heap;       /* default heap per thread, 0 = MCS_THREAD_HEAP */
     uint32_t thread_stack;      /* default stack per thread in bytes, 0 = MCS_THREAD_STACK */
+    /* With heap=NULL and heap_size>0, NULL selects malloc/free when available.
+     * Override with a native-reserve-aware provider. Static heap and provider
+     * are mutually exclusive. Provider and context must outlive the runtime. */
+    const mcs_pool_provider_t* heap_provider;
 } mcs_runtime_cfg_t;
 
 #define MCS_RUNTIME_DEFAULTS { NULL, 0, NULL, NULL, 0, { NULL, NULL, NULL }, NULL, NULL, NULL, \
-    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0 }
+    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL }
 
 typedef struct {
     mcs_runtime_cfg_t cfg;
     mcs_vm_t* vm;
 #if MCS_ENABLE_POOL_HEAP
     mcs_pool_t pool;
+    mcs_pool_dynamic_t pool_dynamic;
 #endif
 #if MCS_ENABLE_FS
     mcs_vfs_t vfs;

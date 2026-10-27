@@ -26,6 +26,8 @@ function methods(start,end,deps={}) {
  assert(node.title.includes('not static RAM'));
  app.toggleMemoryInfo();
  assert.strictEqual(node.textContent,'VM heap: 16.0 KB used · 53.0 KB peak');
+ const automatic=app.memoryText('heap 100 bytes in use, peak 200\npool 16000 total, 100 used, 200 peak, 15900 free, 15800 largest\npool_backing 16384 committed, 196608 limit, 1 regions\n');
+ assert(automatic.includes('16,384 B committed · ceiling: 196,608 B · regions: 1'));
  const old=app.memoryText('heap 16384 bytes in use, peak 54272');
  assert(old.includes('capacity unavailable'));assert(old.includes('Device heap unavailable'));
  assert.strictEqual(app.memorySummary('heap 16384 bytes in use, peak 54272'),'VM heap: 16.0 KB used · 53.0 KB peak');
