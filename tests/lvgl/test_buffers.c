@@ -7,15 +7,15 @@ static int checks,failures;
 #define CHECK(x) do{++checks;if(!(x)){++failures;fprintf(stderr,"buffer FAIL %d: %s\n",__LINE__,#x);}}while(0)
 static void quiet(void* p,const char* s,size_t n){(void)p;(void)s;(void)n;}
 static int run(mcs_vm_t* vm,const char* code){int rc=mcs_exec_source(vm,"buffers.cs",code);if(rc)fprintf(stderr,"%s\nsource: %.300s\n",mcs_last_error(vm),code);CHECK(rc==MCS_OK);return rc;}
-typedef struct { mcs_lvgl_config_t base;unsigned live,peak;bool fail,owner;void* ptrs[128];size_t sizes[128]; } host_t;
+typedef struct { mcs_lvgl_config_t base;unsigned live,peak;bool fail,owner;void* ptrs[128];size_t sizes[128];size_t last_size; } host_t;
 static void lock(void* p){host_t* h=p;h->base.lock(h->base.ctx);}
 static void unlock(void* p){host_t* h=p;h->base.unlock(h->base.ctx);}
 static bool owner(void* p){host_t* h=p;return h->owner && h->base.is_vm_thread(h->base.ctx);}
-static void* alloc(void* p,size_t n){host_t* h=p;if(h->fail)return NULL;void* ptr=h->base.alloc(h->base.ctx,n);if(ptr){unsigned i;for(i=0;i<128 && h->ptrs[i];++i){}if(i==128)abort();h->ptrs[i]=ptr;h->sizes[i]=n;if(++h->live>h->peak)h->peak=h->live;}return ptr;}
+static void* alloc(void* p,size_t n){host_t* h=p;h->last_size=n;if(h->fail)return NULL;void* ptr=h->base.alloc(h->base.ctx,n);if(ptr){unsigned i;for(i=0;i<128 && h->ptrs[i];++i){}if(i==128)abort();h->ptrs[i]=ptr;h->sizes[i]=n;if(++h->live>h->peak)h->peak=h->live;}return ptr;}
 static void release(void* p,void* ptr){host_t* h=p;unsigned i;for(i=0;i<128 && h->ptrs[i]!=ptr;++i){}if(i==128 || !h->live)abort();memset(ptr,0xa5,h->sizes[i]);h->ptrs[i]=NULL;--h->live;h->base.free(h->base.ctx,ptr);}
 static mcs_lvgl_config_t config(host_t* h,const mcs_lvgl_config_t* base){memset(h,0,sizeof(*h));h->base=*base;h->owner=true;mcs_lvgl_config_t c=*base;c.ctx=h;c.lock=lock;c.unlock=unlock;c.is_vm_thread=owner;c.alloc=alloc;c.free=release;return c;}
 static mcs_vm_t* new_vm(const mcs_lvgl_config_t* cfg){mcs_config_t c;mcs_config_default(&c);c.write_fn=c.error_fn=quiet;mcs_vm_t* vm=mcs_new(&c);CHECK(vm!=NULL);if(vm)CHECK(mcs_lvgl_attach(vm,cfg)==0);return vm;}
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
 typedef struct {mcs_pool_t pool;int at,calls;bool inject,injected;} fault_t;
 static void* failing(void* p,void* ptr,size_t old,size_t n){fault_t* f=p;if(n && f->inject && f->calls++==f->at){f->injected=true;return NULL;}return mcs_pool_realloc(&f->pool,ptr,old,n);}
 static void test_faults(const mcs_lvgl_config_t* base){
@@ -32,6 +32,12 @@ static void test_faults(const mcs_lvgl_config_t* base){
 #if LV_USE_LINE
           "var line=new LvObject(\"Line\",panel);line.SetPoints(new int[]{0,0,40,20});GC.Collect();line.SetPoints(new int[]{0,0,20,10});"
 #endif
+#if LV_USE_TEXTAREA
+          "var ta=new LvObject(\"TextArea\",panel);ta.Call(\"lv_textarea_set_accepted_chars\",\"0123\");ta.Call(\"lv_textarea_set_accepted_chars\",null);ta.Call(\"lv_textarea_set_accepted_chars\",\"abc\");"
+#endif
+#if LV_USE_DROPDOWN
+          "var dd=new LvObject(\"Dropdown\",panel);dd.Call(\"lv_dropdown_set_text\",\"Title\");dd.Call(\"lv_dropdown_set_symbol\",\"▼\");dd.Call(\"lv_dropdown_set_text\",null);dd.Call(\"lv_dropdown_set_text\",\"New\");string snap=dd.Call(\"lv_dropdown_get_selected_str\");string copy=dd.Call(\"lv_dropdown_get_text\");"
+#endif
           "panel.Dispose();Lvgl.Dispatch(0);";
         int rc=mcs_exec_source(vm,"buffer-fault.cs",code);f.inject=false;
         if(!f.injected){CHECK(rc==MCS_OK);done=true;}
@@ -40,7 +46,52 @@ static void test_faults(const mcs_lvgl_config_t* base){
     CHECK(done);
 }
 #endif
+static void test_retained_text(const mcs_lvgl_config_t* base) {
+    host_t h;mcs_lvgl_config_t cfg=config(&h,base);mcs_vm_t* vm=new_vm(&cfg);if(!vm)return;
+#if LV_USE_TEXTAREA
+    run(vm,"var ta=new LvObject(\"TextArea\");string chars=\"0\"+\"123\";ta.Call(\"lv_textarea_set_accepted_chars\",chars);chars=null;GC.Collect();ta.Text=\"a102b\";if(ta.Text!=\"102\" || ta.Call(\"lv_textarea_get_accepted_chars\")!=\"0123\")throw new Exception(\"filter copy\");");CHECK(h.live==2);
+    h.fail=true;run(vm,"bool oom=false;try{ta.Call(\"lv_textarea_set_accepted_chars\",\"bad\");}catch(OutOfMemoryException e){oom=true;}if(!oom)throw new Exception(\"filter OOM\");");h.fail=false;CHECK(h.live==2);
+    run(vm,"if(ta.Call(\"lv_textarea_get_accepted_chars\")!=\"0123\")throw new Exception(\"filter preserved\");for(int n=0;n<40;n++)ta.Call(\"lv_textarea_set_accepted_chars\",\"123\");ta.Call(\"lv_textarea_set_accepted_chars\",\"\");ta.Text=\"123\";if(ta.Text!=\"123\" || ta.Call(\"lv_textarea_get_accepted_chars\")!=null)throw new Exception(\"empty filter reset\");ta.Call(\"lv_textarea_set_accepted_chars\",null);ta.Text=\"abc\";if(ta.Text!=\"abc\" || ta.Call(\"lv_textarea_get_accepted_chars\")!=null)throw new Exception(\"clear filter\");ta.Call(\"lv_textarea_set_align\",3);if(ta.Call(\"lv_obj_get_style_text_align\",0)!=3)throw new Exception(\"text alignment\");ta.Call(\"lv_textarea_set_accepted_chars\",\"abc\");ta.Dispose();Lvgl.Dispatch(0);");CHECK(h.live==1);
+#endif
+#if LV_USE_DROPDOWN
+    run(vm,"var dd=new LvObject(\"Dropdown\");dd.Call(\"lv_dropdown_set_text\",\"Dynamic \"+\"title\");dd.Call(\"lv_dropdown_set_symbol\",\"▼\");GC.Collect();if(dd.Call(\"lv_dropdown_get_text\")!=\"Dynamic title\" || dd.Call(\"lv_dropdown_get_symbol\")!=\"▼\")throw new Exception(\"dropdown owned text\");");CHECK(h.live==3);
+    h.fail=true;run(vm,"bool oom=false;try{dd.Call(\"lv_dropdown_set_text\",\"bad\");}catch(OutOfMemoryException e){oom=true;}if(!oom)throw new Exception(\"dropdown OOM\");");h.fail=false;CHECK(h.live==3);
+    h.fail=true;run(vm,"bool oom=false;try{dd.Call(\"lv_dropdown_get_selected_str\");}catch(OutOfMemoryException e){oom=true;}if(!oom)throw new Exception(\"selected snapshot OOM\");");h.fail=false;CHECK(h.live==3);
+    run(vm,"dd.Call(\"lv_dropdown_set_options\",\"One\\nTwo\");dd.Call(\"lv_dropdown_set_selected\",1);if(dd.Call(\"lv_dropdown_get_selected_str\")!=\"Two\")throw new Exception(\"small snapshot\");");CHECK(h.last_size==8); /* not the default 4098-byte maximum */
+    /* Deliberately supply a host-native overlong option to exercise getter
+     * rejection independent of the script setter's own input length bound. */
+    char* long_option=malloc(MCS_LVGL_MAX_TEXT_BYTES+2u);CHECK(long_option!=NULL);
+    if(long_option) {
+        memset(long_option,'x',MCS_LVGL_MAX_TEXT_BYTES+1u);long_option[MCS_LVGL_MAX_TEXT_BYTES+1u]=0;
+        lock(&h);lv_obj_t* dd=lv_obj_get_child(lv_obj_get_child(base->root,0),-1);lv_dropdown_set_options(dd,long_option);unlock(&h);
+        run(vm,"bool longText=false;try{dd.Call(\"lv_dropdown_get_selected_str\");}catch(ArgumentException e){longText=true;}if(!longText)throw new Exception(\"selected truncation\");");CHECK(h.live==3);
+        long_option[MCS_LVGL_MAX_TEXT_BYTES]=0;lock(&h);lv_dropdown_set_options(dd,long_option);unlock(&h);
+        char code[256];snprintf(code,sizeof code,"if(dd.Call(\"lv_dropdown_get_selected_str\").Length!=%u)throw new Exception(\"selected boundary\");",(unsigned)MCS_LVGL_MAX_TEXT_BYTES);run(vm,code);free(long_option);CHECK(h.live==3);
+    }
+    run(vm,"if(dd.Call(\"lv_dropdown_get_text\")!=\"Dynamic title\")throw new Exception(\"dropdown preserved\");bool image=false;try{dd.Call(\"lv_dropdown_set_symbol\",\"S:/image.bin\");}catch(ArgumentException e){image=true;}if(!image)throw new Exception(\"symbol image pointer\");for(int n=0;n<40;n++){dd.Call(\"lv_dropdown_set_text\",\"New title\");dd.Call(\"lv_dropdown_set_symbol\",\"▲\");}dd.Call(\"lv_dropdown_set_options\",\"Red\\nGreen\\nBlue\");dd.Call(\"lv_dropdown_set_selected\",1);string selected=dd.Call(\"lv_dropdown_get_selected_str\");dd.Call(\"lv_dropdown_set_text\",null);dd.Call(\"lv_dropdown_set_symbol\",null);if(dd.Call(\"lv_dropdown_get_text\")!=null || dd.Call(\"lv_dropdown_get_symbol\")!=null)throw new Exception(\"reset dropdown\");dd.Call(\"lv_dropdown_clear_options\");if(dd.Call(\"lv_dropdown_get_selected_str\")!=\"\")throw new Exception(\"empty selection\");dd.Dispose();GC.Collect();if(selected!=\"Green\")throw new Exception(\"selection copy\");Lvgl.Dispatch(0);");CHECK(h.live==1);
+#endif
+#if LV_USE_ROLLER
+    run(vm,"var roller=new LvObject(\"Roller\");roller.Call(\"lv_roller_set_options\",\"Red\\nGreen\\nBlue\",0);roller.Call(\"lv_roller_set_selected\",2,0);if(roller.Call(\"lv_roller_get_selected_str\")!=\"Blue\")throw new Exception(\"roller selected string\");roller.Dispose();");CHECK(h.live==1);
+#endif
+#if LV_USE_TEXTAREA || LV_USE_DROPDOWN
+    run(vm,"var doomed=new LvObject(\"Object\");"
+#if LV_USE_TEXTAREA
+           "var retired=new LvObject(\"TextArea\",doomed);retired.Call(\"lv_textarea_set_accepted_chars\",\"abc\");"
+#endif
+#if LV_USE_DROPDOWN
+           "var retiredDropdown=new LvObject(\"Dropdown\",doomed);retiredDropdown.Call(\"lv_dropdown_set_text\",\"retained\");"
+#endif
+           );CHECK(h.live>1);
+    lock(&h);mcs_lv_obj_delete(lv_obj_get_child(lv_obj_get_child(base->root,0),-1));unlock(&h);
+    run(vm,"Lvgl.Dispatch(0);if(doomed.IsAlive)throw new Exception(\"retained native deletion\");");CHECK(h.live==1);
+#if LV_USE_TEXTAREA
+    run(vm,"bool stale=false;try{retired.Call(\"lv_textarea_set_accepted_chars\",\"bad\");}catch(InvalidOperationException e){stale=true;}if(!stale)throw new Exception(\"retired filter\");");CHECK(h.live==1);
+#endif
+#endif
+    mcs_free(vm);CHECK(!h.live);CHECK(h.peak<=4);
+}
 int test_lvgl_buffers(const mcs_lvgl_config_t* base){
+    test_retained_text(base);
     host_t h;mcs_lvgl_config_t cfg=config(&h,base);mcs_vm_t* vm=new_vm(&cfg);if(!vm)return failures;
     run(vm,"var panel=new LvObject(\"Object\");panel.SetSize(180,100);");CHECK(h.live==1);
 #if LV_USE_GRID
@@ -77,7 +128,7 @@ int test_lvgl_buffers(const mcs_lvgl_config_t* base){
     run(vm,"bool stale=false;try{line.SetPoints(new int[]{0,0,20,10});}catch(InvalidOperationException e){stale=true;}if(!stale)throw new Exception(\"stale line\");");CHECK(h.live==1);
 #endif
     mcs_free(vm);CHECK(!h.live);
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
     test_faults(base);
 #endif
     printf("LVGL copied buffers: %d checks, %d failures; peak wrapper blocks=%u\n",checks,failures,h.peak);return failures;

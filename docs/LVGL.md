@@ -184,7 +184,7 @@ button.OnClicked(() => { text.Text = "Clicked"; });
 
 The [generated native-call reference](LVGL_NATIVE_API.md) lists the exact
 allowlist, version aliases, feature guards and argument bounds. It currently
-contains **432 operation families** and **225 named constants**, not every LVGL
+contains **442 operation families** and **225 named constants**, not every LVGL
 function. Neither a raw symbol name nor an integer can invoke arbitrary native
 code or serve as a native pointer.
 
@@ -217,14 +217,37 @@ some **enabled flash** and explicit-call validation cost for bounded VM memory;
 it does not claim zero enabled CPU/flash cost. `Percent(-1000..1000)` encodes the
 host's LVGL coordinate format; avoid hardcoding v8/v9 percentage bit patterns.
 
-Text inputs must be strings and use copying native setters. Text getters take a
+Text inputs use copying native setters or wrapper-owned native copies. The
+retained text setters also accept null for reset. Text getters take a
 bounded native snapshot under the GUI lock, release the lock, then create the
 VM string through an OOM-protected cleanup boundary. No borrowed native pointer
 survives unlock. Both native snapshot allocation failure and VM allocation
 failure release the snapshot. `MCS_LVGL_MAX_TEXT_BYTES` defaults to 4096; table
 cell growth is capped by `MCS_LVGL_MAX_TABLE_CELLS` (default 256). Resource limits
 are consistent across translation units. No snapshot buffer is reserved while
-idle; an explicit getter allocates only its actual text size plus terminator.
+idle. Most getters allocate their actual text size plus terminator. The two
+selected-option string getters size temporary storage from the options text,
+capped at the configured bound plus two bytes. Short selections do not reserve
+a fixed 4 KB scratch buffer; overlong output is detected, not silently truncated.
+
+`Call("lv_textarea_set_accepted_chars", "0123456789")` copies and owns a
+TextArea/Spinbox input filter. Null **or empty** resets it to unrestricted input
+on both majors (native early-8 empty-filter semantics differ). It filters future
+text insertion; it does not retroactively sanitize existing text.
+`lv_dropdown_set_text` and `lv_dropdown_set_symbol` also own copies; null resets
+them. Symbols are limited to UTF-8 symbol text, empty or null—not ASCII image
+filenames or native descriptors. Matching getters return copied strings (null
+when unset). `lv_dropdown_get_selected_str` and `lv_roller_get_selected_str`
+return a copied string with **no caller buffer arguments**; empty dropdown
+options return an empty string. `lv_chart_get_pressed_point` normalizes the
+host's no-point sentinel to -1. See [text/selection example](../examples/lvgl/text-selection.cs).
+
+These retained strings share the lazy copied-buffer list; no per-object fields,
+background work or idle string storage is added. One allocation per active
+filter/title/symbol is freed on replacement/reset or deferred native-deletion
+cleanup. On LVGL 9.5+, public static setters avoid duplicate native copies. The host
+must not replace those native pointers behind the binding. Call `Dispatch(0)`
+to reap host-deleted resources without consuming events.
 
 `Call("lv_textarea_add_char", codePoint)` accepts a non-NUL Unicode scalar,
 not LVGL's native endian-dependent packed UTF-8 word. It encodes/copies the
@@ -266,7 +289,23 @@ release until the deleted subtree has finished its destructors. Missing drives,
 files and load failures throw; failed loads preserve the old selection.
 Compressed file fonts are rejected with `NotSupportedException` when the host
 sets `LV_USE_FONT_COMPRESSED=0`; loading alone does not prove glyph support.
-The wrapper never changes the host setting. Registered native fonts remain the
+The wrapper never changes the host setting. Stock LVGL 8's compressed-font
+writer has a signed-left-shift defect. Before building affected **host-owned**
+LVGL sources, review and explicitly apply the small dependency repair:
+
+```sh
+python3 tools/patch_lvgl8_font.py /path/to/host-lvgl --apply
+python3 tests/lvgl/test_font_writer.py /path/to/host-lvgl
+```
+
+The change casts the mask to `uint32_t` before complement/shift. The tool is
+idempotent, verifies the major version, rejects unknown LVGL 8 writer shapes,
+and leaves LVGL 9 untouched. Commit/rebuild the repaired dependency in your
+firmware; merely updating MicroCS cannot fix a precompiled LVGL binary. No
+production build silently patches your library, no sanitizer is suppressed,
+and compressed-font support stays enabled. See [validation](LVGL_TESTING.md#lvgl-8-compressed-font-repair-no-sanitizer-exception).
+
+ Registered native fonts remain the
 host's responsibility, including their feature/fallback compatibility.
 
 `image.Source = "S:/images/logo.bin"` requires an enabled Image widget, a

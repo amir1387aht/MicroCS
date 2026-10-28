@@ -111,6 +111,9 @@ int test_lvgl_assets(const mcs_lvgl_config_t* base){
 #if LV_USE_GRID && LV_USE_LINE
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/grid-line.cs",1);
 #endif
+#if LV_USE_TEXTAREA && LV_USE_DROPDOWN
+    example(&cfg,MCS_LVGL_EXAMPLE_DIR "/text-selection.cs",1);
+#endif
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/button.cs",1);
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/assets.cs",LV_USE_FONT_COMPRESSED ? 1 : 0);
 #if LV_USE_SLIDER

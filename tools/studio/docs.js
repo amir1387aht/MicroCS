@@ -24,7 +24,7 @@ GridFraction(int weight): int | Encode a grid fraction weight 1..99; requires na
 new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch, Arc, Image, Dropdown, Roller, TextArea, Table, Led, Spinbox, Chart, Canvas, Keyboard, ButtonMatrix, Line, List, Calendar, ImageButton, Spinner or Tileview; widget must be enabled
 .IsAlive: bool | False after native/parent deletion or Dispose
 .Dispose(): void | Idempotently delete this script-owned subtree
-.Call(object nativeNameOrId, params object[] args): object | Checked native call on this widget: copied text and scalar/opaque-object arguments only; consult docs/LVGL_NATIVE_API.md for the allowlist and bounds
+.Call(object nativeNameOrId, params object[] args): object | Checked native call on this widget: copied/owned text (nullable reset for retained-text setters) and checked scalar/object arguments; consult docs/LVGL_NATIVE_API.md for the allowlist and bounds
 .SetGrid(int[] columns, int[] rows): void | Copy nonempty track arrays into native storage; 1..4096 pixels, LV_GRID_CONTENT or Lvgl.GridFraction; max 32 tracks per axis by default
 .SetPoints(int[] xy): void | Line only: copy flat x,y pairs into native storage; empty clears, otherwise 2..256 points by default, coordinates -4096..4096
 .PointCount: int | Read-only count of copied points on this Line; stale handles are rejected

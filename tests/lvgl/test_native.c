@@ -120,6 +120,9 @@ int test_lvgl_native(const mcs_lvgl_config_t* cfg){
 #if MCS_LV_USE_IMAGE
     run(vm,"var image=new LvObject(\"Image\");bool empty=false;try{image.Call(\"lv_img_set_offset_x\",-2);}catch(ArgumentException e){empty=true;}if(!empty)throw new Exception(\"empty image offset\");image.Call(\"lv_img_set_angle\",900);image.Call(\"lv_image_set_scale\",512);image.Call(\"lv_img_set_pivot\",0,0);image.Call(\"lv_image_set_antialias\",true);if(image.Call(\"lv_img_get_offset_x\")!=0 || image.Call(\"lv_image_get_offset_y\")!=0 || image.Call(\"lv_image_get_rotation\")!=900 || image.Call(\"lv_img_get_zoom\")!=512 || !image.Call(\"lv_img_get_antialias\"))throw new Exception(\"image transforms\");bool zero=false;try{image.Call(\"lv_img_set_zoom\",0);}catch(ArgumentException e){zero=true;}if(!zero)throw new Exception(\"zero image scale\");image.Dispose();");
 #endif
+#if LV_USE_CHART
+    run(vm,"var chart=new LvObject(\"Chart\");if(chart.Call(\"lv_chart_get_pressed_point\")!=-1)throw new Exception(\"chart no pressed point\");chart.Dispose();");
+#endif
 #if LV_USE_CALENDAR
     run(vm,"var calendar=new LvObject(\"Calendar\");calendar.Call(\"lv_calendar_set_today_date\",2026,10,27);calendar.Call(\"lv_calendar_set_showed_date\",2026,10);calendar.Call(\"lv_calendar_set_month_shown\",2026,11);calendar.Dispose();");
 #endif

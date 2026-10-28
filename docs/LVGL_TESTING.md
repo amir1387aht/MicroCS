@@ -8,11 +8,15 @@ allocation and VM ownership callbacks. No test dependency is bundled in MicroCS.
 ## Reproduce
 
 ```sh
+# Explicit opt-in host source repair; LVGL 9 is left unchanged.
+python3 tools/patch_lvgl8_font.py /path/to/lvgl-8.x-or-9.x --apply
+python3 tests/lvgl/test_font_writer.py /path/to/lvgl-8.x-or-9.x
 make lvgl-test LVGL_DIR=/path/to/lvgl-8.x-or-9.x LVGL_SANITIZE=ON
 # or:
 cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/path/to/lvgl -DSANITIZE=ON
 cmake --build build/lvgl --target test_lvgl -j4
-ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --output-on-failure
+ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose > build/lvgl/sanitizer.log 2>&1
+python3 tests/lvgl/check_sanitizer_log.py --lvgl-version v8.4.0 build/lvgl/sanitizer.log
 ```
 
 Use a clean build directory per upstream checkout/configuration. `SANITIZE=ON`
@@ -95,7 +99,7 @@ native LVGL 8 allocator fault coverage.
   test plus ASan/UBSan is not a substitute for TSan or MCU scheduler testing.
 - Combined device-native/LVGL/VM memory totals or rendering performance on real
   hardware. No framebuffer allocation is attributed to the VM pool.
-- Complete API coverage beyond the 25 documented kinds and 432 native-call
+- Complete API coverage beyond the 25 documented kinds and 442 native-call
   operation families; retained array/descriptor APIs, shared resource handles,
   custom drawing/animation callbacks and many object-returning methods remain
   unwrapped. Some new widget kinds currently expose creation/common APIs only. File images/fonts do not imply arbitrary descriptor support.
@@ -211,7 +215,7 @@ not a completed full-LVGL C# API. No merge or release should imply otherwise.
 
 ## Native-call expansion validation
 
-The reviewed manifest generates 432 operation families and 225 enum constants.
+The reviewed manifest generates 442 operation families and 225 enum constants.
 The fixture checks each family's version/config availability and ID resolution,
 wrong arity for parameterized entries, every available scalar style setter/getter,
 and constant availability. These generated checks do **not** establish exhaustive
@@ -272,22 +276,61 @@ rendering certification, or full API coverage. The host must preserve the
 binding's owned buffer/style contracts; image/font/renderer costs remain native.
 
 
-### Explicit upstream LVGL 8 sanitizer exception
+### LVGL 8 compressed-font repair: no sanitizer exception
 
-Stock LVGL 8's compressed-font bit writer (`lv_font_fmt_txt.c`) shifts the signed
-negative value `~bit_mask` left. The binary-font fixture emits UBSan's exact
-`left shift of negative value -16` diagnostic on 8.0.2 and 8.4.0. This is an
-upstream defect, not a clean UBSan result. Earlier exit-code-only checks could
-pass because UBSan recovers by default; they did not prove absence of reports.
+Stock LVGL 8's compressed-font bit writer shifts the signed negative value
+`~bit_mask` left. The former fixture explicitly allowed the resulting diagnostic;
+**that exception has been removed**. `tools/patch_lvgl8_font.py --apply` makes
+one reviewed change in the explicitly supplied test/firmware dependency:
 
-CI now captures verbose sanitizer output and runs `check_sanitizer_log.py`.
-Only this exact diagnostic from the named upstream font source is reported as
-a known warning for LVGL 8. All other UBSan reports and ASan/leak reports fail,
-even if a recovering runtime returns zero. No sanitizer compiler/runtime check
-is globally disabled and no upstream source is silently patched. LVGL 9 has no
-such exception. A host wanting a UB-clean LVGL 8 compressed-font decoder must
-fix the upstream signed shift (use an unsigned mask before shifting), or avoid
-compressed fonts; this binding does not repair host-owned LVGL internals.
+```c
+out[byte_pos] &= ((~(uint32_t)bit_mask) << bit_pos);
+```
+
+This preserves the bitstream writer's original prefix/suffix semantics while
+performing complement and shift in unsigned arithmetic. The actual extracted
+writer is exercised for 1/2/3/4/8-bit values, valid offsets across three bytes,
+every representable input value, all 256 destination-byte patterns and canaries:
+**322,560 checks per LVGL 8 checkout**, under non-recovering UBSan. Real binary
+compressed-font loading/rendering remains enabled in the full fixtures.
+
+The repair is explicit and idempotent; no production build invokes it. Unknown
+LVGL 8 source forms fail without modification; LVGL 9 is unchanged. Firmware
+hosts must review/commit/rebuild their dependency or use a correctly fixed native
+library. Updating MicroCS alone does not alter an already compiled LVGL binary.
+Unit tests cover opt-in behavior, exact replacement, repeated application and
+unknown/duplicate input rejection. CI applies the fix to its disposable native
+checkout and runs the writer test before compiling the host library.
+
+CI captures verbose output with non-recovering UBSan. `check_sanitizer_log.py`
+now rejects **every** UBSan runtime diagnostic and ASan/leak report, including
+the previously allowed exact font warning. No compiler/runtime check is disabled.
+Full local patched-8.0.2/8.4.0 and unmodified-9.0/9.2/9.3/9.6 fixtures pass with
+no sanitizer reports; 8.0's previously documented display-removal skip remains.
+
+## Retained-text and selected-string expansion
+
+The 10 new families cover owned accepted-character filters and dropdown titles/
+symbols, copied getters, Dropdown/Roller selected strings, TextArea alignment,
+and Chart pressed-point queries. Null resets owned strings. Empty filters are
+normalized to null because early LVGL 8 otherwise rejects all characters while
+later minors accept all. Chart no-point sentinels are normalized to -1.
+
+Tests verify VM string lifetime/GC, repeated replacement, empty/null reset,
+filtered input, native allocation failure preserving old state, selected-string
+snapshot OOM, exact text-bound output versus overlong rejection (no truncation),
+wrong/stale handles, native-parent deletion plus Dispatch(0), and every VM
+allocation-failure position. Counted/poisoned native allocations return to zero.
+LVGL 9.5+ uses public static setters to avoid duplicate native string copies.
+Other native allocator OOM assertions remain the host's responsibility, not a
+newly promised recovery guarantee.
+
+The new example executes with real rendering and appears in Studio. Default
+local fixtures report 686 copied-buffer/text checks; minimal widgets report 13.
+Lazy records share the existing list and session size remains 1832 x64 bytes
+(default) / 1824 with all retained-buffer/text features disabled. Disabled-build
+VM memory, machine-code and runtime-symbol proofs remain separate from enabled
+costs. No physical MCU timing or complete API coverage is claimed.
 
 New image-offset calls require nonzero intrinsic image dimensions, preventing
 the empty-image modulo-by-zero in stock LVGL 8.0. Native offset normalization

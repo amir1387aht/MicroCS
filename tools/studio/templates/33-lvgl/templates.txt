@@ -16,3 +16,7 @@ Uses the generated native-call allowlist, cached build-specific API IDs, scalar 
 [grid-line.cs] Copied LVGL Grid tracks and Line points
 save as: main.cs
 Requires host attachment with Grid and Line enabled. Uses bounded native copies of track/point arrays, explicit fractional tracks and checked cell placement; VM mutations and GC cannot invalidate native drawing data. The host owns rendering and synchronization.
+
+[text-selection.cs] Owned LVGL text filters and selected-option snapshots
+save as: main.cs
+Requires an attached host with TextArea and Dropdown. Demonstrates GC-safe copied filters, dropdown titles and UTF-8 symbols, null reset, and selected-option strings without native buffers. Rendering and ticks remain host-owned.
