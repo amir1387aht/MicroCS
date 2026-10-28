@@ -448,6 +448,83 @@ true,
 false,
 #endif
 1,NULL},
+{"lv_img_get_angle",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_img_get_antialias",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_img_get_offset_x",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_img_get_offset_y",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_img_get_zoom",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_img_set_angle",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_img_set_antialias",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_img_set_offset_x",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_img_set_offset_y",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_img_set_pivot",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+2,NULL},
+{"lv_img_set_zoom",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_IMAGE)
+true,
+#else
+false,
+#endif
+1,NULL},
 {"lv_keyboard_get_mode",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_KEYBOARD)
 true,
@@ -3769,6 +3846,13 @@ false,
 #endif
 },
 {"LV_GRID_ALIGN_STRETCH",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_GRID)
+true,
+#else
+false,
+#endif
+},
+{"LV_GRID_CONTENT",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_GRID)
 true,
 #else

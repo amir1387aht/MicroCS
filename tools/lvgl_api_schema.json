@@ -1209,6 +1209,199 @@
       ]
     },
     {
+      "name": "lv_img_get_angle",
+      "variants": {
+        "8": "lv_img_get_angle",
+        "9": "lv_image_get_rotation"
+      },
+      "args": [],
+      "result": "uint32_t",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_get_antialias",
+      "variants": {
+        "8": "lv_img_get_antialias",
+        "9": "lv_image_get_antialias"
+      },
+      "args": [],
+      "result": "bool",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_get_offset_x",
+      "variants": {
+        "8": "lv_img_get_offset_x",
+        "9": "lv_image_get_offset_x"
+      },
+      "args": [],
+      "result": "int32_t",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_get_offset_y",
+      "variants": {
+        "8": "lv_img_get_offset_y",
+        "9": "lv_image_get_offset_y"
+      },
+      "args": [],
+      "result": "int32_t",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_get_zoom",
+      "variants": {
+        "8": "lv_img_get_zoom",
+        "9": "lv_image_get_scale"
+      },
+      "args": [],
+      "result": "uint32_t",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_set_angle",
+      "variants": {
+        "8": "lv_img_set_angle",
+        "9": "lv_image_set_rotation"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": 0,
+          "hi": 3600
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_set_antialias",
+      "variants": {
+        "8": "lv_img_set_antialias",
+        "9": "lv_image_set_antialias"
+      },
+      "args": [
+        {
+          "kind": "bool",
+          "ctype": "int32_t",
+          "lo": 0,
+          "hi": 1
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_set_offset_x",
+      "variants": {
+        "8": "lv_img_set_offset_x",
+        "9": "lv_image_set_offset_x"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": -4096,
+          "hi": 4096
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ],
+      "check": "image_offset"
+    },
+    {
+      "name": "lv_img_set_offset_y",
+      "variants": {
+        "8": "lv_img_set_offset_y",
+        "9": "lv_image_set_offset_y"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": -4096,
+          "hi": 4096
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ],
+      "check": "image_offset"
+    },
+    {
+      "name": "lv_img_set_pivot",
+      "variants": {
+        "8": "lv_img_set_pivot",
+        "9": "lv_image_set_pivot"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": -4096,
+          "hi": 4096
+        },
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": -4096,
+          "hi": 4096
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
+      "name": "lv_img_set_zoom",
+      "variants": {
+        "8": "lv_img_set_zoom",
+        "9": "lv_image_set_scale"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "int32_t",
+          "lo": 16,
+          "hi": 1024
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_IMAGE",
+      "kinds": [
+        8
+      ]
+    },
+    {
       "name": "lv_keyboard_get_mode",
       "variants": {
         "8": "lv_keyboard_get_mode",
@@ -4295,7 +4488,7 @@
           "kind": "number",
           "ctype": "lv_grid_align_t",
           "lo": 0,
-          "hi": 6
+          "hi": 3
         },
         {
           "kind": "number",
@@ -4313,7 +4506,7 @@
           "kind": "number",
           "ctype": "lv_grid_align_t",
           "lo": 0,
-          "hi": 6
+          "hi": 3
         },
         {
           "kind": "number",
@@ -4330,7 +4523,8 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_cell"
     },
     {
       "name": "lv_obj_set_height",
@@ -5250,7 +5444,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 1
     },
     {
       "name": "lv_obj_set_style_grid_cell_column_span",
@@ -5274,7 +5470,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 2
     },
     {
       "name": "lv_obj_set_style_grid_cell_row_pos",
@@ -5298,7 +5496,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 3
     },
     {
       "name": "lv_obj_set_style_grid_cell_row_span",
@@ -5322,7 +5522,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 4
     },
     {
       "name": "lv_obj_set_style_grid_cell_x_align",
@@ -5335,7 +5537,7 @@
           "kind": "number",
           "ctype": "lv_coord_t",
           "lo": 0,
-          "hi": 6
+          "hi": 3
         },
         {
           "kind": "selector",
@@ -5346,7 +5548,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 0
     },
     {
       "name": "lv_obj_set_style_grid_cell_y_align",
@@ -5359,7 +5563,7 @@
           "kind": "number",
           "ctype": "lv_coord_t",
           "lo": 0,
-          "hi": 6
+          "hi": 3
         },
         {
           "kind": "selector",
@@ -5370,7 +5574,9 @@
       ],
       "result": "void",
       "guard": "LV_USE_GRID",
-      "kinds": -1
+      "kinds": -1,
+      "check": "grid_style",
+      "grid_field": 0
     },
     {
       "name": "lv_obj_set_style_grid_column_align",
@@ -9054,6 +9260,14 @@
       "variants": {
         "8": "LV_GRID_ALIGN_STRETCH",
         "9": "LV_GRID_ALIGN_STRETCH"
+      },
+      "guard": "LV_USE_GRID"
+    },
+    {
+      "name": "LV_GRID_CONTENT",
+      "variants": {
+        "8": "LV_GRID_CONTENT",
+        "9": "LV_GRID_CONTENT"
       },
       "guard": "LV_USE_GRID"
     },

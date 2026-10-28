@@ -65,6 +65,8 @@ def generate(data):
             lines += ['    if(a->v[1].n>a->v[0].n)return native_arg_error(vm,"Spinbox separator exceeds digit count");']
         if check == 'unicode':
             lines += ['    if(a->v[0].n>=0xd800 && a->v[0].n<=0xdfff)return native_arg_error(vm,"Unicode surrogate is not a scalar");']
+        if check == 'grid_style':
+            lines += ['    if(a->v[1].n!=0)return native_arg_error(vm,"Grid cell placement requires selector 0");']
         if check == 'month':
             lines += ['    if(a->v[0].n<1 || a->v[0].n>9999 || a->v[1].n<1 || a->v[1].n>12)return native_arg_error(vm,\"Calendar month out of range\");']
         if check == 'date':
@@ -95,7 +97,15 @@ def generate(data):
                       '    int32_t value=lv_spinbox_get_value(r->obj);',
                       '    if(value < -limit || value > limit || lv_spinbox_get_step(r->obj)>(limit+1)/10)return NERR_RANGE;']
         if check == 'parent':
-            lines += ['    for(lv_obj_t* p=other0->obj;p;p=lv_obj_get_parent(p))if(p==r->obj)return NERR_CYCLE;']
+            lines += ['    for(lv_obj_t* p=other0->obj;p;p=lv_obj_get_parent(p))if(p==r->obj)return NERR_CYCLE;',
+                      '#if LV_USE_GRID',
+                      '    if(!native_grid_existing(s,r->obj,other0->obj,0,0))return NERR_RANGE;', '#endif']
+        if check == 'grid_cell':
+            lines += ['    if(!native_grid_bounds(s,lv_obj_get_parent(r->obj),a->v[1].n,a->v[2].n,a->v[4].n,a->v[5].n))return NERR_RANGE;']
+        if check == 'grid_style':
+            lines += [f'    if(!native_grid_existing(s,r->obj,lv_obj_get_parent(r->obj),{e["grid_field"]},a->v[0].n))return NERR_RANGE;']
+        if check == 'image_offset':
+            lines += ['    if(lv_obj_get_self_width(r->obj)<=0 || lv_obj_get_self_height(r->obj)<=0)return NERR_RANGE;']
         if check == 'textarea':
             lines += ['    if(other0 && other0->kind!=11 && other0->kind!=14)return NERR_KIND;']
         if check == 'button_index':
@@ -173,6 +183,11 @@ def generate(data):
              '`MCS_LVGL_MAX_TEXT_BYTES` (default 4096). Native allocator failure limits',
              'from the integration guide still apply. Range/enum restrictions are part',
              'of this wrapper contract; this does not expose every native argument.', '',
+             'Grid cell-style placement requires selector 0 and must fit copied parent',
+             'tracks; shrinking grids and reparenting are checked too. Use the separate',
+             '`SetGrid` / `SetPoints` copying methods for retained arrays. Image offsets',
+             'require nonzero intrinsic image dimensions; native offset normalization',
+             'still follows the host version (LVGL 8.0 uses source-size modulo).', '',
              '## Constants', '', '| Name | Config | Majors |', '| --- | --- | --- |']
     docs += [f'| `{e["name"]}` | {e["guard"]} | {", ".join(e["variants"])} |' for e in consts]
     tests = ['/* Generated availability/arity/style smoke cases; semantic tests are separate. */',

@@ -19,8 +19,8 @@
 #if LVGL_VERSION_MAJOR != 8 && LVGL_VERSION_MAJOR != 9
 #error "MicroCS LVGL binding requires LVGL major 8 or 9"
 #endif
-#if MCS_LVGL_MAX_OBJECTS < 1 || MCS_LVGL_EVENT_QUEUE < 1 || MCS_LVGL_MAX_TEXT_BYTES < 1 || MCS_LVGL_MAX_TABLE_CELLS < 1
-#error "LVGL object and event capacities must be positive"
+#if MCS_LVGL_MAX_OBJECTS < 1 || MCS_LVGL_EVENT_QUEUE < 1 || MCS_LVGL_MAX_TEXT_BYTES < 1 || MCS_LVGL_MAX_TABLE_CELLS < 1 || MCS_LVGL_MAX_GRID_TRACKS < 1 || MCS_LVGL_MAX_GRID_TRACKS > 255 || MCS_LVGL_MAX_LINE_POINTS < 2 || MCS_LVGL_MAX_LINE_POINTS > 65535
+#error "Invalid LVGL capacities: Grid tracks 1..255, Line points 2..65535, other limits positive"
 #endif
 #ifdef __cplusplus
 extern "C" {

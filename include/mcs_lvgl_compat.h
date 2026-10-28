@@ -17,6 +17,7 @@
 #define mcs_lv_buttonmatrix_map lv_btnmatrix_get_map
 #define mcs_lv_imagebutton_create lv_imgbtn_create
 #define mcs_lv_spinner_create(p) lv_spinner_create(p,1000,60)
+#define mcs_lv_child_count lv_obj_get_child_cnt
 #define mcs_lv_table_rows lv_table_get_row_cnt
 #define mcs_lv_table_columns lv_table_get_col_cnt
 #define mcs_lv_color_rgb lv_color_to32
@@ -40,6 +41,7 @@
 #define mcs_lv_buttonmatrix_map lv_buttonmatrix_get_map
 #define mcs_lv_imagebutton_create lv_imagebutton_create
 #define mcs_lv_spinner_create lv_spinner_create
+#define mcs_lv_child_count lv_obj_get_child_count
 #define mcs_lv_table_rows lv_table_get_row_count
 #define mcs_lv_table_columns lv_table_get_column_count
 #define mcs_lv_color_rgb lv_color_to_u32

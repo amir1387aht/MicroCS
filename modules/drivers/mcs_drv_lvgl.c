@@ -6,6 +6,23 @@
 #include "mcs_lvgl_compat.h"
 
 typedef struct session session_t;
+#if LV_USE_GRID || LV_USE_LINE
+#if LVGL_VERSION_MAJOR == 8
+typedef lv_coord_t mcs_grid_coord_t;
+typedef lv_point_t mcs_line_point_t;
+#else
+typedef int32_t mcs_grid_coord_t;
+typedef lv_point_precise_t mcs_line_point_t;
+#endif
+typedef struct retained_buffer {
+    struct retained_buffer* next;
+    unsigned slot;
+    uint32_t generation;
+    unsigned kind, split, count;
+    union { mcs_line_point_t point; mcs_grid_coord_t coord; } alignment;
+    unsigned char data[]; /* aligned raw storage; avoids typed-array aliasing */
+} retained_buffer_t;
+#endif
 typedef struct {
     session_t* session;
     lv_obj_t* obj;
@@ -23,7 +40,10 @@ struct session {
     queued_t queue[MCS_LVGL_EVENT_QUEUE];
     unsigned head, count;
     uint32_t dropped;
-    bool dispatching;
+    bool dispatching, reap_pending;
+#if LV_USE_GRID || LV_USE_LINE
+    retained_buffer_t* buffers; /* lazy buffers; no per-slot pointer or reservation */
+#endif
 };
 typedef struct { unsigned slot; uint32_t generation; } handle_t;
 static const mcs_class_def_t object_def;
@@ -129,7 +149,7 @@ static void event_cb(lv_event_t* e) {
             if(k->obj && k->kind==17 && lv_keyboard_get_textarea(k->obj)==r->obj)lv_keyboard_set_textarea(k->obj,NULL);
         }
 #endif
-        drop_image(r); r->obj = NULL; return;
+        drop_image(r); r->obj = NULL; s->reap_pending=true; return;
     }
     if (r->pin < 0 || code != r->filter) return;
     if (s->count == MCS_LVGL_EVENT_QUEUE) {
@@ -146,6 +166,8 @@ static void root_deleted(lv_event_t* e) {
 }
 /* VM thread + host lock; retire delegates after host-side deletion, before reuse. */
 static void reap(mcs_vm_t* vm, session_t* s) {
+    if(!s->reap_pending)return;
+    s->reap_pending=false;
     for (unsigned i = 0; i < MCS_LVGL_MAX_OBJECTS; ++i) {
         slot_t* r = &s->slots[i];
         /* Defer font destruction until the complete native delete traversal has
@@ -153,6 +175,14 @@ static void reap(mcs_vm_t* vm, session_t* s) {
         if (!r->obj && r->owned_font) { mcs_lv_font_destroy(r->owned_font); r->owned_font=NULL; }
         if (!r->obj && r->pin >= 0) { mcs_unpin(vm, r->pin); r->pin = -1; }
     }
+#if LV_USE_GRID || LV_USE_LINE
+    retained_buffer_t** link=&s->buffers;
+    while(*link) {
+        retained_buffer_t* b=*link;slot_t* r=&s->slots[b->slot];
+        if(!r->obj || r->generation!=b->generation){*link=b->next;s->host.free(s->host.ctx,b);}
+        else link=&b->next;
+    }
+#endif
 }
 static handle_t* handle(mcs_vm_t* vm, mcs_value_t self) {
     return mcs_check_userdata(vm, self, &object_def);
@@ -520,6 +550,8 @@ NATIVE(dispatch) {
     session_t* s=session(vm); if (!s) return mcs_null();
     if (s->dispatching) { mcs_raise(vm,"InvalidOperationException","LVGL Dispatch cannot re-enter"); return mcs_null(); }
     s->dispatching=true;
+    /* Dispatch(0) is also an explicit VM-side retirement point. */
+    s->host.lock(s->host.ctx);reap(vm,s);s->host.unlock(s->host.ctx);
     int called=0;
     for (int i=0;i<limit;++i) {
         mcs_value_t cb=mcs_null();
@@ -600,6 +632,10 @@ static bool native_button_index(lv_obj_t* obj,unsigned index) {
 static int32_t native_spin_limit(unsigned digits) {
     int32_t power=1;while(digits--)power*=10;return power-1;
 }
+#endif
+#if LV_USE_GRID
+static bool native_grid_bounds(session_t*,lv_obj_t*,int32_t,int32_t,int32_t,int32_t);
+static bool native_grid_existing(session_t*,lv_obj_t*,lv_obj_t*,int,int32_t);
 #endif
 #include "mcs_lvgl_api.inc"
 typedef struct { mcs_vm_t* vm; native_result_t* native; mcs_value_t value; } native_string_t;
@@ -682,8 +718,11 @@ NATIVE(native_get_text) {
     mcs_value_t id=mcs_int(native_api_find(name));return native_call(vm,self,1,&id);
 }
 
+#include "mcs_lvgl_buffers.inc"
+
 static const mcs_reg_t members[] = {
     MCS_FN("Call",native_call,-1),
+    MCS_FN("SetGrid",set_grid,2), MCS_FN("SetPoints",set_points,1), MCS_GET("PointCount",point_count),
     MCS_FN("Dispose",dispose,0), MCS_GET("IsAlive",alive), MCS_FN("Center",center,0),
     MCS_FN("SetSize",set_size,2), MCS_FN("SetPosition",set_pos,2),
     MCS_FN("SetBackground",set_bg,1), MCS_FN("SetTextColor",set_fg,1), MCS_SET("Text",set_text), MCS_GET("Text",native_get_text),
@@ -694,6 +733,7 @@ static const mcs_reg_t members[] = {
 };
 static const mcs_class_def_t object_def = { "LvObject",sizeof(handle_t),ctor,NULL,members,NULL };
 static const mcs_reg_t statics[] = {
+    MCS_FN("GridFraction",grid_fraction,1),
     MCS_FN("Api",native_api,1), MCS_FN("HasApi",native_has_api,1),
     MCS_FN("Constant",native_get_constant,1), MCS_FN("HasConstant",native_has_constant,1), MCS_FN("Percent",native_percent,1),
     MCS_GET("Ready",ready), MCS_FN("Supports",supports,1), MCS_GET("DroppedEvents",dropped), MCS_FN("Dispatch",dispatch,1), MCS_REG_END
