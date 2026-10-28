@@ -1909,7 +1909,7 @@ const App = {
     // Its total equals consumed + free. Never use vm_limit, pool backing limit,
     // or device total here: their difference from VM used is not pool free.
     const summary = pool
-      ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])}\nFree: ${bytes(pool[4])}`
+      ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])} . Free: ${bytes(pool[4])}`
       : "VM heap capacity unavailable";
     const lines = ["Memory snapshot", summary];
     if (pool) {
