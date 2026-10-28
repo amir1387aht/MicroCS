@@ -4334,8 +4334,9 @@ case 58: { /* lv_dropdown_get_selected_highlight */
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
 case 59: { /* lv_dropdown_get_selected_str */
     if(r->kind!=9)return NERR_KIND;
+    /* LVGL 8.1 normalizes NULL options to an empty string; its selected getter still dereferences NULL. */
     const char* options=lv_dropdown_get_options(r->obj);
-    if(!options)return native_copy_text(s,"",out);
+    if(!options || !options[0])return native_copy_text(s,"",out);
     size_t capacity=0;while(capacity<MCS_LVGL_MAX_TEXT_BYTES+1u && options[capacity])++capacity;
     ++capacity; /* full options length bounds any selected line; +1 detects overlong output */
     out->text=s->host.alloc(s->host.ctx,capacity);
@@ -7471,8 +7472,9 @@ case 373: { /* lv_roller_get_selected */
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_ROLLER)
 case 374: { /* lv_roller_get_selected_str */
     if(r->kind!=10)return NERR_KIND;
+    /* LVGL 8.1 normalizes NULL options to an empty string; its selected getter still dereferences NULL. */
     const char* options=lv_roller_get_options(r->obj);
-    if(!options)return native_copy_text(s,"",out);
+    if(!options || !options[0])return native_copy_text(s,"",out);
     size_t capacity=0;while(capacity<MCS_LVGL_MAX_TEXT_BYTES+1u && options[capacity])++capacity;
     ++capacity; /* full options length bounds any selected line; +1 detects overlong output */
     out->text=s->host.alloc(s->host.ctx,capacity);

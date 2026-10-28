@@ -1911,13 +1911,14 @@ const App = {
         `Device heap: ${kb(device[2])} used · ${kb(Number(device[1]) - Number(device[4]))} peak`;
     const lines = ["Memory snapshot"];
     if (pool) {
-      lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
+      lines.push(`VM pool${backing ? " (committed)" : ""}: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
     } else lines.push("VM pool capacity unavailable (legacy/custom firmware)");
     if (logical) lines.push(`VM tracked: ${bytes(logical[1])} · peak: ${bytes(logical[2])}`);
     if (limit) lines.push(`VM allocation limit: ${+limit[1] ? bytes(limit[1]) : "unlimited"}`);
     if (stack) lines.push(`Stack slots: ${stack[1]} used · ${stack[2]} allocated · peak ${stack[3]} · max ${stack[4]}`);
     if (frames) lines.push(`Call frames: ${frames[1]} used · ${frames[2]} allocated · peak ${frames[3]} · max ${frames[4]}`);
     if (backing) lines.push(`Pool backing: ${bytes(backing[1])} committed · ceiling: ${bytes(backing[2])} · regions: ${backing[3]}`);
+    if (backing) lines.push("Pool grows on demand; ceiling is not guaranteed RAM. Native reserves and contiguous space can limit growth.");
     if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
     else lines.push("Device heap unavailable on this firmware");
     return { summary, detail: lines.join("\n") };

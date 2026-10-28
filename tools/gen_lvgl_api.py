@@ -135,8 +135,9 @@ def generate(data):
             continue
         if check == 'selected_text':
             option_getter = 'lv_dropdown_get_options' if e['name'].startswith('lv_dropdown_') else 'lv_roller_get_options'
-            lines += [f'    const char* options={option_getter}(r->obj);',
-                      '    if(!options)return native_copy_text(s,"",out);',
+            lines += ['    /* LVGL 8.1 normalizes NULL options to an empty string; its selected getter still dereferences NULL. */',
+                      f'    const char* options={option_getter}(r->obj);',
+                      '    if(!options || !options[0])return native_copy_text(s,"",out);',
                       '    size_t capacity=0;while(capacity<MCS_LVGL_MAX_TEXT_BYTES+1u && options[capacity])++capacity;',
                       '    ++capacity; /* full options length bounds any selected line; +1 detects overlong output */',
                       '    out->text=s->host.alloc(s->host.ctx,capacity);',

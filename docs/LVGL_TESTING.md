@@ -43,6 +43,7 @@ Local ASan/UBSan runs cover these exact upstream tags (details recorded below):
 | Upstream tag | Role |
 | --- | --- |
 | v8.0.2 | Early 8.x API/readiness and event compatibility |
+| v8.1.0 | Empty-dropdown normalized-string/null-native regression |
 | v8.4.0 | Later 8.x representative |
 | v9.0.0 | Early 9.x void-returning event registration |
 | v9.2.2 | Intermediate 9.x representative |
@@ -50,7 +51,7 @@ Local ASan/UBSan runs cover these exact upstream tags (details recorded below):
 | v9.6.0 | Newer 9.x public-header/layout compatibility |
 
 The workflow `.github/workflows/lvgl.yml` additionally schedules every published
-minor family represented by tags v8.1.0, v8.2.0, v8.3.11, v9.1.0,
+minor family represented by tags v8.2.0, v8.3.11, v9.1.0,
 v9.4.0 and v9.5.0, plus minimal-widget builds on v8.4.0/v9.2.2/v9.6.0.
 **A configured CI matrix is not a passed CI result.** Future minor/patch releases
 and vendor forks still need regression checks against their actual headers and
@@ -342,3 +343,19 @@ bytes, while the previous wrapper validated/passed raw Unicode scalar numbers.
 The wrapper now explicitly encodes BMP and supplementary scalars and copies
 through native text insertion. Tests check accented Latin, Persian and emoji
 text plus surrogate/NUL rejection. No pointer to stack text is retained.
+
+
+## LVGL 8.1 empty-dropdown regression
+
+After `lv_dropdown_clear_options`, LVGL 8.1 stores a null options pointer but
+`lv_dropdown_get_options` returns an empty string. Its selected-string getter
+still calls `strlen` on that internal null pointer. Checking only the public
+getter for null therefore does not protect the native call. The generated
+Dropdown/Roller selected-text path now short-circuits both null and empty options
+before invoking the native selected-string getter.
+
+The copied-buffer fixture clears a dropdown repeatedly and checks zero options,
+both valid empty-options representations (null on early versions, empty string
+on others), an empty selected snapshot, and survival of an earlier copied
+selection after disposal/GC. The v8.1.0 failure was reproduced with fatal UBSan
+before this guard and passes with it; the sanitizer auditor has no exceptions.

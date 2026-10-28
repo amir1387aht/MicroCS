@@ -360,3 +360,15 @@ LVGL 8.x/9.x host environment. It does not supply LCD/input drivers, buffers,
 ticks or a GUI task. Enable it only in a firmware with a working native GUI.
 See the guide for build hooks, synchronization, API coverage and validation
 limits; packaging support does not imply physical-device certification.
+
+### Why an automatic VM pool can show only 16 KiB
+
+Studio distinguishes **committed** pool capacity from the configured backing
+ceiling. The first region is normally 16 KiB and more regions are acquired only
+when needed. With BLE enabled, the example's 32 KiB base reserve plus the default
+48 KiB BLE reserve protects 80 KiB of internal native memory. Thus 83,848 bytes
+of device free leaves only 1,928 bytes above that reserve, not another 74 KiB for
+scripts. Check the printed startup reserve and resolved sdkconfig before tuning;
+do not disable the native guards to inflate the pool display. See
+[automatic pool headroom](../../docs/MEMORY.md#esp32-automatic-pools-committed-capacity-versus-available-headroom)
+for the calculation and regression coverage.

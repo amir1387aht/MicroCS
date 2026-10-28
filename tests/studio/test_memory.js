@@ -28,6 +28,12 @@ function methods(start,end,deps={}) {
  assert.strictEqual(node.textContent,'VM heap: 16.0 KB used · 53.0 KB peak');
  const automatic=app.memoryText('heap 100 bytes in use, peak 200\npool 16000 total, 100 used, 200 peak, 15900 free, 15800 largest\npool_backing 16384 committed, 196608 limit, 1 regions\n');
  assert(automatic.includes('16,384 B committed · ceiling: 196,608 B · regions: 1'));
+ assert(automatic.includes('VM pool (committed): 100 B / 16,000 B'));
+ assert(automatic.includes('Native reserves and contiguous space can limit growth'));
+ const board=app.memoryText('heap 7144 bytes in use, peak 7144\nvm_limit 73728\npool 16352 total, 9032 used, 9368 peak, 7320 free, 7312 largest\npool_backing 16384 committed, 75776 limit, 1 regions\ndevice_heap 130460 total, 46612 used, 83848 free, 79008 minimum_free, 79872 largest\n');
+ assert(board.includes('VM pool (committed): 9,032 B / 16,352 B'));
+ assert(board.includes('ceiling: 75,776 B'));
+ assert(board.includes('Device free: 83,848 B'));
  const old=app.memoryText('heap 16384 bytes in use, peak 54272');
  assert(old.includes('capacity unavailable'));assert(old.includes('Device heap unavailable'));
  assert.strictEqual(app.memorySummary('heap 16384 bytes in use, peak 54272'),'VM heap: 16.0 KB used · 53.0 KB peak');

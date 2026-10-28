@@ -255,3 +255,38 @@ catchable `StackOverflowException`; exhausting the allocator reports an OOM and
 unwinds safely. Dynamic storage cannot guarantee that an arbitrarily large
 application fits a 40 KiB pool. Studio reports observed peaks so an exceptional
 need to raise a safety ceiling is visible, not something users must guess.
+
+## ESP32 automatic pools: committed capacity versus available headroom
+
+The automatic provider starts with no backing and normally acquires a 16 KiB
+region on demand. `VM pool (committed)` in Studio is the usable capacity of
+regions already acquired, **not** the configured maximum. Region metadata makes
+usable capacity slightly smaller than backing. The backing ceiling bounds total
+regions; individual objects still require contiguous space within one region.
+
+For example, a 74 KiB configuration has a 75,776-byte backing ceiling. Seeing
+16,384 bytes committed and only about 9 KiB used does not itself show failed
+growth: no second region is necessary yet. Growth is nevertheless conditional
+on native headroom, allocator overhead, contiguous space and that ceiling.
+
+The example firmware reserves 32 KiB for native code, plus enabled radio reserves.
+With Wi-Fi disabled and the **default** 48 KiB BLE reserve, that is 81,920 bytes.
+If internal device free is 83,848 bytes, only 1,928 bytes remain above the reserve
+for additional backing, before allocation overhead. An allocation requiring a new
+4 KiB region therefore cannot succeed, even with a much higher VM ceiling.
+Check the startup `native reserve` line and resolved sdkconfig: a non-default BLE
+reserve changes this calculation. Device free includes the protected headroom;
+it is not all available to scripts.
+
+Do not simply remove safety reserves to make the reported pool larger. If BLE is
+unused, disable it and rebuild. If it is required, measure native free/largest and
+minimum free under connection, MTU, filesystem and thread load before tuning
+`CONFIG_MICROCS_BLE_RESERVE_KB`. A larger VM ceiling alone cannot create RAM.
+The provider keeps its reserve checks on each growth attempt and after allocation.
+
+`make firmware-heap-test` includes `test_esp_pool_growth`, which executes the real
+pool and ESP32 provider with a multi-allocation SDK mock: it grows beyond the
+initial region toward a 74 KiB ceiling with sufficient headroom, rejects growth
+under the reserve-constrained example, retains existing data after OOM, and
+releases all regions. This is a host regression, not an ESP-IDF hardware memory
+or fragmentation measurement.
