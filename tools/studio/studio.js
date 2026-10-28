@@ -1905,10 +1905,12 @@ const App = {
     const limit = /^vm_limit (\d+)/m.exec(text);
     if (!logical && !pool && !device) return null;
     const bytes = n => `${Number(n).toLocaleString("en-US")} B`;
-    const kb = n => `${(Number(n) / 1024).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KB`;
-    const summary = logical ? `VM heap: ${kb(logical[1])} used · ${kb(logical[2])} peak` :
-      pool ? `VM pool: ${kb(pool[2])} used · ${kb(pool[3])} peak` :
-        `Device heap: ${kb(device[2])} used · ${kb(Number(device[1]) - Number(device[4]))} peak`;
+    const kib = n => `${(Number(n) / 1024).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KiB`;
+    // Both numbers must describe the same heap: consumed pool capacity over
+    // committed usable capacity (used + free), never the configured ceiling.
+    const summary = pool ? `VM heap: ${kib(pool[2])} / ${kib(pool[1])}` :
+      logical ? `VM heap: ${kib(logical[1])} used · total unavailable` :
+        `Device heap: ${kib(device[2])} / ${kib(device[1])}`;
     const lines = ["Memory snapshot"];
     if (pool) {
       lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
@@ -1943,7 +1945,7 @@ const App = {
     try {
       const mm = await dev.op(() => dev.cmd("mem"));
       if (!dev.connected) return;
-      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is used / total committed usable heap (used + free), not the configured maximum. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
       this.renderMemory(mm.status === "OK" ? new TextDecoder().decode(mm.out) : "", title);
     } catch {
       if (dev.connected) { this.renderMemory("", ""); $("memInfo").textContent = "Memory report unavailable (refresh failed)"; }

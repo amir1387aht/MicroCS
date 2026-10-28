@@ -213,10 +213,14 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The left panel shows compact VM heap telemetry by default
-(`VM heap: used · peak`, in KB). Click it to expand the full memory snapshot,
-and click again to collapse it. The peak is the lifetime high-water mark, so it
-does not decrease when garbage is collected; current usage should settle after
+The left panel shows **used / total heap** by default
+(`VM heap: 15.2 KiB / 31.9 KiB`, for example). Both values refer to the same VM
+pool: consumed capacity / currently committed usable capacity (**used + free**).
+The denominator is not the configured allocation/backing ceiling, and VM-tracked
+allocations are not substituted for full pool consumption. One KiB is 1024 bytes.
+Click to expand the full snapshot, including free space, largest block, peaks and
+separate configured limits; click again to collapse it. The peak is the lifetime
+high-water mark, so it does not decrease when garbage is collected; current usage should settle after
 one-time lazy runtime initialization.
 
 The expanded view distinguishes VM-tracked allocations, full physical VM pool
