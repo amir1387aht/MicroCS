@@ -106,7 +106,7 @@ let browser, page, errors = [], chain = Promise.resolve();
   assert.strictEqual(fs.readFileSync(root+'/ran-a','utf8'),'A','failed compilation must not launch jobs');
   assert((await page.innerText('#term')).includes('Build failed: /b.cs'));
   const mem = await page.innerText('#memInfo');
-  assert(/^(?:VM heap: [\d,]+ B \/ [\d,]+ B · Free: [\d,]+ B|VM heap capacity unavailable|Memory report unavailable(?: \(refresh failed\))?)$/.test(mem),'failed build must refresh memory info: ' + mem);
+  assert(/^(?:VM heap: [\d,]+ B \/ [\d,]+ B|VM heap capacity unavailable|Memory report unavailable(?: \(refresh failed\))?)$/.test(mem),'failed build must refresh memory info: ' + mem);
   assert(!mem.includes('stale before failed build'));
   console.log('PASS build error blocks Project launch and refreshes memory info');
   await page.fill('#ta', b);

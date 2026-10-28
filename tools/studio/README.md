@@ -213,11 +213,11 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The left panel shows **VM pool used / currently backed usable total**, followed
-by an explicit **Free** value on the same line, in exact bytes:
+The compact left-panel counter shows **VM pool used / currently backed usable
+total**, in exact bytes:
 
 ```text
-VM heap: 15,528 B / 32,712 B · Free: 17,184 B
+VM heap: 15,528 B / 32,712 B
 ```
 
 **Total − used = free.** These are the allocator's physical pool counters, not
@@ -232,8 +232,10 @@ allocations require a contiguous block and allocator overhead; inspect **largest
 in the expanded snapshot. Future pool growth remains conditional on native
 headroom, reserves and configured ceilings. Limits are separately labeled.
 
-Click to expand for the same used/total/free values, pool peak/largest block,
-tracked allocations, stack/frames, backing ceiling and device heap. Device and
+Click to expand for a single used/total row, **Pool free** (17,184 B in this
+example), pool peak/largest block,
+tracked allocations, stack/frames, backing ceiling and device heap. There is no
+duplicate "VM pool" used/total row. Device and
 VM numbers are **not additive**. Firmware without pool-capacity telemetry shows
 **VM heap capacity unavailable**, rather than guessing usable free memory from
 VM limits, peaks or device counters.

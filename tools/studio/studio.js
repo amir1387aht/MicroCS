@@ -1909,11 +1909,11 @@ const App = {
     // Its total equals consumed + free. Never use vm_limit, pool backing limit,
     // or device total here: their difference from VM used is not pool free.
     const summary = pool
-      ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])} · Free: ${bytes(pool[4])}`
+      ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])}`
       : "VM heap capacity unavailable";
     const lines = ["Memory snapshot", summary];
     if (pool) {
-      lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
+      lines.push(`Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
     } else lines.push("VM pool capacity unavailable (legacy/custom firmware)");
     if (logical) lines.push(`VM tracked: ${bytes(logical[1])} · peak: ${bytes(logical[2])}`);
     if (limit) lines.push(`VM allocation limit: ${+limit[1] ? bytes(limit[1]) : "unlimited"}`);
@@ -1946,7 +1946,7 @@ const App = {
     try {
       const mm = await dev.op(() => dev.cmd("mem"));
       if (!dev.connected) return;
-      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is used / currently backed usable VM pool total, with pool free shown explicitly. Total minus used equals pool free. Future pool growth, configured limits and device-native free RAM are excluded. A single allocation is limited by the largest free block and allocator overhead; further pool growth is conditional on native headroom and reserves. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is used / currently backed usable VM pool total, with pool free shown only in expanded details. Total minus used equals pool free. Future pool growth, configured limits and device-native free RAM are excluded. A single allocation is limited by the largest free block and allocator overhead; further pool growth is conditional on native headroom and reserves. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
       this.renderMemory(mm.status === "OK" ? new TextDecoder().decode(mm.out) : "", title);
     } catch {
       if (dev.connected) { this.renderMemory("", ""); $("memInfo").textContent = "Memory report unavailable (refresh failed)"; }
