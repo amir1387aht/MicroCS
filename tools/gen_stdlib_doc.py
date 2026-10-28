@@ -4,6 +4,7 @@
 The tables (`static const mcs_reg_t NAME[] = {...}`) are the single source of
 truth for what scripts can call, so the reference cannot drift from the code.
 usage: python3 tools/gen_stdlib_doc.py > docs/STDLIB.md
+       python3 tools/gen_stdlib_doc.py --check
 """
 import glob, os, re, sys
 
@@ -255,4 +256,14 @@ w("File enums: `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Trunc
 w("`FileAccess` (`Read`, `Write`, `ReadWrite`), `SeekOrigin` (`Begin`, `Current`, `End`).")
 w("")
 w("_%d members in %d tables._" % (total, len([t for t in tables if t in MAP])))
-print("\n".join(out))
+reference = "\n".join(out) + "\n"
+if sys.argv[1:] == ["--check"]:
+    with open(os.path.join(ROOT, "docs", "STDLIB.md"), encoding="utf-8") as f:
+        current = f.read()
+    if current != reference:
+        sys.exit("Stale docs/STDLIB.md; run python3 tools/gen_stdlib_doc.py > docs/STDLIB.md")
+    print("Standard-library generated reference: checked")
+elif sys.argv[1:]:
+    sys.exit("Usage: gen_stdlib_doc.py [--check]")
+else:
+    print(reference, end="")
