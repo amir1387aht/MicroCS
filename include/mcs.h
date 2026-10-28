@@ -352,6 +352,7 @@ typedef struct mcs_pool_dynamic {
     const mcs_pool_provider_t* provider;
     struct mcs_pool_region* regions;
     size_t committed, limit, chunk, count;
+    bool sealed; /* acquire-at-start: retain regions; no later growth or trimming */
 } mcs_pool_dynamic_t;
 typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_t peak;
     mcs_pool_dynamic_t* dynamic; /* NULL: unchanged static-buffer path */
@@ -363,10 +364,18 @@ void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
  * No live pointers move and no GC runs here (C locals may not yet be rooted). */
 bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
     const mcs_pool_provider_t* provider, size_t limit, size_t chunk);
+/* Acquire as much backing as the provider permits, up to the cap, then seal.
+ * Only on a newly initialized empty dynamic pool, before clients/threads exist.
+ * Prefers large regions, accepts smaller provider blocks. Partial acquisition is
+ * valid; true means at least one usable region. Capacity remains owned until
+ * destroy: no later growth/trim, including allocation-pressure recovery. False
+ * may also mean invalid call; destroy an empty/failed pool normally. */
+bool mcs_pool_acquire_at_start(mcs_pool_t* pool);
 /* C-library provider; NULL when MCS_ENABLE_MALLOC=0. A platform with native
  * drivers should provide its own reserve/capability-aware provider instead. */
 const mcs_pool_provider_t* mcs_pool_system_provider(void);
-/* Release only entirely empty owned regions, at an idle/synchronized boundary
+/* Release only entirely empty owned regions (a sealed startup pool retains all),
+ * at an idle/synchronized boundary
  * or under the same allocation lock during pressure recovery.
  * No pointer relocation. Static buffers are never released. */
 size_t mcs_pool_trim(mcs_pool_t* pool);

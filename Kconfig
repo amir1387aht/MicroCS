@@ -9,11 +9,25 @@ menu "MicroCS"
         default 192
         help
             Combined backing-byte ceiling for the example's automatic regions.
-            Memory grows on demand; native driver/radio headroom is rechecked
-            for each region. Actual capacity can remain below the ceiling.
+            Regions grow on demand by default, or are acquired at startup with
+            MICROCS_VM_HEAP_ACQUIRE_AT_START. Native driver/radio headroom is
+            rechecked for each region. Actual capacity can remain below the ceiling.
             Allocation failure reports OOM; no unbounded fallback is used.
             For the small OLED Project regression use 40 and leave execution ceilings at defaults.
             SDK/FreeRTOS, static RAM and task stacks are outside this pool.
+
+    config MICROCS_VM_HEAP_ACQUIRE_AT_START
+        bool "Acquire VM regions at startup instead of growing on demand"
+        default n
+        help
+            Applies to automatic pools (heap=NULL, heap_size>0), on every target
+            using the shared runtime. Acquire as much as the provider permits,
+            up to the backing ceiling, before creating the VM. Partial capacity
+            is valid; startup fails if it cannot fit the runtime. Keep acquired
+            regions until runtime stop, even across script/application reloads.
+            Native/BLE reserves are still enforced. A single object still needs
+            one contiguous region. Static-buffer heaps are already fixed.
+            Disabled: preserve the default grow-on-demand behavior.
 
     config MICROCS_VM_STACK_SLOTS
         int "Example firmware: maximum VM value stack slots (0 = profile default)"

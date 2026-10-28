@@ -178,6 +178,7 @@ static void runtime(void){
     CHECK(ms.has_budget && ms.growth_estimate==0 && ms.budget_free<=ms.pool.free);
     s.reserve=old_reserve;
     input="mem\n";used=0;CHECK(mcs_runtime_step(&rt,0));CHECK(strstr(output,"pool_backing ")!=NULL);CHECK(strstr(output,"196608 limit")!=NULL);
+    CHECK(strstr(output,"pool_policy on_demand\n")!=NULL);
     CHECK(strstr(output,"vm_budget ")!=NULL);CHECK(strstr(output,"native_headroom ")!=NULL);
     rt.cfg.heap_headroom=NULL;used=0;input="mem\n";CHECK(mcs_runtime_step(&rt,0));
     CHECK(strstr(output,"vm_budget ")==NULL); /* never invent unknown growth */

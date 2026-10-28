@@ -35,6 +35,14 @@ typedef enum {
     MCS_RUNTIME_HEADLESS = 2    /* no console input: run the app + jobs + callbacks only */
 } mcs_runtime_mode_t;
 
+typedef enum {
+    MCS_HEAP_GROW_ON_DEMAND = 0, /* default: acquire regions as allocations need them */
+    MCS_HEAP_ACQUIRE_AT_START = 1 /* acquire once before VM creation; keep until stop */
+} mcs_heap_policy_t;
+#ifndef MCS_RUNTIME_HEAP_POLICY
+#define MCS_RUNTIME_HEAP_POLICY MCS_HEAP_GROW_ON_DEMAND
+#endif
+
 typedef struct {
     /* memory: static buffer, or heap=NULL + heap_size=automatic backing cap. */
     void* heap;
@@ -80,10 +88,14 @@ typedef struct {
     /* Optional read-only telemetry, called with the active provider's ud.
      * NULL leaves additional native growth unknown, not equal to the cap. */
     void (*heap_headroom)(void* provider_ud, mcs_pool_headroom_t* snapshot);
+    /* Portable across providers/ports. Static buffers already have fixed
+     * capacity and do not grow under either policy. Automatic startup mode
+     * accepts partial capacity; insufficient runtime capacity fails cleanly. */
+    mcs_heap_policy_t heap_policy;
 } mcs_runtime_cfg_t;
 
 #define MCS_RUNTIME_DEFAULTS { NULL, 0, NULL, NULL, 0, { NULL, NULL, NULL }, NULL, NULL, NULL, \
-    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL }
+    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL, MCS_RUNTIME_HEAP_POLICY }
 
 typedef struct {
     mcs_runtime_cfg_t cfg;

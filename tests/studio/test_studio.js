@@ -126,6 +126,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#memInfo');
   const budgetMemory=await page.textContent('#memInfo');
   check(budgetMemory.includes('Budget free (estimate): 41,792 B')&&budgetMemory.includes('Native growth guard: 1,638 B')&&budgetMemory.includes('not reserved'),'budget free, actual reserve and uncertainty are visible');
+  await page.evaluate(()=>{App.memExpanded=false;App.renderMemory(App.memReportText+'pool_policy acquire_at_start\n','Startup policy fixture');});
+  check(await page.textContent('#memInfo')==='VM heap: 15,528 B / 32,712 B','startup policy primary total is physically owned capacity, not growth estimate');
+  await page.click('#memInfo');
+  check((await page.textContent('#memInfo')).includes('Acquire at startup (fixed owned capacity)'),'expanded memory identifies startup acquisition');
   await page.evaluate(()=>{App.memExpanded=false;App.renderMemory(__memoryBefore.text,__memoryBefore.title);delete window.__memoryBefore;});
 
   // REPL

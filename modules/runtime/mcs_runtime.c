@@ -80,11 +80,15 @@ static void rt_memory_info(void* ud, mcs_shell_memory_t* st) {
         mcs_threads_heap_lock();
 #endif
         mcs_pool_stats(&rt->pool, &st->pool);
+        st->pool_policy = rt->pool.dynamic
+            ? (rt->pool.dynamic->sealed ? "acquire_at_start" : "on_demand") : "static";
         if (rt->pool.dynamic) {
             st->pool_committed = rt->pool.dynamic->committed;
             st->pool_limit = rt->pool.dynamic->limit;
             st->pool_regions = rt->pool.dynamic->count;
+            if (rt->pool.dynamic->sealed) st->has_budget = true;
             if (rt->cfg.heap_headroom) {
+                st->has_headroom = true;
                 rt->cfg.heap_headroom(rt->pool.dynamic->provider->ud, &st->headroom);
                 st->growth_estimate = mcs_pool_growth_estimate(&rt->pool, &st->headroom);
                 st->has_budget = true;
@@ -233,13 +237,20 @@ static int rt_prepare_application(void* ud) {
 int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     memset(rt, 0, sizeof *rt);
     rt->cfg = *cfg;
+    if (cfg->heap_policy != MCS_HEAP_GROW_ON_DEMAND && cfg->heap_policy != MCS_HEAP_ACQUIRE_AT_START) return -1;
+    if (cfg->heap_policy == MCS_HEAP_ACQUIRE_AT_START && !cfg->heap_size) return -1;
 #if MCS_ENABLE_POOL_HEAP
     if (cfg->heap_provider && (cfg->heap || !cfg->heap_size)) return -1;
     if (cfg->heap && cfg->heap_size) mcs_pool_init(&rt->pool, cfg->heap, cfg->heap_size);
     else if (cfg->heap_size && !mcs_pool_init_dynamic(&rt->pool, &rt->pool_dynamic,
         cfg->heap_provider ? cfg->heap_provider : mcs_pool_system_provider(), cfg->heap_size, 0)) return -1;
+    if (rt->pool.dynamic && cfg->heap_policy == MCS_HEAP_ACQUIRE_AT_START &&
+        !mcs_pool_acquire_at_start(&rt->pool)) {
+        mcs_pool_destroy(&rt->pool);
+        return -1;
+    }
 #else
-    if (cfg->heap_provider || (!cfg->heap && cfg->heap_size)) return -1;
+    if (cfg->heap_provider || (!cfg->heap && cfg->heap_size) || cfg->heap_policy == MCS_HEAP_ACQUIRE_AT_START) return -1;
 #endif
     struct mcs_vfs* vfs = NULL;
 #if MCS_ENABLE_FS

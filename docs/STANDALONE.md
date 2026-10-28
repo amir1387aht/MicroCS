@@ -37,6 +37,7 @@ int main(void) {
 | `mcs_runtime_cfg_t` field | Meaning |
 |---|---|
 | `heap`, `heap_size` | one static buffer for the VM (and the RAM disk) — no `malloc` |
+| `heap_policy` | `MCS_HEAP_GROW_ON_DEMAND` (default) or `MCS_HEAP_ACQUIRE_AT_START` for automatic regions; static buffers remain fixed |
 | `fs_ops` + `fs_ctx` / `ramfs_size` | your filesystem (e.g. LittleFS) or a RAM disk; neither = no files |
 | `console` | `mcs_transport_t { read, write, ud }` — UART, USB CDC, RTT, TCP… |
 | `ticks`, `delay`, `time_ud` | millisecond clock and sleep |

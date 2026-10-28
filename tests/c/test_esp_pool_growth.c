@@ -37,6 +37,22 @@ static void reset(size_t free_bytes,size_t largest) {
     assert(!live && !active);total=free_bytes;largest_initial=largest;
     attempts=releases=0;fail_allocations=0;
 }
+static void startup_headroom(void) {
+    reset(103388,96256); /* reported C2 startup: 16 KiB base + 45 KiB BLE guard */
+    mcs_esp32_heap_t source;mcs_esp32_heap_init(&source,61*1024);
+    mcs_pool_t pool;mcs_pool_dynamic_t state;
+    assert(mcs_pool_init_dynamic(&pool,&state,&source.provider,96*1024,0));
+    assert(mcs_pool_acquire_at_start(&pool));
+    assert(state.sealed && state.committed==103388-61*1024);
+    assert(total-live==source.reserve && pool.size<state.committed);
+    size_t capacity=pool.size;unsigned before=attempts;
+    total+=65536;largest_initial+=65536; /* later free RAM is NOT silently acquired */
+    assert(!mcs_pool_realloc(&pool,NULL,0,capacity+1));
+    assert(attempts==before && !mcs_pool_trim(&pool) && pool.size==capacity);
+    void* p=mcs_pool_realloc(&pool,NULL,0,8000);assert(p);memset(p,0x41,8000);
+    mcs_pool_realloc(&pool,p,8000,0);assert(pool.size==capacity);
+    mcs_pool_destroy(&pool);assert(!live && !active);
+}
 static void sufficient_headroom(void) {
     reset(256*1024,192*1024);
     mcs_esp32_heap_t source;mcs_esp32_heap_init(&source,80*1024);
@@ -125,6 +141,7 @@ static void fragmented_recovery(int temporary,int force_failure) {
 }
 
 int main(void) {
+    startup_headroom();
     sufficient_headroom();reported_board_headroom();
     fragmented_recovery(0,0);fragmented_recovery(1,0);
     fragmented_recovery(0,1);fragmented_recovery(1,1);

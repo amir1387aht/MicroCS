@@ -248,7 +248,7 @@ limits are in [docs/NETWORK.md](../../docs/NETWORK.md).
 
 ## Memory
 
-The example grows a bounded multi-region VM pool on demand, up to
+The example uses a bounded multi-region VM pool, growing on demand by default, up to
 `CONFIG_MICROCS_VM_HEAP_KB` (192 KiB by default). No region addresses are needed.
 `mcs_esp32_heap_init()` supplies an ESP-IDF provider using internal byte-addressable
 RAM. Each growth request keeps a 32 KiB base native reserve plus configured Wi-Fi
@@ -256,6 +256,23 @@ and BLE reserves, and leaves an 8 KiB contiguous allocation margin. The pool cap
 includes all acquired region backing and metadata; one object still needs one
 contiguous block. Empty owned regions can be returned on application replacement.
 A RAM disk (one sixth of the cap) is used only without a `storage` partition.
+
+To acquire regions before scripts run instead, select **MicroCS → Acquire VM
+regions at startup instead of growing on demand**:
+
+```text
+CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START=y
+```
+
+This sets the default used by `MCS_RUNTIME_DEFAULTS`, including custom
+`app_main` applications. Or select it explicitly with
+`cfg.heap_policy = MCS_HEAP_ACQUIRE_AT_START;`. Startup acquisition accepts the
+actual capacity permitted by the same native/BLE reserves, which can be below
+`CONFIG_MICROCS_VM_HEAP_KB`. Owned capacity stays fixed across application reloads
+until runtime stop; insufficient initialization capacity fails cleanly. Disable
+the option or set `MCS_HEAP_GROW_ON_DEMAND` for lazy growth. Static-buffer ports
+already have fixed capacity. [Full cross-port policy details](../../docs/MEMORY.md#choose-when-regions-are-acquired-all-ports).
+
 
 This avoids the old whole-pool single-block limit, not the chip's physical RAM
 limit. Enabling BLE uses native/static RAM outside the pool as well as managed

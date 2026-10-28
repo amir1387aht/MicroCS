@@ -213,45 +213,56 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The compact counter keeps the **pool-used** numerator, not whole-device usage.
-With new reserve-aware firmware telemetry it shows:
+With policy-aware firmware, the compact counter shows **physically owned pool
+used / usable total**, in exact bytes:
 
 ```text
-VM budget (estimate): <used> B / <total> B
+VM heap: 15,528 B / 32,712 B
 ```
 
-**Total − used = estimated available VM allocator space**, combining current pool
-free space with estimated additional growth. Firmware applies the actual native
-reserve (including configured BLE/Wi-Fi headroom), internal byte-addressable heap,
-contiguous growth margin, region metadata/alignment, remaining backing ceiling and
-main VM allocation limit. The configured 96 KiB cap is never treated as free RAM.
-The total can change when native drivers consume/release SRAM, or limits change;
-it is not the chip's fixed installed SRAM size.
+**Total − used = Pool free.** This is real aggregate allocator space, not the
+configured ceiling, device free heap, or forecast future growth. Region metadata
+is excluded from usable total; per-allocation overhead is included in occupied
+space. Free space need not fit one object, and the main VM's allocation limit,
+worker budgets and shared runtime allocations still apply.
 
-**Growth is an estimate, not a reservation or guarantee.** SDK allocation overhead,
-fragmentation, concurrent native allocations and pool sharing can reduce it. To
-promise a fixed capacity, firmware would have to physically reserve that capacity;
-a read-only snapshot cannot guarantee future allocations. Free counters represent
-allocator space (including allocation overhead), not byte-array payload capacity.
-One object still needs a contiguous block: inspect **Pool free / largest**.
+Expand to see **Heap policy**:
 
-Expand for **Budget free**, additional growth estimate, the actual native reserve,
-backed **Pool free**, largest block, peak, tracked allocations, limits and device
-heap. No duplicate VM-pool used/total row is shown. Device and VM numbers are not
-additive. Static-pool firmware reports **VM budget** without an estimate marker,
-clamped by the VM allocation limit.
+- **Grow on demand**: owned total can grow as new regions are acquired, or shrink
+  when empty regions are trimmed. Any estimated future growth is separate.
+- **Acquire at startup (fixed owned capacity)**: acquires available regions before
+  VM initialization, then keeps that actual capacity across scripts, GC, OOM and
+  application replacements until runtime stop. The target is a ceiling; actual
+  startup capacity can be lower because of native reserves/provider failure.
+- **Static buffer (fixed owned capacity)**: an existing static/linker-owned buffer;
+  selecting either runtime policy does not turn it into a dynamic heap.
 
-Old/custom firmware without headroom telemetry retains its backed-only **VM heap**
-counter and explicitly says additional usable SRAM is unknown in expanded details.
-Studio never guesses growth from device free or the configured cap. Updating only
-Studio cannot add firmware telemetry. In a custom ESP32 `app_main`, add:
+Expanded details retain **Pool free / largest**, peak, tracked allocations,
+allocation limits, backing ceiling and device heap. If firmware provides a
+headroom callback, a **separate budget estimate** includes possible native growth
+and is clamped by the VM allocation limit. Startup/static budget free is not a
+growth forecast. SDK overhead, fragmentation and concurrent native allocations
+can reduce estimated growth; it is never mixed into policy-aware primary totals.
+VM and device usage are not additive.
+
+Choose the policy in firmware, not a live Studio toggle:
 
 ```c
-cfg.heap_provider = &vm_heap.provider;
-cfg.heap_headroom = mcs_esp32_heap_headroom;
+cfg.heap_policy = MCS_HEAP_ACQUIRE_AT_START;
+/* Or MCS_HEAP_GROW_ON_DEMAND (default). */
 ```
 
-The bundled ESP32 example already sets both. Rebuild and flash the firmware.
+ESP-IDF/Zephyr: `CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START=y` selects startup by
+default. Plain CMake: `-DMICROCS_HEAP_POLICY=acquire_at_start` or `on_demand`.
+Rebuild/reflash and refresh Studio. The policy is portable across runtime ports;
+see [memory policies](../../docs/MEMORY.md#choose-when-regions-are-acquired-all-ports).
+
+Old firmware without `pool_policy` retains legacy backed-only or budget-estimate
+reporting rather than inventing a policy. Firmware without pool counters shows
+**VM heap capacity unavailable**. Updating Studio alone cannot supply missing
+firmware telemetry. On custom ESP32 runtimes, optional reserve-aware growth
+telemetry still requires `cfg.heap_headroom = mcs_esp32_heap_headroom;` beside the
+heap provider; the bundled example already enables it.
 
 The snapshot is refreshed after existing save/build/run workflows, including
 failures; it is not a continuously polled meter. See

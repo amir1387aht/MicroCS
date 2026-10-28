@@ -154,6 +154,11 @@
 #ifndef MCS_ENABLE_POOL_HEAP
 #define MCS_ENABLE_POOL_HEAP      1    /* built-in fixed-pool allocator (mcs_pool_realloc) */
 #endif
+/* Default for MCS_RUNTIME_DEFAULTS; cfg.heap_policy can override per runtime.
+ * Startup mode retains all acquired backing until stop; static buffers stay fixed. */
+#ifndef MCS_RUNTIME_HEAP_POLICY
+#define MCS_RUNTIME_HEAP_POLICY MCS_HEAP_GROW_ON_DEMAND /* or MCS_HEAP_ACQUIRE_AT_START */
+#endif
 #ifndef MCS_ENABLE_POOL_REGIONS
 #define MCS_ENABLE_POOL_REGIONS MCS_ENABLE_MALLOC /* bounded automatic backing; static-only builds may disable */
 #endif

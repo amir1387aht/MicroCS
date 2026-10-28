@@ -230,3 +230,11 @@ acquire/release callbacks. Drivers must not use VM allocations from those
 callbacks. The default provider does not know platform-native reserves; ESP32
 uses a capability/reserve-aware provider. See [memory](MEMORY.md#automatic-bounded-regions-all-ports)
 for ownership, synchronization, trimming, contiguous-object limits and accounting.
+Set `cfg.heap_policy` to `MCS_HEAP_GROW_ON_DEMAND` (default) or
+`MCS_HEAP_ACQUIRE_AT_START` on any port. Startup mode acquires provider-approved
+regions before VM creation and retains them until runtime stop. It accepts partial
+capacity, enforces the same provider reserves, and never probes arbitrary SRAM.
+Static-buffer examples remain fixed under either policy. Plain CMake accepts
+`MICROCS_HEAP_POLICY=on_demand|acquire_at_start`; ESP-IDF and Zephyr expose
+`CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START`. These select a default that each
+runtime may override. See [policy details](MEMORY.md#choose-when-regions-are-acquired-all-ports).

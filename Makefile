@@ -189,7 +189,7 @@ config-check: | build
 	  && echo "OK config template: profile mismatch warns" || { echo "FAIL config template: no profile mismatch warning"; exit 1; }
 
 # Full verification: tests, GC torture, every feature-flag combination
-FLAG_SETS = "-DMCS_ENABLE_POOL_REGIONS=0" "-DMCS_ENABLE_MALLOC=0 -DMCS_ENABLE_POOL_REGIONS=1" "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
+FLAG_SETS = "-DMCS_RUNTIME_HEAP_POLICY=MCS_HEAP_ACQUIRE_AT_START" "-DMCS_ENABLE_POOL_REGIONS=0" "-DMCS_ENABLE_MALLOC=0 -DMCS_ENABLE_POOL_REGIONS=1" "-DMCS_FLOAT_DOUBLE=0" "-DMCS_ENABLE_FLOAT=0" "-DMCS_ENABLE_COMPILER=0" \
 	"-DMCS_ENABLE_DICT=0 -DMCS_ENABLE_LIST=0" "-DMCS_LAZY_REGS=0" "-DMCS_COMPUTED_GOTO=0" \
 	"-DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_LINES=0 -DMCS_ENABLE_BYTECODE_SAVE=0" "-DMCS_INT64=1" \
 	"-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_HAL_DMA=0" "-DMCS_ENABLE_ENCODER=0" "-DMCS_ENABLE_ENCODER_HW=0" "-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_SCHED=0" "-DMCS_ENABLE_SHELL=0" \
@@ -363,6 +363,10 @@ capabilities-test: | build
 # Studio benchmark and capability report in the actual fixed-pool allocator.
 build/test_firmware_heap: tests/c/test_firmware_heap.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+build/test_heap_policy: tests/c/test_heap_policy.c $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
+build/test_heap_policy_startup_default: tests/c/test_heap_policy.c $(OBJ)
+	$(CC) $(CFLAGS) -DMCS_RUNTIME_HEAP_POLICY=MCS_HEAP_ACQUIRE_AT_START $(OBJ) $< -o $@ $(LDLIBS)
 build/test_app_replace: tests/c/test_app_replace.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
 build/test_pool_regions: tests/c/test_pool_regions.c $(OBJ)
@@ -374,7 +378,9 @@ build/test_esp_pool_growth: tests/c/test_esp_pool_growth.c ports/esp32/mcs_port_
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
 build/test_pool_pressure: tests/c/test_pool_pressure.c ports/esp32/mcs_port_esp32_heap.c $(OBJ)
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
-firmware-heap-test: build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+firmware-heap-test: build/test_heap_policy build/test_heap_policy_startup_default build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+	./build/test_heap_policy
+	./build/test_heap_policy_startup_default
 	./build/test_pool_regions
 	./build/test_esp_heap
 	./build/test_esp_pool_growth
