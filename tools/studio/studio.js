@@ -2968,6 +2968,21 @@ const App = {
     addEventListener("dragover", (e) => e.preventDefault());
     addEventListener("drop", (e) => e.preventDefault());
 
+    // Reserve Save Page before child/dialog handlers stop bubbling. Physical
+    // KeyS also works with Persian/Cyrillic layouts; key is a legacy fallback.
+    addEventListener("keydown", (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey ||
+          !(e.code === "KeyS" || e.key.toLowerCase() === "s")) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (e.repeat || e.isComposing || $("modalBg").classList.contains("show") ||
+          $("galleryBg").classList.contains("show") || !$("commandBg").hidden) return;
+      if (!dev.connected) {
+        toast("Connect a device to save there (or use ⋯ → Download).", "err");
+        return;
+      }
+      this.save();
+    }, true);
+
     // Capture before editor/REPL Tab handlers. The OS may reserve physical Alt+Tab;
     // Ctrl+` / Ctrl+J and the toolbar button remain available on those desktops.
     addEventListener("keydown", (e) => {
@@ -2979,8 +2994,7 @@ const App = {
     }, true);
     addEventListener("keydown", (e) => {
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); this.save(); }
-      else if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod, mod); }
+      if (e.key === "F5" || (mod && e.key === "Enter")) { e.preventDefault(); this.runCurrent(e.shiftKey && mod, mod); }
       else if (e.altKey && e.key.toLowerCase() === "n") { e.preventDefault(); this.newScratch(); }
       else if (e.altKey && e.key.toLowerCase() === "t") { e.preventDefault(); this.gallery(); }
       else if (mod && e.key.toLowerCase() === "o") { e.preventDefault(); $("openLocal").click(); }

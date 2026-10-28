@@ -83,10 +83,43 @@ const assert=require('assert'),path=require('path');
   assert.strictEqual(await page.evaluate(()=>App.save()),true);
   assert.deepStrictEqual(await page.evaluate(()=>__puts.sort()),['/app.cs','/lib/helper.cs'],'external edits and deletions still repaired on Save');
   assert.strictEqual(await page.evaluate(()=>__files['/app.cs']),'int value = 3;');
+  // Ctrl/Cmd+S must upload, including physical S on non-Latin layouts.
+  const shortcuts = [
+   {key:'s',code:'KeyS',ctrlKey:true},
+   {key:'س',code:'KeyS',ctrlKey:true},
+   {key:'ы',code:'KeyS',ctrlKey:true},
+   {key:'s',code:'KeyS',metaKey:true},
+   {key:'S',code:'KeyS',ctrlKey:true,shiftKey:true},
+  ];
+  for (const [i,shortcut] of shortcuts.entries()) {
+   await page.evaluate(i=>{__puts=[];ed.ta.value='int value = '+(20+i)+';';ed.refresh();ed.onChange();ed.ta.focus();},i);
+   const prevented=await page.evaluate(shortcut=>{const e=new KeyboardEvent('keydown',{...shortcut,bubbles:true,cancelable:true});ed.ta.dispatchEvent(e);return e.defaultPrevented;},shortcut);
+   assert(prevented,'save shortcut must suppress browser Save Page: '+JSON.stringify(shortcut));
+   await page.waitForFunction(()=>!App.workflowBusy);
+   assert.deepStrictEqual(await page.evaluate(()=>__puts),['/app.cs'],'shortcut uploads exactly once');
+   assert.strictEqual(await page.evaluate(()=>__files['/app.cs']),'int value = '+(20+i)+';');
+  }
+  // Capture must win even when an editor child stops bubbling.
+  await page.evaluate(()=>{ed.ta.addEventListener('keydown',e=>e.stopPropagation());__puts=[];ed.ta.value='int value = 30;';ed.refresh();ed.onChange();ed.ta.focus();});
+  await page.keyboard.press('Control+s');await page.waitForFunction(()=>!App.workflowBusy);
+  assert.deepStrictEqual(await page.evaluate(()=>__puts),['/app.cs']);
+  // Dialogs reserve the browser shortcut but never save the file behind them.
+  for(const overlay of ['commandBg','modalBg','galleryBg']) {
+   const result=await page.evaluate(id=>{__puts=[];const bg=$(id);if(id==='commandBg')bg.hidden=false;else bg.classList.add('show');const e=new KeyboardEvent('keydown',{key:'s',code:'KeyS',ctrlKey:true,bubbles:true,cancelable:true});bg.dispatchEvent(e);if(id==='commandBg')bg.hidden=true;else bg.classList.remove('show');return e.defaultPrevented;},overlay);
+   assert(result,'dialog must suppress browser Save Page');assert.deepStrictEqual(await page.evaluate(()=>__puts),[],'no background save');
+  }
+  const repeated=await page.evaluate(()=>{const e=new KeyboardEvent('keydown',{key:'s',code:'KeyS',ctrlKey:true,repeat:true,bubbles:true,cancelable:true});ed.ta.dispatchEvent(e);return e.defaultPrevented;});
+  assert(repeated);assert.deepStrictEqual(await page.evaluate(()=>__puts),[],'held shortcut does not enqueue saves');
   await page.evaluate(()=>{__puts=[];dev.get=async()=>{throw Error('connection stalled');};});
   assert.strictEqual(await page.evaluate(()=>App.save()),false,'transport errors cannot silently mark verified');
   assert.deepStrictEqual(await page.evaluate(()=>__puts),[]);
+  // Offline local tabs must not silently turn Ctrl+S into a computer download.
+  let downloads=0;page.on('download',()=>downloads++);
+  await page.evaluate(()=>{dev.port=null;App.tab().local=true;ed.ta.value='unsaved offline draft';ed.refresh();ed.onChange();ed.ta.focus();});
+  await page.keyboard.press('Control+s');await page.waitForTimeout(100);
+  assert.strictEqual(downloads,0,'offline save shortcut never downloads');
+  assert.strictEqual(await page.evaluate(()=>App.tab().dirty),true,'offline draft stays dirty');
   assert.deepStrictEqual(errors,[]);
-  console.log('PASS opens/uploads: click burst, normalized paths, dirty drafts, failed retry, reconnect, conflicting restored drafts, binary/large-file opens; unchanged File-mode uploads skipped, edits/deletions verified, read failures blocked');
+  console.log('PASS opens/uploads: click burst, normalized paths, dirty drafts, failed retry, reconnect, conflicting restored drafts, binary/large-file opens; unchanged File-mode uploads skipped, edits/deletions verified, read failures blocked; Ctrl/Cmd+S device uploads across keyboard layouts, capture, overlays, repeats and offline drafts');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

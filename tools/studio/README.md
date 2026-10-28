@@ -46,7 +46,7 @@ No build step for the app: edit a file and reload the page. After changing a tem
 | F5 | save/build, then run the active file or the Project jobs |
 | Ctrl+Enter · Ctrl+Shift+Enter | save/build and run the active file · run the selection |
 | Ctrl+` · Ctrl+J · Alt+Tab | hide/show the bottom terminal (also the toolbar terminal button or panel ×) |
-| Ctrl+S | save/upload and compile-check (no execution) |
+| Ctrl+S / Cmd+S | save/upload to the connected device and compile-check (no execution); works with non-Latin keyboard layouts |
 
 The terminal can be hidden without stopping the device or clearing output. Its height,
 Output/Plotter selection and visibility are remembered. Many operating systems reserve
@@ -62,6 +62,10 @@ The ⋯ menu has three independent options, **on by default**:
   `Shift+Alt+F` formats explicitly. This is a conservative formatter, not Roslyn: it leaves
   ambiguous operators/generic brackets alone and preserves strings and comments byte-for-byte.
   Multiline literal/comment bytes remain unchanged while surrounding code can be reflowed.
+Ctrl+S/Cmd+S never opens the browser Save Page dialog or downloads an offline draft.
+Without a connected device it asks you to connect; use **⋯ → Download** for a computer copy.
+While a dialog is open, the shortcut is suppressed without saving files behind it.
+
 * **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file save/build every
   editable open C# tab in **File mode**, plus the explicitly saved file. Saved files
   are verified against the device and identical uploads are skipped; known changed
