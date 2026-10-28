@@ -52,6 +52,7 @@ void app_main(void) {
     cfg.heap = NULL;
     cfg.heap_size = target;
     cfg.heap_provider = &vm_heap.provider;
+    cfg.heap_headroom = mcs_esp32_heap_headroom;
     printf("MicroCS: automatic VM pool, ceiling %u bytes, native reserve %u bytes\n",
            (unsigned)target, (unsigned)reserve);
     printf("MicroCS: internal heap free %u bytes, largest %u bytes (before VM growth)\n",

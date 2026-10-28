@@ -336,6 +336,13 @@ typedef struct {
     void* ud;
 } mcs_pool_provider_t;
 
+/* Read-only platform growth snapshot, NOT an allocation guarantee. available is
+ * raw backing headroom after the native reserve; largest is the maximum next
+ * region after platform contiguous margins. No VM allocation or GC permitted. */
+typedef struct {
+    size_t available, largest, native_free, reserve;
+} mcs_pool_headroom_t;
+
 #if MCS_ENABLE_POOL_HEAP
 /* Simple first-fit pool allocator over a static buffer. Use as:
  *   static uint8_t heap[48*1024]; mcs_pool_t pool;
@@ -369,6 +376,10 @@ void mcs_pool_destroy(mcs_pool_t* pool);
  * excluded). Caller must
  * synchronize with concurrent allocations, just like mcs_pool_realloc. */
 void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st);
+/* Estimated usable growth, bounded by remaining backing cap and sampled native
+ * headroom. Accounts for region metadata/alignment; SDK overhead, fragmentation
+ * changes and concurrent native allocations can reduce actual growth. No writes. */
+size_t mcs_pool_growth_estimate(const mcs_pool_t* pool, const mcs_pool_headroom_t* headroom);
 void* mcs_pool_realloc(void* pool, void* ptr, size_t old_size, size_t new_size);
 /* Same pool/accounting/free format, but place short-lived blocks at its high end. */
 void* mcs_pool_realloc_temporary(void* pool, void* ptr, size_t old_size, size_t new_size);

@@ -77,10 +77,13 @@ typedef struct {
      * Override with a native-reserve-aware provider. Static heap and provider
      * are mutually exclusive. Provider and context must outlive the runtime. */
     const mcs_pool_provider_t* heap_provider;
+    /* Optional read-only telemetry, called with the active provider's ud.
+     * NULL leaves additional native growth unknown, not equal to the cap. */
+    void (*heap_headroom)(void* provider_ud, mcs_pool_headroom_t* snapshot);
 } mcs_runtime_cfg_t;
 
 #define MCS_RUNTIME_DEFAULTS { NULL, 0, NULL, NULL, 0, { NULL, NULL, NULL }, NULL, NULL, NULL, \
-    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL }
+    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL }
 
 typedef struct {
     mcs_runtime_cfg_t cfg;

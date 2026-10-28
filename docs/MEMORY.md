@@ -19,6 +19,20 @@ New firmware also reports:
   backing-byte ceiling, and region count. Backing includes region descriptors and
   alignment padding, so it is slightly larger than usable `pool` capacity. The
   ceiling is not preallocated and is not a promise that native RAM is available.
+- `vm_budget`: optional used/total/free allocator-space budget. Total minus used
+  equals budget free. For automatic pools, free combines backed pool free with
+  **estimated** growth from the provider's sampled native headroom, region
+  metadata/alignment and remaining backing cap, then is clamped to the main VM's
+  remaining logical allocation limit. Growth is not physically reserved: SDK
+  overhead, fragmentation, allocation sizes, shared pool users and concurrent
+  native allocations can reduce actual usable capacity. Static pools report no
+  growth estimate. This is allocator space, not a guarantee of byte-array payload.
+- `native_headroom`: the active provider's native free, actual configured reserve,
+  backing headroom after that reserve and largest next region after contiguous
+  margins. ESP32 uses internal byte-addressable RAM, not PSRAM or device total.
+  Custom ESP32 runtimes enable it with
+  `cfg.heap_headroom = mcs_esp32_heap_headroom;` alongside the heap provider.
+  Without a callback, additional native growth is unknown; no budget is guessed.
 - `device_heap`: optional board HAL telemetry. ESP32 reports the ESP-IDF
   `MALLOC_CAP_8BIT` heap: allocated + free capacity, allocated, free, SDK minimum
   free and largest free block. It includes SDK/drivers/task allocations and the
@@ -26,6 +40,12 @@ New firmware also reports:
   device usage to pool usage. It is not total chip SRAM: static data and memory
   outside that capability heap are not measured. SDK minimum-free aggregates
   regional low-water figures; it is not a synchronized whole-device peak.
+
+Studio's compact **VM budget (estimate)** counter includes the new growth
+estimate. Expanded details retain backed pool free/largest and explain uncertainty.
+Older firmware keeps its backed-only **VM heap** counter and explicitly marks
+additional usable SRAM unknown. A memory query never reserves new regions, trims
+old ones, triggers GC, lowers native reserves or starts BLE.
 
 Studio shows these scopes separately, with exact bytes and unavailable labels
 for older/custom firmware. The snapshot is refreshed after workflow completion

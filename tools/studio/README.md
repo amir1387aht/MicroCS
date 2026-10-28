@@ -213,32 +213,45 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The compact left-panel counter shows **VM pool used / currently backed usable
-total**, in exact bytes:
+The compact counter keeps the **pool-used** numerator, not whole-device usage.
+With new reserve-aware firmware telemetry it shows:
 
 ```text
-VM heap: 15,528 B / 32,712 B
+VM budget (estimate): <used> B / <total> B
 ```
 
-**Total − used = free.** These are the allocator's physical pool counters, not
-VM-tracked payload alone, a configured allocation/backing ceiling or device heap.
-Only RAM already acquired by the VM pool is counted. The total can grow when the
-provider actually obtains another region; possible future growth is not counted
-as free memory. Native/BLE allocations and protected native reserves are not
-added to the VM total.
+**Total − used = estimated available VM allocator space**, combining current pool
+free space with estimated additional growth. Firmware applies the actual native
+reserve (including configured BLE/Wi-Fi headroom), internal byte-addressable heap,
+contiguous growth margin, region metadata/alignment, remaining backing ceiling and
+main VM allocation limit. The configured 96 KiB cap is never treated as free RAM.
+The total can change when native drivers consume/release SRAM, or limits change;
+it is not the chip's fixed installed SRAM size.
 
-Free is aggregate free pool space, not the maximum size of one object. Individual
-allocations require a contiguous block and allocator overhead; inspect **largest**
-in the expanded snapshot. Future pool growth remains conditional on native
-headroom, reserves and configured ceilings. Limits are separately labeled.
+**Growth is an estimate, not a reservation or guarantee.** SDK allocation overhead,
+fragmentation, concurrent native allocations and pool sharing can reduce it. To
+promise a fixed capacity, firmware would have to physically reserve that capacity;
+a read-only snapshot cannot guarantee future allocations. Free counters represent
+allocator space (including allocation overhead), not byte-array payload capacity.
+One object still needs a contiguous block: inspect **Pool free / largest**.
 
-Click to expand for a single used/total row, **Pool free** (17,184 B in this
-example), pool peak/largest block,
-tracked allocations, stack/frames, backing ceiling and device heap. There is no
-duplicate "VM pool" used/total row. Device and
-VM numbers are **not additive**. Firmware without pool-capacity telemetry shows
-**VM heap capacity unavailable**, rather than guessing usable free memory from
-VM limits, peaks or device counters.
+Expand for **Budget free**, additional growth estimate, the actual native reserve,
+backed **Pool free**, largest block, peak, tracked allocations, limits and device
+heap. No duplicate VM-pool used/total row is shown. Device and VM numbers are not
+additive. Static-pool firmware reports **VM budget** without an estimate marker,
+clamped by the VM allocation limit.
+
+Old/custom firmware without headroom telemetry retains its backed-only **VM heap**
+counter and explicitly says additional usable SRAM is unknown in expanded details.
+Studio never guesses growth from device free or the configured cap. Updating only
+Studio cannot add firmware telemetry. In a custom ESP32 `app_main`, add:
+
+```c
+cfg.heap_provider = &vm_heap.provider;
+cfg.heap_headroom = mcs_esp32_heap_headroom;
+```
+
+The bundled ESP32 example already sets both. Rebuild and flash the firmware.
 
 The snapshot is refreshed after existing save/build/run workflows, including
 failures; it is not a continuously polled meter. See

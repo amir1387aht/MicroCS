@@ -54,6 +54,9 @@ typedef struct {
     bool has_pool, has_device;
     mcs_heap_stats_t pool, device;
     size_t pool_committed, pool_limit, pool_regions; /* automatic pool, zero for static */
+    bool has_budget;
+    size_t budget_total, budget_free, growth_estimate;
+    mcs_pool_headroom_t headroom;
 } mcs_shell_memory_t;
 
 struct mcs_vfs;

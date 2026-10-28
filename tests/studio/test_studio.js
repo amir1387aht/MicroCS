@@ -96,10 +96,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   // The file list renders before df/mem finish. Visibility of .file is not a
   // readiness signal for either counter, particularly on busy CI runners.
   await page.waitForFunction(() => /free of/.test(document.getElementById('stText').textContent) &&
-    /^(?:VM heap: [\d,]+ B \/ [\d,]+ B|VM heap capacity unavailable)$/.test(document.getElementById('memInfo').textContent),
+    /^(?:VM (?:heap|budget(?: \(estimate\))?): [\d,]+ B \/ [\d,]+ B|VM heap capacity unavailable)$/.test(document.getElementById('memInfo').textContent),
     null, { timeout: 5000 });
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
-  check(/^(?:VM heap: [\d,]+ B \/ [\d,]+ B|VM heap capacity unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
+  check(/^(?:VM (?:heap|budget(?: \(estimate\))?): [\d,]+ B \/ [\d,]+ B|VM heap capacity unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
   await page.click('#memInfo');
   await page.waitForFunction(() => /Memory snapshot/.test(document.getElementById('memInfo').textContent), null, { timeout: 5000 }).catch(() => {});
   check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem expanded: ' + await page.textContent('#memInfo'));
@@ -117,6 +117,15 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check((await page.textContent('#memInfo')).includes('VM allocation limit: 96,256 B'),'configured limit remains separately labeled, never the usable total');
   const expandedMemory=await page.textContent('#memInfo');
   check(expandedMemory.includes('Pool free: 17,184 B')&&!expandedMemory.includes('VM pool:')&&(expandedMemory.match(/^VM heap:/gm)||[]).length===1,'free shown in expanded view without duplicate VM pool row');
+  await page.evaluate(()=>{
+    App.memExpanded=false;
+    App.renderMemory(App.memReportText+'vm_budget 57320 total, 15528 used, 41792 free, 24608 growth_estimate\nnative_headroom 26308 free, 1638 reserve, 24670 available, 16896 largest_region\n','Budget fixture');
+  });
+  check(await page.textContent('#memInfo')==='VM budget (estimate): 15,528 B / 57,320 B','reserve-aware growth replaces backed-only denominator');
+  check(await page.locator('#memInfo').evaluate(e=>{const r=document.createRange();r.selectNodeContents(e);return r.getClientRects().length===1;}),'budget stays on one rendered line');
+  await page.click('#memInfo');
+  const budgetMemory=await page.textContent('#memInfo');
+  check(budgetMemory.includes('Budget free (estimate): 41,792 B')&&budgetMemory.includes('Native growth guard: 1,638 B')&&budgetMemory.includes('not reserved'),'budget free, actual reserve and uncertainty are visible');
   await page.evaluate(()=>{App.memExpanded=false;App.renderMemory(__memoryBefore.text,__memoryBefore.title);delete window.__memoryBefore;});
 
   // REPL

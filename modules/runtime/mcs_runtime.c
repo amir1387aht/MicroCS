@@ -84,6 +84,24 @@ static void rt_memory_info(void* ud, mcs_shell_memory_t* st) {
             st->pool_committed = rt->pool.dynamic->committed;
             st->pool_limit = rt->pool.dynamic->limit;
             st->pool_regions = rt->pool.dynamic->count;
+            if (rt->cfg.heap_headroom) {
+                rt->cfg.heap_headroom(rt->pool.dynamic->provider->ud, &st->headroom);
+                st->growth_estimate = mcs_pool_growth_estimate(&rt->pool, &st->headroom);
+                st->has_budget = true;
+            }
+        } else {
+            st->has_budget = true; /* static capacity is already physically backed */
+        }
+        if (st->has_budget) {
+            st->budget_free = st->pool.free + st->growth_estimate;
+            mcs_mem_stats_t tracked; memset(&tracked, 0, sizeof tracked);
+            mcs_mem_stats(rt->vm, &tracked);
+            if (tracked.heap_limit) {
+                size_t left = tracked.heap_limit > tracked.bytes_in_use
+                    ? tracked.heap_limit - tracked.bytes_in_use : 0;
+                if (st->budget_free > left) st->budget_free = left;
+            }
+            st->budget_total = st->pool.used + st->budget_free;
         }
 #if MCS_ENABLE_THREADS
         mcs_threads_heap_unlock();

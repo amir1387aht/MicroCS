@@ -44,6 +44,18 @@ function methods(start,end,deps={}) {
    assert(!app.memoryText(raw).includes('VM pool:'));
    assert.strictEqual((app.memoryText(raw).match(/^VM heap:/gm)||[]).length,1);
  }
+ const liveBudget=current+'vm_budget 57320 total, 15528 used, 41792 free, 24608 growth_estimate\nnative_headroom 26308 free, 1638 reserve, 24670 available, 16896 largest_region\n';
+ assert.strictEqual(app.memorySummary(liveBudget),'VM budget (estimate): 15,528 B / 57,320 B');
+ assert(app.memoryText(liveBudget).includes('Budget free (estimate): 41,792 B'));
+ assert(app.memoryText(liveBudget).includes('Native growth guard: 1,638 B'));
+ assert(app.memoryText(liveBudget).includes('not reserved'));
+ const noGrowth=liveBudget.replace('57320 total, 15528 used, 41792 free, 24608 growth_estimate','32712 total, 15528 used, 17184 free, 0 growth_estimate');
+ assert.strictEqual(app.memorySummary(noGrowth),'VM budget (estimate): 15,528 B / 32,712 B');
+ const capped=liveBudget.replace('57320 total, 15528 used, 41792 free','25528 total, 15528 used, 10000 free');
+ assert(app.memoryText(capped).includes('Budget free (estimate): 10,000 B'));
+ const staticBudget='pool 32712 total, 15528 used, 16320 peak, 17184 free, 15320 largest\nvm_budget 32712 total, 15528 used, 17184 free, 0 growth_estimate\n';
+ assert.strictEqual(app.memorySummary(staticBudget),'VM budget: 15,528 B / 32,712 B');
+ assert(app.memoryText(current).includes('additional usable SRAM unknown'));
  const smallerPool=current.replace('32712 total, 15528 used, 16320 peak, 17184 free, 15320 largest','16352 total, 8896 used, 9368 peak, 7456 free, 7312 largest');
  assert.strictEqual(app.memorySummary(smallerPool),'VM heap: 8,896 B / 16,352 B','only actually acquired pool growth increases total');
  assert.strictEqual(app.memorySummary('heap 100 bytes in use, peak 200\nvm_limit 0'),'VM heap capacity unavailable');

@@ -262,6 +262,18 @@ limit. Enabling BLE uses native/static RAM outside the pool as well as managed
 C# objects inside it. Reserves are headroom, not extra VM allocations. SDK heap
 samples cannot guarantee future concurrent native allocations will succeed.
 PSRAM is not automatically selected; use an explicit custom provider if required.
+For reserve-aware Studio budget reporting, the example also sets
+`cfg.heap_headroom = mcs_esp32_heap_headroom;`. Add this line alongside
+`cfg.heap_provider = &vm_heap.provider;` in a custom `app_main`, then rebuild and
+flash. The callback uses the provider's **actual** reserve, not a guessed Kconfig
+value. `mem` emits `vm_budget` and `native_headroom` alongside existing counters.
+Budget total minus used is estimated VM free space (backed plus possible growth),
+clamped to the VM allocation limit. Growth accounts for region metadata and the
+8 KiB contiguous guard, but cannot guarantee future SDK allocations. Reading memory
+telemetry does not allocate, trim, collect, lower reserves or start BLE. Existing
+allocation behavior is unchanged. Without the callback, additional growth stays
+unknown; Studio shows backed-only pool capacity.
+
 See [automatic regions and accounting](../../docs/MEMORY.md#automatic-bounded-regions-all-ports).
 
 ## Build profile per chip

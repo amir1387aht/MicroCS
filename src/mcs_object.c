@@ -249,6 +249,25 @@ size_t mcs_pool_trim(mcs_pool_t* pool) { (void)pool; return 0; }
 void mcs_pool_destroy(mcs_pool_t* pool) { memset(pool, 0, sizeof *pool); }
 #endif
 
+size_t mcs_pool_growth_estimate(const mcs_pool_t* pool, const mcs_pool_headroom_t* h) {
+    const mcs_pool_dynamic_t* d = pool->dynamic;
+    if (!d || !h || d->committed >= d->limit) return 0;
+    size_t budget = d->limit - d->committed;
+    if (budget > h->available) budget = h->available;
+    size_t region = d->chunk;
+    if (region > h->largest) region = h->largest;
+    if (region > budget) region = budget;
+    /* Worst alignment loss at both ends; arithmetic stays within budget. */
+    const size_t overhead = POOL_ROUND(sizeof(pool_region_t)) + 2 * (POOL_ALIGN - 1);
+    if (region < overhead + sizeof(pool_blk_t)) return 0;
+    size_t usable = (region - overhead) & ~(size_t)(POOL_ALIGN - 1);
+    size_t growth = (budget / region) * usable;
+    size_t tail = budget % region;
+    if (tail >= overhead + sizeof(pool_blk_t))
+        growth += (tail - overhead) & ~(size_t)(POOL_ALIGN - 1);
+    return growth;
+}
+
 void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st) {
     memset(st, 0, sizeof *st);
     st->total = pool->size; st->used = pool->used; st->peak = pool->peak;

@@ -1896,6 +1896,8 @@ const App = {
     return data ? data.summary : "Memory report unavailable";
   },
   memoryData(text) {
+    const budget = /^vm_budget (\d+) total, (\d+) used, (\d+) free, (\d+) growth_estimate/m.exec(text);
+    const headroom = /^native_headroom (\d+) free, (\d+) reserve, (\d+) available, (\d+) largest_region/m.exec(text);
     const logical = /^heap (\d+) bytes in use, peak (\d+)/m.exec(text);
     const backing = /^pool_backing (\d+) committed, (\d+) limit, (\d+) regions/m.exec(text);
     const pool = /^pool (\d+) total, (\d+) used, (\d+) peak, (\d+) free, (\d+) largest/m.exec(text);
@@ -1905,13 +1907,20 @@ const App = {
     const limit = /^vm_limit (\d+)/m.exec(text);
     if (!logical && !pool && !device) return null;
     const bytes = n => `${Number(n).toLocaleString("en-US")} B`;
-    // Only backed pool capacity has a currently usable free-space counter.
-    // Its total equals consumed + free. Never use vm_limit, pool backing limit,
-    // or device total here: their difference from VM used is not pool free.
-    const summary = pool
-      ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])}`
-      : "VM heap capacity unavailable";
+    // Firmware combines backed space, reserve-aware growth and allocation cap.
+    // Do not invent growth from device free or the configured cap on old firmware.
+    const estimated = !!(budget && backing);
+    const summary = budget
+      ? `VM budget${estimated ? " (estimate)" : ""}: ${bytes(budget[2])} / ${bytes(budget[1])}`
+      : pool ? `VM heap: ${bytes(pool[2])} / ${bytes(pool[1])}` : "VM heap capacity unavailable";
     const lines = ["Memory snapshot", summary];
+    if (budget) {
+      lines.push(`Budget free${estimated ? " (estimate)" : ""}: ${bytes(budget[3])}`);
+      if (estimated) lines.push(`Additional pool growth (estimate): ${bytes(budget[4])}`,
+        "Growth is not reserved: native allocations, SDK overhead and fragmentation can reduce it.");
+    } else if (pool) lines.push("Backed pool only: additional usable SRAM unknown. Update firmware and enable headroom telemetry.");
+    if (headroom) lines.push(`Native growth guard: ${bytes(headroom[2])} · native free: ${bytes(headroom[1])}`,
+      `Native backing headroom: ${bytes(headroom[3])} · largest next region: ${bytes(headroom[4])}`);
     if (pool) {
       lines.push(`Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
     } else lines.push("VM pool capacity unavailable (legacy/custom firmware)");
@@ -1946,7 +1955,7 @@ const App = {
     try {
       const mm = await dev.op(() => dev.cmd("mem"));
       if (!dev.connected) return;
-      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is used / currently backed usable VM pool total, with pool free shown only in expanded details. Total minus used equals pool free. Future pool growth, configured limits and device-native free RAM are excluded. A single allocation is limited by the largest free block and allocator overhead; further pool growth is conditional on native headroom and reserves. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". VM budget includes backed pool space plus estimated reserve-aware growth, clamped to the allocation limit. Total minus used equals budget free. Growth is not physically reserved or guaranteed. Legacy reports show backed capacity only: Total minus used equals pool free. See expanded details for native guard, growth estimate and largest block. Free is aggregate allocator space, not single-object payload. Device heap includes SDK, drivers and pool backing, but not static RAM. Refresh to resample; this is not a live meter.";
       this.renderMemory(mm.status === "OK" ? new TextDecoder().decode(mm.out) : "", title);
     } catch {
       if (dev.connected) { this.renderMemory("", ""); $("memInfo").textContent = "Memory report unavailable (refresh failed)"; }

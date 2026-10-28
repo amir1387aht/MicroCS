@@ -129,10 +129,27 @@ static char output[4096];static size_t used;
 static void capture(void* ud,const char* s,size_t n){(void)ud;if(n>sizeof output-1-used)n=sizeof output-1-used;memcpy(output+used,s,n);used+=n;output[used]=0;}
 static const char* input;
 static int read_input(void* ud,uint8_t* dst,size_t n,uint32_t timeout){(void)ud;(void)timeout;size_t k=strlen(input);if(k>n)k=n;memcpy(dst,input,k);input+=k;return (int)k;}
+static void headroom(void* ud,mcs_pool_headroom_t* h){
+    source_t* s=ud;h->native_free=s->native_total-s->live;h->reserve=s->reserve;
+    h->available=h->native_free>h->reserve?h->native_free-h->reserve:0;
+    h->largest=s->max_block;
+}
+static void budget_checks(mcs_runtime_t* rt,source_t* s){
+    mcs_shell_memory_t ms;unsigned calls=s->calls;size_t live=s->live,used_before=rt->pool.used;
+    rt->shell.memory_info(rt->shell.memory_ud,&ms);
+    CHECK(ms.has_budget && ms.has_pool);
+    CHECK(ms.budget_total==ms.pool.used+ms.budget_free);
+    CHECK(ms.budget_free<=ms.pool.free+ms.growth_estimate);
+    CHECK(ms.growth_estimate<=ms.headroom.available);
+    CHECK(ms.growth_estimate<=rt->pool.dynamic->limit-rt->pool.dynamic->committed);
+    mcs_mem_stats_t tracked;mcs_mem_stats(rt->vm,&tracked);
+    CHECK(!tracked.heap_limit || ms.budget_free<=tracked.heap_limit-tracked.bytes_in_use);
+    CHECK(s->calls==calls && s->live==live && rt->pool.used==used_before);
+}
 static void runtime(void){
     source_t s;mcs_pool_provider_t provider={acquire,release,&s};
     mcs_runtime_t rt;mcs_runtime_cfg_t cfg=MCS_RUNTIME_DEFAULTS;
-    cfg.heap_size=192*1024;cfg.heap_provider=&provider;cfg.ramfs_size=2048;
+    cfg.heap_size=192*1024;cfg.heap_provider=&provider;cfg.heap_headroom=headroom;cfg.ramfs_size=2048;
     cfg.thread_heap=48*1024; /* host default is 256 KiB, larger than this whole test cap */
     cfg.run_boot_scripts=false;cfg.mode=MCS_RUNTIME_SHELL;cfg.console=(mcs_transport_t){read_input,capture,NULL};
     init_source(&s);input="";used=0;
@@ -155,7 +172,15 @@ static void runtime(void){
     invariant(&rt.pool,&s,cfg.heap_size);
     CHECK(mcs_runtime_reset_application(&rt)==0);
 #endif
+    budget_checks(&rt,&s);
+    size_t old_reserve=s.reserve;s.reserve=s.native_total;
+    mcs_shell_memory_t ms;rt.shell.memory_info(rt.shell.memory_ud,&ms);
+    CHECK(ms.has_budget && ms.growth_estimate==0 && ms.budget_free<=ms.pool.free);
+    s.reserve=old_reserve;
     input="mem\n";used=0;CHECK(mcs_runtime_step(&rt,0));CHECK(strstr(output,"pool_backing ")!=NULL);CHECK(strstr(output,"196608 limit")!=NULL);
+    CHECK(strstr(output,"vm_budget ")!=NULL);CHECK(strstr(output,"native_headroom ")!=NULL);
+    rt.cfg.heap_headroom=NULL;used=0;input="mem\n";CHECK(mcs_runtime_step(&rt,0));
+    CHECK(strstr(output,"vm_budget ")==NULL); /* never invent unknown growth */
     mcs_runtime_stop(&rt);CHECK(s.live==0);CHECK(s.count==0);
     /* Inject a failure at EACH acquisition of cold runtime initialization. */
     unsigned completed=0;
@@ -178,4 +203,20 @@ static void runtime(void){
     cfg.heap=(void*)adjacent.bytes;cfg.heap_provider=&provider;
     CHECK(mcs_runtime_start(&rt,&cfg)!=0); /* ambiguous ownership is rejected */
 }
-int main(void){stress();boundaries();budget192();recover_at_cap();runtime();printf("pool regions: %u checks, %u failures\n",checks,failures);return failures?1:0;}
+static void growth_estimates(void){
+    source_t s;init_source(&s);mcs_pool_provider_t provider={acquire,release,&s};
+    mcs_pool_t p;mcs_pool_dynamic_t d;mcs_pool_headroom_t h={65536,65536,100000,34464};
+    CHECK(mcs_pool_init_dynamic(&p,&d,&provider,98304,0));
+    unsigned calls=s.calls;
+    size_t growth=mcs_pool_growth_estimate(&p,&h);
+    CHECK(growth>64000 && growth<65536);CHECK(s.calls==calls && !d.committed);
+    h.available=0;CHECK(!mcs_pool_growth_estimate(&p,&h));
+    h.available=65536;h.largest=8;CHECK(!mcs_pool_growth_estimate(&p,&h));
+    h.largest=12000;growth=mcs_pool_growth_estimate(&p,&h);CHECK(growth>64000 && growth<65536);
+    d.committed=d.limit-16;CHECK(!mcs_pool_growth_estimate(&p,&h));
+    d.committed=d.limit;CHECK(!mcs_pool_growth_estimate(&p,&h));
+    d.committed=0;d.limit=SIZE_MAX;d.chunk=SIZE_MAX;h.available=SIZE_MAX;h.largest=SIZE_MAX;
+    CHECK(mcs_pool_growth_estimate(&p,&h)<SIZE_MAX); /* no overflow */
+    p.dynamic=NULL;CHECK(!mcs_pool_growth_estimate(&p,&h));
+}
+int main(void){growth_estimates();stress();boundaries();budget192();recover_at_cap();runtime();printf("pool regions: %u checks, %u failures\n",checks,failures);return failures?1:0;}
