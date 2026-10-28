@@ -287,6 +287,13 @@ true,
 false,
 #endif
 0,NULL},
+{"lv_chart_get_pressed_point",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_CHART)
+true,
+#else
+false,
+#endif
+0,NULL},
 {"lv_chart_get_type",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_CHART)
 true,
@@ -406,6 +413,27 @@ true,
 false,
 #endif
 0,NULL},
+{"lv_dropdown_get_selected_str",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_dropdown_get_symbol",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
+true,
+#else
+false,
+#endif
+0,NULL},
+{"lv_dropdown_get_text",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
+true,
+#else
+false,
+#endif
+0,NULL},
 {"lv_dropdown_is_open",
 #if (LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
 true,
@@ -442,6 +470,20 @@ false,
 #endif
 1,NULL},
 {"lv_dropdown_set_selected_highlight",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_dropdown_set_symbol",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_dropdown_set_text",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_DROPDOWN)
 true,
 #else
@@ -2576,6 +2618,13 @@ true,
 false,
 #endif
 0,NULL},
+{"lv_roller_get_selected_str",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_ROLLER)
+true,
+#else
+false,
+#endif
+0,NULL},
 {"lv_roller_set_options",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_ROLLER)
 true,
@@ -2891,6 +2940,13 @@ true,
 false,
 #endif
 0,NULL},
+{"lv_textarea_get_accepted_chars",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_TEXTAREA)
+true,
+#else
+false,
+#endif
+0,NULL},
 {"lv_textarea_get_cursor_click_pos",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_TEXTAREA)
 true,
@@ -2954,6 +3010,20 @@ true,
 false,
 #endif
 0,NULL},
+{"lv_textarea_set_accepted_chars",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_TEXTAREA)
+true,
+#else
+false,
+#endif
+1,NULL},
+{"lv_textarea_set_align",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_TEXTAREA)
+true,
+#else
+false,
+#endif
+1,NULL},
 {"lv_textarea_set_cursor_click_pos",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_TEXTAREA)
 true,

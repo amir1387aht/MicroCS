@@ -18,6 +18,7 @@ jobs:
         run: |
           python3 tools/gen_lvgl_api.py --check
           python3 tests/lvgl/test_sanitizer_log.py
+          python3 tests/lvgl/test_font_patch.py
       - name: No LVGL dependency, runtime symbols, VM memory or VM/capability code overhead
         run: sh tests/lvgl/test_disabled.sh baseline
   compatibility:
@@ -30,6 +31,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch exact upstream test dependency (not production integration)
         run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Explicitly repair test dependency font signed-shift defect (LVGL 8 only)
+        run: |
+          python3 tools/patch_lvgl8_font.py /tmp/host-lvgl --apply
+          python3 tests/lvgl/test_font_writer.py /tmp/host-lvgl
       - name: Inventory public-looking declarations and unwrapped backlog
         run: python3 tools/lvgl_api_inventory.py /tmp/host-lvgl --json build/lvgl-api-inventory.json
       - uses: actions/upload-artifact@v4
@@ -40,7 +45,7 @@ jobs:
         run: |
           cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON
           cmake --build build/lvgl --target test_lvgl -j2
-          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
           python3 tests/lvgl/check_sanitizer_log.py --lvgl-version '${{ matrix.lvgl }}' build/lvgl/sanitizer.log
   minimal:
     runs-on: ubuntu-24.04
@@ -51,13 +56,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Explicitly repair test dependency font signed-shift defect (LVGL 8 only)
+        run: |
+          python3 tools/patch_lvgl8_font.py /tmp/host-lvgl --apply
+          python3 tests/lvgl/test_font_writer.py /tmp/host-lvgl
       - name: No HAL, no drivers, optional widgets disabled, explicit header override
         run: |
           extra=
           if [ '${{ matrix.lvgl }}' = v8.4.0 ]; then extra=-DLV_USE_USER_DATA=0; fi
           cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DMINIMAL_WIDGETS=ON -DNO_COMPRESSED_FONTS=ON -DMICROCS_LVGL_INCLUDE=lvgl.h "-DCMAKE_C_FLAGS=-DMCS_ENABLE_HAL=0 -DMCS_ENABLE_DRIVERS=0 $extra"
           cmake --build build/lvgl --target test_lvgl -j2
-          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
           python3 tests/lvgl/check_sanitizer_log.py --lvgl-version '${{ matrix.lvgl }}' build/lvgl/sanitizer.log
   font-config:
     runs-on: ubuntu-24.04
@@ -68,5 +77,5 @@ jobs:
         run: |
           cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DNO_COMPRESSED_FONTS=ON
           cmake --build build/lvgl --target test_lvgl -j2
-          ASAN_OPTIONS=detect_leaks=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
           python3 tests/lvgl/check_sanitizer_log.py --lvgl-version v9.3.0 build/lvgl/sanitizer.log

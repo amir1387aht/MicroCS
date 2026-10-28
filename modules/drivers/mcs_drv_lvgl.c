@@ -6,7 +6,7 @@
 #include "mcs_lvgl_compat.h"
 
 typedef struct session session_t;
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
 #if LVGL_VERSION_MAJOR == 8
 typedef lv_coord_t mcs_grid_coord_t;
 typedef lv_point_t mcs_line_point_t;
@@ -41,7 +41,7 @@ struct session {
     unsigned head, count;
     uint32_t dropped;
     bool dispatching, reap_pending;
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
     retained_buffer_t* buffers; /* lazy buffers; no per-slot pointer or reservation */
 #endif
 };
@@ -175,7 +175,7 @@ static void reap(mcs_vm_t* vm, session_t* s) {
         if (!r->obj && r->owned_font) { mcs_lv_font_destroy(r->owned_font); r->owned_font=NULL; }
         if (!r->obj && r->pin >= 0) { mcs_unpin(vm, r->pin); r->pin = -1; }
     }
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
     retained_buffer_t** link=&s->buffers;
     while(*link) {
         retained_buffer_t* b=*link;slot_t* r=&s->slots[b->slot];
@@ -637,6 +637,7 @@ static int32_t native_spin_limit(unsigned digits) {
 static bool native_grid_bounds(session_t*,lv_obj_t*,int32_t,int32_t,int32_t,int32_t);
 static bool native_grid_existing(session_t*,lv_obj_t*,lv_obj_t*,int,int32_t);
 #endif
+#include "mcs_lvgl_buffers.inc"
 #include "mcs_lvgl_api.inc"
 typedef struct { mcs_vm_t* vm; native_result_t* native; mcs_value_t value; } native_string_t;
 static void native_string_body(void* context) {
@@ -663,7 +664,7 @@ NATIVE(native_call) {
     if(error) {
         if(result.text)s->host.free(s->host.ctx,result.text);
         mcs_raise(vm,error==NERR_UNAVAILABLE || error==NERR_KIND ? "NotSupportedException" : error==NERR_MEMORY ? "OutOfMemoryException" : error==NERR_DELETED ? "InvalidOperationException" : "ArgumentException","%s",
-            error==NERR_KIND ? "LVGL API does not apply to this widget/argument kind" : error==NERR_DELETED ? "LVGL object argument is deleted" : error==NERR_CYCLE ? "LVGL reparenting would create a cycle" : error==NERR_RANGE ? "LVGL index/capacity out of range" : error==NERR_MEMORY ? "LVGL native text snapshot allocation failed" : error==NERR_TEXT ? "LVGL text snapshot exceeds configured bound" : "LVGL API unavailable");
+            error==NERR_KIND ? "LVGL API does not apply to this widget/argument kind" : error==NERR_DELETED ? "LVGL object argument is deleted" : error==NERR_CYCLE ? "LVGL reparenting would create a cycle" : error==NERR_RANGE ? "LVGL index/capacity out of range" : error==NERR_MEMORY ? "LVGL native text allocation failed" : error==NERR_TEXT ? "LVGL text snapshot exceeds configured bound" : "LVGL API unavailable");
         return mcs_null();
     }
     if(result.kind==NRET_TEXT) {
@@ -717,8 +718,6 @@ NATIVE(native_get_text) {
     if(!name){mcs_raise(vm,"NotSupportedException","Text requires Label, Checkbox, TextArea or Spinbox");return mcs_null();}
     mcs_value_t id=mcs_int(native_api_find(name));return native_call(vm,self,1,&id);
 }
-
-#include "mcs_lvgl_buffers.inc"
 
 static const mcs_reg_t members[] = {
     MCS_FN("Call",native_call,-1),

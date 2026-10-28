@@ -67,6 +67,16 @@ static inline void mcs_lv_textarea_add_scalar(lv_obj_t* obj,uint32_t c) {
     text[n]='\0';lv_textarea_add_text(obj,text);
 }
 #endif
+#if LV_USE_TEXTAREA
+/* Preserve legacy alignment semantics without calling a deprecated entrypoint. */
+static inline void mcs_lv_textarea_set_align(lv_obj_t* obj,lv_text_align_t align) {
+    lv_obj_set_style_text_align(obj,align,0);
+#if LVGL_VERSION_MAJOR == 8 || (LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR < 6)
+    lv_align_t anchor=align==LV_TEXT_ALIGN_RIGHT ? LV_ALIGN_TOP_RIGHT : align==LV_TEXT_ALIGN_CENTER ? LV_ALIGN_TOP_MID : LV_ALIGN_TOP_LEFT;
+    lv_obj_align(lv_textarea_get_label(obj),anchor,0,0);
+#endif
+}
+#endif
 /* These compatibility entrypoints remain exported upstream but 9.6 marks
  * generic flags/List as deprecated. Keep diagnostics local to the legacy bridge,
  * not to user code or the generated API; no native private layouts are accessed. */

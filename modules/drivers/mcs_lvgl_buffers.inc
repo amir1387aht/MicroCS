@@ -19,6 +19,8 @@ static bool buffer_integer(mcs_vm_t* vm,mcs_value_t value,int32_t* out) {
 static int32_t buffer_value(mcs_vm_t* vm,mcs_value_t value,unsigned i) {
     return (int32_t)mcs_to_int(vm,mcs_index(value,i));
 }
+#endif
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
 static retained_buffer_t** buffer_link(session_t* s,handle_t* h,unsigned kind) {
     retained_buffer_t** link=&s->buffers;
     while(*link && !((*link)->slot==h->slot && (*link)->generation==h->generation && (*link)->kind==kind))link=&(*link)->next;
@@ -129,3 +131,42 @@ NATIVE(point_count) {
     (void)self;mcs_raise(vm,"NotSupportedException","Host LV_USE_LINE is disabled");return mcs_null();
 #endif
 }
+
+#if LV_USE_TEXTAREA || LV_USE_DROPDOWN
+/* Native 8 / early 9 retain these pointers. Own one bounded copy; 9.5+
+ * static setters prevent redundant native string allocations. */
+static int native_retained_text(session_t* s,slot_t* r,unsigned kind,const char* text) {
+    /* Empty filters mean unrestricted input in later LVGL, but reject all in
+     * 8.0. Normalize empty/null to reset on both majors. */
+    if(kind==3 && text && !text[0])text=NULL;
+    handle_t h={(unsigned)(r-s->slots),r->generation};
+    size_t n=text ? strlen(text) : 0;
+    retained_buffer_t* b=text ? buffer_alloc(s,&h,kind,n+1) : NULL;
+    if(text && !b)return NERR_MEMORY;
+    const char* copy=NULL;
+    if(b){memcpy(b->data,text,n+1);copy=(const char*)b->data;}
+    switch(kind) {
+#if LV_USE_TEXTAREA
+    case 3:
+#if LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR >= 5
+        lv_textarea_set_accepted_chars_static(r->obj,copy);
+#else
+        lv_textarea_set_accepted_chars(r->obj,copy);
+#endif
+        break;
+#endif
+#if LV_USE_DROPDOWN
+    case 4:
+#if LVGL_VERSION_MAJOR == 9 && LVGL_VERSION_MINOR >= 5
+        lv_dropdown_set_text_static(r->obj,copy);
+#else
+        lv_dropdown_set_text(r->obj,copy);
+#endif
+        break;
+    case 5:lv_dropdown_set_symbol(r->obj,copy);break;
+#endif
+    default:if(b)s->host.free(s->host.ctx,b);return NERR_UNAVAILABLE;
+    }
+    buffer_replace(s,&h,kind,b);return 0;
+}
+#endif

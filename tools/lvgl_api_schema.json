@@ -815,6 +815,21 @@
       ]
     },
     {
+      "name": "lv_chart_get_pressed_point",
+      "variants": {
+        "8": "lv_chart_get_pressed_point",
+        "9": "lv_chart_get_pressed_point"
+      },
+      "args": [],
+      "result": "uint32_t",
+      "guard": "LV_USE_CHART",
+      "kinds": [
+        15
+      ],
+      "sentinel": true,
+      "none": "LV_CHART_POINT_NONE"
+    },
+    {
       "name": "lv_chart_get_type",
       "variants": {
         "8": "lv_chart_get_type",
@@ -1106,6 +1121,46 @@
       ]
     },
     {
+      "name": "lv_dropdown_get_selected_str",
+      "variants": {
+        "8": "lv_dropdown_get_selected_str",
+        "9": "lv_dropdown_get_selected_str"
+      },
+      "args": [],
+      "result": "const char*",
+      "guard": "LV_USE_DROPDOWN",
+      "kinds": [
+        9
+      ],
+      "check": "selected_text"
+    },
+    {
+      "name": "lv_dropdown_get_symbol",
+      "variants": {
+        "8": "lv_dropdown_get_symbol",
+        "9": "lv_dropdown_get_symbol"
+      },
+      "args": [],
+      "result": "const char*",
+      "guard": "LV_USE_DROPDOWN",
+      "kinds": [
+        9
+      ]
+    },
+    {
+      "name": "lv_dropdown_get_text",
+      "variants": {
+        "8": "lv_dropdown_get_text",
+        "9": "lv_dropdown_get_text"
+      },
+      "args": [],
+      "result": "const char*",
+      "guard": "LV_USE_DROPDOWN",
+      "kinds": [
+        9
+      ]
+    },
+    {
       "name": "lv_dropdown_is_open",
       "variants": {
         "9": "lv_dropdown_is_open"
@@ -1207,6 +1262,43 @@
       "kinds": [
         9
       ]
+    },
+    {
+      "name": "lv_dropdown_set_symbol",
+      "variants": {
+        "8": "lv_dropdown_set_symbol",
+        "9": "lv_dropdown_set_symbol"
+      },
+      "args": [
+        {
+          "kind": "nullable_text"
+        }
+      ],
+      "result": "void",
+      "guard": "LV_USE_DROPDOWN",
+      "kinds": [
+        9
+      ],
+      "retained_text": 5,
+      "check": "symbol_text"
+    },
+    {
+      "name": "lv_dropdown_set_text",
+      "variants": {
+        "8": "lv_dropdown_set_text",
+        "9": "lv_dropdown_set_text"
+      },
+      "args": [
+        {
+          "kind": "nullable_text"
+        }
+      ],
+      "result": "void",
+      "guard": "LV_USE_DROPDOWN",
+      "kinds": [
+        9
+      ],
+      "retained_text": 4
     },
     {
       "name": "lv_img_get_angle",
@@ -7134,6 +7226,20 @@
       ]
     },
     {
+      "name": "lv_roller_get_selected_str",
+      "variants": {
+        "8": "lv_roller_get_selected_str",
+        "9": "lv_roller_get_selected_str"
+      },
+      "args": [],
+      "result": "const char*",
+      "guard": "LV_USE_ROLLER",
+      "kinds": [
+        10
+      ],
+      "check": "selected_text"
+    },
+    {
       "name": "lv_roller_set_options",
       "variants": {
         "8": "lv_roller_set_options",
@@ -8003,6 +8109,20 @@
       ]
     },
     {
+      "name": "lv_textarea_get_accepted_chars",
+      "variants": {
+        "8": "lv_textarea_get_accepted_chars",
+        "9": "lv_textarea_get_accepted_chars"
+      },
+      "args": [],
+      "result": "const char*",
+      "guard": "LV_USE_TEXTAREA",
+      "kinds": [
+        11,
+        14
+      ]
+    },
+    {
       "name": "lv_textarea_get_cursor_click_pos",
       "variants": {
         "8": "lv_textarea_get_cursor_click_pos",
@@ -8122,6 +8242,45 @@
       },
       "args": [],
       "result": "bool",
+      "guard": "LV_USE_TEXTAREA",
+      "kinds": [
+        11,
+        14
+      ]
+    },
+    {
+      "name": "lv_textarea_set_accepted_chars",
+      "variants": {
+        "8": "lv_textarea_set_accepted_chars",
+        "9": "lv_textarea_set_accepted_chars"
+      },
+      "args": [
+        {
+          "kind": "nullable_text"
+        }
+      ],
+      "result": "void",
+      "guard": "LV_USE_TEXTAREA",
+      "kinds": [
+        11,
+        14
+      ],
+      "retained_text": 3
+    },
+    {
+      "name": "lv_textarea_set_align",
+      "variants": {
+        "8": "lv_textarea_set_align",
+        "9": "lv_textarea_set_align"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "lo": 0,
+          "hi": 3
+        }
+      ],
+      "result": "void",
       "guard": "LV_USE_TEXTAREA",
       "kinds": [
         11,

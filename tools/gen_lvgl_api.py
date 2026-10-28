@@ -50,7 +50,9 @@ def generate(data):
         lines += [f'case {i}: /* {e["name"]} */', f'    if(count!={len(e["args"])})return native_arg_error(vm,"Wrong LVGL argument count");']
         for j, arg in enumerate(e['args']):
             k = arg['kind']
-            if k == 'text':
+            if k == 'nullable_text':
+                lines += [f'    if(mcs_is_null(args[{j}]))a->v[{j}].text=NULL;else if(!native_text_arg(vm,args[{j}],&a->v[{j}].text))return false;']
+            elif k == 'text':
                 lines += [f'    if(!native_text_arg(vm,args[{j}],&a->v[{j}].text))return false;']
             elif k == 'object':
                 null = 'true' if e.get('object_nullable') else 'false'
@@ -65,6 +67,8 @@ def generate(data):
             lines += ['    if(a->v[1].n>a->v[0].n)return native_arg_error(vm,"Spinbox separator exceeds digit count");']
         if check == 'unicode':
             lines += ['    if(a->v[0].n>=0xd800 && a->v[0].n<=0xdfff)return native_arg_error(vm,"Unicode surrogate is not a scalar");', '#if LV_TXT_ENC != LV_TXT_ENC_UTF8', '    if(a->v[0].n>127)return native_arg_error(vm,"Non-UTF8 LVGL host supports ASCII scalars only");', '#endif']
+        if check == 'symbol_text':
+            lines += ['    if(a->v[0].text && a->v[0].text[0] && (unsigned char)a->v[0].text[0]<0x80)return native_arg_error(vm,"Dropdown symbol needs UTF-8 symbol text, not an image filename/descriptor");']
         if check == 'grid_style':
             lines += ['    if(a->v[1].n!=0)return native_arg_error(vm,"Grid cell placement requires selector 0");']
         if check == 'month':
@@ -126,12 +130,28 @@ def generate(data):
                 if 'cell' in n:
                     rows = 'a->v[0].n+1'
                 lines += [f'    if((uint64_t)LV_MAX((uint64_t)({rows}),(uint64_t)mcs_lv_table_rows(r->obj))*(uint64_t)LV_MAX((uint64_t)({cols}),(uint64_t)mcs_lv_table_columns(r->obj))>MCS_LVGL_MAX_TABLE_CELLS)return NERR_RANGE;']
+        if 'retained_text' in e:
+            lines += [f'    return native_retained_text(s,r,{e["retained_text"]},a->v[0].text);', '}', '#endif']
+            continue
+        if check == 'selected_text':
+            option_getter = 'lv_dropdown_get_options' if e['name'].startswith('lv_dropdown_') else 'lv_roller_get_options'
+            lines += [f'    const char* options={option_getter}(r->obj);',
+                      '    if(!options)return native_copy_text(s,"",out);',
+                      '    size_t capacity=0;while(capacity<MCS_LVGL_MAX_TEXT_BYTES+1u && options[capacity])++capacity;',
+                      '    ++capacity; /* full options length bounds any selected line; +1 detects overlong output */',
+                      '    out->text=s->host.alloc(s->host.ctx,capacity);',
+                      '    if(!out->text)return NERR_MEMORY;',
+                      f'    {e["name"]}(r->obj,out->text,(uint32_t)capacity);',
+                      '    out->length=strlen(out->text);',
+                      '    if(out->length>MCS_LVGL_MAX_TEXT_BYTES)return NERR_TEXT;',
+                      '    out->kind=NRET_TEXT;return 0;', '}', '#endif']
+            continue
         def call(major, name):
             args = ['r->obj']
             for j, arg in enumerate(e['args']):
                 k = arg['kind']
-                args.append(f'a->v[{j}].text' if k == 'text' else f'(other{j} ? other{j}->obj : NULL)' if k == 'object' else f'lv_color_hex((uint32_t)a->v[{j}].n)' if k == 'color' else f'a->v[{j}].n')
-            call_name={'lv_textarea_add_char':'mcs_lv_textarea_add_scalar','lv_obj_add_flag':'mcs_lv_obj_add_flag','lv_obj_clear_flag':'mcs_lv_obj_remove_flag','lv_obj_remove_flag':'mcs_lv_obj_remove_flag','lv_obj_has_flag':'mcs_lv_obj_has_flag','lv_table_add_cell_ctrl':'mcs_lv_table_add_cell_ctrl'}.get(name,name)
+                args.append(f'a->v[{j}].text' if k in ('text','nullable_text') else f'(other{j} ? other{j}->obj : NULL)' if k == 'object' else f'lv_color_hex((uint32_t)a->v[{j}].n)' if k == 'color' else f'a->v[{j}].n')
+            call_name={'lv_textarea_set_align':'mcs_lv_textarea_set_align','lv_textarea_add_char':'mcs_lv_textarea_add_scalar','lv_obj_add_flag':'mcs_lv_obj_add_flag','lv_obj_clear_flag':'mcs_lv_obj_remove_flag','lv_obj_remove_flag':'mcs_lv_obj_remove_flag','lv_obj_has_flag':'mcs_lv_obj_has_flag','lv_table_add_cell_ctrl':'mcs_lv_table_add_cell_ctrl'}.get(name,name)
             expr = e.get('expression' + major, call_name + '(' + ','.join(args) + ')')
             result = e['result']
             if result == 'void':
@@ -143,6 +163,8 @@ def generate(data):
             if result == 'bool':
                 return '    out->number=' + expr + ';out->kind=NRET_BOOL;'
             extra = '\n    if(out->number==UINT32_MAX || out->number==UINT16_MAX)out->number=-1;' if e.get('sentinel') else ''
+            if e.get('none'):
+                extra += '\n    if(out->number==' + e['none'] + ')out->number=-1;'
             return '    out->number=' + expr + ';out->kind=NRET_INT;' + extra
         lines += [variants(e, call)]
         if check == 'spin_digits':
@@ -173,7 +195,7 @@ def generate(data):
             'current native enum value; `Lvgl.HasConstant(name)` checks availability.', '',
             '## Operations', '', '| API family (aliases in version columns) | LVGL 8 | LVGL 9 | Args after object | Result | Config |', '| --- | --- | --- | --- | --- | --- |']
     for e in apis:
-        argtext = ', '.join('LvObject' if a['kind'] == 'object' else 'string (copied)' if a['kind'] == 'text' else f'{a["kind"]} {a["lo"]}..{a["hi"]}' for a in e['args']) or 'none'
+        argtext = ', '.join('LvObject' if a['kind'] == 'object' else 'string/null (owned copy)' if a['kind'] == 'nullable_text' else 'string (copied)' if a['kind'] == 'text' else f'{a["kind"]} {a["lo"]}..{a["hi"]}' for a in e['args']) or 'none'
         docs += ['| `' + e['name'] + '` | ' + e['variants'].get('8', '—') + ' | ' + e['variants'].get('9', '—') + ' | ' + argtext + ' | ' + e['result'].replace('*', r'\*') + ' | ' + e['guard'] + ' |']
     docs += ['', 'Coordinate arguments additionally accept the host encoding returned by',
              '`Lvgl.Percent(-1000..1000)` and `Lvgl.Constant("LV_SIZE_CONTENT")` where',
@@ -191,6 +213,13 @@ def generate(data):
              '`lv_textarea_add_char` accepts Unicode scalars (1..0x10ffff, excluding',
              'surrogates), encoded into a copied native text insertion. It does not',
              'accept native packed UTF-8 words; non-UTF8 hosts accept ASCII only.', '',
+             'Retained text setters (`lv_textarea_set_accepted_chars`, dropdown',
+             '`set_text` / `set_symbol`) own a bounded native copy until replacement',
+             'or deletion. Pass null to reset; empty accepted chars also resets the filter.',
+             'Dropdown symbols accept UTF-8 symbol text (or empty/null), not image',
+             'descriptors or ASCII filenames. Hosts must not replace these owned',
+             'pointers behind the binding. Selected-string getters return a copied',
+             'VM string with no caller buffer argument and reject overlong output.', '',
              '## Constants', '', '| Name | Config | Majors |', '| --- | --- | --- |']
     docs += [f'| `{e["name"]}` | {e["guard"]} | {", ".join(e["variants"])} |' for e in consts]
     tests = ['/* Generated availability/arity/style smoke cases; semantic tests are separate. */',
