@@ -213,18 +213,23 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The left panel shows **whole-device heap used / total** by default
-(`Device heap: 101.7 KiB / 127.4 KiB`, for example). Total is the device allocator's
-**used + free**, not the VM pool capacity or its configured ceiling. Usage includes
-native BLE/NimBLE, SDK/driver allocations and the entire committed VM backing pool,
-including free space held inside that pool. It does not include static RAM outside
-the device heap. One KiB is 1024 bytes.
+The left panel shows **VM used / configured VM allocation limit** in exact bytes,
+for example **VM heap: 15,528 B / 96,256 B**. The numerator is current VM pool
+consumption (including pool overhead/shared users); when pool telemetry is absent,
+VM-tracked allocations are used instead. The denominator is the reported `vm_limit`.
+It is **not** the temporarily committed pool capacity, total backing ceiling or
+whole-device heap. It stays unchanged as the pool acquires additional regions.
 
-Click to expand the snapshot: device heap comes first, followed by separate VM
-pool usage/capacity/free/peak, VM-tracked allocations, stack/frames and configured
-limits. Device and VM numbers are **not additive**. Firmware that does not report
-`device_heap` shows **Device heap unavailable** in the compact counter; VM details
-remain available on expansion, but are never substituted for whole-device totals.
+The denominator is a **configured ceiling, not guaranteed available RAM**. Native
+and BLE reserves, fragmentation and other allocations may prevent reaching it.
+An explicit zero limit is shown as `unlimited`; missing limit telemetry is shown
+as `limit unavailable`, never guessed from device memory, pool capacity or peaks.
+
+Click to expand: the same VM budget appears first, followed by separately labeled
+committed VM pool usage/capacity/free/peak, tracked allocations, stack/frames,
+backing ceiling and device heap. Device and VM numbers are **not additive**.
+Firmware without VM usage telemetry shows **VM heap unavailable** rather than
+substituting the device counter.
 
 The snapshot is refreshed after existing save/build/run workflows, including
 failures; it is not a continuously polled meter. The minimum-free/peak figures are
