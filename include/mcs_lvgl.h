@@ -19,7 +19,7 @@
 #if LVGL_VERSION_MAJOR != 8 && LVGL_VERSION_MAJOR != 9
 #error "MicroCS LVGL binding requires LVGL major 8 or 9"
 #endif
-#if MCS_LVGL_MAX_OBJECTS < 1 || MCS_LVGL_EVENT_QUEUE < 1
+#if MCS_LVGL_MAX_OBJECTS < 1 || MCS_LVGL_EVENT_QUEUE < 1 || MCS_LVGL_MAX_TEXT_BYTES < 1 || MCS_LVGL_MAX_TABLE_CELLS < 1
 #error "LVGL object and event capacities must be positive"
 #endif
 #ifdef __cplusplus

@@ -10,7 +10,8 @@ typedef struct {
     session_t* session;
     lv_obj_t* obj;
     uint32_t generation, subscription;
-    int pin, kind;
+    int pin;
+    uint8_t kind, spin_digits; /* share the former int-kind storage, no slot growth */
     lv_font_t* owned_font;
     lv_event_code_t filter;
 } slot_t;
@@ -27,7 +28,7 @@ struct session {
 typedef struct { unsigned slot; uint32_t generation; } handle_t;
 static const mcs_class_def_t object_def;
 void mcs_lvgl_vm_cleanup(mcs_vm_t* vm);
-static const char* const kinds[] = { "Object", "Label", "Button", "Slider", "Bar", "Checkbox", "Switch", "Arc", "Image" };
+static const char* const kinds[] = { "Object", "Label", "Button", "Slider", "Bar", "Checkbox", "Switch", "Arc", "Image", "Dropdown", "Roller", "TextArea", "Table", "Led", "Spinbox", "Chart", "Canvas", "Keyboard", "ButtonMatrix", "Line", "List", "Calendar", "ImageButton", "Spinner", "Tileview" };
 static bool supported(int k) {
     switch (k) {
     case 0: return true;
@@ -39,11 +40,59 @@ static bool supported(int k) {
     case 6: return LV_USE_SWITCH != 0;
     case 7: return LV_USE_ARC != 0;
     case 8: return MCS_LV_USE_IMAGE != 0;
+#if LV_USE_DROPDOWN
+    case 9: return true;
+#endif
+#if LV_USE_ROLLER
+    case 10: return true;
+#endif
+#if LV_USE_TEXTAREA
+    case 11: return true;
+#endif
+#if LV_USE_TABLE
+    case 12: return true;
+#endif
+#if LV_USE_LED
+    case 13: return true;
+#endif
+#if LV_USE_SPINBOX
+    case 14: return true;
+#endif
+#if LV_USE_CHART
+    case 15: return true;
+#endif
+#if LV_USE_CANVAS
+    case 16: return true;
+#endif
+#if LV_USE_KEYBOARD
+    case 17: return true;
+#endif
+#if MCS_LV_USE_BUTTONMATRIX
+    case 18: return true;
+#endif
+#if LV_USE_LINE
+    case 19: return true;
+#endif
+#if LV_USE_LIST
+    case 20: return true;
+#endif
+#if LV_USE_CALENDAR
+    case 21: return true;
+#endif
+#if MCS_LV_USE_IMAGEBUTTON
+    case 22: return true;
+#endif
+#if LV_USE_SPINNER
+    case 23: return true;
+#endif
+#if LV_USE_TILEVIEW
+    case 24: return true;
+#endif
     default: return false;
     }
 }
 static int kind_id(const char* name) {
-    for (int i = 0; i < 9; ++i) if (!strcmp(name, kinds[i])) return i;
+    for (int i = 0; i < (int)(sizeof kinds/sizeof kinds[0]); ++i) if (!strcmp(name, kinds[i])) return i;
     return -1;
 }
 static session_t* session(mcs_vm_t* vm) {
@@ -71,7 +120,17 @@ static void event_cb(lv_event_t* e) {
     session_t* s = r->session;
     lv_event_code_t code = lv_event_get_code(e);
     if (lv_event_get_target(e) != r->obj) return; /* ignore bubbled child events */
-    if (code == LV_EVENT_DELETE) { drop_image(r); r->obj = NULL; return; }
+    if (code == LV_EVENT_DELETE) {
+#if LV_USE_KEYBOARD && LV_USE_TEXTAREA
+        /* LVGL 8's keyboard retains a raw textarea pointer without observing
+         * deletion. Detach dependents before the target storage is destroyed. */
+        if(r->kind==11 || r->kind==14)for(unsigned i=0;i<MCS_LVGL_MAX_OBJECTS;++i) {
+            slot_t* k=&s->slots[i];
+            if(k->obj && k->kind==17 && lv_keyboard_get_textarea(k->obj)==r->obj)lv_keyboard_set_textarea(k->obj,NULL);
+        }
+#endif
+        drop_image(r); r->obj = NULL; return;
+    }
     if (r->pin < 0 || code != r->filter) return;
     if (s->count == MCS_LVGL_EVENT_QUEUE) {
         if (s->dropped != UINT32_MAX) ++s->dropped;
@@ -134,6 +193,54 @@ static lv_obj_t* create(int k, lv_obj_t* p) {
 #if MCS_LV_USE_IMAGE
     case 8: return mcs_lv_image_create(p);
 #endif
+#if LV_USE_DROPDOWN
+    case 9: return lv_dropdown_create(p);
+#endif
+#if LV_USE_ROLLER
+    case 10: return lv_roller_create(p);
+#endif
+#if LV_USE_TEXTAREA
+    case 11: return lv_textarea_create(p);
+#endif
+#if LV_USE_TABLE
+    case 12: return lv_table_create(p);
+#endif
+#if LV_USE_LED
+    case 13: return lv_led_create(p);
+#endif
+#if LV_USE_SPINBOX
+    case 14: { lv_obj_t* o=lv_spinbox_create(p);if(o)lv_spinbox_set_digit_format(o,5,0);return o; }
+#endif
+#if LV_USE_CHART
+    case 15: return lv_chart_create(p);
+#endif
+#if LV_USE_CANVAS
+    case 16: return lv_canvas_create(p);
+#endif
+#if LV_USE_KEYBOARD
+    case 17: return lv_keyboard_create(p);
+#endif
+#if MCS_LV_USE_BUTTONMATRIX
+    case 18: return mcs_lv_buttonmatrix_create(p);
+#endif
+#if LV_USE_LINE
+    case 19: return lv_line_create(p);
+#endif
+#if LV_USE_LIST
+    case 20: return mcs_lv_list_create(p);
+#endif
+#if LV_USE_CALENDAR
+    case 21: return lv_calendar_create(p);
+#endif
+#if MCS_LV_USE_IMAGEBUTTON
+    case 22: return mcs_lv_imagebutton_create(p);
+#endif
+#if LV_USE_SPINNER
+    case 23: return mcs_lv_spinner_create(p);
+#endif
+#if LV_USE_TILEVIEW
+    case 24: return lv_tileview_create(p);
+#endif
     default: return NULL;
     }
 }
@@ -160,7 +267,7 @@ static void ctor(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
         if (i == MCS_LVGL_MAX_OBJECTS) error = 2;
         else {
             slot_t* r = &s->slots[i];
-            ++r->generation; r->kind = k; r->subscription = 0;
+            ++r->generation; r->kind = (uint8_t)k; r->spin_digits = 5; r->subscription = 0;
             r->obj = create(k, p);
             if (!r->obj) error = 3;
             else if (!mcs_lv_add_event(r->obj, event_cb, LV_EVENT_ALL, r)) {
@@ -226,10 +333,13 @@ NATIVE(set_text) {
 #if LV_USE_CHECKBOX
         if (r->kind == 5) { lv_checkbox_set_text(r->obj,text); ok = true; }
 #endif
+#if LV_USE_TEXTAREA
+        if (r->kind == 11 || r->kind == 14) { lv_textarea_set_text(r->obj,text); ok = true; }
+#endif
     }
     s->host.unlock(s->host.ctx);
     if (!r) invalid(vm);
-    else if (!ok) mcs_raise(vm,"NotSupportedException","Text requires Label or Checkbox");
+    else if (!ok) mcs_raise(vm,"NotSupportedException","Text requires Label, Checkbox, TextArea or Spinbox");
     return mcs_null();
 }
 NATIVE(set_font) {
@@ -363,6 +473,30 @@ static mcs_value_t subscribe(mcs_vm_t* vm, mcs_value_t self, mcs_value_t callbac
 NATIVE(on_clicked) { (void)argc; return subscribe(vm,self,argv[0],LV_EVENT_CLICKED); }
 NATIVE(on_changed) { (void)argc; return subscribe(vm,self,argv[0],LV_EVENT_VALUE_CHANGED); }
 NATIVE(clear_event) { UNUSED; return subscribe(vm,self,mcs_null(),LV_EVENT_ALL); }
+NATIVE(on_event) {
+    (void)argc;int32_t event;if(!integer(vm,argv[0],&event,0,INT32_MAX))return mcs_null();
+    switch(event) {
+    case LV_EVENT_PRESSED:
+    case LV_EVENT_PRESSING:
+    case LV_EVENT_PRESS_LOST:
+    case LV_EVENT_SHORT_CLICKED:
+    case LV_EVENT_LONG_PRESSED:
+    case LV_EVENT_LONG_PRESSED_REPEAT:
+    case LV_EVENT_CLICKED:
+    case LV_EVENT_RELEASED:
+    case LV_EVENT_SCROLL_BEGIN:
+    case LV_EVENT_SCROLL_END:
+    case LV_EVENT_FOCUSED:
+    case LV_EVENT_DEFOCUSED:
+    case LV_EVENT_LEAVE:
+    case LV_EVENT_VALUE_CHANGED:
+    case LV_EVENT_READY:
+    case LV_EVENT_CANCEL:
+        return subscribe(vm,self,argv[1],(lv_event_code_t)event);
+    default:mcs_raise(vm,"NotSupportedException","Only documented queued input/value events are supported; no synchronous draw/delete callbacks");return mcs_null();
+    }
+}
+
 NATIVE(ready) {
     (void)self; UNUSED; session_t* s=session(vm); if (!s) return mcs_null();
     s->host.lock(s->host.ctx); bool yes=s->container != NULL; s->host.unlock(s->host.ctx); return mcs_bool(yes);
@@ -408,17 +542,160 @@ NATIVE(dispatch) {
     s->dispatching=false;
     return mcs_int(called);
 }
+/* Checked, table-driven native API. Stack-only argument preparation; no VM
+ * allocation while holding the GUI lock. Generated calls are explicit C, not FFI. */
+#include "mcs_native_internal.h"
+enum { NERR_UNAVAILABLE=1,NERR_KIND,NERR_DELETED,NERR_CYCLE,NERR_RANGE,NERR_MEMORY,NERR_TEXT };
+enum { NRET_NULL,NRET_INT,NRET_BOOL,NRET_TEXT };
+enum { NARG_NUMBER,NARG_BOOL,NARG_COLOR,NARG_SELECTOR,NARG_PART,NARG_FLAG,NARG_STATE,NARG_COORDINATE,NARG_FLEX_FLOW };
+typedef union { int32_t n;const char* text;handle_t* object; } native_arg_t;
+typedef struct { native_arg_t v[6]; } native_args_t;
+typedef struct { int kind;int64_t number;char* text;size_t length; } native_result_t;
+static bool native_arg_error(mcs_vm_t* vm,const char* message) {
+    mcs_raise(vm,"ArgumentException","%s",message);return false;
+}
+static bool native_number_arg(mcs_vm_t* vm,mcs_value_t v,int32_t* out,int32_t lo,int32_t hi,int kind) {
+    if(v.type!=MCS_T_INT && v.type!=MCS_T_CHAR && v.type!=MCS_T_BOOL)return native_arg_error(vm,"LVGL scalar must be an integer or boolean");
+    mcs_int_t n=mcs_to_int(vm,v);if(mcs_has_exception(vm))return false;
+    if(kind==NARG_COORDINATE && n>=INT32_MIN && n<=INT32_MAX) {
+        if(n==LV_SIZE_CONTENT){*out=(int32_t)n;return true;}
+        if(LV_COORD_IS_PCT((int32_t)n)) {
+            int32_t pct=LV_COORD_GET_PCT((int32_t)n);
+            if(pct < -1000 || pct > 1000 || LV_PCT(pct)!=(int32_t)n)return native_arg_error(vm,"LVGL encoded percentage exceeds -1000..1000");
+            *out=(int32_t)n;return true;
+        }
+    }
+    if(n<lo || n>hi)return native_arg_error(vm,"LVGL scalar out of documented range");
+    if((kind==NARG_STATE || kind==NARG_SELECTOR) && ((uint32_t)n & 0xffffu & ~0xf0ffu))return native_arg_error(vm,"Unknown LVGL state bits");
+    if(kind==NARG_PART && ((uint32_t)n & 0xffffu))return native_arg_error(vm,"Expected only a native LVGL part");
+    if(kind==NARG_FLEX_FLOW && ((uint32_t)n & ~13u))return native_arg_error(vm,"Unknown LVGL flex flow bits");
+    *out=(int32_t)n;return true;
+}
+static bool native_text_arg(mcs_vm_t* vm,mcs_value_t v,const char** text) {
+    if(!mcs_is_string(v))return native_arg_error(vm,"LVGL text requires a non-null string");
+    if(mcs_strlen(v)>MCS_LVGL_MAX_TEXT_BYTES)return native_arg_error(vm,"LVGL text exceeds MCS_LVGL_MAX_TEXT_BYTES");
+    *text=mcs_cstr(v);return true;
+}
+static bool native_object_arg(mcs_vm_t* vm,mcs_value_t v,handle_t** h,bool nullable) {
+    if(nullable && mcs_is_null(v)){*h=NULL;return true;}
+    *h=mcs_userdata_of(v,&object_def);
+    if(!*h)return native_arg_error(vm,"LVGL object argument requires an LvObject handle");
+    return true;
+}
+static int native_copy_text(session_t* s,const char* text,native_result_t* out) {
+    if(!text)return 0;
+    size_t n=0;while(n<=MCS_LVGL_MAX_TEXT_BYTES && text[n])++n;
+    if(n>MCS_LVGL_MAX_TEXT_BYTES)return NERR_TEXT;
+    out->text=s->host.alloc(s->host.ctx,n+1);if(!out->text)return NERR_MEMORY;
+    memcpy(out->text,text,n+1);out->length=n;out->kind=NRET_TEXT;return 0;
+}
+#if MCS_LV_USE_BUTTONMATRIX
+static bool native_button_index(lv_obj_t* obj,unsigned index) {
+    const char* const* map=mcs_lv_buttonmatrix_map(obj);unsigned count=0;
+    for(size_t i=0;map && map[i] && map[i][0];++i)if(strcmp(map[i],"\n"))++count;
+    return index<count;
+}
+#endif
+#if LV_USE_SPINBOX
+static int32_t native_spin_limit(unsigned digits) {
+    int32_t power=1;while(digits--)power*=10;return power-1;
+}
+#endif
+#include "mcs_lvgl_api.inc"
+typedef struct { mcs_vm_t* vm; native_result_t* native; mcs_value_t value; } native_string_t;
+static void native_string_body(void* context) {
+    native_string_t* c=context;c->value=mcs_string_n(c->vm,c->native->text,c->native->length);
+}
+static int native_api_id(mcs_vm_t* vm,mcs_value_t value) {
+    if(mcs_is_int(value)) {
+        mcs_int_t n=mcs_to_int(vm,value);return n>=0 && n<MCS_LV_API_COUNT ? (int)n : -1;
+    }
+    if(!mcs_is_string(value)){native_arg_error(vm,"LVGL API requires a native name or a cached API ID");return -1;}
+    return native_api_find(mcs_cstr(value));
+}
+NATIVE(native_call) {
+    (void)native_copy_text; /* optional text widgets can all be compiled out */
+    if(argc<1 || argc>7){native_arg_error(vm,"Call requires an API name/ID and up to six arguments");return mcs_null();}
+    int id=native_api_id(vm,argv[0]);if(mcs_has_exception(vm))return mcs_null();
+    if(!native_api_available(id)){mcs_raise(vm,"NotSupportedException","LVGL API is not wrapped or disabled in the host version/configuration");return mcs_null();}
+    native_args_t args={0};native_result_t result={0};
+    if(!native_api_prepare(vm,id,argc-1,argv+1,&args))return mcs_null();
+    BEGIN;
+    int error=r ? native_api_execute(s,r,id,&args,&result) : NERR_DELETED;
+    reap(vm,s);
+    s->host.unlock(s->host.ctx);
+    if(error) {
+        if(result.text)s->host.free(s->host.ctx,result.text);
+        mcs_raise(vm,error==NERR_UNAVAILABLE || error==NERR_KIND ? "NotSupportedException" : error==NERR_MEMORY ? "OutOfMemoryException" : error==NERR_DELETED ? "InvalidOperationException" : "ArgumentException","%s",
+            error==NERR_KIND ? "LVGL API does not apply to this widget/argument kind" : error==NERR_DELETED ? "LVGL object argument is deleted" : error==NERR_CYCLE ? "LVGL reparenting would create a cycle" : error==NERR_RANGE ? "LVGL index/capacity out of range" : error==NERR_MEMORY ? "LVGL native text snapshot allocation failed" : error==NERR_TEXT ? "LVGL text snapshot exceeds configured bound" : "LVGL API unavailable");
+        return mcs_null();
+    }
+    if(result.kind==NRET_TEXT) {
+        native_string_t context={vm,&result,mcs_null()};
+        int panic=mcs_protect_native(vm,native_string_body,&context);
+        s->host.free(s->host.ctx,result.text);mcs_rethrow_native(vm,panic);return context.value;
+    }
+    if(result.kind==NRET_BOOL)return mcs_bool(result.number!=0);
+    if(result.kind==NRET_INT) {
+#if !MCS_INT64
+        if(result.number<INT32_MIN || result.number>INT32_MAX){mcs_raise(vm,"OverflowException","LVGL result requires MCS_INT64");return mcs_null();}
+#endif
+        return mcs_int((mcs_int_t)result.number);
+    }
+    return mcs_null();
+}
+NATIVE(native_api) {
+    (void)self;(void)argc;if(!session(vm))return mcs_null();
+    if(!mcs_is_string(argv[0])){native_arg_error(vm,"Api requires a native API name");return mcs_null();}
+    int id=native_api_find(mcs_cstr(argv[0]));
+    if(!native_api_available(id)){mcs_raise(vm,"NotSupportedException","LVGL API is not wrapped or disabled");return mcs_null();}
+    return mcs_int(id);
+}
+NATIVE(native_has_api) {
+    (void)self;(void)argc;if(!session(vm))return mcs_null();
+    if(!mcs_is_string(argv[0])){native_arg_error(vm,"HasApi requires a native API name");return mcs_null();}
+    return mcs_bool(native_api_available(native_api_find(mcs_cstr(argv[0]))));
+}
+static mcs_value_t native_constant(mcs_vm_t* vm,mcs_value_t value,bool query) {
+    session_t* s=session(vm);if(!s)return mcs_null();
+    if(!mcs_is_string(value)){native_arg_error(vm,"Constant requires a native constant name");return mcs_null();}
+    int32_t n=0;s->host.lock(s->host.ctx);int found=native_constant_lookup(mcs_cstr(value),&n);s->host.unlock(s->host.ctx);
+    if(query)return mcs_bool(found!=0);
+    if(!found){mcs_raise(vm,"NotSupportedException","LVGL constant is not wrapped or disabled");return mcs_null();}
+    return mcs_int(n);
+}
+NATIVE(native_get_constant) { (void)self;(void)argc;return native_constant(vm,argv[0],false); }
+NATIVE(native_has_constant) { (void)self;(void)argc;return native_constant(vm,argv[0],true); }
+NATIVE(native_percent) {
+    (void)self;(void)argc;if(!session(vm))return mcs_null();int32_t n;
+    if(!integer(vm,argv[0],&n,-1000,1000))return mcs_null();
+    return mcs_int(LV_PCT(n));
+}
+
+NATIVE(native_get_text) {
+    UNUSED;BEGIN;
+    const char* name=NULL;
+    if(r)switch(r->kind){case 1:name="lv_label_get_text";break;case 5:name="lv_checkbox_get_text";break;case 11:case 14:name="lv_textarea_get_text";break;default:break;}
+    s->host.unlock(s->host.ctx);
+    if(!r){invalid(vm);return mcs_null();}
+    if(!name){mcs_raise(vm,"NotSupportedException","Text requires Label, Checkbox, TextArea or Spinbox");return mcs_null();}
+    mcs_value_t id=mcs_int(native_api_find(name));return native_call(vm,self,1,&id);
+}
+
 static const mcs_reg_t members[] = {
+    MCS_FN("Call",native_call,-1),
     MCS_FN("Dispose",dispose,0), MCS_GET("IsAlive",alive), MCS_FN("Center",center,0),
     MCS_FN("SetSize",set_size,2), MCS_FN("SetPosition",set_pos,2),
-    MCS_FN("SetBackground",set_bg,1), MCS_FN("SetTextColor",set_fg,1), MCS_SET("Text",set_text),
+    MCS_FN("SetBackground",set_bg,1), MCS_FN("SetTextColor",set_fg,1), MCS_SET("Text",set_text), MCS_GET("Text",native_get_text),
     MCS_FN("SetFont",set_font,1), MCS_SET("Source",set_source),
     MCS_GET("Value",get_value), MCS_SET("Value",set_value),
     MCS_GET("Checked",get_checked), MCS_SET("Checked",set_checked),
-    MCS_FN("OnClicked",on_clicked,1), MCS_FN("OnChanged",on_changed,1), MCS_FN("ClearEvent",clear_event,0), MCS_REG_END
+    MCS_FN("OnEvent",on_event,2), MCS_FN("OnClicked",on_clicked,1), MCS_FN("OnChanged",on_changed,1), MCS_FN("ClearEvent",clear_event,0), MCS_REG_END
 };
 static const mcs_class_def_t object_def = { "LvObject",sizeof(handle_t),ctor,NULL,members,NULL };
 static const mcs_reg_t statics[] = {
+    MCS_FN("Api",native_api,1), MCS_FN("HasApi",native_has_api,1),
+    MCS_FN("Constant",native_get_constant,1), MCS_FN("HasConstant",native_has_constant,1), MCS_FN("Percent",native_percent,1),
     MCS_GET("Ready",ready), MCS_FN("Supports",supports,1), MCS_GET("DroppedEvents",dropped), MCS_FN("Dispatch",dispatch,1), MCS_REG_END
 };
 /* Internal guarded registration entrypoint, compiled only with this module. */
