@@ -101,29 +101,6 @@ static void budget192(void) {
     for(unsigned i=0;i<12;i++)mcs_pool_realloc(&p,blocks[i],14000,0);
     mcs_pool_trim(&p);CHECK(s.live==0);mcs_pool_destroy(&p);
 }
-/* Backing ceiling (not native reserve) blocks growth until cached empty
- * regions are returned. Exercise moving realloc while its old region is live. */
-static void recover_at_cap(void) {
-    source_t s;init_source(&s);s.max_block=64*1024;
-    mcs_pool_t p;mcs_pool_dynamic_t d;mcs_pool_provider_t provider={acquire,release,&s};
-    CHECK(mcs_pool_init_dynamic(&p,&d,&provider,48*1024,0));
-    void* keep=mcs_pool_realloc(&p,NULL,0,9000);CHECK(keep);if(!keep)return;
-    memset(keep,0x6b,9000);
-    void* fill=mcs_pool_realloc(&p,NULL,0,6000);
-    void* a=mcs_pool_realloc(&p,NULL,0,14000);
-    void* b=mcs_pool_realloc(&p,NULL,0,14000);
-    CHECK(fill&&a&&b);CHECK(d.committed==48*1024&&d.count==3);
-    mcs_pool_realloc(&p,fill,6000,0);mcs_pool_realloc(&p,a,14000,0);mcs_pool_realloc(&p,b,14000,0);
-    void* moved=mcs_pool_realloc_temporary(&p,keep,9000,30000);
-    CHECK(moved!=NULL);
-    if(moved) {
-        for(size_t i=0;i<9000;i++)CHECK(((uint8_t*)moved)[i]==0x6b);
-        memset(moved,0x4c,30000);mcs_pool_realloc(&p,moved,30000,0);
-    } else mcs_pool_realloc(&p,keep,9000,0);
-    CHECK(d.count==2);invariant(&p,&s,48*1024);
-    mcs_pool_destroy(&p);CHECK(!s.live&&!s.count);
-}
-
 static void quiet(void* ud,const char* s,size_t n){(void)ud;(void)s;(void)n;}
 static char output[4096];static size_t used;
 static void capture(void* ud,const char* s,size_t n){(void)ud;if(n>sizeof output-1-used)n=sizeof output-1-used;memcpy(output+used,s,n);used+=n;output[used]=0;}
@@ -178,4 +155,4 @@ static void runtime(void){
     cfg.heap=(void*)adjacent.bytes;cfg.heap_provider=&provider;
     CHECK(mcs_runtime_start(&rt,&cfg)!=0); /* ambiguous ownership is rejected */
 }
-int main(void){stress();boundaries();budget192();recover_at_cap();runtime();printf("pool regions: %u checks, %u failures\n",checks,failures);return failures?1:0;}
+int main(void){stress();boundaries();budget192();runtime();printf("pool regions: %u checks, %u failures\n",checks,failures);return failures?1:0;}

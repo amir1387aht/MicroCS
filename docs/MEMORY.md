@@ -290,36 +290,3 @@ initial region toward a 74 KiB ceiling with sufficient headroom, rejects growth
 under the reserve-constrained example, retains existing data after OOM, and
 releases all regions. This is a host regression, not an ESP-IDF hardware memory
 or fragmentation measurement.
-
-## Automatic recovery of empty regions under allocation pressure
-
-Free bytes across regions are not one contiguous allocation. For example, a
-58,332-byte backing pool can have about 49 KiB free but a largest free block of
-only about 16 KiB. A new 32 KiB request cannot span those regions, and a native
-reserve may prevent acquiring more backing while the empty regions remain held.
-
-The dynamic pool now first tries its existing free blocks and normal growth.
-If growth fails, it returns **wholly empty** regions to their owning provider
-and retries acquisition once for the requested size. This can recycle multiple
-small cached regions into a larger native allocation, provided the native
-allocator can supply it. The provider still enforces its reserve, contiguous
-margin and total backing ceiling. Free capacity/committed region counts may fall
-following a failed recovery because the empty regions were returned to native
-RAM; live data and pointers remain valid.
-
-There is no GC, relocation of unrelated live objects, or merging across native
-allocation ownership boundaries. Normal successful allocations/frees retain
-regions as before; recovery scans/releases happen only on the failed-growth
-path. A region containing even one live allocation cannot be released. Native
-fragmentation, live-region fragmentation and genuine RAM exhaustion can still
-cause OOM; this is not a promise that every free byte can satisfy every object.
-
-The ESP32 provider regression reconstructs four regions totalling 58,332 bytes,
-then exercises a 32 KiB persistent or temporary request with 41,900 native bytes
-free against a 41 KiB reserve. With an idealized recoverable native allocator,
-it releases three empty regions and succeeds without touching a 9,000-byte live
-allocation or lowering the reserve. Forced native allocation failure checks that
-recovery terminates and the live data and remaining allocator still work.
-A separate cap-limited moving-realloc regression checks preservation of the old
-contents. The tests run on the host; native fragmentation on physical hardware
-still needs validation. The old allocator fails the new recovery regression.

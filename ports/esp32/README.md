@@ -372,13 +372,3 @@ scripts. Check the printed startup reserve and resolved sdkconfig before tuning;
 do not disable the native guards to inflate the pool display. See
 [automatic pool headroom](../../docs/MEMORY.md#esp32-automatic-pools-committed-capacity-versus-available-headroom)
 for the calculation and regression coverage.
-
-If the VM reports substantial pool free but a much smaller `largest`, update to
-a build containing empty-region pressure recovery. On failed growth it returns
-entirely empty regions and retries a suitably sized native allocation, without
-lowering native/BLE reserves. Rebuild and flash the firmware; a Studio-only update
-does not change allocation behavior. Keep the same configuration for the first
-comparison and retry the same script. Record its full error and `mem` report if
-it still fails. Recovery cannot release regions that contain live objects, or
-guarantee success against native fragmentation. See
-[pressure recovery](../../docs/MEMORY.md#automatic-recovery-of-empty-regions-under-allocation-pressure).

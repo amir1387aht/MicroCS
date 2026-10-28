@@ -312,12 +312,6 @@ retry:;
     }
 #if MCS_ENABLE_POOL_REGIONS
     if (pool_grow(pool, need)) goto retry;
-    /* Under backing-cap/native pressure, cached empty regions can strand enough
-     * RAM for this request in individually too-small arenas. Return only wholly
-     * empty regions, then ask the provider for one suitable contiguous region.
-     * Live regions/pointers never move; provider headroom checks still apply.
-     * Do this only on allocation failure, not on the normal alloc/free path. */
-    if (pool->dynamic && mcs_pool_trim(pool) && pool_grow(pool, need)) goto retry;
 #endif
     return NULL;
 }

@@ -352,15 +352,13 @@ typedef struct { uint8_t* base; size_t size; void* free_list; size_t used; size_
 void mcs_pool_init(mcs_pool_t* pool, void* buf, size_t size);
 /* Empty, automatically growing pool. No initial allocation; limit is a hard
  * cap on acquired backing bytes. chunk=0 selects 16 KiB preferred growth.
- * Failed growth may release entirely empty regions and retry acquisition once.
- * No live pointers move and no GC runs here (C locals may not yet be rooted). */
+ * No GC is run inside the allocator (C locals may not yet be rooted). */
 bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
     const mcs_pool_provider_t* provider, size_t limit, size_t chunk);
 /* C-library provider; NULL when MCS_ENABLE_MALLOC=0. A platform with native
  * drivers should provide its own reserve/capability-aware provider instead. */
 const mcs_pool_provider_t* mcs_pool_system_provider(void);
-/* Release only entirely empty owned regions, at an idle/synchronized boundary
- * or under the same allocation lock during pressure recovery.
+/* Release only entirely empty owned regions, at an idle/synchronized boundary.
  * No pointer relocation. Static buffers are never released. */
 size_t mcs_pool_trim(mcs_pool_t* pool);
 /* Release ALL owned regions; only after every client/worker is destroyed. */
