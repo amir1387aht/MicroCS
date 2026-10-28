@@ -71,7 +71,7 @@ updates from C# versus direct native calls. Script timing includes compilation;
 when instrumented, both sides carry sanitizer overhead. They are reproducibility
 checks, **not MCU performance promises or a clean native-call overhead benchmark**.
 
-Default capacities on the tested x86-64 ABI use **1,824 bytes** of native attachment
+Default capacities on the tested x86-64 ABI use **1,832 bytes** of native attachment (1,824 with Grid/Line disabled)
 storage, plus one LVGL-owned container and the actual LVGL widgets/text/styles.
 Handle payloads are **8 bytes**, excluding VM userdata headers and GC metadata.
 The active fixture application reports **8,845 bytes VM tracked storage**;
@@ -95,7 +95,7 @@ native LVGL 8 allocator fault coverage.
   test plus ASan/UBSan is not a substitute for TSan or MCU scheduler testing.
 - Combined device-native/LVGL/VM memory totals or rendering performance on real
   hardware. No framebuffer allocation is attributed to the VM pool.
-- Complete API coverage beyond the 25 documented kinds and 421 native-call
+- Complete API coverage beyond the 25 documented kinds and 432 native-call
   operation families; retained array/descriptor APIs, shared resource handles,
   custom drawing/animation callbacks and many object-returning methods remain
   unwrapped. Some new widget kinds currently expose creation/common APIs only. File images/fonts do not imply arbitrary descriptor support.
@@ -211,7 +211,7 @@ not a completed full-LVGL C# API. No merge or release should imply otherwise.
 
 ## Native-call expansion validation
 
-The reviewed manifest generates 421 operation families and 224 enum constants.
+The reviewed manifest generates 432 operation families and 225 enum constants.
 The fixture checks each family's version/config availability and ID resolution,
 wrong arity for parameterized entries, every available scalar style setter/getter,
 and constant availability. These generated checks do **not** establish exhaustive
@@ -244,3 +244,51 @@ LVGL 9.3 onward; removed LVGL 8 filtered-color setters are not exposed.
 Native-call support improves coverage, but does not close the full-binding
 acceptance work above. In particular, native constructors with retained buffers
 or returned internal subobjects require additional owned-resource design.
+
+
+## Copied-buffer expansion and debugging
+
+Grid tracks and Line points are copied into lazy native allocations, not pinned
+VM arrays. Tests cover input mutation/GC, repeated replacement, clear, native
+and parent deletion, stale handles, wrong threads/kinds/types/capacities, native
+buffer allocation failure and every VM allocation-failure position during a
+buffer-owning application. Native memory accounting must return to zero after
+VM teardown. Minimal fixtures reject these methods without referencing the
+native Grid/Line implementation.
+
+The Grid audit found unchecked track indexing in LVGL 8.0. Cell APIs, scalar
+cell-placement styles, grid shrink and reparenting are now validated against
+owned tracks; stateful cell selectors are rejected. Fraction 100 is rejected
+because it collides with the native end sentinel. Line/grid buffer alignment
+uses aligned raw storage rather than reinterpreting a typed VM/point array.
+Pending-delete cleanup scans occur only when native deletion has marked work.
+A regression also caught that `Dispatch(0)` previously skipped all reaping; it
+now retires resources without consuming queued events.
+Image offset/rotation/scale/pivot/antialias calls are tested with both native
+name spellings, and real file-backed images render after transforms.
+
+These tests are not exhaustive native allocator recovery, asynchronous-device
+rendering certification, or full API coverage. The host must preserve the
+binding's owned buffer/style contracts; image/font/renderer costs remain native.
+
+
+### Explicit upstream LVGL 8 sanitizer exception
+
+Stock LVGL 8's compressed-font bit writer (`lv_font_fmt_txt.c`) shifts the signed
+negative value `~bit_mask` left. The binary-font fixture emits UBSan's exact
+`left shift of negative value -16` diagnostic on 8.0.2 and 8.4.0. This is an
+upstream defect, not a clean UBSan result. Earlier exit-code-only checks could
+pass because UBSan recovers by default; they did not prove absence of reports.
+
+CI now captures verbose sanitizer output and runs `check_sanitizer_log.py`.
+Only this exact diagnostic from the named upstream font source is reported as
+a known warning for LVGL 8. All other UBSan reports and ASan/leak reports fail,
+even if a recovering runtime returns zero. No sanitizer compiler/runtime check
+is globally disabled and no upstream source is silently patched. LVGL 9 has no
+such exception. A host wanting a UB-clean LVGL 8 compressed-font decoder must
+fix the upstream signed shift (use an unsigned mask before shifting), or avoid
+compressed fonts; this binding does not repair host-owned LVGL internals.
+
+New image-offset calls require nonzero intrinsic image dimensions, preventing
+the empty-image modulo-by-zero in stock LVGL 8.0. Native offset normalization
+still follows the host version (8.0 reduces offsets modulo source dimensions).

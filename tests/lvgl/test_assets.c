@@ -101,13 +101,16 @@ int test_lvgl_assets(const mcs_lvgl_config_t* base){
 #endif
 #endif
 #if MCS_LV_USE_IMAGE
-        run(vm,"var image=new LvObject(\"Image\",obj);string path=\"S:/logo\"+\".bin\";image.Source=path;image.Source=path;path=null;GC.Collect();bool bad=false;try{image.Source=\"S:/missing.bin\";}catch(Exception e){bad=true;}if(!bad)throw new Exception(\"image missing\");");
+        run(vm,"var image=new LvObject(\"Image\",obj);string path=\"S:/logo\"+\".bin\";image.Source=path;image.Source=path;image.Call(\"lv_img_set_offset_x\",1);image.Call(\"lv_image_set_offset_y\",1);if(image.Call(\"lv_img_get_offset_x\")!=1 || image.Call(\"lv_image_get_offset_y\")!=1)throw new Exception(\"image offsets\");image.Call(\"lv_img_set_angle\",900);image.Call(\"lv_img_set_zoom\",256);image.Call(\"lv_img_set_pivot\",1,1);path=null;GC.Collect();bool bad=false;try{image.Source=\"S:/missing.bin\";}catch(Exception e){bad=true;}if(!bad)throw new Exception(\"image missing\");");
 #endif
         base->lock(base->ctx);lv_tick_inc(40);lv_timer_handler();base->unlock(base->ctx);
         if(i%2)run(vm,"obj.Dispose();Lvgl.Dispatch(0);");
         mcs_free(vm);CHECK(opened()==0 && !vfs_locked);CHECK(lv_obj_get_child_count(base->root)==0);
     }
 #if MCS_ENABLE_HAL && LV_USE_LABEL && MCS_LV_USE_BUTTON && MCS_LV_USE_IMAGE
+#if LV_USE_GRID && LV_USE_LINE
+    example(&cfg,MCS_LVGL_EXAMPLE_DIR "/grid-line.cs",1);
+#endif
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/button.cs",1);
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/assets.cs",LV_USE_FONT_COMPRESSED ? 1 : 0);
 #if LV_USE_SLIDER

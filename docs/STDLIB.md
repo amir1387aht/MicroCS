@@ -126,8 +126,8 @@ to save ~12 KB of flash; `List<T>` methods such as `Find`, `ForEach`, `Exists`, 
 | **LedStrip** | instance | `Count` `Pin` `Brightness` | `GetPixel(·)` `SetPixel(…)` `Fill(…)` `Clear()` `Show()` `Dispose()` | `ws2812` driver: `new LedStrip(pin, count[, order])` — WS2812/SK6812 on any pin; indexer `strip[i]` |
 | **LedStrip** | static | — | `Rgb(…)` `Hsv(…)` | consts `GRB RGB GRBW`; colours `0xRRGGBB` |
 | **Servo** | instance | `Angle` `Pulse` `Attached` `MinPulse` `MaxPulse` `MaxAngle` `Channel` | `Write(·)` `Read()` `WritePulse(·)` `MoveTo(·, ·)` `Attach()` `Detach()` `Stop()` `Dispose()` | `servo` driver: `new Servo(channel[, minUs, maxUs[, maxAngle]])` — hobby servo on a PWM channel; `MoveTo(angle, ms)` eases |
-| **LvObject** | instance | `IsAlive` `Text` `Source` `Value` `Checked` | `Call(…)` `Dispose()` `Center()` `SetSize(·, ·)` `SetPosition(·, ·)` `SetBackground(·)` `SetTextColor(·)` `SetFont(·)` `OnEvent(·, ·)` `OnClicked(·)` `OnChanged(·)` `ClearEvent()` | `MCS_ENABLE_LVGL`; host-owned LVGL 8/9, 25 widget kinds; checked `Call(nameOrId, ...)` ([integration](LVGL.md), [native allowlist](LVGL_NATIVE_API.md)) |
-| **Lvgl** | static | `Ready` `DroppedEvents` | `Api(·)` `HasApi(·)` `Constant(·)` `HasConstant(·)` `Percent(·)` `Supports(·)` `Dispatch(·)` | Host attachment required; availability/constant queries and explicit bounded event dispatch; [coverage limits](LVGL.md#c-api-and-coverage) |
+| **LvObject** | instance | `PointCount` `IsAlive` `Text` `Source` `Value` `Checked` | `Call(…)` `SetGrid(·, ·)` `SetPoints(·)` `Dispose()` `Center()` `SetSize(·, ·)` `SetPosition(·, ·)` `SetBackground(·)` `SetTextColor(·)` `SetFont(·)` `OnEvent(·, ·)` `OnClicked(·)` `OnChanged(·)` `ClearEvent()` | `MCS_ENABLE_LVGL`; host-owned LVGL 8/9, 25 widget kinds; checked `Call(nameOrId, ...)` ([integration](LVGL.md), [native allowlist](LVGL_NATIVE_API.md)) |
+| **Lvgl** | static | `Ready` `DroppedEvents` | `GridFraction(·)` `Api(·)` `HasApi(·)` `Constant(·)` `HasConstant(·)` `Percent(·)` `Supports(·)` `Dispatch(·)` | Host attachment required; availability/constant queries and explicit bounded event dispatch; [coverage limits](LVGL.md#c-api-and-coverage) |
 
 ## Displays (modules/drivers, optional U8g2)
 
@@ -209,4 +209,4 @@ its values are tagged ints, so `IndexOf(s, StringComparison.Ordinal)` is never t
 File enums: `FileMode` (`CreateNew`, `Create`, `Open`, `OpenOrCreate`, `Truncate`, `Append`),
 `FileAccess` (`Read`, `Write`, `ReadWrite`), `SeekOrigin` (`Begin`, `Current`, `End`).
 
-_1483 members in 121 tables._
+_1487 members in 121 tables._

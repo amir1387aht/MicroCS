@@ -141,7 +141,7 @@ Names are case-sensitive; unknown kinds return false. Disabled widgets produce
 | `Canvas` | creation/lifetime/common styles only; pixel buffer/drawing APIs pending | `LV_USE_CANVAS` |
 | `Keyboard` | mode/popovers and checked TextArea linkage via `Call` | `LV_USE_KEYBOARD` |
 | `ButtonMatrix` | button controls/width/text via `Call`; custom retained maps pending | v8 `LV_USE_BTNMATRIX`, v9 `LV_USE_BUTTONMATRIX` |
-| `Line` | inversion/common styles; retained point arrays pending | `LV_USE_LINE` |
+| `Line` | copied points via `SetPoints`, `PointCount`, inversion/common styles | `LV_USE_LINE` |
 | `List` | creation/lifetime/common styles; child-returning add APIs pending | `LV_USE_LIST` |
 | `Calendar` | today/shown date via `Call` | `LV_USE_CALENDAR` |
 | `ImageButton` | creation/lifetime/common styles; retained state images pending | v8 `LV_USE_IMGBTN`, v9 `LV_USE_IMAGEBUTTON` |
@@ -184,7 +184,7 @@ button.OnClicked(() => { text.Text = "Clicked"; });
 
 The [generated native-call reference](LVGL_NATIVE_API.md) lists the exact
 allowlist, version aliases, feature guards and argument bounds. It currently
-contains **421 operation families** and **224 named constants**, not every LVGL
+contains **432 operation families** and **225 named constants**, not every LVGL
 function. Neither a raw symbol name nor an integer can invoke arbitrary native
 code or serve as a native pointer.
 
@@ -325,6 +325,49 @@ step that would not fit, avoiding an LVGL 9.0 formatter buffer underflow.
 Formatting is tracked by the wrapper; the host must not independently mutate
 a script-owned Spinbox's format. See the generated
 reference for each operation's exact accepted bounds.
+
+## Copied Grid and Line buffers
+
+See the runnable [Grid/Line example](../examples/lvgl/grid-line.cs).
+
+`panel.SetGrid(columns, rows)` copies integer arrays/lists into native storage.
+Each axis needs 1..`MCS_LVGL_MAX_GRID_TRACKS` tracks (default 32, maximum 255).
+Tracks accept 1..4096 pixels, `Lvgl.Constant("LV_GRID_CONTENT")`, or
+`Lvgl.GridFraction(1..99)`. The wrapper appends native terminators; do not supply
+one. Weight 100 is rejected because it equals `LV_GRID_TEMPLATE_LAST`.
+
+`line.SetPoints(xy)` copies flat integer x/y pairs, with -4096..4096 pixel
+coordinates. An empty array clears the points; otherwise supply 2..256 points
+(default `MCS_LVGL_MAX_LINE_POINTS`, configurable up to 65535). `PointCount`
+returns the copied count. No VM array is retained or pinned: changing/collecting
+the original array cannot change native drawing. Replacing a buffer releases
+the old one after the native setter returns. Native/parent deletion and VM
+teardown release buffers only after the complete native delete traversal.
+
+Both methods require the corresponding native Grid/Line feature. Check
+`Lvgl.HasConstant("LV_GRID_CONTENT")` / `Lvgl.Supports("Line")`. These methods
+are separate from the scalar `Call` allowlist; `HasApi` does not report them.
+Array shape/type/range/capacity and allocation errors leave the previous buffer
+intact. Native LVGL allocation failures during setters retain the separate
+upstream OOM limitations below.
+
+Grid cells/spans must fit copied parent tracks, including when changing scalar
+cell-style properties, shrinking a grid, or reparenting a child. Grid cell-style
+setters require selector 0; conditional/stateful placement is not exposed.
+This prevents early LVGL 8.0 from indexing beyond its track arrays. Hosts must
+not override script-owned Grid arrays/cell-placement styles or Line point
+pointers behind the wrapper. Layout alignments use start/center/end/stretch
+for individual cells; container grid alignment also supports space modes.
+
+The attachment adds one buffer-list pointer when Grid or Line is enabled:
+**1,832 native bytes** on the tested x86-64 ABI (1,824 with both features off).
+Buffers allocate lazily, at most one Grid and one Line buffer per live handle;
+there is no fixed per-slot array reservation. Grid storage is one native header
+plus `(columns + rows + 2) * sizeof(native coordinate)`; Line storage is one
+header plus `pointCount * sizeof(native point)`. Replacement briefly holds old
+and new buffers. A pending-delete flag skips cleanup scans on ordinary calls
+when there are no retired resources. Disabled builds still compile all of this
+out; enabled memory and rendering costs are not zero.
 
 ## Lifetime, memory and failure policy
 

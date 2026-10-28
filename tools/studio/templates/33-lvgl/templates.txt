@@ -12,3 +12,7 @@ Requires the host to register LVGL drive S: and provide /fonts/ui.fnt and /image
 [native-api.cs] Checked native LVGL APIs and extended slider range
 save as: main.cs
 Uses the generated native-call allowlist, cached build-specific API IDs, scalar styles, native constants and queued value events. The host must attach LVGL with Label and Slider. No raw pointers, native initialization or GUI loop is exposed.
+
+[grid-line.cs] Copied LVGL Grid tracks and Line points
+save as: main.cs
+Requires host attachment with Grid and Line enabled. Uses bounded native copies of track/point arrays, explicit fractional tracks and checked cell placement; VM mutations and GC cannot invalidate native drawing data. The host owns rendering and synchronization.

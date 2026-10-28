@@ -233,6 +233,7 @@ check: test docs-check
 # Documentation: every relative link and #anchor resolves (the same pages go to the wiki),
 # and the Studio template bundle matches tools/studio/templates/
 docs-check:
+	python3 tests/lvgl/test_sanitizer_log.py
 	python3 tools/gen_lvgl_api.py --check
 	python3 tests/test_wiki_sync.py
 	python3 tools/wiki_sync.py --check

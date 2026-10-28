@@ -22,6 +22,8 @@ OPERATIONS = {
     'LvObject(Switch)': ['lv_switch_create'],
     'LvObject(Arc)': ['lv_arc_create'],
     'LvObject(Image)': ['lv_img_create', 'lv_image_create'],
+    'SetGrid': ['lv_obj_set_grid_dsc_array'],
+    'SetPoints': ['lv_line_set_points'],
     'Dispose': ['lv_obj_del', 'lv_obj_delete'],
     'Center': ['lv_obj_center'],
     'SetPosition': ['lv_obj_set_pos'],

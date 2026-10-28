@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <time.h>
 
+int test_lvgl_buffers(const mcs_lvgl_config_t*);
 void mcs_test_lvgl_assert(const char* file, int line) { fprintf(stderr,"LVGL assertion %s:%d\n",file,line);abort(); }
 static int checks, failures, flushes;
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; fprintf(stderr,"FAIL %d: %s\n",__LINE__,#x); } } while (0)
@@ -149,7 +150,7 @@ int main(void) {
     printf("attachment=%zu native bytes, handle=%zu bytes; active VM=%zu bytes (not added to device heap)\n",mcs_lvgl_storage_size(),sizeof(unsigned)+sizeof(uint32_t),st.bytes_in_use);
     mcs_free(vm);CHECK(!h.allocations && !h.locked);CHECK(lv_obj_is_valid(host_widget));CHECK(lv_obj_get_child_count(root)==0);
     for(int i=0;i<100;++i) { vm=new_vm();CHECK(mcs_lvgl_attach(vm,&cfg)==0);run(vm,"var w=new LvObject(\"Object\");w.OnClicked(()=>{});var c=new LvObject(\"Object\",w);");mcs_free(vm);CHECK(lv_obj_get_child_count(root)==0 && !h.allocations); }
-    test_faults(&h,root);test_attach_faults(&h,root);test_threads(&h,root);CHECK(test_lvgl_assets(&cfg)==0);CHECK(test_lvgl_native(&cfg)==0);
+    test_faults(&h,root);test_attach_faults(&h,root);test_threads(&h,root);CHECK(test_lvgl_assets(&cfg)==0);CHECK(test_lvgl_native(&cfg)==0);CHECK(test_lvgl_buffers(&cfg)==0);
     vm=new_vm();CHECK(mcs_lvgl_attach(vm,&cfg)==0);run(vm,"var w=new LvObject(\"Object\");");lock(&h);lv_obj_delete(root);unlock(&h);run(vm,"if(Lvgl.Ready||w.IsAlive)throw new Exception(\"host deletion\");");mcs_free(vm);CHECK(!h.allocations);
 #if LVGL_VERSION_MAJOR != 8 || LVGL_VERSION_MINOR != 0
     vm=new_vm();cfg.root=host_widget;lv_display_delete(d);CHECK(mcs_lvgl_attach(vm,&cfg)==MCS_LVGL_NOT_READY);mcs_free(vm);
