@@ -292,3 +292,10 @@ compressed fonts; this binding does not repair host-owned LVGL internals.
 New image-offset calls require nonzero intrinsic image dimensions, preventing
 the empty-image modulo-by-zero in stock LVGL 8.0. Native offset normalization
 still follows the host version (8.0 reduces offsets modulo source dimensions).
+
+
+Unicode auditing found that native `lv_textarea_add_char` consumes packed UTF-8
+bytes, while the previous wrapper validated/passed raw Unicode scalar numbers.
+The wrapper now explicitly encodes BMP and supplementary scalars and copies
+through native text insertion. Tests check accented Latin, Persian and emoji
+text plus surrogate/NUL rejection. No pointer to stack text is retained.

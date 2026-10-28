@@ -3500,8 +3500,11 @@ case 403: /* lv_table_set_row_cnt */
     return true;
 case 404: /* lv_textarea_add_char */
     if(count!=1)return native_arg_error(vm,"Wrong LVGL argument count");
-    if(!native_number_arg(vm,args[0],&a->v[0].n,0,1114111,NARG_NUMBER))return false;
+    if(!native_number_arg(vm,args[0],&a->v[0].n,1,1114111,NARG_NUMBER))return false;
     if(a->v[0].n>=0xd800 && a->v[0].n<=0xdfff)return native_arg_error(vm,"Unicode surrogate is not a scalar");
+#if LV_TXT_ENC != LV_TXT_ENC_UTF8
+    if(a->v[0].n>127)return native_arg_error(vm,"Non-UTF8 LVGL host supports ASCII scalars only");
+#endif
     return true;
 case 405: /* lv_textarea_add_text */
     if(count!=1)return native_arg_error(vm,"Wrong LVGL argument count");
@@ -7746,9 +7749,9 @@ case 403: { /* lv_table_set_row_cnt */
 case 404: { /* lv_textarea_add_char */
     if(r->kind!=11 && r->kind!=14)return NERR_KIND;
 #if LVGL_VERSION_MAJOR == 8
-    lv_textarea_add_char(r->obj,a->v[0].n);
+    mcs_lv_textarea_add_scalar(r->obj,a->v[0].n);
 #elif LVGL_VERSION_MAJOR == 9
-    lv_textarea_add_char(r->obj,a->v[0].n);
+    mcs_lv_textarea_add_scalar(r->obj,a->v[0].n);
 #endif
     return 0;
 }

@@ -51,6 +51,22 @@
 #define mcs_lv_obj_remove_state lv_obj_remove_state
 #define mcs_lv_display_get_next lv_display_get_next
 #endif
+/* Call exposes a Unicode scalar, not LVGL's endian-dependent packed UTF-8
+ * integer. Copy through add_text instead of feeding the code point as bytes. */
+#if LV_USE_TEXTAREA
+static inline void mcs_lv_textarea_add_scalar(lv_obj_t* obj,uint32_t c) {
+    char text[5];unsigned n=0;
+#if LV_TXT_ENC == LV_TXT_ENC_UTF8
+    if(c<0x80)text[n++]=(char)c;
+    else if(c<0x800){text[n++]=(char)(0xc0u|(c>>6));text[n++]=(char)(0x80u|(c&63u));}
+    else if(c<0x10000){text[n++]=(char)(0xe0u|(c>>12));text[n++]=(char)(0x80u|((c>>6)&63u));text[n++]=(char)(0x80u|(c&63u));}
+    else {text[n++]=(char)(0xf0u|(c>>18));text[n++]=(char)(0x80u|((c>>12)&63u));text[n++]=(char)(0x80u|((c>>6)&63u));text[n++]=(char)(0x80u|(c&63u));}
+#else
+    text[n++]=(char)c; /* preparation restricts non-UTF8 hosts to ASCII */
+#endif
+    text[n]='\0';lv_textarea_add_text(obj,text);
+}
+#endif
 /* These compatibility entrypoints remain exported upstream but 9.6 marks
  * generic flags/List as deprecated. Keep diagnostics local to the legacy bridge,
  * not to user code or the generated API; no native private layouts are accessed. */

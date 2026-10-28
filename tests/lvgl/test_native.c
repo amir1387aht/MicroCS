@@ -103,6 +103,11 @@ int test_lvgl_native(const mcs_lvgl_config_t* cfg){
 #if LV_USE_TEXTAREA
     run(vm,"var ta=new LvObject(\"TextArea\");ta.Call(\"lv_textarea_set_text\",\"abc\");ta.Call(\"lv_textarea_set_cursor_pos\",3);ta.Call(\"lv_textarea_add_text\",\"def\");if(ta.Call(\"lv_textarea_get_text\")!=\"abcdef\")throw new Exception(\"textarea\");ta.Call(\"lv_textarea_del_char\");ta.Call(\"lv_textarea_set_placeholder_text\",\"hint\");ta.Dispose();");
 #endif
+#if LV_USE_TEXTAREA
+#if LV_TXT_ENC == LV_TXT_ENC_UTF8
+    run(vm,"var unicode=new LvObject(\"TextArea\");unicode.Text=\"\";unicode.Call(\"lv_textarea_add_char\",233);unicode.Call(\"lv_textarea_add_char\",1587);unicode.Call(\"lv_textarea_add_char\",128578);if(unicode.Text!=\"éس🙂\")throw new Exception(\"Unicode scalar encoding\");bool surrogate=false;try{unicode.Call(\"lv_textarea_add_char\",0xd800);}catch(ArgumentException e){surrogate=true;}if(!surrogate)throw new Exception(\"Unicode surrogate\");bool nul=false;try{unicode.Call(\"lv_textarea_add_char\",0);}catch(ArgumentException e){nul=true;}if(!nul)throw new Exception(\"Unicode NUL\");unicode.Dispose();");
+#endif
+#endif
 #if LV_USE_TABLE
     run(vm,"var table=new LvObject(\"Table\");table.Call(\"lv_table_set_row_cnt\",2);table.Call(\"lv_table_set_col_cnt\",2);table.Call(\"lv_table_set_cell_value\",1,1,\"cell\");string cell=table.Call(\"lv_table_get_cell_value\",1,1);GC.Collect();if(cell!=\"cell\")throw new Exception(\"table copy\");bool cap=false;try{table.Call(\"lv_table_set_row_cnt\",1023);}catch(ArgumentException e){cap=true;}if(!cap)throw new Exception(\"table cap\");bool index=false;try{table.Call(\"lv_table_get_cell_value\",100,100);}catch(ArgumentException e){index=true;}if(!index)throw new Exception(\"table index\");table.Dispose();");
 #endif

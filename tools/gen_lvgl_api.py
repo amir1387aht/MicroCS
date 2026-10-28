@@ -64,7 +64,7 @@ def generate(data):
         if check in ('digits', 'spin_digits'):
             lines += ['    if(a->v[1].n>a->v[0].n)return native_arg_error(vm,"Spinbox separator exceeds digit count");']
         if check == 'unicode':
-            lines += ['    if(a->v[0].n>=0xd800 && a->v[0].n<=0xdfff)return native_arg_error(vm,"Unicode surrogate is not a scalar");']
+            lines += ['    if(a->v[0].n>=0xd800 && a->v[0].n<=0xdfff)return native_arg_error(vm,"Unicode surrogate is not a scalar");', '#if LV_TXT_ENC != LV_TXT_ENC_UTF8', '    if(a->v[0].n>127)return native_arg_error(vm,"Non-UTF8 LVGL host supports ASCII scalars only");', '#endif']
         if check == 'grid_style':
             lines += ['    if(a->v[1].n!=0)return native_arg_error(vm,"Grid cell placement requires selector 0");']
         if check == 'month':
@@ -131,7 +131,7 @@ def generate(data):
             for j, arg in enumerate(e['args']):
                 k = arg['kind']
                 args.append(f'a->v[{j}].text' if k == 'text' else f'(other{j} ? other{j}->obj : NULL)' if k == 'object' else f'lv_color_hex((uint32_t)a->v[{j}].n)' if k == 'color' else f'a->v[{j}].n')
-            call_name={'lv_obj_add_flag':'mcs_lv_obj_add_flag','lv_obj_clear_flag':'mcs_lv_obj_remove_flag','lv_obj_remove_flag':'mcs_lv_obj_remove_flag','lv_obj_has_flag':'mcs_lv_obj_has_flag','lv_table_add_cell_ctrl':'mcs_lv_table_add_cell_ctrl'}.get(name,name)
+            call_name={'lv_textarea_add_char':'mcs_lv_textarea_add_scalar','lv_obj_add_flag':'mcs_lv_obj_add_flag','lv_obj_clear_flag':'mcs_lv_obj_remove_flag','lv_obj_remove_flag':'mcs_lv_obj_remove_flag','lv_obj_has_flag':'mcs_lv_obj_has_flag','lv_table_add_cell_ctrl':'mcs_lv_table_add_cell_ctrl'}.get(name,name)
             expr = e.get('expression' + major, call_name + '(' + ','.join(args) + ')')
             result = e['result']
             if result == 'void':
@@ -188,6 +188,9 @@ def generate(data):
              '`SetGrid` / `SetPoints` copying methods for retained arrays. Image offsets',
              'require nonzero intrinsic image dimensions; native offset normalization',
              'still follows the host version (LVGL 8.0 uses source-size modulo).', '',
+             '`lv_textarea_add_char` accepts Unicode scalars (1..0x10ffff, excluding',
+             'surrogates), encoded into a copied native text insertion. It does not',
+             'accept native packed UTF-8 words; non-UTF8 hosts accept ASCII only.', '',
              '## Constants', '', '| Name | Config | Majors |', '| --- | --- | --- |']
     docs += [f'| `{e["name"]}` | {e["guard"]} | {", ".join(e["variants"])} |' for e in consts]
     tests = ['/* Generated availability/arity/style smoke cases; semantic tests are separate. */',

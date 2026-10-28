@@ -226,6 +226,11 @@ cell growth is capped by `MCS_LVGL_MAX_TABLE_CELLS` (default 256). Resource limi
 are consistent across translation units. No snapshot buffer is reserved while
 idle; an explicit getter allocates only its actual text size plus terminator.
 
+`Call("lv_textarea_add_char", codePoint)` accepts a non-NUL Unicode scalar,
+not LVGL's native endian-dependent packed UTF-8 word. It encodes/copies the
+character through native text insertion; surrogates and values above 0x10ffff
+are rejected. A non-UTF8 host is restricted to ASCII scalars.
+
 Only script-owned object handles can be arguments. Reparenting cannot introduce
 a cycle or escape into a host root. Keyboard TextArea targets must have the
 correct widget kind and are detached automatically before native/parent/VM-side

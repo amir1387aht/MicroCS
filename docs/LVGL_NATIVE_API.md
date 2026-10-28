@@ -421,7 +421,7 @@ current native enum value; `Lvgl.HasConstant(name)` checks availability.
 | `lv_table_set_col_cnt` | lv_table_set_col_cnt | lv_table_set_column_count | number 1..1023 | void | LV_USE_TABLE |
 | `lv_table_set_col_width` | lv_table_set_col_width | lv_table_set_column_width | number 0..1023, number -32767..32767 | void | LV_USE_TABLE |
 | `lv_table_set_row_cnt` | lv_table_set_row_cnt | lv_table_set_row_count | number 1..1023 | void | LV_USE_TABLE |
-| `lv_textarea_add_char` | lv_textarea_add_char | lv_textarea_add_char | number 0..1114111 | void | LV_USE_TEXTAREA |
+| `lv_textarea_add_char` | lv_textarea_add_char | lv_textarea_add_char | number 1..1114111 | void | LV_USE_TEXTAREA |
 | `lv_textarea_add_text` | lv_textarea_add_text | lv_textarea_add_text | string (copied) | void | LV_USE_TEXTAREA |
 | `lv_textarea_clear_selection` | lv_textarea_clear_selection | lv_textarea_clear_selection | none | void | LV_USE_TEXTAREA |
 | `lv_textarea_cursor_down` | lv_textarea_cursor_down | lv_textarea_cursor_down | none | void | LV_USE_TEXTAREA |
@@ -464,6 +464,10 @@ tracks; shrinking grids and reparenting are checked too. Use the separate
 `SetGrid` / `SetPoints` copying methods for retained arrays. Image offsets
 require nonzero intrinsic image dimensions; native offset normalization
 still follows the host version (LVGL 8.0 uses source-size modulo).
+
+`lv_textarea_add_char` accepts Unicode scalars (1..0x10ffff, excluding
+surrogates), encoded into a copied native text insertion. It does not
+accept native packed UTF-8 words; non-UTF8 hosts accept ASCII only.
 
 ## Constants
 
