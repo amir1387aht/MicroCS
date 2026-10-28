@@ -78,6 +78,11 @@ jobs:
           gcc -m32 -malign-double -O1 -g -std=gnu99 -Wall -Wextra -Werror -Iinclude \
             src/*.c modules/*/*.c tests/c/test_pool_regions.c -lm -o build/test_pool_regions_32
           ./build/test_pool_regions_32
+          gcc -m32 -malign-double -O1 -g -std=gnu99 -Wall -Wextra -Werror \
+            -Iinclude -Iports/esp32 -Itests/c/heap_sdk src/*.c modules/*/*.c \
+            ports/esp32/mcs_port_esp32_heap.c tests/c/test_esp_pool_growth.c \
+            -lm -o build/test_esp_pool_growth_32
+          ./build/test_esp_pool_growth_32
 
   threads:
     name: OS threads (POSIX + ThreadSanitizer, FreeRTOS simulator, CMake)
