@@ -217,7 +217,7 @@ The left panel shows **VM pool used / currently backed usable total**, followed
 by an explicit **Free** value on the same line, in exact bytes:
 
 ```text
-VM heap: 15,528 B / 32,712 B . Free: 17,184 B
+VM heap: 15,528 B / 32,712 B · Free: 17,184 B
 ```
 
 **Total − used = free.** These are the allocator's physical pool counters, not

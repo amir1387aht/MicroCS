@@ -96,10 +96,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   // The file list renders before df/mem finish. Visibility of .file is not a
   // readiness signal for either counter, particularly on busy CI runners.
   await page.waitForFunction(() => /free of/.test(document.getElementById('stText').textContent) &&
-    /^(?:VM heap: [\d,]+ B \/ [\d,]+ B \. Free: [\d,]+ B|VM heap capacity unavailable)$/.test(document.getElementById('memInfo').textContent),
+    /^(?:VM heap: [\d,]+ B \/ [\d,]+ B · Free: [\d,]+ B|VM heap capacity unavailable)$/.test(document.getElementById('memInfo').textContent),
     null, { timeout: 5000 });
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
-  check(/^(?:VM heap: [\d,]+ B \/ [\d,]+ B \. Free: [\d,]+ B|VM heap capacity unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
+  check(/^(?:VM heap: [\d,]+ B \/ [\d,]+ B · Free: [\d,]+ B|VM heap capacity unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
   await page.click('#memInfo');
   await page.waitForFunction(() => /Memory snapshot/.test(document.getElementById('memInfo').textContent), null, { timeout: 5000 }).catch(() => {});
   check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem expanded: ' + await page.textContent('#memInfo'));
@@ -111,7 +111,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
     window.__memoryBefore={text:App.memReportText,title:App.memReportTitle};
     App.renderMemory('heap 13576 bytes in use, peak 13880\nvm_limit 96256\npool 32712 total, 15528 used, 16320 peak, 17184 free, 15320 largest\npool_backing 32768 committed, 98304 limit, 2 regions\ndevice_heap 130460 total, 104152 used, 26308 free, 21468 minimum_free, 25088 largest\n','Snapshot fixture');
   });
-  check(await page.textContent('#memInfo')==='VM heap: 15,528 B / 32,712 B . Free: 17,184 B','actual VM used/total/free UI: total minus used equals free');
+  check(await page.textContent('#memInfo')==='VM heap: 15,528 B / 32,712 B · Free: 17,184 B','actual VM used/total/free UI: total minus used equals free');
   check(await page.locator('#memInfo').evaluate(e=>{const r=document.createRange();r.selectNodeContents(e);return getComputedStyle(e).whiteSpace==='nowrap'&&r.getClientRects().length===1;}),'heap and free stay on one rendered line');
   await page.click('#memInfo');
   check((await page.textContent('#memInfo')).includes('VM allocation limit: 96,256 B'),'configured limit remains separately labeled, never the usable total');

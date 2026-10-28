@@ -11,7 +11,7 @@ function methods(start,end,deps={}) {
  const fmtBytes=n=>{ if (n == null || isNaN(n)) return '—'; if (n < 1024) return n + ' B'; if (n < 1024 * 1024) return (n / 1024).toFixed(n < 10240 ? 1 : 0) + ' KB'; if (n < 1024 * 1048576) return (n / 1048576).toFixed(n < 10485760 ? 2 : 1) + ' MB'; return (n / 1073741824).toFixed(1) + ' GB'; };
  const app=methods('memoryText(text)','renderFiles()',{$:()=>node,dev,TextDecoder,fmtBytes});
  await app.refreshMemory();
- assert.strictEqual(node.textContent,'VM heap: 18,000 B / 40,960 B . Free: 22,960 B');
+ assert.strictEqual(node.textContent,'VM heap: 18,000 B / 40,960 B · Free: 22,960 B');
  assert(!node.textContent.includes('Memory snapshot'));
  assert(node.title.includes('Click to expand.'));
  app.toggleMemoryInfo();
@@ -25,7 +25,7 @@ function methods(start,end,deps={}) {
  assert(node.textContent.includes('Call frames: 0 used · 8 allocated · peak 6 · max 64'));
  assert(node.title.includes('not static RAM'));
  app.toggleMemoryInfo();
- assert.strictEqual(node.textContent,'VM heap: 18,000 B / 40,960 B . Free: 22,960 B');
+ assert.strictEqual(node.textContent,'VM heap: 18,000 B / 40,960 B · Free: 22,960 B');
  const automatic=app.memoryText('heap 100 bytes in use, peak 200\npool 16000 total, 100 used, 200 peak, 15900 free, 15800 largest\npool_backing 16384 committed, 196608 limit, 1 regions\n');
  assert(automatic.includes('16,384 B committed · ceiling: 196,608 B · regions: 1'));
  const old=app.memoryText('heap 16384 bytes in use, peak 54272');
@@ -33,7 +33,7 @@ function methods(start,end,deps={}) {
  assert.strictEqual(app.memorySummary('heap 16384 bytes in use, peak 54272'),'VM heap capacity unavailable');
  assert(!old.includes('/ 0'));assert(!old.includes('NaN'));
  const current='heap 13576 bytes in use, peak 13880\nvm_limit 96256\npool 32712 total, 15528 used, 16320 peak, 17184 free, 15320 largest\npool_backing 32768 committed, 98304 limit, 2 regions\ndevice_heap 130460 total, 104152 used, 26308 free, 21468 minimum_free, 25088 largest\n';
- assert.strictEqual(app.memorySummary(current),'VM heap: 15,528 B / 32,712 B . Free: 17,184 B');
+ assert.strictEqual(app.memorySummary(current),'VM heap: 15,528 B / 32,712 B · Free: 17,184 B');
  // The displayed subtraction must equal the explicitly displayed free field.
  for(const raw of [current, current.replace('vm_limit 96256','vm_limit 1000000'), current.replace('vm_limit 96256','vm_limit 0')]) {
    const numbers=[...app.memorySummary(raw).matchAll(/([\d,]+) B/g)].map(m=>Number(m[1].replace(/,/g,'')));
@@ -41,21 +41,21 @@ function methods(start,end,deps={}) {
    assert.strictEqual(numbers[1]-numbers[0],numbers[2]);
  }
  const smallerPool=current.replace('32712 total, 15528 used, 16320 peak, 17184 free, 15320 largest','16352 total, 8896 used, 9368 peak, 7456 free, 7312 largest');
- assert.strictEqual(app.memorySummary(smallerPool),'VM heap: 8,896 B / 16,352 B . Free: 7,456 B','only actually acquired pool growth increases total');
+ assert.strictEqual(app.memorySummary(smallerPool),'VM heap: 8,896 B / 16,352 B · Free: 7,456 B','only actually acquired pool growth increases total');
  assert.strictEqual(app.memorySummary('heap 100 bytes in use, peak 200\nvm_limit 0'),'VM heap capacity unavailable');
  assert.strictEqual(app.memorySummary('heap 100 bytes in use, peak 200\nvm_limit 4096'),'VM heap capacity unavailable');
  assert(node.title.includes('Total minus used equals pool free'));
  // Device-native growth must not replace or alter this VM-only budget.
  const nativeGrowth=current.replace('104152 used, 26308 free','124152 used, 6308 free');
- assert.strictEqual(app.memorySummary(nativeGrowth),'VM heap: 15,528 B / 32,712 B . Free: 17,184 B');
+ assert.strictEqual(app.memorySummary(nativeGrowth),'VM heap: 15,528 B / 32,712 B · Free: 17,184 B');
  assert(app.memoryText(nativeGrowth).includes('VM pool: 15,528 B / 32,712 B'));
- assert(app.memoryText(current).startsWith('Memory snapshot\nVM heap: 15,528 B / 32,712 B . Free: 17,184 B'));
+ assert(app.memoryText(current).startsWith('Memory snapshot\nVM heap: 15,528 B / 32,712 B · Free: 17,184 B'));
  assert.strictEqual(app.memorySummary('device_heap 0 total, 0 used, 0 free, 0 minimum_free, 0 largest'),'VM heap capacity unavailable');
  assert(app.memoryText(current).includes('VM allocation limit: 96,256 B'));
  assert(app.memoryText(current).includes('Pool peak: 16,320 B'));
  assert.strictEqual(app.memorySummary('device_heap 200000 total, 150000 used, 50000 free, 40000 minimum_free, 30000 largest'),'VM heap capacity unavailable');
- assert.strictEqual(app.memorySummary('pool 0 total, 0 used, 0 peak, 0 free, 0 largest'),'VM heap: 0 B / 0 B . Free: 0 B');
- assert.strictEqual(app.memorySummary('pool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest'),'VM heap: 18,000 B / 40,960 B . Free: 22,960 B');
+ assert.strictEqual(app.memorySummary('pool 0 total, 0 used, 0 peak, 0 free, 0 largest'),'VM heap: 0 B / 0 B · Free: 0 B');
+ assert.strictEqual(app.memorySummary('pool 40960 total, 18000 used, 39000 peak, 22960 free, 8192 largest'),'VM heap: 18,000 B / 40,960 B · Free: 22,960 B');
  assert.strictEqual(app.memorySummary('unrecognized legacy output'),'Memory report unavailable');
  report={status:'ERR unavailable',out:new Uint8Array()};await app.refreshMemory();assert.strictEqual(node.textContent,'Memory report unavailable');
  dev.cmd=async()=>{throw Error('disconnected');};await app.refreshMemory();assert(node.textContent.includes('refresh failed'));
