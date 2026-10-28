@@ -1906,12 +1906,13 @@ const App = {
     if (!logical && !pool && !device) return null;
     const bytes = n => `${Number(n).toLocaleString("en-US")} B`;
     const kib = n => `${(Number(n) / 1024).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} KiB`;
-    // Both numbers must describe the same heap: consumed pool capacity over
-    // committed usable capacity (used + free), never the configured ceiling.
-    const summary = pool ? `VM heap: ${kib(pool[2])} / ${kib(pool[1])}` :
-      logical ? `VM heap: ${kib(logical[1])} used · total unavailable` :
-        `Device heap: ${kib(device[2])} / ${kib(device[1])}`;
+    // The main counter is the whole device allocator, including native BLE
+    // and VM backing. Never substitute the VM pool or its configured ceiling.
+    const summary = device ? `Device heap: ${kib(device[2])} / ${kib(device[1])}`
+      : "Device heap unavailable";
     const lines = ["Memory snapshot"];
+    if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
+    else lines.push("Device heap unavailable on this firmware");
     if (pool) {
       lines.push(`VM pool: ${bytes(pool[2])} / ${bytes(pool[1])}`, `Pool peak: ${bytes(pool[3])}`, `Pool free: ${bytes(pool[4])} · largest: ${bytes(pool[5])}`);
     } else lines.push("VM pool capacity unavailable (legacy/custom firmware)");
@@ -1920,8 +1921,7 @@ const App = {
     if (stack) lines.push(`Stack slots: ${stack[1]} used · ${stack[2]} allocated · peak ${stack[3]} · max ${stack[4]}`);
     if (frames) lines.push(`Call frames: ${frames[1]} used · ${frames[2]} allocated · peak ${frames[3]} · max ${frames[4]}`);
     if (backing) lines.push(`Pool backing: ${bytes(backing[1])} committed · ceiling: ${bytes(backing[2])} · regions: ${backing[3]}`);
-    if (device) lines.push(`Device heap: ${bytes(device[2])} / ${bytes(device[1])}`, `Device free: ${bytes(device[3])} · minimum: ${bytes(device[4])}`, `Device largest: ${bytes(device[5])}`, "Device includes reserved VM pool; not additive.");
-    else lines.push("Device heap unavailable on this firmware");
+
     return { summary, detail: lines.join("\n") };
   },
   renderMemory(text, title) {
@@ -1945,7 +1945,7 @@ const App = {
     try {
       const mm = await dev.op(() => dev.cmd("mem"));
       if (!dev.connected) return;
-      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is used / total committed usable heap (used + free), not the configured maximum. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
+      const title = "Snapshot: " + new Date().toLocaleTimeString() + ". Summary is whole-device heap used / total (used + free), including native BLE and VM backing, not the VM pool capacity or configured maximum. Pool includes allocator overhead and shared pool users; tracked VM allocations exclude some allocator/runtime storage. Device heap includes SDK, drivers and the reserved VM pool, but not static RAM. Minimum free is the SDK low-water figure. Refresh to resample; this is not a live meter.";
       this.renderMemory(mm.status === "OK" ? new TextDecoder().decode(mm.out) : "", title);
     } catch {
       if (dev.connected) { this.renderMemory("", ""); $("memInfo").textContent = "Memory report unavailable (refresh failed)"; }

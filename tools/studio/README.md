@@ -213,23 +213,23 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The left panel shows **used / total heap** by default
-(`VM heap: 15.2 KiB / 31.9 KiB`, for example). Both values refer to the same VM
-pool: consumed capacity / currently committed usable capacity (**used + free**).
-The denominator is not the configured allocation/backing ceiling, and VM-tracked
-allocations are not substituted for full pool consumption. One KiB is 1024 bytes.
-Click to expand the full snapshot, including free space, largest block, peaks and
-separate configured limits; click again to collapse it. The peak is the lifetime
-high-water mark, so it does not decrease when garbage is collected; current usage should settle after
-one-time lazy runtime initialization.
+The left panel shows **whole-device heap used / total** by default
+(`Device heap: 101.7 KiB / 127.4 KiB`, for example). Total is the device allocator's
+**used + free**, not the VM pool capacity or its configured ceiling. Usage includes
+native BLE/NimBLE, SDK/driver allocations and the entire committed VM backing pool,
+including free space held inside that pool. It does not include static RAM outside
+the device heap. One KiB is 1024 bytes.
 
-The expanded view distinguishes VM-tracked allocations, full physical VM pool
-usage/capacity/peak/free/largest block, and optional ESP32 device heap telemetry.
-Values there are exact bytes. Device heap already includes the reserved VM pool:
-the numbers are not additive. Older firmware explicitly shows missing capacity;
-Studio never guesses it from a VM peak. Failed workflows also refresh the
-snapshot. See [memory budgets](../../docs/MEMORY.md) for scope, exclusions and the
-40 KiB source-Project regression/configuration.
+Click to expand the snapshot: device heap comes first, followed by separate VM
+pool usage/capacity/free/peak, VM-tracked allocations, stack/frames and configured
+limits. Device and VM numbers are **not additive**. Firmware that does not report
+`device_heap` shows **Device heap unavailable** in the compact counter; VM details
+remain available on expansion, but are never substituted for whole-device totals.
+
+The snapshot is refreshed after existing save/build/run workflows, including
+failures; it is not a continuously polled meter. The minimum-free/peak figures are
+high-water history, not current usage. See [memory budgets](../../docs/MEMORY.md)
+for scope, exclusions and the 40 KiB source-Project regression/configuration.
 
 ## Older firmware and template compatibility
 

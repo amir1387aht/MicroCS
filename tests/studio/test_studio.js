@@ -96,10 +96,10 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   // The file list renders before df/mem finish. Visibility of .file is not a
   // readiness signal for either counter, particularly on busy CI runners.
   await page.waitForFunction(() => /free of/.test(document.getElementById('stText').textContent) &&
-    /^VM heap: [\d,.]+ KiB(?: \/ [\d,.]+ KiB| used · total unavailable)$/.test(document.getElementById('memInfo').textContent),
+    /^(?:Device heap: [\d,.]+ KiB \/ [\d,.]+ KiB|Device heap unavailable)$/.test(document.getElementById('memInfo').textContent),
     null, { timeout: 5000 });
   check(/free of/.test(await page.textContent('#stText')), 'storage: ' + await page.textContent('#stText'));
-  check(/^VM heap: [\d,.]+ KiB(?: \/ [\d,.]+ KiB| used · total unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
+  check(/^(?:Device heap: [\d,.]+ KiB \/ [\d,.]+ KiB|Device heap unavailable)$/.test(await page.textContent('#memInfo')), 'mem summary: ' + await page.textContent('#memInfo'));
   await page.click('#memInfo');
   await page.waitForFunction(() => /Memory snapshot/.test(document.getElementById('memInfo').textContent), null, { timeout: 5000 }).catch(() => {});
   check(/Memory snapshot/.test(await page.textContent('#memInfo')) && /VM tracked:/.test(await page.textContent('#memInfo')), 'mem expanded: ' + await page.textContent('#memInfo'));
