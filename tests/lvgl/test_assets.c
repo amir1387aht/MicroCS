@@ -108,6 +108,9 @@ int test_lvgl_assets(const mcs_lvgl_config_t* base){
         mcs_free(vm);CHECK(opened()==0 && !vfs_locked);CHECK(lv_obj_get_child_count(base->root)==0);
     }
 #if MCS_ENABLE_HAL && LV_USE_LABEL && MCS_LV_USE_BUTTON && MCS_LV_USE_IMAGE
+#if MCS_LV_USE_BUTTONMATRIX
+    example(&cfg,MCS_LVGL_EXAMPLE_DIR "/button-matrix.cs",1);
+#endif
 #if LV_USE_GRID && LV_USE_LINE
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/grid-line.cs",1);
 #endif

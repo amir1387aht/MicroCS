@@ -266,6 +266,13 @@ true,
 false,
 #endif
 1,NULL},
+{"lv_btnmatrix_set_selected_btn",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_BUTTONMATRIX)
+true,
+#else
+false,
+#endif
+1,NULL},
 {"lv_calendar_set_showed_date",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (LV_USE_CALENDAR)
 true,
@@ -3411,6 +3418,13 @@ true,
 false,
 #endif
 },
+{"LV_BTNMATRIX_BTN_NONE",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_BUTTONMATRIX)
+true,
+#else
+false,
+#endif
+},
 {"LV_BTNMATRIX_CTRL_CHECKABLE",
 #if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_BUTTONMATRIX)
 true,
@@ -3462,6 +3476,13 @@ false,
 },
 {"LV_BTNMATRIX_CTRL_RECOLOR",
 #if (LVGL_VERSION_MAJOR == 8) && (MCS_LV_USE_BUTTONMATRIX)
+true,
+#else
+false,
+#endif
+},
+{"LV_BUTTONMATRIX_BUTTON_NONE",
+#if (LVGL_VERSION_MAJOR == 8 || LVGL_VERSION_MAJOR == 9) && (MCS_LV_USE_BUTTONMATRIX)
 true,
 #else
 false,

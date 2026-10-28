@@ -100,7 +100,7 @@ native LVGL 8 allocator fault coverage.
   test plus ASan/UBSan is not a substitute for TSan or MCU scheduler testing.
 - Combined device-native/LVGL/VM memory totals or rendering performance on real
   hardware. No framebuffer allocation is attributed to the VM pool.
-- Complete API coverage beyond the 25 documented kinds and 442 native-call
+- Complete API coverage beyond the 25 documented kinds and 443 native-call
   operation families; retained array/descriptor APIs, shared resource handles,
   custom drawing/animation callbacks and many object-returning methods remain
   unwrapped. Some new widget kinds currently expose creation/common APIs only. File images/fonts do not imply arbitrary descriptor support.
@@ -216,7 +216,7 @@ not a completed full-LVGL C# API. No merge or release should imply otherwise.
 
 ## Native-call expansion validation
 
-The reviewed manifest generates 442 operation families and 225 enum constants.
+The reviewed manifest generates 443 operation families and 227 enum constants.
 The fixture checks each family's version/config availability and ID resolution,
 wrong arity for parameterized entries, every available scalar style setter/getter,
 and constant availability. These generated checks do **not** establish exhaustive
@@ -359,3 +359,18 @@ both valid empty-options representations (null on early versions, empty string
 on others), an empty selected snapshot, and survival of an earlier copied
 selection after disposal/GC. The v8.1.0 failure was reproduced with fatal UBSan
 before this guard and passes with it; the sanitizer auditor has no exceptions.
+
+
+## ButtonMatrix copied-map expansion
+
+The copied-buffer fixture tests map/text/pointer alignment and GC independence,
+control-array copying, selection aliases/NONE/bounds, exact 256-entry and
+configured-text-byte boundaries, invalid shapes/types/rows/NUL/terminators,
+wrapper native OOM preserving old state, wrong-thread/kind/stale handles, repeated
+replacement/shrink, and cleanup after host parent deletion or VM allocation-fault
+unwinding. Native selected state is cleared before replacing maps on both majors.
+The example is executed by the asset fixture. `BUTTONMATRIX_ONLY=ON` disables the
+other exposed optional widgets, ensuring the retained-buffer helpers compile and
+work without Grid, Line, TextArea or Dropdown. CI tests that configuration on
+v8.1.0 and v9.6.0, in addition to the normal/minimal matrix. A scheduled CI job is
+not a passed result; consult the PR's actual latest run.

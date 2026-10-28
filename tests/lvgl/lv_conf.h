@@ -74,4 +74,10 @@ void mcs_test_lvgl_assert(const char*, int);
 #define LV_USE_IMAGEBUTTON 0
 #define LV_USE_SCALE 0
 #endif
+#ifdef MCS_LVGL_TEST_MAP_ONLY
+#undef LV_USE_BTNMATRIX
+#undef LV_USE_BUTTONMATRIX
+#define LV_USE_BTNMATRIX 1
+#define LV_USE_BUTTONMATRIX 1
+#endif
 #endif

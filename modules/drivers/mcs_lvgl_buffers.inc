@@ -1,10 +1,10 @@
 /* Copied retained arrays. Included only by the enabled binding; never pins VM
  * memory. Validate completely before native allocation, then publish under the
  * GUI lock. No fallible VM operation occurs between allocation and ownership. */
-#if LV_USE_GRID || LV_USE_LINE
+#if LV_USE_GRID || LV_USE_LINE || MCS_LV_USE_BUTTONMATRIX
 static bool buffer_sequence(mcs_vm_t* vm,mcs_value_t value,unsigned max,unsigned* count) {
     int k=mcs_obj_kind(value);
-    if(k!=MCS_O_ARRAY && k!=MCS_O_LIST)return native_arg_error(vm,"LVGL buffer requires an integer array/list");
+    if(k!=MCS_O_ARRAY && k!=MCS_O_LIST)return native_arg_error(vm,"LVGL buffer requires an array/list");
     uint32_t n=mcs_len(value);
     if(n>max)return native_arg_error(vm,"LVGL buffer exceeds configured capacity");
     *count=(unsigned)n;return true;
@@ -20,7 +20,7 @@ static int32_t buffer_value(mcs_vm_t* vm,mcs_value_t value,unsigned i) {
     return (int32_t)mcs_to_int(vm,mcs_index(value,i));
 }
 #endif
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
 static retained_buffer_t** buffer_link(session_t* s,handle_t* h,unsigned kind) {
     retained_buffer_t** link=&s->buffers;
     while(*link && !((*link)->slot==h->slot && (*link)->generation==h->generation && (*link)->kind==kind))link=&(*link)->next;
@@ -170,3 +170,78 @@ static int native_retained_text(session_t* s,slot_t* r,unsigned kind,const char*
     buffer_replace(s,&h,kind,b);return 0;
 }
 #endif
+
+/* Map entries are copied together with the retained pointer table. The private
+ * 256-entry bound includes row separators; native 8.0 has an 8-bit row count. */
+NATIVE(set_button_map) {
+    (void)argc;
+#if MCS_LV_USE_BUTTONMATRIX
+    handle_t* h=handle(vm,self);if(!h)return mcs_null();session_t* s=session(vm);if(!s)return mcs_null();
+    unsigned count;if(!buffer_sequence(vm,argv[0],256,&count))return mcs_null();
+    if(!count){native_arg_error(vm,"Button map needs at least one nonempty button");return mcs_null();}
+    size_t bytes=1;bool row_start=true;
+    for(unsigned i=0;i<count;i++) {
+        mcs_value_t v=mcs_index(argv[0],i);const char* text;
+        if(!native_text_arg(vm,v,&text))return mcs_null();
+        size_t n=mcs_strlen(v);
+        if(!n || strlen(text)!=n){native_arg_error(vm,"Button-map labels cannot be empty or contain NUL; terminator is automatic");return mcs_null();}
+        bool separator=!strcmp(text,"\n");
+        if(separator && (row_start || i==count-1)){native_arg_error(vm,"Button-map rows cannot be empty");return mcs_null();}
+        row_start=separator;
+        if((uint64_t)bytes+n+1>MCS_LVGL_MAX_TEXT_BYTES){native_arg_error(vm,"Total copied button-map text exceeds MCS_LVGL_MAX_TEXT_BYTES");return mcs_null();}
+        bytes+=n+1;
+    }
+    s->host.lock(s->host.ctx);slot_t* r=lookup(s,h);bool wrong=r && r->kind!=18;s->host.unlock(s->host.ctx);
+    if(!r){invalid(vm);return mcs_null();}if(wrong){mcs_raise(vm,"NotSupportedException","SetButtonMap requires ButtonMatrix, not Keyboard");return mcs_null();}
+    retained_buffer_t* b=buffer_alloc(s,h,6,(count+2)*sizeof(const char*)+bytes);
+    if(!b){mcs_raise(vm,"OutOfMemoryException","LVGL button-map copy allocation failed");return mcs_null();}
+    b->count=count;const char** map=(const char**)b->data;char* dst=(char*)(map+count+2);
+    for(unsigned i=0;i<count;i++) {
+        const char* text=mcs_cstr(mcs_index(argv[0],i));size_t n=strlen(text)+1;
+        map[i]=dst;memcpy(dst,text,n);dst+=n;
+    }
+    map[count]=dst;*dst=0;map[count+1]=NULL;
+    s->host.lock(s->host.ctx);r=lookup(s,h);
+    if(r){
+        /* Early 8.x can keep a now-invalid selected index after shrinking. */
+        mcs_lv_buttonmatrix_select(r->obj,65535);
+        mcs_lv_buttonmatrix_set_map(r->obj,map);buffer_replace(s,h,6,b);
+    } else s->host.free(s->host.ctx,b);
+    reap(vm,s);s->host.unlock(s->host.ctx);if(!r)invalid(vm);return mcs_null();
+#else
+    (void)self;(void)argv;mcs_raise(vm,"NotSupportedException","Host ButtonMatrix is disabled");return mcs_null();
+#endif
+}
+NATIVE(set_button_controls) {
+    (void)argc;
+#if MCS_LV_USE_BUTTONMATRIX
+    handle_t* h=handle(vm,self);if(!h)return mcs_null();session_t* s=session(vm);if(!s)return mcs_null();
+    unsigned count;if(!buffer_sequence(vm,argv[0],256,&count))return mcs_null();
+    if(!count){native_arg_error(vm,"Controls need one entry per button, excluding row separators");return mcs_null();}
+    for(unsigned i=0;i<count;i++){int32_t n;if(!buffer_integer(vm,mcs_index(argv[0],i),&n))return mcs_null();
+        if(n<0 || n>65535){native_arg_error(vm,"Button controls must be native 16-bit masks");return mcs_null();}}
+    s->host.lock(s->host.ctx);slot_t* r=lookup(s,h);bool wrong=r && r->kind!=18 && r->kind!=17;
+    bool fits=r && !wrong && native_button_count(r->obj)==count;s->host.unlock(s->host.ctx);
+    if(!r){invalid(vm);return mcs_null();}if(wrong){mcs_raise(vm,"NotSupportedException","SetButtonControls requires ButtonMatrix or Keyboard");return mcs_null();}
+    if(!fits){native_arg_error(vm,"Controls count must equal the current button count");return mcs_null();}
+    mcs_lv_buttonmatrix_ctrl_t* controls=s->host.alloc(s->host.ctx,count*sizeof(*controls));
+    if(!controls){mcs_raise(vm,"OutOfMemoryException","LVGL button-controls copy allocation failed");return mcs_null();}
+    for(unsigned i=0;i<count;i++)controls[i]=(mcs_lv_buttonmatrix_ctrl_t)buffer_value(vm,argv[0],i);
+    s->host.lock(s->host.ctx);r=lookup(s,h);fits=r && native_button_count(r->obj)==count;
+    if(fits)mcs_lv_buttonmatrix_set_ctrl_map(r->obj,controls);
+    s->host.free(s->host.ctx,controls);reap(vm,s);s->host.unlock(s->host.ctx);
+    if(!r)invalid(vm);else if(!fits)native_arg_error(vm,"Button map changed while controls were prepared");return mcs_null();
+#else
+    (void)self;(void)argv;mcs_raise(vm,"NotSupportedException","Host ButtonMatrix is disabled");return mcs_null();
+#endif
+}
+NATIVE(button_count) {
+    UNUSED;
+#if MCS_LV_USE_BUTTONMATRIX
+    BEGIN;bool wrong=r && r->kind!=18 && r->kind!=17;
+    unsigned count=r && !wrong ? native_button_count(r->obj) : 0;
+    s->host.unlock(s->host.ctx);if(!r)invalid(vm);else if(wrong)mcs_raise(vm,"NotSupportedException","ButtonCount requires ButtonMatrix or Keyboard");return mcs_int(count);
+#else
+    (void)self;mcs_raise(vm,"NotSupportedException","Host ButtonMatrix is disabled");return mcs_null();
+#endif
+}

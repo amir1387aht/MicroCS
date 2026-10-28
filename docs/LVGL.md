@@ -140,7 +140,7 @@ Names are case-sensitive; unknown kinds return false. Disabled widgets produce
 | `Chart` | type/range/point-count/update controls via `Call`; series handles not yet exposed | `LV_USE_CHART` |
 | `Canvas` | creation/lifetime/common styles only; pixel buffer/drawing APIs pending | `LV_USE_CANVAS` |
 | `Keyboard` | mode/popovers and checked TextArea linkage via `Call` | `LV_USE_KEYBOARD` |
-| `ButtonMatrix` | button controls/width/text via `Call`; custom retained maps pending | v8 `LV_USE_BTNMATRIX`, v9 `LV_USE_BUTTONMATRIX` |
+| `ButtonMatrix` | copied `SetButtonMap`, `SetButtonControls`, `ButtonCount`, selection/width/text via `Call` | v8 `LV_USE_BTNMATRIX`, v9 `LV_USE_BUTTONMATRIX` |
 | `Line` | copied points via `SetPoints`, `PointCount`, inversion/common styles | `LV_USE_LINE` |
 | `List` | creation/lifetime/common styles; child-returning add APIs pending | `LV_USE_LIST` |
 | `Calendar` | today/shown date via `Call` | `LV_USE_CALENDAR` |
@@ -184,7 +184,7 @@ button.OnClicked(() => { text.Text = "Clicked"; });
 
 The [generated native-call reference](LVGL_NATIVE_API.md) lists the exact
 allowlist, version aliases, feature guards and argument bounds. It currently
-contains **442 operation families** and **225 named constants**, not every LVGL
+contains **443 operation families** and **227 named constants**, not every LVGL
 function. Neither a raw symbol name nor an integer can invoke arbitrary native
 code or serve as a native pointer.
 
@@ -509,3 +509,38 @@ of those hardware properties.
 Official upstream contracts: [LVGL 8.4 objects](https://docs.lvgl.io/8.4/overview/object.html),
 [LVGL 9.2 events](https://docs.lvgl.io/9.2/overview/event.html),
 [LVGL 9.2 OS integration](https://docs.lvgl.io/9.2/porting/os.html).
+
+
+## Copied ButtonMatrix maps and controls
+
+See the runnable [ButtonMatrix example](../examples/lvgl/button-matrix.cs).
+`matrix.SetButtonMap(labels)` accepts a string array/list of button labels with
+`"\n"` entries between rows. The wrapper copies the pointer table and all text,
+then appends native empty-string and null terminators. Do **not** supply either
+terminator. Labels cannot be empty, null or contain NUL, and rows cannot be empty.
+There must be 1..256 entries including row separators; the combined copied text
+including all terminators must fit `MCS_LVGL_MAX_TEXT_BYTES` (default 4096).
+
+The copy survives source-array changes and VM GC; it is released on replacement,
+complete native/parent deletion, or VM teardown. A successful map replacement
+clears selection first, avoiding stale indices after shrinking on early LVGL 8.
+Validation/wrapper allocation failure leaves the old map and selection intact.
+Native LVGL allocation/assert behavior still has the limitations described above.
+Hosts must not mutate/free the binding's retained pointers behind its back.
+
+`matrix.SetButtonControls(masks)` accepts an integer array/list with **one native
+16-bit control mask per button**, not per map entry (row separators do not count).
+Its temporary native copy is freed after LVGL copies the controls. Use
+`Lvgl.Constant(...)` for flags: LVGL 8/9 assign different numeric bits. Raw masks
+are native-version values, not a portable flag encoding.
+
+`ButtonCount` and `SetButtonControls` also work with Keyboard. `SetButtonMap`
+intentionally rejects Keyboard, whose mode maps need their own mapping/control
+lifetime API. Use `Call("lv_btnmatrix_set_selected_btn", index)` or its LVGL 9
+alias `lv_buttonmatrix_set_selected_button`; -1 or named `BTN_NONE` clears selection,
+and other indices must exist. Selected getters normalize NONE to -1. Map/control
+arrays are copied-method APIs, not arbitrary pointer arguments to `Call`.
+
+These methods allocate only when called; no per-object map pointer or fixed map
+arena is added. The existing lazy retained-buffer list is shared. With LVGL
+disabled none of these methods/state is linked into the runtime.

@@ -6,7 +6,7 @@
 #include "mcs_lvgl_compat.h"
 
 typedef struct session session_t;
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
 #if LVGL_VERSION_MAJOR == 8
 typedef lv_coord_t mcs_grid_coord_t;
 typedef lv_point_t mcs_line_point_t;
@@ -19,7 +19,7 @@ typedef struct retained_buffer {
     unsigned slot;
     uint32_t generation;
     unsigned kind, split, count;
-    union { mcs_line_point_t point; mcs_grid_coord_t coord; } alignment;
+    union { mcs_line_point_t point; mcs_grid_coord_t coord; const char* text; } alignment;
     unsigned char data[]; /* aligned raw storage; avoids typed-array aliasing */
 } retained_buffer_t;
 #endif
@@ -41,7 +41,7 @@ struct session {
     unsigned head, count;
     uint32_t dropped;
     bool dispatching, reap_pending;
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
     retained_buffer_t* buffers; /* lazy buffers; no per-slot pointer or reservation */
 #endif
 };
@@ -175,7 +175,7 @@ static void reap(mcs_vm_t* vm, session_t* s) {
         if (!r->obj && r->owned_font) { mcs_lv_font_destroy(r->owned_font); r->owned_font=NULL; }
         if (!r->obj && r->pin >= 0) { mcs_unpin(vm, r->pin); r->pin = -1; }
     }
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
     retained_buffer_t** link=&s->buffers;
     while(*link) {
         retained_buffer_t* b=*link;slot_t* r=&s->slots[b->slot];
@@ -622,11 +622,12 @@ static int native_copy_text(session_t* s,const char* text,native_result_t* out) 
     memcpy(out->text,text,n+1);out->length=n;out->kind=NRET_TEXT;return 0;
 }
 #if MCS_LV_USE_BUTTONMATRIX
-static bool native_button_index(lv_obj_t* obj,unsigned index) {
+static unsigned native_button_count(lv_obj_t* obj) {
     const char* const* map=mcs_lv_buttonmatrix_map(obj);unsigned count=0;
     for(size_t i=0;map && map[i] && map[i][0];++i)if(strcmp(map[i],"\n"))++count;
-    return index<count;
+    return count;
 }
+static bool native_button_index(lv_obj_t* obj,unsigned index) {return index<native_button_count(obj);}
 #endif
 #if LV_USE_SPINBOX
 static int32_t native_spin_limit(unsigned digits) {
@@ -721,6 +722,7 @@ NATIVE(native_get_text) {
 
 static const mcs_reg_t members[] = {
     MCS_FN("Call",native_call,-1),
+    MCS_FN("SetButtonMap",set_button_map,1), MCS_FN("SetButtonControls",set_button_controls,1), MCS_GET("ButtonCount",button_count),
     MCS_FN("SetGrid",set_grid,2), MCS_FN("SetPoints",set_points,1), MCS_GET("PointCount",point_count),
     MCS_FN("Dispose",dispose,0), MCS_GET("IsAlive",alive), MCS_FN("Center",center,0),
     MCS_FN("SetSize",set_size,2), MCS_FN("SetPosition",set_pos,2),

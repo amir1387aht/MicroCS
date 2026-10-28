@@ -112,6 +112,8 @@ def generate(data):
             lines += ['    if(lv_obj_get_self_width(r->obj)<=0 || lv_obj_get_self_height(r->obj)<=0)return NERR_RANGE;']
         if check == 'textarea':
             lines += ['    if(other0 && other0->kind!=11 && other0->kind!=14)return NERR_KIND;']
+        if check == 'button_selection':
+            lines += ['    if(a->v[0].n!=-1 && a->v[0].n!=65535 && !native_button_index(r->obj,(unsigned)a->v[0].n))return NERR_RANGE;']
         if check == 'button_index':
             lines += ['    if(!native_button_index(r->obj,(unsigned)a->v[0].n))return NERR_RANGE;']
         if check in ('table_size', 'table_index'):
@@ -221,6 +223,16 @@ def generate(data):
              'descriptors or ASCII filenames. Hosts must not replace these owned',
              'pointers behind the binding. Selected-string getters return a copied',
              'VM string with no caller buffer argument and reject overlong output.', '',
+             '`SetButtonMap(string[]/List<string>)` owns labels and a terminated native',
+             'pointer table. Use `\\n` entries between nonempty rows; do not supply',
+             'an empty terminator. At most 256 entries and MAX_TEXT_BYTES total copied',
+             'text bytes (including string terminators) are accepted. ButtonMatrix only;',
+             'Keyboard owns its mode maps. Replacing a map clears selection.',
+             '`SetButtonControls(int[]/List<int>)` copies one native 16-bit control mask',
+             'per button (not row separator); its scratch copy is released immediately.',
+             '`ButtonCount` works on ButtonMatrix/Keyboard. Use named native control',
+             'constants because their bit positions differ between majors. Selection',
+             'setter accepts -1 or BTN_NONE to clear; other indices must exist.', '',
              '## Constants', '', '| Name | Config | Majors |', '| --- | --- | --- |']
     docs += [f'| `{e["name"]}` | {e["guard"]} | {", ".join(e["variants"])} |' for e in consts]
     tests = ['/* Generated availability/arity/style smoke cases; semantic tests are separate. */',

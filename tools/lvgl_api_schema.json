@@ -739,6 +739,30 @@
       ]
     },
     {
+      "name": "lv_btnmatrix_set_selected_btn",
+      "variants": {
+        "8": "lv_btnmatrix_set_selected_btn",
+        "9": "lv_buttonmatrix_set_selected_button"
+      },
+      "args": [
+        {
+          "kind": "number",
+          "ctype": "uint16_t",
+          "lo": -1,
+          "hi": 65535
+        }
+      ],
+      "result": "void",
+      "guard": "MCS_LV_USE_BUTTONMATRIX",
+      "kinds": [
+        18,
+        17
+      ],
+      "check": "button_selection",
+      "expression8": "lv_btnmatrix_set_selected_btn(r->obj,a->v[0].n<0 ? LV_BTNMATRIX_BTN_NONE : a->v[0].n)",
+      "expression9": "lv_buttonmatrix_set_selected_button(r->obj,a->v[0].n<0 ? LV_BUTTONMATRIX_BUTTON_NONE : a->v[0].n)"
+    },
+    {
       "name": "lv_calendar_set_showed_date",
       "variants": {
         "8": "lv_calendar_set_showed_date",
@@ -8848,6 +8872,14 @@
       "guard": "1"
     },
     {
+      "name": "LV_BTNMATRIX_BTN_NONE",
+      "variants": {
+        "8": "LV_BTNMATRIX_BTN_NONE",
+        "9": "LV_BUTTONMATRIX_BUTTON_NONE"
+      },
+      "guard": "MCS_LV_USE_BUTTONMATRIX"
+    },
+    {
       "name": "LV_BTNMATRIX_CTRL_CHECKABLE",
       "variants": {
         "8": "LV_BTNMATRIX_CTRL_CHECKABLE",
@@ -8906,6 +8938,14 @@
       "name": "LV_BTNMATRIX_CTRL_RECOLOR",
       "variants": {
         "8": "LV_BTNMATRIX_CTRL_RECOLOR"
+      },
+      "guard": "MCS_LV_USE_BUTTONMATRIX"
+    },
+    {
+      "name": "LV_BUTTONMATRIX_BUTTON_NONE",
+      "variants": {
+        "8": "LV_BTNMATRIX_BTN_NONE",
+        "9": "LV_BUTTONMATRIX_BUTTON_NONE"
       },
       "guard": "MCS_LV_USE_BUTTONMATRIX"
     },

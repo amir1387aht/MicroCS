@@ -15,6 +15,10 @@
 #define MCS_LV_USE_IMAGEBUTTON LV_USE_IMGBTN
 #define mcs_lv_buttonmatrix_create lv_btnmatrix_create
 #define mcs_lv_buttonmatrix_map lv_btnmatrix_get_map
+#define mcs_lv_buttonmatrix_set_map lv_btnmatrix_set_map
+#define mcs_lv_buttonmatrix_set_ctrl_map lv_btnmatrix_set_ctrl_map
+#define mcs_lv_buttonmatrix_select lv_btnmatrix_set_selected_btn
+#define mcs_lv_buttonmatrix_ctrl_t lv_btnmatrix_ctrl_t
 #define mcs_lv_imagebutton_create lv_imgbtn_create
 #define mcs_lv_spinner_create(p) lv_spinner_create(p,1000,60)
 #define mcs_lv_child_count lv_obj_get_child_cnt
@@ -39,6 +43,10 @@
 #define MCS_LV_USE_IMAGEBUTTON LV_USE_IMAGEBUTTON
 #define mcs_lv_buttonmatrix_create lv_buttonmatrix_create
 #define mcs_lv_buttonmatrix_map lv_buttonmatrix_get_map
+#define mcs_lv_buttonmatrix_set_map lv_buttonmatrix_set_map
+#define mcs_lv_buttonmatrix_set_ctrl_map lv_buttonmatrix_set_ctrl_map
+#define mcs_lv_buttonmatrix_select lv_buttonmatrix_set_selected_button
+#define mcs_lv_buttonmatrix_ctrl_t lv_buttonmatrix_ctrl_t
 #define mcs_lv_imagebutton_create lv_imagebutton_create
 #define mcs_lv_spinner_create lv_spinner_create
 #define mcs_lv_child_count lv_obj_get_child_count

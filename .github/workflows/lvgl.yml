@@ -79,3 +79,21 @@ jobs:
           cmake --build build/lvgl --target test_lvgl -j2
           ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
           python3 tests/lvgl/check_sanitizer_log.py --lvgl-version v9.3.0 build/lvgl/sanitizer.log
+
+  buttonmatrix-only:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        lvgl: [v8.1.0, v9.6.0]
+    steps:
+      - uses: actions/checkout@v4
+      - run: git clone --depth 1 --branch '${{ matrix.lvgl }}' https://github.com/lvgl/lvgl.git /tmp/host-lvgl
+      - name: Explicit host LVGL 8 font repair
+        run: python3 tools/patch_lvgl8_font.py /tmp/host-lvgl --apply
+      - name: Only button matrices enable retained-buffer support
+        run: |
+          cmake -S tests/lvgl -B build/lvgl -DLVGL_HOST_DIR=/tmp/host-lvgl -DSANITIZE=ON -DBUTTONMATRIX_ONLY=ON
+          cmake --build build/lvgl --target test_lvgl -j2
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest --test-dir build/lvgl --verbose | tee build/lvgl/sanitizer.log
+          python3 tests/lvgl/check_sanitizer_log.py --lvgl-version '${{ matrix.lvgl }}' build/lvgl/sanitizer.log

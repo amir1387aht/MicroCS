@@ -15,7 +15,7 @@ static void* alloc(void* p,size_t n){host_t* h=p;h->last_size=n;if(h->fail)retur
 static void release(void* p,void* ptr){host_t* h=p;unsigned i;for(i=0;i<128 && h->ptrs[i]!=ptr;++i){}if(i==128 || !h->live)abort();memset(ptr,0xa5,h->sizes[i]);h->ptrs[i]=NULL;--h->live;h->base.free(h->base.ctx,ptr);}
 static mcs_lvgl_config_t config(host_t* h,const mcs_lvgl_config_t* base){memset(h,0,sizeof(*h));h->base=*base;h->owner=true;mcs_lvgl_config_t c=*base;c.ctx=h;c.lock=lock;c.unlock=unlock;c.is_vm_thread=owner;c.alloc=alloc;c.free=release;return c;}
 static mcs_vm_t* new_vm(const mcs_lvgl_config_t* cfg){mcs_config_t c;mcs_config_default(&c);c.write_fn=c.error_fn=quiet;mcs_vm_t* vm=mcs_new(&c);CHECK(vm!=NULL);if(vm)CHECK(mcs_lvgl_attach(vm,cfg)==0);return vm;}
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
 typedef struct {mcs_pool_t pool;int at,calls;bool inject,injected;} fault_t;
 static void* failing(void* p,void* ptr,size_t old,size_t n){fault_t* f=p;if(n && f->inject && f->calls++==f->at){f->injected=true;return NULL;}return mcs_pool_realloc(&f->pool,ptr,old,n);}
 static void test_faults(const mcs_lvgl_config_t* base){
@@ -37,6 +37,9 @@ static void test_faults(const mcs_lvgl_config_t* base){
 #endif
 #if LV_USE_DROPDOWN
           "var dd=new LvObject(\"Dropdown\",panel);dd.Call(\"lv_dropdown_set_text\",\"Title\");dd.Call(\"lv_dropdown_set_symbol\",\"▼\");dd.Call(\"lv_dropdown_set_text\",null);dd.Call(\"lv_dropdown_set_text\",\"New\");string snap=dd.Call(\"lv_dropdown_get_selected_str\");string copy=dd.Call(\"lv_dropdown_get_text\");"
+#endif
+#if MCS_LV_USE_BUTTONMATRIX
+          "var buttons=new LvObject(\"ButtonMatrix\",panel);buttons.SetButtonMap(new string[]{\"A\",\"B\"});buttons.SetButtonControls(new int[]{1,2});buttons.SetButtonMap(new string[]{\"C\"});"
 #endif
           "panel.Dispose();Lvgl.Dispatch(0);";
         int rc=mcs_exec_source(vm,"buffer-fault.cs",code);f.inject=false;
@@ -90,8 +93,37 @@ static void test_retained_text(const mcs_lvgl_config_t* base) {
 #endif
     mcs_free(vm);CHECK(!h.live);CHECK(h.peak<=4);
 }
+static void test_button_maps(const mcs_lvgl_config_t* base) {
+    host_t h;mcs_lvgl_config_t cfg=config(&h,base);mcs_vm_t* vm=new_vm(&cfg);if(!vm)return;
+#if MCS_LV_USE_BUTTONMATRIX
+    run(vm,"var matrix=new LvObject(\"ButtonMatrix\");string[] map={\"Red\",\"Gr\"+\"een\",\"\\n\",\"Blue\"};matrix.SetButtonMap(map);map[1]=\"changed\";map=null;GC.Collect();if(matrix.ButtonCount!=3 || matrix.Call(\"lv_btnmatrix_get_btn_text\",1)!=\"Green\")throw new Exception(\"map copy\");matrix.Call(\"lv_btnmatrix_set_selected_btn\",2);if(matrix.Call(\"lv_buttonmatrix_get_selected_button\")!=2)throw new Exception(\"selected alias\");");CHECK(h.live==2);
+    lock(&h);lv_obj_t* native=lv_obj_get_child(lv_obj_get_child(base->root,0),0);const char* const* map=mcs_lv_buttonmatrix_map(native);
+    CHECK((uintptr_t)map%sizeof(void*)==0);CHECK(!strcmp(map[1],"Green") && !strcmp(map[2],"\n") && !strcmp(map[4],"") && map[5]==NULL);
+    lv_tick_inc(40);lv_timer_handler();unlock(&h);
+    run(vm,"int checkedFlag=Lvgl.Constant(\"LV_BTNMATRIX_CTRL_CHECKED\");int checkable=Lvgl.Constant(\"LV_BTNMATRIX_CTRL_CHECKABLE\");int[] controls={1,checkable|checkedFlag|2,1};matrix.SetButtonControls(controls);controls[1]=0;controls=null;GC.Collect();if(!matrix.Call(\"lv_btnmatrix_has_btn_ctrl\",1,checkedFlag))throw new Exception(\"controls copy\");");CHECK(h.live==2);
+    h.fail=true;run(vm,"bool mapOom=false;try{matrix.SetButtonMap(new string[]{\"replacement\"});}catch(OutOfMemoryException e){mapOom=true;}if(!mapOom || matrix.ButtonCount!=3 || matrix.Call(\"lv_btnmatrix_get_selected_btn\")!=2)throw new Exception(\"map OOM\");bool ctrlOom=false;try{matrix.SetButtonControls(new int[]{1,1,1});}catch(OutOfMemoryException e){ctrlOom=true;}if(!ctrlOom)throw new Exception(\"controls OOM\");");h.fail=false;CHECK(h.live==2);
+    run(vm,"if(matrix.Call(\"lv_btnmatrix_get_btn_text\",1)!=\"Green\" || !matrix.Call(\"lv_btnmatrix_has_btn_ctrl\",1,checkedFlag))throw new Exception(\"OOM preserved\");");
+    h.owner=false;run(vm,"bool owner=false;try{matrix.SetButtonMap(new string[]{\"bad\"});}catch(InvalidOperationException e){owner=true;}if(!owner)throw new Exception(\"map owner\");");h.owner=true;CHECK(h.live==2);
+    run(vm,"int rejected=0;try{matrix.SetButtonMap(new string[0]);}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{\"\"});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{\"\\n\",\"A\"});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{\"A\",\"\\n\"});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{\"A\",\"\\n\",\"\\n\",\"B\"});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new object[]{1});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{null});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[]{\"a\\0b\"});}catch(ArgumentException e){rejected++;}try{matrix.SetButtonMap(new string[257]);}catch(ArgumentException e){rejected++;}if(rejected!=9 || matrix.ButtonCount!=3)throw new Exception(\"map rejection\");");CHECK(h.live==2);
+    run(vm,"int badControls=0;try{matrix.SetButtonControls(new int[]{1,1});}catch(ArgumentException e){badControls++;}try{matrix.SetButtonControls(new int[]{1,-1,1});}catch(ArgumentException e){badControls++;}try{matrix.SetButtonControls(new object[]{1,\"bad\",1});}catch(ArgumentException e){badControls++;}try{matrix.SetButtonControls(new int[]{1,65536,1});}catch(ArgumentException e){badControls++;}try{matrix.SetButtonControls(new int[0]);}catch(ArgumentException e){badControls++;}if(badControls!=5)throw new Exception(\"controls rejection\");bool selected=false;try{matrix.Call(\"lv_btnmatrix_set_selected_btn\",3);}catch(ArgumentException e){selected=true;}if(!selected)throw new Exception(\"selected bounds\");matrix.Call(\"lv_btnmatrix_set_selected_btn\",-1);if(matrix.Call(\"lv_btnmatrix_get_selected_btn\")!=-1)throw new Exception(\"none selection\");matrix.Call(\"lv_buttonmatrix_set_selected_button\",Lvgl.Constant(\"LV_BUTTONMATRIX_BUTTON_NONE\"));");CHECK(h.live==2);
+#if LV_USE_KEYBOARD
+    run(vm,"var kb=new LvObject(\"Keyboard\");bool keyboard=false;try{kb.SetButtonMap(new string[]{\"unsafe\"});}catch(NotSupportedException e){keyboard=true;}if(!keyboard || kb.ButtonCount<1)throw new Exception(\"keyboard map\");kb.Dispose();");CHECK(h.live==2);
+#endif
+    {char code[1024];snprintf(code,sizeof code,
+        "string edge=new string('x',%u);matrix.SetButtonMap(new string[]{edge});if(matrix.Call(\"lv_btnmatrix_get_btn_text\",0).Length!=%u)throw new Exception(\"map text boundary\");bool tooLong=false;try{matrix.SetButtonMap(new string[]{edge+\"x\"});}catch(ArgumentException e){tooLong=true;}if(!tooLong || matrix.ButtonCount!=1)throw new Exception(\"map byte cap\");edge=null;GC.Collect();string[] many=new string[256];for(int i=0;i<256;i++)many[i]=\"x\";matrix.SetButtonMap(many);if(matrix.ButtonCount!=256)throw new Exception(\"map entry boundary\");matrix.SetButtonControls(new int[256]);many=null;GC.Collect();matrix.SetButtonMap(new List<string>{\"A\",\"B\"});matrix.SetButtonControls(new List<int>{1,2});",
+        (unsigned)MCS_LVGL_MAX_TEXT_BYTES-2u,(unsigned)MCS_LVGL_MAX_TEXT_BYTES-2u);run(vm,code);CHECK(h.live==2);}
+    run(vm,"var objectOnly=new LvObject(\"Object\");bool wrong=false;try{objectOnly.SetButtonMap(new string[]{\"bad\"});}catch(NotSupportedException e){wrong=true;}if(!wrong)throw new Exception(\"map kind\");objectOnly.Dispose();for(int repeat=0;repeat<50;repeat++){matrix.SetButtonMap(new string[]{\"A\",\"B\"});matrix.SetButtonControls(new int[]{1,2});matrix.Call(\"lv_btnmatrix_set_selected_btn\",1);matrix.SetButtonMap(new string[]{\"Green\"});if(matrix.ButtonCount!=1 || matrix.Call(\"lv_btnmatrix_get_selected_btn\")!=-1)throw new Exception(\"map shrink\");}string saved=matrix.Call(\"lv_btnmatrix_get_btn_text\",0);matrix.Dispose();GC.Collect();if(saved!=\"Green\")throw new Exception(\"button text snapshot\");Lvgl.Dispatch(0);");CHECK(h.live==1);
+    run(vm,"var parent=new LvObject(\"Object\");var doomed=new LvObject(\"ButtonMatrix\",parent);doomed.SetButtonMap(new string[]{\"native lifetime\"});");CHECK(h.live==2);
+    lock(&h);mcs_lv_obj_delete(lv_obj_get_child(lv_obj_get_child(base->root,0),0));unlock(&h);
+    run(vm,"Lvgl.Dispatch(0);bool stale=false;try{doomed.SetButtonMap(new string[]{\"bad\"});}catch(InvalidOperationException e){stale=true;}if(!stale)throw new Exception(\"stale map\");");CHECK(h.live==1);
+    CHECK(h.peak<=3);
+#else
+    run(vm,"var probe=new LvObject(\"Object\");int disabled=0;try{probe.SetButtonMap(new string[]{\"bad\"});}catch(NotSupportedException e){disabled++;}try{probe.SetButtonControls(new int[]{1});}catch(NotSupportedException e){disabled++;}try{int n=probe.ButtonCount;}catch(NotSupportedException e){disabled++;}if(disabled!=3)throw new Exception(\"disabled maps\");probe.Dispose();");
+#endif
+    mcs_free(vm);CHECK(!h.live);
+}
 int test_lvgl_buffers(const mcs_lvgl_config_t* base){
-    test_retained_text(base);
+    test_retained_text(base);test_button_maps(base);
     host_t h;mcs_lvgl_config_t cfg=config(&h,base);mcs_vm_t* vm=new_vm(&cfg);if(!vm)return failures;
     run(vm,"var panel=new LvObject(\"Object\");panel.SetSize(180,100);");CHECK(h.live==1);
 #if LV_USE_GRID
@@ -128,7 +160,7 @@ int test_lvgl_buffers(const mcs_lvgl_config_t* base){
     run(vm,"bool stale=false;try{line.SetPoints(new int[]{0,0,20,10});}catch(InvalidOperationException e){stale=true;}if(!stale)throw new Exception(\"stale line\");");CHECK(h.live==1);
 #endif
     mcs_free(vm);CHECK(!h.live);
-#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN
+#if LV_USE_GRID || LV_USE_LINE || LV_USE_TEXTAREA || LV_USE_DROPDOWN || MCS_LV_USE_BUTTONMATRIX
     test_faults(base);
 #endif
     printf("LVGL copied buffers: %d checks, %d failures; peak wrapper blocks=%u\n",checks,failures,h.peak);return failures;
