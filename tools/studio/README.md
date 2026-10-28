@@ -18,7 +18,7 @@ the editor works there, but it can't connect to a board.
 |---|---|
 | `index.html` | page layout |
 | `studio.css` | look: Visual Studio 2022 Dark / Light, C# colours (`--t-*` variables) |
-| `workbench.js` | command palette, open-file switcher, explorer visibility and file breadcrumbs; browser-only |
+| `workbench.js` | command palette, open-file switcher, explorer visibility and format availability; browser-only |
 | `studio.js` | the app: serial link and shell protocol, editor, file manager, console |
 | `templates/` | the templates and examples: one folder per category, plain `.cs` files + a `templates.txt` describing them ([how to add one](templates/README.md)) |
 | `templates.js` | **generated** from `templates/` by `python3 gen_templates.py` (the page loads it; CI checks it is current) |
@@ -296,11 +296,18 @@ changes require no firmware update and add no polling or application-runtime wor
 
 ## Studio 1.19 editor improvements
 
+Dark and Light use the Visual Studio 2022 palette declared at the top of
+`studio.css`: neutral charcoal editor/tool surfaces in Dark, white/light-gray
+surfaces in Light, and blue reserved for selection and active-control accents.
+Workbench layout rules do not override the palette with blue-gray colors.
+
 The command palette lists available actions and marks device-dependent commands
 unavailable while offline. Escape restores the previous focus. Ctrl+P searches
 only already-open tabs, without reading the device or overwriting drafts.
-Document tabs support Left/Right and Home/End navigation; the breadcrumb bar shows
-the active path, local/device origin and unsaved state.
+Document tabs support Left/Right and Home/End navigation. The editor starts
+directly below the tabs, without a duplicate filename/origin strip. Tabs retain
+unsaved-change indicators and full-path tooltips; the bottom status bar retains
+the active path.
 
 IntelliSense filters declarations by lexical scope and infers `this`, `base`,
 unqualified method results, nested generic arguments and dictionary value indexing.

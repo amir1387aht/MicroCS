@@ -8,19 +8,9 @@
     $("main").classList.toggle("sidebar-hidden", !show);
     $("btnExplorer").setAttribute("aria-expanded", String(show)); store.set("explorerVisible", show);
   }
-  function documentBar() {
-    const tab = App.tab(), bar = $("documentBar");
-    bar.replaceChildren(); $("btnFormat").disabled = !tab || !!tab.readOnly || !!tab.binary || !/\.cs$/i.test(tab.path || tab.name || "");
-    if (!tab) { bar.textContent = "WORKSPACE  /  Ready to create"; return; }
-    const parts = (tab.path || tab.name || "Untitled").split("/").filter(Boolean);
-    for (const [i, part] of parts.entries()) {
-      const node = document.createElement("span"); node.textContent = part; node.className = i === parts.length - 1 ? "document-name" : "document-folder";
-      bar.appendChild(node);
-      if (i < parts.length - 1) { const sep = document.createElement("span");sep.className="document-sep";sep.textContent="›";bar.appendChild(sep); }
-    }
-    bar.title = tab.path || tab.name || "Untitled";
-    const state = document.createElement("span");state.className="document-state";
-    state.textContent = (tab.local ? "Local" : tab.path ? "Device" : "Draft") + (tab.dirty ? " · Unsaved" : "");bar.appendChild(state);
+  function updateFormatButton() {
+    const tab = App.tab();
+    $("btnFormat").disabled = !tab || !!tab.readOnly || !!tab.binary || !/\.cs$/i.test(tab.path || tab.name || "");
   }
   function actions() {
     const tab = App.tab(), text = tab && !tab.binary;
@@ -87,7 +77,7 @@
       }
     }
   },true);
-  document.addEventListener("studio:tabs",documentBar);
+  document.addEventListener("studio:tabs",updateFormatButton);
   document.querySelectorAll("button[title]").forEach(b=>{if(!b.hasAttribute("aria-label"))b.setAttribute("aria-label",b.title);});
-  sidebar(store.get("explorerVisible",innerWidth>720));documentBar();
+  sidebar(store.get("explorerVisible",innerWidth>720));updateFormatButton();
 })();

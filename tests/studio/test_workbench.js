@@ -4,6 +4,12 @@ const assert=require('assert'),path=require('path'),fs=require('fs');
 try{
  const p=await browser.newPage({viewport:{width:1440,height:960},colorScheme:"dark"}),errors=[];p.on('pageerror',e=>errors.push(e.message));
  await p.goto('file://'+path.resolve('tools/studio/index.html'));
+ assert.strictEqual(await p.locator('#documentBar, .document-bar').count(),0,'duplicate filename/origin strip is removed');
+ assert(await p.locator('#btnFormat').isDisabled(),'format stays disabled without an active document');
+ const palette=await p.evaluate(()=>{const css=getComputedStyle(document.documentElement);return Object.fromEntries(['shell','tool','bg','hdr','input','raised','line','line2','hover','fg','accent'].map(k=>[k,css.getPropertyValue('--'+k).trim()]));});
+ assert.deepStrictEqual(palette,{shell:'#1f1f1f',tool:'#252526',bg:'#1e1e1e',hdr:'#2d2d30',input:'#333337',raised:'#3f3f46',line:'#3f3f46',line2:'#2d2d30',hover:'#3e3e40',fg:'#f1f1f1',accent:'#007acc'},'VS2022 dark colors must not be overridden by blue-gray surfaces');
+ assert.strictEqual(await p.locator('#editor').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(30, 30, 30)');
+ assert.strictEqual(await p.locator('.side').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(37, 37, 38)');
  await p.evaluate(()=>{
   window.__serialCalls=0;dev.ls=async()=>{__serialCalls++;return[];};
   App.openTab({path:'/apps/main.cs',text:'class DeviceApp{public string Name;void Start(){this.}}',saved:null});
@@ -14,7 +20,12 @@ try{
  assert.strictEqual(await p.locator('[role="option"]').getAttribute('aria-disabled'),'false');
  await p.keyboard.press('Escape');assert(await p.locator('#ta').evaluate(e=>e===document.activeElement));
  await p.keyboard.press('Control+p');await p.fill('#commandInput','apps/main');await p.keyboard.press('Enter');
- assert.strictEqual(await p.evaluate(()=>App.tab().path),'/apps/main.cs');assert(await p.locator('#documentBar').innerText().then(t=>t.includes('Unsaved')));
+ assert.strictEqual(await p.evaluate(()=>App.tab().path),'/apps/main.cs');assert(await p.locator('[role="tab"][aria-selected="true"]').evaluate(e=>e.classList.contains('dirty')),'tab keeps unsaved indicator');
+ assert.strictEqual(await p.locator('[role="tab"][aria-selected="true"]').getAttribute('title'),'/apps/main.cs','tab keeps full path tooltip');
+ assert.strictEqual(await p.locator('#sbFile').innerText(),'/apps/main.cs','bottom status keeps file path');
+ assert(!(await p.locator('#btnFormat').isDisabled()),'C# formatting remains enabled');
+ const tabsBox=await p.locator('.tabs').boundingBox(),editorBox=await p.locator('#editor').boundingBox();
+ assert(Math.abs(editorBox.y-(tabsBox.y+tabsBox.height))<=1,'editor sits directly below tabs with no leftover strip gap');
  await p.evaluate(()=>{ed.ta.setSelectionRange(ed.ta.value.indexOf('this.')+5,ed.ta.value.indexOf('this.')+5);ed.suggest(true);});
  assert(await p.locator('#complete').innerText().then(t=>t.includes('Name')),'this.member suggestions');
  await p.keyboard.press('Escape');
@@ -28,12 +39,19 @@ try{
  await p.keyboard.press('Control+b');assert(await p.locator('#main').evaluate(e=>e.classList.contains('sidebar-hidden')));
  assert((await p.locator('#editor').boundingBox()).width>1200,'hidden explorer releases the entire editor width');
  await p.keyboard.press('Control+b');assert(!await p.locator('#main').evaluate(e=>e.classList.contains('sidebar-hidden')));
+ await p.evaluate(()=>App.openTab({path:'/settings.json',text:'{}',saved:'{}'}));
+ assert(await p.locator('#btnFormat').isDisabled(),'format remains disabled for non-C# tabs');
+ await p.evaluate(()=>App.activate(App.tabs[0].id));
+ assert(!(await p.locator('#btnFormat').isDisabled()),'format re-enables on C# tab switch');
  assert.strictEqual(await p.evaluate(()=>__serialCalls),0,'editor actions cannot poll firmware');
  fs.mkdirSync('build/studio-review',{recursive:true});
  await p.evaluate(()=>{App.activate(App.tabs[0].id);ed.ta.value='using App.Display;\n\nclass DeviceApp\n{\n    private Display screen;\n    public void Start()\n    {\n        screen = new Display();\n        screen.DrawCentered("Ready to build");\n    }\n}\n\nnew DeviceApp().Start();';ed.refresh();ed.stash();});
  await p.screenshot({path:'build/studio-review/workbench-dark.png'});
  await p.keyboard.press('Control+Shift+P');await p.fill('#commandInput','');await p.screenshot({path:'build/studio-review/workbench-palette.png'});await p.keyboard.press('Escape');
- await p.click('#btnTheme');await p.screenshot({path:'build/studio-review/workbench-light.png'});
+ await p.click('#btnTheme');
+ assert.strictEqual(await p.locator('#editor').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(255, 255, 255)','light editor stays white');
+ assert.strictEqual(await p.locator('html').evaluate(e=>getComputedStyle(e).getPropertyValue('--shell').trim()),'#eeeef2','VS2022 light shell is not blue-gray');
+ await p.screenshot({path:'build/studio-review/workbench-light.png'});
  await p.setViewportSize({width:390,height:844});
  await p.evaluate(()=>{document.getElementById('main').classList.add('sidebar-hidden');App.setTerminalVisible(false,false);});
  assert(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no page overflow on mobile');

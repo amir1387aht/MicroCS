@@ -246,16 +246,6 @@ Memory exhaustion is still a valid bounded-resource error, not evidence that
 all free bytes were usable. Compare pool free **and largest block**, the requested
 allocation, and device heap separately when diagnosing it.
 
-## Limits are safety ceilings, not promises of free memory
-
-The full profile still permits up to 1024 value slots and 64 call frames;
-the embedded profile permits 512 / 64. Increasing demand consumes additional
-pool RAM automatically. Reaching a configured execution ceiling raises a
-catchable `StackOverflowException`; exhausting the allocator reports an OOM and
-unwinds safely. Dynamic storage cannot guarantee that an arbitrarily large
-application fits a 40 KiB pool. Studio reports observed peaks so an exceptional
-need to raise a safety ceiling is visible, not something users must guess.
-
 ## ESP32 automatic pools: committed capacity versus available headroom
 
 The automatic provider starts with no backing and normally acquires a 16 KiB
@@ -290,3 +280,75 @@ initial region toward a 74 KiB ceiling with sufficient headroom, rejects growth
 under the reserve-constrained example, retains existing data after OOM, and
 releases all regions. This is a host regression, not an ESP-IDF hardware memory
 or fragmentation measurement.
+
+## Limits are safety ceilings, not promises of free memory
+
+The full profile still permits up to 1024 value slots and 64 call frames;
+the embedded profile permits 512 / 64. Increasing demand consumes additional
+pool RAM automatically. Reaching a configured execution ceiling raises a
+catchable `StackOverflowException`; exhausting the allocator reports an OOM and
+unwinds safely. Dynamic storage cannot guarantee that an arbitrarily large
+application fits a 40 KiB pool. Studio reports observed peaks so an exceptional
+need to raise a safety ceiling is visible, not something users must guess.
+
+## Automatic recovery of empty regions under allocation pressure
+
+Free bytes across regions are not one contiguous allocation. For example, a
+58,332-byte backing pool can have about 49 KiB free but a largest free block of
+only about 16 KiB. A new 32 KiB request cannot span those regions, and a native
+reserve may prevent acquiring more backing while the empty regions remain held.
+
+The dynamic pool now first tries its existing free blocks and normal growth.
+If growth fails, it returns **wholly empty** regions to their owning provider
+and retries acquisition once for the requested size. This can recycle multiple
+small cached regions into a larger native allocation, provided the native
+allocator can supply it. The provider still enforces its reserve, contiguous
+margin and total backing ceiling. Free capacity/committed region counts may fall
+following a failed recovery because the empty regions were returned to native
+RAM; live data and pointers remain valid.
+
+There is no GC, relocation of unrelated live objects, or merging across native
+allocation ownership boundaries. Normal successful allocations/frees retain
+regions as before; recovery scans/releases happen only on the failed-growth
+path. A region containing even one live allocation cannot be released. Native
+fragmentation, live-region fragmentation and genuine RAM exhaustion can still
+cause OOM; this is not a promise that every free byte can satisfy every object.
+
+The ESP32 provider regression reconstructs four regions totalling 58,332 bytes,
+then exercises a 32 KiB persistent or temporary request with 41,900 native bytes
+free against a 41 KiB reserve. With an idealized recoverable native allocator,
+it releases three empty regions and succeeds without touching a 9,000-byte live
+allocation or lowering the reserve. Forced native allocation failure checks that
+recovery terminates and the live data and remaining allocator still work.
+A separate cap-limited moving-realloc regression checks preservation of the old
+contents. The tests run on the host; native fragmentation on physical hardware
+still needs validation. The old allocator fails the new recovery regression.
+
+### Strict full-capacity and native-fragmentation checks
+
+`test_pool_pressure` executes the production pool and ESP32 provider over a
+bounded native arena with actual address-ordered splitting/coalescing, exact
+free/largest queries, and guard bytes around every native allocation. This
+replaces optimistic largest-block assumptions for these additional checks.
+
+- Exhaust a 64 KiB backing cap with tiny live allocations until **all usable pool
+  bytes are occupied**, including per-object allocator headers, and check that
+  further allocations fail without crossing the cap. Payload capacity remains
+  lower than backing: region descriptors and object headers are real overhead.
+- Reclaim empty regions and satisfy a larger contiguous request when the native
+  free blocks can actually coalesce. Verify an injected native allocation failure
+  is bounded and leaves unrelated live data and the remaining allocator intact.
+- Deliberately interleave live native buffers between regions. Verify the larger
+  request still fails when native holes cannot coalesce, without overwriting,
+  moving, or freeing those buffers. Free total is not a guarantee of one block.
+- Run 48,000 deterministic randomized persistent/temporary allocation, realloc,
+  free and failure-injection operations across four seeds, checking retained
+  payloads, native canaries, pool/backing accounting and reserve/cap invariants.
+- Verify complete provider teardown restores the entire native arena, not merely
+  VM accounting counters. Both strict provider fixtures are included in
+  `make firmware-heap-test`, sanitizer CI and the 32-bit memory job.
+
+The host arena and bookkeeping are test instrumentation, not a model of their
+own firmware footprint. Passing these checks does not measure ESP-IDF native
+fragmentation, BLE peak load or the user's actual app on a physical ESP32-C2.
+No RAM reserve is removed and no promise is made to allocate all physical RAM.

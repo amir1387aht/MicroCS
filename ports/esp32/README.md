@@ -346,13 +346,6 @@ See [memory budgets](../../docs/MEMORY.md): the device heap includes the reserve
 pool and SDK costs, but is not total physical SRAM. No ESP32 hardware measurement
 or arbitrary-app 40 KiB guarantee is implied by the host regression.
 
-## Rotary encoders
-
-[RotaryEncoder](../../docs/ENCODER.md) prefers PCNT,
-with software GPIO decoding only when no native backend supports the selected
-pins. `encoder.Backend` reports the actual selection. See the guide for pin
-bindings, resource ownership, setup and counter-service limits.
-
 ## Host-owned LVGL (optional)
 
 The [LVGL binding](../../docs/LVGL.md) attaches C# widgets to an existing, initialized
@@ -372,3 +365,20 @@ scripts. Check the printed startup reserve and resolved sdkconfig before tuning;
 do not disable the native guards to inflate the pool display. See
 [automatic pool headroom](../../docs/MEMORY.md#esp32-automatic-pools-committed-capacity-versus-available-headroom)
 for the calculation and regression coverage.
+
+## Rotary encoders
+
+[RotaryEncoder](../../docs/ENCODER.md) prefers PCNT,
+with software GPIO decoding only when no native backend supports the selected
+pins. `encoder.Backend` reports the actual selection. See the guide for pin
+bindings, resource ownership, setup and counter-service limits.
+
+If the VM reports substantial pool free but a much smaller `largest`, update to
+a build containing empty-region pressure recovery. On failed growth it returns
+entirely empty regions and retries a suitably sized native allocation, without
+lowering native/BLE reserves. Rebuild and flash the firmware; a Studio-only update
+does not change allocation behavior. Keep the same configuration for the first
+comparison and retry the same script. Record its full error and `mem` report if
+it still fails. Recovery cannot release regions that contain live objects, or
+guarantee success against native fragmentation. See
+[pressure recovery](../../docs/MEMORY.md#automatic-recovery-of-empty-regions-under-allocation-pressure).
