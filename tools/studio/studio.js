@@ -2469,7 +2469,12 @@ const App = {
       if (paths.has(t.path)) throw new Error("Two open files target the same device path: " + t.path);
       paths.add(t.path);
     }
-    const sources = project ? await this.projectScripts() : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
+    // File Run has one entrypoint. Saving other open tabs is independent:
+    // checking them here can block this run and focus a different application.
+    // The firmware resolves the target's actual namespace dependencies itself.
+    const sources = project ? await this.projectScripts()
+      : replaceApplication ? (target?.path && /\.cs$/i.test(target.path) ? [target.path] : [])
+      : all ? [...paths].filter(p => /\.cs$/i.test(p)) : [];
     if (replaceApplication) await this.prepareRun();
     await this.checkScripts(sources, project);
     ed.stash();

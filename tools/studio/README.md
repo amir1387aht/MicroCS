@@ -66,8 +66,11 @@ Ctrl+S/Cmd+S never opens the browser Save Page dialog or downloads an offline dr
 Without a connected device it asks you to connect; use **⋯ → Download** for a computer copy.
 While a dialog is open, the shortcut is suppressed without saving files behind it.
 
-* **Save/upload all open C# files and compile**: Ctrl+S, F5, and Run file save/build every
-  editable open C# tab in **File mode**, plus the explicitly saved file. Saved files
+* **Save/upload all open C# files and compile**: Ctrl+S saves and compile-checks every
+  editable open C# tab in **File mode**, plus the explicitly saved file. F5, Run and
+  Run file also save these tabs when this option is enabled, but compile-check and
+  execute **only the selected entrypoint**. Its namespace dependencies are resolved
+  by the firmware; unrelated open applications cannot block its compilation. Saved files
   are verified against the device and identical uploads are skipped; known changed
   File-mode files upload directly. **Project mode** verifies all candidates before
   uploading only new/changed files (see below). New/local tabs
@@ -117,7 +120,8 @@ file. It follows transitive dependencies once and breaks namespace cycles. Depen
 
 **Ctrl+S** in Project mode saves/builds without launching/reloading jobs. **Run file / Ctrl+Enter**
 remains an explicit single-file action, even in Project mode; it uses the normal open-C# save
-option and retains existing file jobs. Switch the toolbar back to File for single-file F5.
+option but compile-checks/runs only its selected entrypoint, not unrelated open files. It retains
+existing file jobs according to the normal Run cleanup settings. Switch the toolbar back to File for single-file F5.
 Changing the selector controls the **next** Save/F5 action; it does not terminate jobs already
 running. Mode is held in memory and only best-effort persisted, so blocked browser storage
 cannot make the selector disagree with the action. Each action snapshots mode before waiting

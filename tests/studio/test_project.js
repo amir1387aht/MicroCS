@@ -152,6 +152,31 @@ let browser, page, errors = [], chain = Promise.resolve();
   assert.strictEqual(await page.evaluate(()=>!!App.workflowBusy || dev.running),false);
   assert(fs.readFileSync(root+'/b.cs','utf8').includes('B updated'));
   console.log('PASS Save interrupts a foreground F5 run before uploading/building');
+  // File-mode Run may save open tabs, but must check/run only its entrypoint.
+  fs.writeFileSync(root+'/run-helper.cs','namespace RunFixture { public class Helper { public static int Value = 7; } }');
+  await page.evaluate(()=>{
+    App.openTab({path:'/app.cs',text:'int unrelated_broken_app = ;',saved:null});
+    App.openTab({path:'/tests.cs',text:'using RunFixture; if(Helper.Value != 7) throw new Exception("dependency"); File.AppendAllText("/ran-tests", "T");',saved:null});
+  });
+  for(const action of ['F5','Run','Run file','Ctrl+Enter','Explorer run']) {
+    await page.evaluate(()=>{__commands=[];App.activate(App.tabs.find(t=>t.path==='/tests.cs').id);});
+    if(action==='F5') {await page.focus('#ta');await page.keyboard.press('F5');}
+    else if(action==='Run')await page.click('#btnRun');
+    else if(action==='Run file')await page.click('#btnRunFile');
+    else if(action==='Ctrl+Enter') {await page.focus('#ta');await page.keyboard.press('Control+Enter');}
+    else await page.evaluate(async()=>{App.activate(App.tabs.find(t=>t.path==='/app.cs').id);await App.runFilePath('/tests.cs');});
+    await page.waitForFunction(()=>!App.workflowBusy&&!dev.running,null,{timeout:15000});
+    const trace=await page.evaluate(()=>__commands);
+    assert.deepStrictEqual(trace.filter(c=>c.startsWith('run ')),['run /tests.cs'],action+' must run tests.cs only: '+trace.join('; '));
+    assert(!trace.some(c=>c.startsWith('check ')&&c!=='check /tests.cs'),action+' must not compile-check unrelated files');
+    assert(trace.includes('check /tests.cs'),action+' checks its target');
+  }
+  assert.strictEqual(fs.readFileSync(root+'/ran-tests','utf8'),'TTTTT','all File run entrypoints execute selected file and resolve dependencies');
+  await page.evaluate(()=>{
+    for(const path of ['/app.cs','/tests.cs']) {const t=App.tabs.find(t=>t.path===path);t.dirty=false;App.closeTab(t.id);}
+    App.activate(App.tabs.find(t=>t.path==='/b.cs').id);
+  });
+  console.log('PASS File-mode active entrypoint: F5, Run, Run file, Ctrl+Enter and explorer ignore unrelated broken app.cs; namespace dependencies resolve');
   // Leave project mode for editor-only interaction tests.
   await page.selectOption('#runMode','file');
   await page.fill('#ta','GPIO.Write'); await page.keyboard.press('End'); await page.keyboard.type('(');
