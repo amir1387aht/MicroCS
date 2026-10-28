@@ -412,26 +412,12 @@ b.act { font-weight: 700; text-decoration: underline; text-underline-offset: 2px
 .gallery .supported-toggle { display:flex; align-items:center; gap:5px; white-space:nowrap; font-size:12px; cursor:pointer; }
 .gallery .supported-toggle input { width:auto; margin:0; accent-color:var(--accent, #007acc); }
 
-/* 1.19 workbench: quiet chrome, clear hierarchy, predictable focus. */
-:root {
-  --shell:#181b20; --tool:#20242b; --bg:#181c22; --hdr:#252a33;
-  --input:#282e38; --raised:#303744; --line:#424c5b; --line2:#303742;
-  --hover:#323d4b; --accent:#2783de; --accent2:#65b0fa;
-  --fg:#edf1f7; --fg2:#c2cbd8; --fg3:#9ca8b9; --fg4:#788698;
-  --curline:#303b4a; --gutter-fg:#8291a5; --gutter-cur:#d4e2f5;
-  --shadow:0 8px 32px rgba(0,0,0,.32);
-}
-:root.light {
-  --shell:#f0f2f5; --tool:#f7f8fa; --bg:#fff; --hdr:#eef1f5;
-  --input:#fff; --raised:#e8edf4; --line:#bcc6d3; --line2:#dde3eb;
-  --hover:#e4edf8; --accent:#176bb8; --accent2:#125994;
-  --fg:#202c3d; --fg2:#35465a; --fg3:#52647a; --fg4:#68798d;
-  --curline:#e2eaf4; --gutter-fg:#68798d; --gutter-cur:#213f64;
-}
+/* 1.19 workbench layout. Keep the VS2022 Dark/Light palette above as the
+ * single source of theme colors; do not tint editor/chrome surfaces blue. */
 body {font-size:13px;}
 .app {grid-template-rows:auto minmax(0,1fr) 26px;}
 header {min-height:52px;gap:8px;padding:8px 12px;flex-wrap:wrap;}
-.logo {width:26px;height:26px;background:#3574b7;border-radius:6px;}
+.logo {width:26px;height:26px;border-radius:6px;}
 .brand {font-size:13px;margin-right:8px;}
 .btn {height:30px;border-radius:5px;}
 .btn.icon {width:30px;}
@@ -462,12 +448,7 @@ main.sidebar-hidden > .side, main.sidebar-hidden > .split-v {display:none;}
 .tab.active .ficon, .tab:hover .ficon {color:var(--accent2);}
 .tab .x {width:24px;height:24px;margin-left:auto;border-radius:4px;}
 .tab.dirty .tname::after {content:" •";color:var(--accent2);}
-.document-bar {display:flex;align-items:center;gap:9px;height:29px;padding:0 16px;color:var(--fg3);font-size:12px;flex:none;overflow:hidden;white-space:nowrap;border-bottom:1px solid var(--line2);}
-.document-name {color:var(--fg2);overflow:hidden;text-overflow:ellipsis;}
-.document-folder {flex-shrink:0;}
-.document-state {margin-left:auto;flex-shrink:0;color:var(--fg3);font-size:11px;}
-.document-sep {color:var(--fg4);}
-.code .curline {border-width:1px;background:rgba(120,150,190,.025);}
+.code .curline {border-width:1px;}
 .welcome .card {max-width:660px;padding:36px;}
 .welcome h1 {font-size:34px;font-weight:600;letter-spacing:-1px;margin-bottom:14px;}
 .welcome p {font-size:14px;max-width:540px;}
@@ -509,11 +490,9 @@ footer, footer.off {background:var(--tool);color:var(--fg2);border-top:1px solid
   .command-input-row .btn,.command-row {min-height:44px;}
   .welcome .card {padding:24px;}.welcome h1 {font-size:28px;}.welcome .acts {grid-template-columns:1fr;}
   .welcome .keys {display:none;}
-  .document-bar {padding:0 10px;}.document-folder {display:none;}.document-sep {display:none;}
   footer {gap:8px;}#sbFile {max-width:28vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}#studioVersion {display:none;}
   .command-bg {padding-top:24px;}.command-palette {max-height:calc(100dvh - 48px);}
   .console-pane .panel-head {overflow-x:auto;}.console-pane .panel-head > * {flex-shrink:0;}.console-pane .panel-title {min-width:100px;}
 }
 @media(prefers-reduced-motion:reduce) {*,*::before,*::after {animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
-:root.light {--t-ty:#166e86;--t-if:#166e86;--t-esc:#7b3bb4;--t-pp:#656b73;--gutter-fg:#5c6d81;}
 @media(max-width:720px) {.btn,.btn.sm,.btn.icon,.btn.sm.icon {min-height:44px;}.btn.icon,.btn.sm.icon {min-width:44px;}}
