@@ -42,10 +42,11 @@ Local ASan/UBSan runs cover these exact upstream tags (details recorded below):
 | v8.4.0 | Later 8.x representative |
 | v9.0.0 | Early 9.x void-returning event registration |
 | v9.2.2 | Intermediate 9.x representative |
+| v9.3.0 | Later 9.x changes and decompression-disabled configuration |
 | v9.6.0 | Newer 9.x public-header/layout compatibility |
 
 The workflow `.github/workflows/lvgl.yml` additionally schedules every published
-minor family represented by tags v8.1.0, v8.2.0, v8.3.11, v9.1.0, v9.3.0,
+minor family represented by tags v8.1.0, v8.2.0, v8.3.11, v9.1.0,
 v9.4.0 and v9.5.0, plus minimal-widget builds on v8.4.0/v9.2.2/v9.6.0.
 **A configured CI matrix is not a passed CI result.** Future minor/patch releases
 and vendor forks still need regression checks against their actual headers and
@@ -73,7 +74,7 @@ checks, **not MCU performance promises or a clean native-call overhead benchmark
 Default capacities on the tested x86-64 ABI use **1,824 bytes** of native attachment
 storage, plus one LVGL-owned container and the actual LVGL widgets/text/styles.
 Handle payloads are **8 bytes**, excluding VM userdata headers and GC metadata.
-The active fixture application reports around **8.6 KB VM tracked storage**;
+The active fixture application reports **8,845 bytes VM tracked storage**;
 that is not a minimum heap requirement or total device RAM. Do not add pool use
 to device heap use when the pool already comes from that heap.
 
