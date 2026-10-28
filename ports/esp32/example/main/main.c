@@ -46,13 +46,15 @@ void app_main(void) {
 #if MCS_ESP32_BLE && defined(CONFIG_MICROCS_BLE_RESERVE_KB)
     reserve += (size_t)CONFIG_MICROCS_BLE_RESERVE_KB * 1024;   /* NimBLE host + controller, started later */
 #endif
-    /* Regions are acquired only as needed, up to the combined target. The
-     * provider rechecks internal native headroom on every growth attempt. */
+    /* Default: grow on demand. MICROCS_VM_HEAP_ACQUIRE_AT_START selects startup
+     * acquisition via MCS_RUNTIME_DEFAULTS. Both policies enforce reserves. */
     mcs_esp32_heap_init(&vm_heap, reserve);
     cfg.heap = NULL;
     cfg.heap_size = target;
     cfg.heap_provider = &vm_heap.provider;
-    printf("MicroCS: automatic VM pool, ceiling %u bytes, native reserve %u bytes\n",
+    cfg.heap_headroom = mcs_esp32_heap_headroom;
+    printf("MicroCS: automatic VM pool (%s), ceiling %u bytes, native reserve %u bytes\n",
+           cfg.heap_policy == MCS_HEAP_ACQUIRE_AT_START ? "acquire at startup" : "grow on demand",
            (unsigned)target, (unsigned)reserve);
     printf("MicroCS: internal heap free %u bytes, largest %u bytes (before VM growth)\n",
            (unsigned)heap_caps_get_free_size(MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL),

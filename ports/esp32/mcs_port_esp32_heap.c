@@ -3,13 +3,19 @@
 #include "esp_heap_caps.h"
 
 #define VM_CAPS (MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL)
+void mcs_esp32_heap_headroom(void* ud, mcs_pool_headroom_t* st) {
+    const mcs_esp32_heap_t* h = ud;
+    st->native_free = heap_caps_get_free_size(VM_CAPS);
+    st->reserve = h->reserve;
+    st->available = st->native_free > h->reserve ? st->native_free - h->reserve : 0;
+    size_t largest = heap_caps_get_largest_free_block(VM_CAPS);
+    st->largest = largest > 8192 ? largest - 8192 : 0;
+}
 static void* acquire(void* ud, size_t minimum, size_t preferred, size_t* actual) {
     mcs_esp32_heap_t* h = (mcs_esp32_heap_t*)ud;
-    size_t total = heap_caps_get_free_size(VM_CAPS);
-    size_t largest = heap_caps_get_largest_free_block(VM_CAPS);
-    size_t available = total > h->reserve ? total - h->reserve : 0;
-    /* Retain a contiguous native allocation margin as well as total headroom. */
-    size_t contiguous = largest > 8192 ? largest - 8192 : 0;
+    mcs_pool_headroom_t st;
+    mcs_esp32_heap_headroom(ud, &st);
+    size_t available = st.available, contiguous = st.largest;
     size_t n = preferred;
     if (n > available) n = available;
     if (n > contiguous) n = contiguous;

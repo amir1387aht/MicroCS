@@ -12,6 +12,8 @@ typedef struct {
 /* Must outlive the runtime. Sampling headroom is not a reservation against
  * concurrent native allocations; size for worst-case driver loads. */
 void mcs_esp32_heap_init(mcs_esp32_heap_t* heap, size_t reserve);
+/* cfg.heap_headroom = mcs_esp32_heap_headroom; active provider ud is passed in. */
+void mcs_esp32_heap_headroom(void* ud, mcs_pool_headroom_t* snapshot);
 #ifdef __cplusplus
 }
 #endif

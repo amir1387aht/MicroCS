@@ -176,14 +176,15 @@ const mcs_pool_provider_t* mcs_pool_system_provider(void) {
 #endif
 }
 
-static bool pool_grow(mcs_pool_t* pool, size_t need) {
+static bool pool_acquire_region(mcs_pool_t* pool, size_t need, size_t preferred) {
     mcs_pool_dynamic_t* d = pool->dynamic;
-    if (!d) return false;
+    if (!d || d->sealed) return false;
     size_t overhead = POOL_ROUND(sizeof(pool_region_t)) + POOL_ALIGN - 1;
     if (need > SIZE_MAX - overhead) return false;
     size_t minimum = need + overhead, left = d->limit - d->committed;
     if (minimum > left) return false;
-    size_t preferred = d->chunk > minimum ? d->chunk : minimum;
+    if (!preferred) preferred = d->chunk;
+    if (preferred < minimum) preferred = minimum;
     if (preferred > left) preferred = left;
     size_t bytes = 0;
     void* raw = d->provider->acquire(d->provider->ud, minimum, preferred, &bytes);
@@ -207,9 +208,19 @@ static bool pool_grow(mcs_pool_t* pool, size_t need) {
     return true;
 }
 
+static bool pool_grow(mcs_pool_t* pool, size_t need) {
+    return pool_acquire_region(pool, need, 0);
+}
+bool mcs_pool_acquire_at_start(mcs_pool_t* pool) {
+    mcs_pool_dynamic_t* d = pool->dynamic;
+    if (!d || d->sealed || d->committed || pool->used) return false;
+    while (pool_acquire_region(pool, sizeof(pool_blk_t), d->limit - d->committed)) {}
+    d->sealed = true;
+    return pool->size != 0;
+}
 size_t mcs_pool_trim(mcs_pool_t* pool) {
     mcs_pool_dynamic_t* d = pool->dynamic;
-    if (!d) return 0;
+    if (!d || d->sealed) return 0;
     size_t released = 0;
     pool_region_t** rr = &d->regions;
     while (*rr) {
@@ -245,9 +256,29 @@ bool mcs_pool_init_dynamic(mcs_pool_t* pool, mcs_pool_dynamic_t* state,
     memset(pool, 0, sizeof *pool); memset(state, 0, sizeof *state); return false;
 }
 const mcs_pool_provider_t* mcs_pool_system_provider(void) { return NULL; }
+bool mcs_pool_acquire_at_start(mcs_pool_t* pool) { (void)pool; return false; }
 size_t mcs_pool_trim(mcs_pool_t* pool) { (void)pool; return 0; }
 void mcs_pool_destroy(mcs_pool_t* pool) { memset(pool, 0, sizeof *pool); }
 #endif
+
+size_t mcs_pool_growth_estimate(const mcs_pool_t* pool, const mcs_pool_headroom_t* h) {
+    const mcs_pool_dynamic_t* d = pool->dynamic;
+    if (!d || d->sealed || !h || d->committed >= d->limit) return 0;
+    size_t budget = d->limit - d->committed;
+    if (budget > h->available) budget = h->available;
+    size_t region = d->chunk;
+    if (region > h->largest) region = h->largest;
+    if (region > budget) region = budget;
+    /* Worst alignment loss at both ends; arithmetic stays within budget. */
+    const size_t overhead = POOL_ROUND(sizeof(pool_region_t)) + 2 * (POOL_ALIGN - 1);
+    if (region < overhead + sizeof(pool_blk_t)) return 0;
+    size_t usable = (region - overhead) & ~(size_t)(POOL_ALIGN - 1);
+    size_t growth = (budget / region) * usable;
+    size_t tail = budget % region;
+    if (tail >= overhead + sizeof(pool_blk_t))
+        growth += (tail - overhead) & ~(size_t)(POOL_ALIGN - 1);
+    return growth;
+}
 
 void mcs_pool_stats(const mcs_pool_t* pool, mcs_heap_stats_t* st) {
     memset(st, 0, sizeof *st);

@@ -19,6 +19,11 @@ void* heap_caps_malloc(size_t n,unsigned caps){
 void heap_caps_free(void* p){free(p);available+=allocated;allocated=0;}
 int main(void){
     mcs_esp32_heap_t h;mcs_esp32_heap_init(&h,32768);size_t actual=0;
+    mcs_pool_headroom_t info; unsigned before_calls=calls;
+    mcs_esp32_heap_headroom(h.provider.ud,&info);
+    assert(info.native_free==available && info.reserve==32768);
+    assert(info.available==available-32768 && info.largest==largest-8192);
+    assert(calls==before_calls && !allocated); /* reporting never allocates */
     void* p=h.provider.acquire(h.provider.ud,4096,196608,&actual);
     assert(p&&actual==139264);assert(available>=h.reserve);h.provider.release(h.provider.ud,p,actual);
     /* Fragmentation clamps size, then later calls can acquire a different block. */
@@ -26,6 +31,9 @@ int main(void){
     assert(p&&actual==57344);h.provider.release(h.provider.ud,p,actual);
     available=35000;largest=114688;calls=0;
     assert(!h.provider.acquire(h.provider.ud,4096,16384,&actual));assert(calls==0);
+    mcs_esp32_heap_headroom(h.provider.ud,&info);assert(info.available==2232);
+    available=10000;mcs_esp32_heap_headroom(h.provider.ud,&info);assert(!info.available);
+    available=65536;largest=8192;mcs_esp32_heap_headroom(h.provider.ud,&info);assert(!info.largest);
     available=65536;largest=8192;assert(!h.provider.acquire(h.provider.ud,64,16384,&actual));
     available=65536;largest=65536;fail=1;calls=0;
     assert(!h.provider.acquire(h.provider.ud,4096,16384,&actual));assert(calls==3&&requested==4096);

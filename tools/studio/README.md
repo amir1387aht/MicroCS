@@ -213,32 +213,56 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The compact left-panel counter shows **VM pool used / currently backed usable
-total**, in exact bytes:
+With policy-aware firmware, the compact counter shows **physically owned pool
+used / usable total**, in exact bytes:
 
 ```text
 VM heap: 15,528 B / 32,712 B
 ```
 
-**Total − used = free.** These are the allocator's physical pool counters, not
-VM-tracked payload alone, a configured allocation/backing ceiling or device heap.
-Only RAM already acquired by the VM pool is counted. The total can grow when the
-provider actually obtains another region; possible future growth is not counted
-as free memory. Native/BLE allocations and protected native reserves are not
-added to the VM total.
+**Total − used = Pool free.** This is real aggregate allocator space, not the
+configured ceiling, device free heap, or forecast future growth. Region metadata
+is excluded from usable total; per-allocation overhead is included in occupied
+space. Free space need not fit one object, and the main VM's allocation limit,
+worker budgets and shared runtime allocations still apply.
 
-Free is aggregate free pool space, not the maximum size of one object. Individual
-allocations require a contiguous block and allocator overhead; inspect **largest**
-in the expanded snapshot. Future pool growth remains conditional on native
-headroom, reserves and configured ceilings. Limits are separately labeled.
+Expand to see **Heap policy**:
 
-Click to expand for a single used/total row, **Pool free** (17,184 B in this
-example), pool peak/largest block,
-tracked allocations, stack/frames, backing ceiling and device heap. There is no
-duplicate "VM pool" used/total row. Device and
-VM numbers are **not additive**. Firmware without pool-capacity telemetry shows
-**VM heap capacity unavailable**, rather than guessing usable free memory from
-VM limits, peaks or device counters.
+- **Grow on demand**: owned total can grow as new regions are acquired, or shrink
+  when empty regions are trimmed. Any estimated future growth is separate.
+- **Acquire at startup (fixed owned capacity)**: acquires available regions before
+  VM initialization, then keeps that actual capacity across scripts, GC, OOM and
+  application replacements until runtime stop. The target is a ceiling; actual
+  startup capacity can be lower because of native reserves/provider failure.
+- **Static buffer (fixed owned capacity)**: an existing static/linker-owned buffer;
+  selecting either runtime policy does not turn it into a dynamic heap.
+
+Expanded details retain **Pool free / largest**, peak, tracked allocations,
+allocation limits, backing ceiling and device heap. If firmware provides a
+headroom callback, a **separate budget estimate** includes possible native growth
+and is clamped by the VM allocation limit. Startup/static budget free is not a
+growth forecast. SDK overhead, fragmentation and concurrent native allocations
+can reduce estimated growth; it is never mixed into policy-aware primary totals.
+VM and device usage are not additive.
+
+Choose the policy in firmware, not a live Studio toggle:
+
+```c
+cfg.heap_policy = MCS_HEAP_ACQUIRE_AT_START;
+/* Or MCS_HEAP_GROW_ON_DEMAND (default). */
+```
+
+ESP-IDF/Zephyr: `CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START=y` selects startup by
+default. Plain CMake: `-DMICROCS_HEAP_POLICY=acquire_at_start` or `on_demand`.
+Rebuild/reflash and refresh Studio. The policy is portable across runtime ports;
+see [memory policies](../../docs/MEMORY.md#choose-when-regions-are-acquired-all-ports).
+
+Old firmware without `pool_policy` retains legacy backed-only or budget-estimate
+reporting rather than inventing a policy. Firmware without pool counters shows
+**VM heap capacity unavailable**. Updating Studio alone cannot supply missing
+firmware telemetry. On custom ESP32 runtimes, optional reserve-aware growth
+telemetry still requires `cfg.heap_headroom = mcs_esp32_heap_headroom;` beside the
+heap provider; the bundled example already enables it.
 
 The snapshot is refreshed after existing save/build/run workflows, including
 failures; it is not a continuously polled meter. See

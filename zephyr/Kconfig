@@ -7,6 +7,15 @@ config MICROCS
 
 if MICROCS
 
+config MICROCS_VM_HEAP_ACQUIRE_AT_START
+    bool "Acquire automatic VM regions at startup"
+    default n
+    help
+      For heap=NULL plus a nonzero heap_size, acquire provider-approved regions
+      before VM creation and retain them until runtime stop. Partial capacity
+      is valid; native reserves and region boundaries still apply. Static-buffer
+      reference heaps remain fixed under either policy. Default: grow on demand.
+
 config MICROCS_PORT
 	bool "Zephyr board port (mcs_zephyr_hal_init)"
 	default y

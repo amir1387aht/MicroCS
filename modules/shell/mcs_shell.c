@@ -41,8 +41,17 @@ static void print_memory(mcs_shell_t* sh) {
     if (sh->memory_info) sh->memory_info(sh->memory_ud, &ms);
     if (ms.has_pool) outf(sh, "pool %u total, %u used, %u peak, %u free, %u largest\n",
         (unsigned)ms.pool.total, (unsigned)ms.pool.used, (unsigned)ms.pool.peak, (unsigned)ms.pool.free, (unsigned)ms.pool.largest_free);
+    if (ms.has_pool && ms.pool_policy) outf(sh, "pool_policy %s\n", ms.pool_policy);
     if (ms.has_pool && ms.pool_limit) outf(sh, "pool_backing %u committed, %u limit, %u regions\n",
         (unsigned)ms.pool_committed, (unsigned)ms.pool_limit, (unsigned)ms.pool_regions);
+    if (ms.has_pool && ms.has_budget) {
+        outf(sh, "vm_budget %u total, %u used, %u free, %u growth_estimate\n",
+            (unsigned)ms.budget_total, (unsigned)ms.pool.used,
+            (unsigned)ms.budget_free, (unsigned)ms.growth_estimate);
+        if (ms.pool_limit && ms.has_headroom) outf(sh, "native_headroom %u free, %u reserve, %u available, %u largest_region\n",
+            (unsigned)ms.headroom.native_free, (unsigned)ms.headroom.reserve,
+            (unsigned)ms.headroom.available, (unsigned)ms.headroom.largest);
+    }
     if (ms.has_device) outf(sh, "device_heap %u total, %u used, %u free, %u minimum_free, %u largest\n",
         (unsigned)ms.device.total, (unsigned)ms.device.used, (unsigned)ms.device.free,
         (unsigned)(ms.device.total - ms.device.peak), (unsigned)ms.device.largest_free);

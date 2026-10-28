@@ -19,6 +19,23 @@ New firmware also reports:
   backing-byte ceiling, and region count. Backing includes region descriptors and
   alignment padding, so it is slightly larger than usable `pool` capacity. The
   ceiling is not preallocated and is not a promise that native RAM is available.
+- `pool_policy`: `on_demand`, `acquire_at_start`, or `static`. Policy-aware Studio
+  uses the `pool` counters for its compact **VM heap: used / total** row. Total
+  minus used is actual aggregate free space in owned regions, never future growth.
+- `vm_budget`: optional used/total/free allocator-space budget. Total minus used
+  equals budget free. For automatic pools, free combines backed pool free with
+  **estimated** growth from the provider's sampled native headroom, region
+  metadata/alignment and remaining backing cap, then is clamped to the main VM's
+  remaining logical allocation limit. Growth is not physically reserved: SDK
+  overhead, fragmentation, allocation sizes, shared pool users and concurrent
+  native allocations can reduce actual usable capacity. Static pools report no
+  growth estimate. This is allocator space, not a guarantee of byte-array payload.
+- `native_headroom`: the active provider's native free, actual configured reserve,
+  backing headroom after that reserve and largest next region after contiguous
+  margins. ESP32 uses internal byte-addressable RAM, not PSRAM or device total.
+  Custom ESP32 runtimes enable it with
+  `cfg.heap_headroom = mcs_esp32_heap_headroom;` alongside the heap provider.
+  Without a callback, additional native growth is unknown; no budget is guessed.
 - `device_heap`: optional board HAL telemetry. ESP32 reports the ESP-IDF
   `MALLOC_CAP_8BIT` heap: allocated + free capacity, allocated, free, SDK minimum
   free and largest free block. It includes SDK/drivers/task allocations and the
@@ -26,6 +43,15 @@ New firmware also reports:
   device usage to pool usage. It is not total chip SRAM: static data and memory
   outside that capability heap are not measured. SDK minimum-free aggregates
   regional low-water figures; it is not a synchronized whole-device peak.
+
+With policy-aware firmware, Studio's compact **VM heap** counter always shows
+**used / physically owned usable capacity**. Expand for the selected policy,
+**Pool free / largest**, limits, and any separate growth/budget estimate. Startup
+capacity stays fixed until runtime stop; on-demand capacity can change as regions
+are acquired or empty regions are trimmed. Estimated future native growth is
+never counted in the primary heap total. Older firmware without a policy line
+retains its legacy interpretation; upgrade firmware and Studio together.
+A memory query never acquires regions, trims them, triggers GC or starts BLE.
 
 Studio shows these scopes separately, with exact bytes and unavailable labels
 for older/custom firmware. The snapshot is refreshed after workflow completion
@@ -125,7 +151,72 @@ Callbacks and context must outlive the runtime, must return distinct owned block
 and must not re-enter the VM. Calls use the runtime's existing shared-pool lock
 when workers are active. `mcs_pool_init_dynamic()` also supports direct C users.
 
-Growth prefers 16 KiB chunks, increasing only to fit a larger individual request.
+### Choose when regions are acquired (all ports)
+
+The shared runtime supports two policies with **any valid region provider**:
+
+```c
+mcs_runtime_cfg_t cfg = MCS_RUNTIME_DEFAULTS;
+cfg.heap = NULL;
+cfg.heap_size = 96 * 1024;   /* combined backing ceiling, NOT promised capacity */
+cfg.heap_policy = MCS_HEAP_GROW_ON_DEMAND;  /* default */
+/* Or: cfg.heap_policy = MCS_HEAP_ACQUIRE_AT_START; */
+```
+
+| Policy | Acquisition | Release/retention | Reported owned total |
+|---|---|---|---|
+| `MCS_HEAP_GROW_ON_DEMAND` | As allocations need more regions | Empty regions can be trimmed on replacement or allocation pressure | Can grow/shrink |
+| `MCS_HEAP_ACQUIRE_AT_START` | Before the VM, RAMFS and boot scripts | All acquired regions retained across GC, OOM and application replacement; released at runtime stop | Fixed for that runtime session |
+
+Startup acquisition requests large regions first to avoid unnecessarily splitting
+one large native block, accepts smaller provider blocks, and continues up to the
+backing cap or the first provider failure. It **does not require one contiguous
+backing allocation**. A provider can return multiple non-contiguous regions.
+Partial acquisition is valid: the configured ceiling can exceed actual available
+RAM. If acquired capacity cannot initialize the runtime, startup returns an error
+and releases every owned region. After successful startup, no later native
+acquisition or pool trimming occurs, even if native RAM becomes available later.
+Individual objects cannot span region boundaries. A transient startup provider
+failure can therefore yield a smaller retained capacity; size/check the result
+from the actual `pool` report, not the requested cap.
+
+The same option works on ESP32, RP2, STM32, Zephyr and host/custom ports through
+the shared runtime. Reference ports that pass an existing static buffer stay
+**static and fixed under either selection**; changing policy does not convert
+linker/static RAM into dynamically acquirable memory. For dynamic regions, use
+`heap=NULL`, a nonzero `heap_size` and either a safe custom provider or a working
+C allocator. Allocator-free custom providers also need `MCS_ENABLE_POOL_REGIONS=1`.
+Unsupported dynamic configuration fails instead of silently using unbounded RAM.
+
+**Ways to select the default:**
+
+- Per runtime, on any port: set `cfg.heap_policy` as above (highest priority).
+- Project header/compiler: `#define MCS_RUNTIME_HEAP_POLICY MCS_HEAP_ACQUIRE_AT_START`
+  before including `mcs_runtime.h` (the project `mcs_user_config.h` works too).
+- Plain CMake / RP2 / STM32 CMake: `-DMICROCS_HEAP_POLICY=acquire_at_start` or
+  `on_demand`; empty preserves the header default.
+- ESP-IDF / Zephyr Kconfig: `CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START=y`; disabled
+  preserves the default/header policy. Rebuild/reflash; this is not a live Studio
+  switch. ESP-IDF's public compile definition also applies to custom `app_main`
+  code using `MCS_RUNTIME_DEFAULTS`.
+- Direct pool users: call `mcs_pool_acquire_at_start(&pool)` immediately after
+  `mcs_pool_init_dynamic`, before clients/threads. It seals the pool until destroy.
+
+**What is guaranteed:** successfully acquired backing stays owned by a startup
+pool, so total minus used is actual free **allocator space**. It is not a promise
+that every byte is available as one C# array: per-block overhead, region
+fragmentation, main-VM allocation limits, shared runtime users and worker budgets
+still apply. Inspect `Pool free`, `largest`, `VM allocation limit` and the separate
+budget free counter. Reserving backing does not create more physical SRAM.
+
+**BLE/native headroom is enforced in both modes.** A generic C provider cannot
+infer future driver needs: use a sensible cap or a reserve-aware provider.
+ESP32 startup acquisition honors the same actual base/radio reserve and 8 KiB
+contiguous margin as on-demand growth. Keep enough native RAM for BLE startup
+and its peak usage. Acquiring VM capacity up front does not guarantee BLE itself
+will fit, nor does it remove BLE's native allocations.
+
+Growth on demand prefers 16 KiB chunks, increasing only to fit a larger individual request.
 Both persistent and temporary allocations share the same bounded free list.
 There is no recursive GC inside allocation: existing VM safepoints retain their
 rooting guarantees. Realloc may move/copy a block between regions; failed growth
