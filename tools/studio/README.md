@@ -213,28 +213,36 @@ Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-br
 
 ### Memory snapshot
 
-The left panel shows **VM used / configured VM allocation limit** in exact bytes,
-for example **VM heap: 15,528 B / 96,256 B**. The numerator is current VM pool
-consumption (including pool overhead/shared users); when pool telemetry is absent,
-VM-tracked allocations are used instead. The denominator is the reported `vm_limit`.
-It is **not** the temporarily committed pool capacity, total backing ceiling or
-whole-device heap. It stays unchanged as the pool acquires additional regions.
+The left panel shows **VM pool used / currently backed usable total**, followed
+by an explicit **Free** value, in exact bytes:
 
-The denominator is a **configured ceiling, not guaranteed available RAM**. Native
-and BLE reserves, fragmentation and other allocations may prevent reaching it.
-An explicit zero limit is shown as `unlimited`; missing limit telemetry is shown
-as `limit unavailable`, never guessed from device memory, pool capacity or peaks.
+```text
+VM heap: 15,528 B / 32,712 B
+Free: 17,184 B
+```
 
-Click to expand: the same VM budget appears first, followed by separately labeled
-committed VM pool usage/capacity/free/peak, tracked allocations, stack/frames,
-backing ceiling and device heap. Device and VM numbers are **not additive**.
-Firmware without VM usage telemetry shows **VM heap unavailable** rather than
-substituting the device counter.
+**Total − used = free.** These are the allocator's physical pool counters, not
+VM-tracked payload alone, a configured allocation/backing ceiling or device heap.
+Only RAM already acquired by the VM pool is counted. The total can grow when the
+provider actually obtains another region; possible future growth is not counted
+as free memory. Native/BLE allocations and protected native reserves are not
+added to the VM total.
+
+Free is aggregate free pool space, not the maximum size of one object. Individual
+allocations require a contiguous block and allocator overhead; inspect **largest**
+in the expanded snapshot. Future pool growth remains conditional on native
+headroom, reserves and configured ceilings. Limits are separately labeled.
+
+Click to expand for the same used/total/free values, pool peak/largest block,
+tracked allocations, stack/frames, backing ceiling and device heap. Device and
+VM numbers are **not additive**. Firmware without pool-capacity telemetry shows
+**VM heap capacity unavailable**, rather than guessing usable free memory from
+VM limits, peaks or device counters.
 
 The snapshot is refreshed after existing save/build/run workflows, including
-failures; it is not a continuously polled meter. The minimum-free/peak figures are
-high-water history, not current usage. See [memory budgets](../../docs/MEMORY.md)
-for scope, exclusions and the 40 KiB source-Project regression/configuration.
+failures; it is not a continuously polled meter. See
+[memory budgets](../../docs/MEMORY.md) for scope, exclusions and the 40 KiB
+source-Project regression/configuration.
 
 ## Older firmware and template compatibility
 
