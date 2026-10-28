@@ -56,6 +56,7 @@ SECTIONS = [
         ("docs/U8G2.md", "U8g2-Displays"),
         ("docs/LVGL.md", "LVGL"),
         ("docs/LVGL_TESTING.md", "LVGL-Testing"),
+        ("docs/LVGL_NATIVE_API.md", "LVGL-Native-API"),
         ("docs/FILESYSTEM.md", "Filesystem"),
         ("docs/THREADS.md", "Threads"),
         ("docs/SCHEDULER.md", "Scheduler"),

@@ -91,6 +91,7 @@ static void test_attach_faults(host_t* h,lv_obj_t* root) {
     CHECK(completed);
 }
 int test_lvgl_assets(const mcs_lvgl_config_t*);
+int test_lvgl_native(const mcs_lvgl_config_t*);
 int main(void) {
 
     host_t h={0};h.owner=true;pthread_mutex_init(&h.mutex,NULL);h.vm_thread=pthread_self();
@@ -130,11 +131,13 @@ int main(void) {
 #endif
     run(vm,"bool range=false;try{again.SetSize(-1,10);}catch(Exception e){range=true;}if(!range)throw new Exception(\"range\");");
     h.owner=false;
-    CHECK(mcs_exec_source(vm,"wrong.cs","again.Center();")!=MCS_OK);CHECK(!h.locked);h.owner=true;
+    CHECK(mcs_exec_source(vm,"wrong.cs","again.Center();")!=MCS_OK);CHECK(!h.locked);CHECK(mcs_exec_source(vm,"wrong-native.cs","again.Call(\"lv_obj_get_width\");")!=MCS_OK);CHECK(!h.locked);h.owner=true;
     run(vm,"int errors=0;again.OnClicked(()=>{throw new Exception(\"callback\");});");
     lv_obj_t* again=lv_obj_get_child(container,0);lock(&h);lv_obj_send_event(again,LV_EVENT_CLICKED,NULL);unlock(&h);
     CHECK(mcs_exec_source(vm,"error.cs","Lvgl.Dispatch(16);")!=MCS_OK);
-    run(vm,"again.ClearEvent();Lvgl.Dispatch(16);");
+    run(vm,"again.ClearEvent();Lvgl.Dispatch(16);int presses=0;again.OnEvent(Lvgl.Constant(\"LV_EVENT_PRESSED\"),()=>{presses++;});");
+    lock(&h);lv_obj_send_event(again,LV_EVENT_PRESSED,NULL);unlock(&h);
+    run(vm,"Lvgl.Dispatch(16);if(presses!=1)throw new Exception(\"queued event\");again.ClearEvent();");
     lock(&h);lv_tick_inc(40);lv_timer_handler();unlock(&h);CHECK(flushes>0);
     clock_t start=clock();
     run(vm,"for(int n=0;n<10000;n++){again.SetPosition(n%50,n%20);}");
@@ -146,7 +149,7 @@ int main(void) {
     printf("attachment=%zu native bytes, handle=%zu bytes; active VM=%zu bytes (not added to device heap)\n",mcs_lvgl_storage_size(),sizeof(unsigned)+sizeof(uint32_t),st.bytes_in_use);
     mcs_free(vm);CHECK(!h.allocations && !h.locked);CHECK(lv_obj_is_valid(host_widget));CHECK(lv_obj_get_child_count(root)==0);
     for(int i=0;i<100;++i) { vm=new_vm();CHECK(mcs_lvgl_attach(vm,&cfg)==0);run(vm,"var w=new LvObject(\"Object\");w.OnClicked(()=>{});var c=new LvObject(\"Object\",w);");mcs_free(vm);CHECK(lv_obj_get_child_count(root)==0 && !h.allocations); }
-    test_faults(&h,root);test_attach_faults(&h,root);test_threads(&h,root);CHECK(test_lvgl_assets(&cfg)==0);
+    test_faults(&h,root);test_attach_faults(&h,root);test_threads(&h,root);CHECK(test_lvgl_assets(&cfg)==0);CHECK(test_lvgl_native(&cfg)==0);
     vm=new_vm();CHECK(mcs_lvgl_attach(vm,&cfg)==0);run(vm,"var w=new LvObject(\"Object\");");lock(&h);lv_obj_delete(root);unlock(&h);run(vm,"if(Lvgl.Ready||w.IsAlive)throw new Exception(\"host deletion\");");mcs_free(vm);CHECK(!h.allocations);
 #if LVGL_VERSION_MAJOR != 8 || LVGL_VERSION_MINOR != 0
     vm=new_vm();cfg.root=host_widget;lv_display_delete(d);CHECK(mcs_lvgl_attach(vm,&cfg)==MCS_LVGL_NOT_READY);mcs_free(vm);

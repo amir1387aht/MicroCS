@@ -110,6 +110,9 @@ int test_lvgl_assets(const mcs_lvgl_config_t* base){
 #if MCS_ENABLE_HAL && LV_USE_LABEL && MCS_LV_USE_BUTTON && MCS_LV_USE_IMAGE
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/button.cs",1);
     example(&cfg,MCS_LVGL_EXAMPLE_DIR "/assets.cs",LV_USE_FONT_COMPRESSED ? 1 : 0);
+#if LV_USE_SLIDER
+    example(&cfg,MCS_LVGL_EXAMPLE_DIR "/native-api.cs",1);
+#endif
 #endif
     base->lock(base->ctx);
     CHECK(lv_fs_open(&f,"S:/data",LV_FS_MODE_RD)==LV_FS_RES_OK);

@@ -14,6 +14,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: baseline
+      - name: Generated binding, test cases and reference stay in sync
+        run: python3 tools/gen_lvgl_api.py --check
       - name: No LVGL dependency, runtime symbols, VM memory or VM/capability code overhead
         run: sh tests/lvgl/test_disabled.sh baseline
   compatibility:

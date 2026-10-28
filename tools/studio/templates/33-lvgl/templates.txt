@@ -8,3 +8,7 @@ Requires an already initialized and attached native LVGL environment with Label 
 [assets.cs] LVGL fonts and images from a host filesystem
 save as: main.cs
 Requires the host to register LVGL drive S: and provide /fonts/ui.fnt and /images/logo.bin converted for its LVGL version/configuration. Can use the bounded native MicroCS VFS adapter; no script filesystem initialization or display loop is added. Missing assets are reported and the panel is disposed.
+
+[native-api.cs] Checked native LVGL APIs and extended slider range
+save as: main.cs
+Uses the generated native-call allowlist, cached build-specific API IDs, scalar styles, native constants and queued value events. The host must attach LVGL with Label and Slider. No raw pointers, native initialization or GUI loop is exposed.

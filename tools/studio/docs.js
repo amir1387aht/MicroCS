@@ -12,10 +12,17 @@ Supports(string kind): bool | Checks a widget against the host lv_conf.h; case-s
 DroppedEvents: int | Saturating count of newest events dropped by the bounded queue
 Dispatch(int maxEvents): int | Dispatch at most 0..16 queued records (default capacity); VM owner thread, no rendering/ticking
 
+Api(string nativeName): int | Resolve an available checked native API to a build-specific cached ID; never persist it
+HasApi(string nativeName): bool | Checks the explicit native-call allowlist against host major/configuration, not every LVGL API
+Constant(string nativeName): int | Resolve a whitelisted native enum constant without a per-constant VM registry
+HasConstant(string nativeName): bool | Check enum constant availability in the host configuration
+Percent(int value): int | Encode -1000..1000 using the host LVGL percentage format; use with coordinate arguments in Call
+
 @LvObject | Application-owned widget; GC does not delete it, Dispose or VM replacement does
-new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch, Arc or Image; widget must be enabled
+new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, Checkbox, Switch, Arc, Image, Dropdown, Roller, TextArea, Table, Led, Spinbox, Chart, Canvas, Keyboard, ButtonMatrix, Line, List, Calendar, ImageButton, Spinner or Tileview; widget must be enabled
 .IsAlive: bool | False after native/parent deletion or Dispose
 .Dispose(): void | Idempotently delete this script-owned subtree
+.Call(object nativeNameOrId, params object[] args): object | Checked native call on this widget: copied text and scalar/opaque-object arguments only; consult docs/LVGL_NATIVE_API.md for the allowlist and bounds
 .Center(): void | Center in parent
 .SetSize(int width, int height): void | Pixel sizes 0..32767
 .SetPosition(int x, int y): void | Pixel coordinates -32767..32767
@@ -23,11 +30,12 @@ new(string kind, LvObject parent = null) | Object, Label, Button, Slider, Bar, C
 .SetTextColor(int rgb): void | Object-owned text color, RGB 0x000000..0xFFFFFF
 .SetFont(string nameOrPath): void | Default, a host-registered font name, or an LVGL binary font path such as S:/fonts/ui.fnt; owned file fonts are released on replacement/teardown
 .Source: string | Write-only Image file path through an existing LVGL filesystem; requires a host-configured decoder
-.Text: string | Write-only copied text; Label or Checkbox only
+.Text: string | Copied read/write text; Label, Checkbox, TextArea or Spinbox; getters use a bounded native snapshot and release it even on VM OOM
 .Value: int | 0..100, Slider/Bar/Arc only; animation disabled
 .Checked: bool | Checkbox/Switch only
 .OnClicked(Action callback): void | Pin one zero-argument delegate, replacing any old subscription
 .OnChanged(Action callback): void | Pin one zero-argument delegate for value changes, replacing any old subscription
+.OnEvent(int eventCode, Action callback): void | Queue one documented input/value event type with a zero-argument delegate; no synchronous draw/delete callbacks
 .ClearEvent(): void | Remove the subscription and invalidate queued notifications
 
 @Console | Text output to the serial console / REPL

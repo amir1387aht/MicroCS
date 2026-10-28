@@ -162,6 +162,7 @@ def main():
     os.makedirs(os.path.join(src, "profiles"))
     files = (glob.glob(os.path.join(ROOT, "include", "*.h")) + glob.glob(os.path.join(ROOT, "include", "*.def")) + glob.glob(os.path.join(ROOT, "src", "*.[ch]"))
              + glob.glob(os.path.join(ROOT, "modules", "*", "*.c"))
+             + glob.glob(os.path.join(ROOT, "modules", "*", "*.inc"))
              + glob.glob(os.path.join(ROOT, "ports", "arduino", "*.[ch]*")))
     for f in files:
         if os.path.basename(f) == "mcs_vfs_posix.c":

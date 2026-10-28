@@ -101,8 +101,8 @@ full queues drop the newest notification and increment saturated
 stale ones. Delegates take **zero arguments**; read current widget state in the
 callback (events do not snapshot historical values).
 
-Each object supports **one** subscription: `OnClicked(action)` or
-`OnChanged(action)` replaces the old one; `ClearEvent()` / a null callback
+Each object supports **one** subscription: `OnClicked(action)`,
+`OnChanged(action)` or `OnEvent(eventCode, action)` replaces the old one; `ClearEvent()` / a null callback
 removes it. Delegates are pinned until replacement, disposal, VM teardown, or
 the next VM-side reap/dispatch after native deletion. Queued events are checked at dequeue and rejected by both object and subscription generations, even when slots/native
 pointers are reused. Dispatch is non-reentrant; callback exceptions/abort stop
@@ -123,24 +123,44 @@ Names are case-sensitive; unknown kinds return false. Disabled widgets produce
 | Kind for `new LvObject(kind[, parent])` | Specific operations | LVGL configuration |
 | --- | --- | --- |
 | `Object` | Base container | Core |
-| `Label` | `Text` (write-only, copied) | `LV_USE_LABEL` |
+| `Label` | `Text` (copied read/write) | `LV_USE_LABEL` |
 | `Button` | Base/event operations; add a child Label for its text | v8 `LV_USE_BTN`, v9 `LV_USE_BUTTON` |
 | `Slider` | `Value`, range 0–100, no animation | `LV_USE_SLIDER` |
 | `Bar` | `Value`, range 0–100, no animation | `LV_USE_BAR` |
-| `Checkbox` | `Text` (write-only, copied), `Checked` | `LV_USE_CHECKBOX` |
+| `Checkbox` | `Text` (copied read/write), `Checked` | `LV_USE_CHECKBOX` |
 | `Switch` | `Checked` | `LV_USE_SWITCH` |
 | `Arc` | `Value`, range 0–100, no animation | `LV_USE_ARC` |
 | `Image` | `Source` (write-only LVGL file path) | v8 `LV_USE_IMG`, v9 `LV_USE_IMAGE` |
+| `Dropdown` | copied options, selection, popup controls via `Call` | `LV_USE_DROPDOWN` |
+| `Roller` | copied options, selection, visible rows via `Call` | `LV_USE_ROLLER` |
+| `TextArea` | `Text`, cursor/password/selection/input via `Call` | `LV_USE_TEXTAREA` |
+| `Table` | copied cells, dimensions/controls via `Call`; bounded growth | `LV_USE_TABLE` |
+| `Led` | color, brightness, on/off/toggle via `Call` | `LV_USE_LED` |
+| `Spinbox` | `Text`, value/range/digits/step via `Call` | `LV_USE_SPINBOX` |
+| `Chart` | type/range/point-count/update controls via `Call`; series handles not yet exposed | `LV_USE_CHART` |
+| `Canvas` | creation/lifetime/common styles only; pixel buffer/drawing APIs pending | `LV_USE_CANVAS` |
+| `Keyboard` | mode/popovers and checked TextArea linkage via `Call` | `LV_USE_KEYBOARD` |
+| `ButtonMatrix` | button controls/width/text via `Call`; custom retained maps pending | v8 `LV_USE_BTNMATRIX`, v9 `LV_USE_BUTTONMATRIX` |
+| `Line` | inversion/common styles; retained point arrays pending | `LV_USE_LINE` |
+| `List` | creation/lifetime/common styles; child-returning add APIs pending | `LV_USE_LIST` |
+| `Calendar` | today/shown date via `Call` | `LV_USE_CALENDAR` |
+| `ImageButton` | creation/lifetime/common styles; retained state images pending | v8 `LV_USE_IMGBTN`, v9 `LV_USE_IMAGEBUTTON` |
+| `Spinner` | creation (v8 defaults 1000 ms / 60°), lifetime/common styles | `LV_USE_SPINNER` |
+| `Tileview` | creation/lifetime/common styles; returned tile handles pending | `LV_USE_TILEVIEW` |
 
 All objects expose `IsAlive`, idempotent `Dispose()`, `Center()`,
 `SetPosition(x,y)`, `SetSize(width,height)`, `SetBackground(rgb24)`,
-`SetTextColor(rgb24)`, `SetFont(nameOrPath)`, `OnClicked(action)`, `OnChanged(action)` and `ClearEvent()`.
+`SetTextColor(rgb24)`, `SetFont(nameOrPath)`, `Call(nameOrId, ...)`,
+`OnEvent(eventCode, action)`, `OnClicked(action)`, `OnChanged(action)` and `ClearEvent()`.
 Positions are -32767..32767; sizes 0..32767; colors 0..0xFFFFFF. Kind-incompatible
 properties throw. No screen wrapper, arbitrary native-object wrapping,
-reparenting, display/input setup or pointer-as-integer access is exposed.
-File images and binary fonts are supported as described below. Shared style
-handles, animations, complex widgets, layout engines and most native methods
-are **not exposed yet**. Inline styles use LVGL's object-owned storage. Text and
+host reparenting, display/input setup or pointer-as-integer access is exposed.
+Checked native reparenting accepts only live script handles and rejects cycles.
+File images and binary fonts are supported as described below. The native-call
+surface adds scalar style setters/getters, flex, grid-cell settings, scrolling,
+geometry/flags/state and many widget methods. Shared style handles, retained
+array/descriptor resources, standalone animation callbacks and most custom
+rendering/driver APIs are **not exposed yet**. Inline styles use LVGL's object-owned storage. Text and
 image-path setters use LVGL copying APIs, never retained script-string pointers.
 There is no arbitrary descriptor, native pointer or script byte-array image API.
 See the reproducible API inventory in [testing](LVGL_TESTING.md#api-inventory-and-backlog);
@@ -159,6 +179,74 @@ button.OnClicked(() => { text.Text = "Clicked"; });
 // Call Lvgl.Dispatch(16) from your existing application loop.
 // The host continues to own rendering and ticking.
 ```
+
+## Checked native API dispatch
+
+The [generated native-call reference](LVGL_NATIVE_API.md) lists the exact
+allowlist, version aliases, feature guards and argument bounds. It currently
+contains **421 operation families** and **224 named constants**, not every LVGL
+function. Neither a raw symbol name nor an integer can invoke arbitrary native
+code or serve as a native pointer.
+
+```csharp
+var slider = new LvObject("Slider");
+slider.Call("lv_slider_set_range", -50, 150);
+int setValue = Lvgl.Api("lv_slider_set_value");
+slider.Call(setValue, 125, Lvgl.Constant("LV_ANIM_OFF"));
+int current = slider.Call("lv_slider_get_value");
+slider.Call("lv_obj_set_width", Lvgl.Percent(80));
+slider.Call("lv_obj_set_style_radius", 8, 0);
+```
+
+`Call` accepts a native-name string or a cached `Lvgl.Api(name)` ID, plus up to
+six arguments. Name resolution uses a binary search of static read-only names.
+The numeric path avoids name lookup; IDs are build-specific and **must not be
+persisted or shared across firmware versions**. `HasApi(name)` checks whether a
+reviewed family exists in this host major/configuration, not whether it applies
+to every widget or whether all native optional rendering features are enabled.
+Wrong arity/type/range, wrong widget kind, stale handles, unknown APIs and
+unsupported config/version branches fail before an unsafe native call.
+
+No hundreds-entry per-VM API/constant registry is built. One native `Call` method
+uses generated explicit C calls, compile-time feature guards and a fixed stack
+argument union. `Constant(name)` / `HasConstant(name)` resolve native enum values
+from static read-only tables rather than copying all constants into VM classes.
+Table placement in flash versus RAM is determined by the target/linker; the
+wrapper does not certify every MCU memory map. This trades
+some **enabled flash** and explicit-call validation cost for bounded VM memory;
+it does not claim zero enabled CPU/flash cost. `Percent(-1000..1000)` encodes the
+host's LVGL coordinate format; avoid hardcoding v8/v9 percentage bit patterns.
+
+Text inputs must be strings and use copying native setters. Text getters take a
+bounded native snapshot under the GUI lock, release the lock, then create the
+VM string through an OOM-protected cleanup boundary. No borrowed native pointer
+survives unlock. Both native snapshot allocation failure and VM allocation
+failure release the snapshot. `MCS_LVGL_MAX_TEXT_BYTES` defaults to 4096; table
+cell growth is capped by `MCS_LVGL_MAX_TABLE_CELLS` (default 256). Resource limits
+are consistent across translation units. No snapshot buffer is reserved while
+idle; an explicit getter allocates only its actual text size plus terminator.
+
+Only script-owned object handles can be arguments. Reparenting cannot introduce
+a cycle or escape into a host root. Keyboard TextArea targets must have the
+correct widget kind and are detached automatically before native/parent/VM-side
+target deletion (LVGL 8 otherwise retains that pointer). Native dropdown popups
+may use LVGL's overlay layer, but remain owned and destroyed by their native
+widget; no host widget is wrapped or deleted. Internal widget children are
+native allocations and are not each counted as an explicit script handle.
+
+`OnEvent` exposes the documented pressed/pressing/press-lost, short/long/repeat
+click, clicked/released, scroll begin/end, focus/defocus/leave, value-changed,
+ready and cancel notifications, using `Lvgl.Constant("LV_EVENT_...")`. The same
+single pin, bounded queue and generation checks apply. These are **deferred
+zero-argument notifications**, not synchronous draw/delete hooks, input vetoes,
+or retained `lv_event_t` payloads. Deletion/draw events are rejected.
+
+The manifest `tools/lvgl_api_schema.json` is the source of the generated C,
+reference and availability/style smoke cases. Run `python3 tools/gen_lvgl_api.py`
+after a reviewed schema change; CI checks generated files for drift. Generation
+is not a safety review: retained-pointer APIs, object-returning functions,
+custom callbacks and buffer lifetimes require dedicated owned handles rather
+than adding untyped integer/array arguments to this table.
 
 ## Fonts, images and LVGL filesystem paths
 
@@ -225,6 +313,18 @@ or unregister driver storage. Keep `gui_assets` valid until host `lv_deinit`.
 A disabled bridge cannot be rebound within that LVGL lifetime. Only after host
 shutdown may its storage be cleared/reused. VM teardown never disables a host
 shared drive. This lifetime rule is mandatory even when every VM has stopped.
+
+Bar/Slider numeric setters use -32767..32767, including range endpoints,
+to avoid older native rendering arithmetic overflowing on full-int32 spans.
+Spinbox values/ranges use -999999999..999999999 and explicitly assigned steps
+use 1..100000000; these conservative cross-major limits also protect native
+step multiplication and increment/decrement arithmetic. Spinbox values/ranges
+must also fit the configured digit count (initially 5); steps may not exceed
+the highest displayed digit. Shrinking the format rejects an existing value or
+step that would not fit, avoiding an LVGL 9.0 formatter buffer underflow.
+Formatting is tracked by the wrapper; the host must not independently mutate
+a script-owned Spinbox's format. See the generated
+reference for each operation's exact accepted bounds.
 
 ## Lifetime, memory and failure policy
 

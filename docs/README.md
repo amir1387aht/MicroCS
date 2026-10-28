@@ -16,7 +16,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 📶 | [Wi-Fi & networking](NETWORK.md) | `Wifi` (station, soft AP, scan, events, static IP, saved networks), ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; ESP32 setup; the `--sim` radio |
 | 🔵 | [Bluetooth LE](BLE.md) | opt-in `Ble`: advertising and beacons, scanning, GATT server (`BleService`) and client (`BleConnection`), pairing / bonding, `BleUart`; ESP32 NimBLE, Pico W BTstack, Zephyr, ArduinoBLE; the `--sim` radio |
 | 🖥️ | [U8g2 displays](U8G2.md) | optional C# `U8g2` / `U8x8` on olikraus' u8g2: turning it on in each build, choosing displays and fonts, fonts from files, the whole API, the `--oled` simulator |
-| 🖼️ | [LVGL](LVGL.md) | optional C# widgets on the host's existing LVGL 8.x/9.x; explicit attachment, version policy, ownership, events and API coverage |
+| 🖼️ | [LVGL](LVGL.md) | optional C# widgets on the host's existing LVGL 8.x/9.x; explicit attachment, version policy, ownership, events and API coverage; [native-call reference](LVGL_NATIVE_API.md) |
 | 🧩 | [Device drivers](DRIVERS.md) | the driver registry, the built-in `ws2812` (`LedStrip`) and `servo` (`Servo`) drivers and their backends, writing your own, turning drivers off |
 | ⚙️ | [Configuration](CONFIGURATION.md) | the project config header `mcs_user_config.h`, `-D` options, profiles, precedence, per build system |
 | 🧭 | [Porting & build systems](PORTING.md) | Make, CMake, ESP-IDF, Zephyr, PlatformIO, Arduino, CubeIDE/Keil/IAR; the vendor ports; new chips |

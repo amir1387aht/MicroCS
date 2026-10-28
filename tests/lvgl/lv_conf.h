@@ -36,6 +36,11 @@ void mcs_test_lvgl_assert(const char*, int);
 #define LV_USE_THEME_MONO 0
 #define LV_BUILD_TEST 0
 #ifdef MCS_LVGL_TEST_MINIMAL
+#define LV_USE_FLEX 0
+#define LV_USE_GRID 0
+#define LV_USE_LED 0
+#define LV_USE_LINE 0
+#define LV_USE_TILEVIEW 0
 #define LV_USE_LABEL 0
 #define LV_USE_CHECKBOX 0
 #define LV_USE_SLIDER 0
@@ -59,7 +64,6 @@ void mcs_test_lvgl_assert(const char*, int);
 #define LV_USE_IMAGE 0
 #define LV_USE_IMG 0
 #define LV_USE_ANIMIMG 0
-#define LV_USE_ANIMIMAGE 0
 #define LV_USE_SPINNER 0
 #define LV_USE_TABLE 0
 #define LV_USE_CANVAS 0

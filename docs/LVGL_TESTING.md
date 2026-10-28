@@ -94,9 +94,10 @@ native LVGL 8 allocator fault coverage.
   test plus ASan/UBSan is not a substitute for TSan or MCU scheduler testing.
 - Combined device-native/LVGL/VM memory totals or rendering performance on real
   hardware. No framebuffer allocation is attributed to the VM pool.
-- API coverage beyond the nine documented kinds and their listed operations;
-  most public methods, complex widgets, shared styles, animations and layouts
-  remain unwrapped. File images/fonts do not imply arbitrary descriptor support.
+- Complete API coverage beyond the 25 documented kinds and 421 native-call
+  operation families; retained array/descriptor APIs, shared resource handles,
+  custom drawing/animation callbacks and many object-returning methods remain
+  unwrapped. Some new widget kinds currently expose creation/common APIs only. File images/fonts do not imply arbitrary descriptor support.
 
 These gaps must remain visible in review; do not merge on the basis of a demo
 or rename this work a full LVGL API binding.
@@ -206,3 +207,39 @@ majors and feature configurations, not automatically exposing raw C signatures:
 
 Until that work is implemented and validated, this is a constrained binding,
 not a completed full-LVGL C# API. No merge or release should imply otherwise.
+
+## Native-call expansion validation
+
+The reviewed manifest generates 421 operation families and 224 enum constants.
+The fixture checks each family's version/config availability and ID resolution,
+wrong arity for parameterized entries, every available scalar style setter/getter,
+and constant availability. These generated checks do **not** establish exhaustive
+semantics for every operation. Separate assertions exercise cached IDs, RGB
+styles, geometry, flags/state, percentage encoding, invalid selectors/pointers,
+reparent-cycle rejection, clean/stale invalidation, flex, extended slider ranges,
+copied Dropdown/Roller options, TextArea input, Table cells/capacity/bounds,
+Led/Spinbox behavior, Keyboard target deletion and queued native event types.
+
+Text snapshot tests inject host snapshot allocation failure and every VM
+allocation failure on a native-only string path. They check that native snapshot
+storage is freed and GUI locks are released before VM OOM recovery. The new
+shipped native-API example executes in the enabled fixture with real rendering.
+Boundary regressions also reject native integer-overflow spans and Spinbox
+values/steps/format reductions that cannot fit the configured digit count.
+This caught and now prevents an LVGL 9.0 formatter stack underflow. The fixture
+reports 10,000 native versus name/cached-ID `Call` updates (script times include
+compilation); these host/sanitized figures are not MCU timing guarantees.
+
+Minimal fixtures now also disable Flex/Grid/Led/Line/Tileview, and verify that
+all guarded API families/constants are unavailable without link references.
+
+The wrapper uses primitive exported cache API declarations when the LVGL 9.6
+umbrella omits the documented `lv_image_cache_drop` prototype; no private layout
+is accessed and `LV_USE_PRIVATE_API` is not enabled. Local compatibility helpers
+isolate upstream's deprecated-but-exported generic flag/List APIs rather than
+suppressing diagnostics globally. The table-cell-control rename is bridged from
+LVGL 9.3 onward; removed LVGL 8 filtered-color setters are not exposed.
+
+Native-call support improves coverage, but does not close the full-binding
+acceptance work above. In particular, native constructors with retained buffers
+or returned internal subobjects require additional owned-resource design.

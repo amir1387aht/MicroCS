@@ -77,6 +77,20 @@ def main():
     declarations_by_name = declarations(args.lvgl)
     if 'lv_obj_create' not in declarations_by_name or len(declarations_by_name) < 100:
         parser.error('Expected an LVGL source checkout with public src headers')
+    native_schema = json.loads((Path(__file__).parent / 'lvgl_api_schema.json').read_text())
+    for entry in native_schema['apis']:
+        OPERATIONS['LvObject.Call(' + entry['name'] + ')'] = list(entry['variants'].values())
+    for kind, native in {
+        'Dropdown':'lv_dropdown_create','Roller':'lv_roller_create','TextArea':'lv_textarea_create',
+        'Table':'lv_table_create','Led':'lv_led_create','Spinbox':'lv_spinbox_create',
+        'Chart':'lv_chart_create','Canvas':'lv_canvas_create','Keyboard':'lv_keyboard_create',
+        'ButtonMatrix':'lv_buttonmatrix_create','Line':'lv_line_create','List':'lv_list_create',
+        'Calendar':'lv_calendar_create','ImageButton':'lv_imagebutton_create','Spinner':'lv_spinner_create',
+        'Tileview':'lv_tileview_create',
+    }.items():
+        OPERATIONS['LvObject(' + kind + ')'] = [native]
+    OPERATIONS['LvObject(ButtonMatrix)'].append('lv_btnmatrix_create')
+    OPERATIONS['LvObject(ImageButton)'].append('lv_imgbtn_create')
     mapped = {}
     for operation, names in OPERATIONS.items():
         for name in names:
