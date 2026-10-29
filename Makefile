@@ -433,14 +433,17 @@ build/test_source_resolver: tests/c/test_source_resolver.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
 build/test_posix_list_oom: tests/c/test_posix_list_oom.c modules/fs/mcs_vfs_posix.c include/mcs_vfs.h | build
 	$(CC) $(CFLAGS) $< -o $@ $(LDLIBS)
-project-test: build/test_project build/test_source_resolver build/test_posix_list_oom
+project-test: build/test_project build/test_source_resolver build/test_posix_list_oom build/test_posix_fd build/test_posix_fd_off build/test_shell_put_errors
 	@for defs in "-DMCS_ENABLE_FS=0" "-DMCS_ENABLE_COMPILER=0" "-DMCS_ENABLE_FS=0 -DMCS_ENABLE_COMPILER=0"; do \
 	  $(CC) $(CFLAGS) -Werror $$defs -c modules/sched/mcs_sched.c -o build/project_flags.o || exit 1; done
 	./build/test_project
 	./build/test_source_resolver
 	./build/test_posix_list_oom
+	./build/test_posix_fd
+	./build/test_posix_fd_off
+	./build/test_shell_put_errors
 	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
@@ -514,3 +517,11 @@ build/test_file_streams: tests/c/test_file_streams.c tests/c/file_stream_smoke.h
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
 file-streams-test: build/test_file_streams
 	./build/test_file_streams
+
+# ESP VFS without stdio buffering, and generic streamed-upload fault recovery.
+build/test_posix_fd: tests/c/test_posix_fd.c modules/fs/mcs_vfs_posix.c | build
+	$(CC) $(CFLAGS) -Werror $< -o $@
+build/test_posix_fd_off: tests/c/test_posix_fd.c modules/fs/mcs_vfs_posix.c | build
+	$(CC) $(CFLAGS) -Werror -DMCS_ENABLE_FILE_STREAMS=0 $< -o $@
+build/test_shell_put_errors: tests/c/test_shell_put_errors.c $(OBJ)
+	$(CC) $(CFLAGS) -Werror $(filter-out build/mod/shell/mcs_shell.o,$(OBJ)) $< -o $@ $(LDLIBS)

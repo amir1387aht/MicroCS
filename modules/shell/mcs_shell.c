@@ -220,7 +220,14 @@ static void cmd_put(mcs_shell_t* sh, const char* path, const char* len_s, const 
         size_t k = n < sizeof buf ? n : sizeof buf;
         if (win && k > left_in_win) k = left_in_win;
         if (read_exact(sh, buf, k)) { mcs_vfs_close(&f); mcs_vfs_remove(sh->vfs, tmp); err(sh, "upload timed out"); return; }
-        if (!e && mcs_vfs_write(&f, buf, k) != (int)k) e = MCS_VFS_ENOSPC;   /* keep draining the stream */
+        /* Preserve native OOM/I/O errors and support short writes. Always
+         * drain the transfer after failure so the next command stays framed. */
+        size_t written = 0;
+        while (!e && written < k) {
+            int w = mcs_vfs_write(&f, buf + written, k - written);
+            if (w <= 0) e = w < 0 ? w : MCS_VFS_ENOSPC;
+            else written += (size_t)w;
+        }
         n -= k;
         if (win && !(left_in_win -= k)) {          /* window written: ask for the next one */
             left_in_win = win;

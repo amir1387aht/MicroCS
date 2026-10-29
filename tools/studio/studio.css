@@ -164,6 +164,8 @@ main { display: grid; grid-template-columns: var(--side, 280px) 4px 1fr; min-hei
 .gutter { width: 50px; flex: none; overflow: hidden; background: var(--bg); color: var(--gutter-fg); font: var(--fs)/var(--lh) var(--mono);
   text-align: right; user-select: none; }
 .gutter > div { padding: 6px 10px 200px 0; will-change: transform; }
+/* Each number occupies exactly one editor row, including bold error rows. */
+.gutter > div > div { height: var(--lh); line-height: var(--lh); overflow: hidden; }
 .gutter .cur { color: var(--gutter-cur); }
 .gutter .errl { color: #f14c4c; font-weight: 700; }
 .code { flex: 1; position: relative; min-width: 0; overflow: hidden; border-left: 1px solid var(--line2); }
