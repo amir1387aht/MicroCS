@@ -378,7 +378,10 @@ build/test_esp_pool_growth: tests/c/test_esp_pool_growth.c ports/esp32/mcs_port_
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
 build/test_pool_pressure: tests/c/test_pool_pressure.c ports/esp32/mcs_port_esp32_heap.c $(OBJ)
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
-firmware-heap-test: build/test_heap_policy build/test_heap_policy_startup_default build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+build/test_startup_gc: tests/c/test_startup_gc.c $(OBJ)
+	$(CC) $(CFLAGS) -Werror $(OBJ) $< -o $@ $(LDLIBS)
+firmware-heap-test: build/test_startup_gc build/test_heap_policy build/test_heap_policy_startup_default build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+	./build/test_startup_gc
 	./build/test_heap_policy
 	./build/test_heap_policy_startup_default
 	./build/test_pool_regions
@@ -446,6 +449,15 @@ oled-smallheap-test: mcs-u8g2
 	$(CC) $(CFLAGS) -Werror -I"$(U8G2_CSRC)" $(U8G2_DEFS) $(SRC) $(MOD_SRC) tests/c/test_oled_smallheap.c build/u8g2lib/libu8g2.a -Wl,--gc-sections -o build/test_oled_smallheap $(LDLIBS)
 	./build/test_oled_smallheap
 .PHONY: oled-smallheap-test
+
+# Linux host-only allocation tracer. MCU-sized gates require a 32-bit compiler
+# with 8-byte numeric alignment; trace buffers/backtraces are outside VM RAM.
+# Example: make oled-settings-memory-test CC="gcc -m32 -malign-double" \
+#   U8G2_DISPLAYS=ssd1306_i2c_96x16_er U8G2_FONTS=ncenB08_te
+oled-settings-memory-test: mcs-u8g2
+	$(CC) -std=gnu99 -O1 -g -fno-inline -fno-omit-frame-pointer -no-pie -Wall -Wextra -Werror -Iinclude -Isrc -I"$(U8G2_CSRC)" $(U8G2_DEFS) -DMCS_PROFILE=MCS_PROFILE_EMBEDDED -DMCS_ENABLE_BLE=1 -DMCS_BLE_MAX_CONN=1 -DMCS_ENABLE_NET=0 -DMCS_OS=MCS_OS_POSIX $(SRC) $(MOD_SRC) tests/c/test_oled_settings_memory.c build/u8g2lib/libu8g2.a -pthread -lm -Wl,--gc-sections -Wl,--wrap=mcs_pool_realloc -Wl,--wrap=mcs_pool_realloc_temporary -Wl,--wrap=mcs_compile -o build/profile_oled32
+	python3 tools/profile_oled_memory.py build/profile_oled32
+.PHONY: oled-settings-memory-test
 
 # Allocator telemetry and bounded dynamic execution storage.
 build/test_memory: tests/c/test_memory.c $(OBJ)

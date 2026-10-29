@@ -91,6 +91,7 @@ SECTIONS = [
         ("docs/SECURITY.md", "Security"),
         ("docs/TESTING.md", "Testing"),
         ("tests/projects/oled_repeat/README.md", "Repeat-Upload-OLED-Regression"),
+        ("tests/projects/oled_settings_memory/README.md", "OLED-Settings-Memory-Investigation"),
     ]),
     ("Project", [
         ("CHANGELOG.md", "Changelog"),

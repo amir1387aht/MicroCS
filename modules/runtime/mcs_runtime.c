@@ -132,7 +132,14 @@ static int rt_new_vm(mcs_runtime_t* rt) {
         c.alloc_ud = &rt->pool;
         c.alloc_overhead = MCS_POOL_OVERHEAD; /* also when the allocator is thread-wrapped */
         size_t reserve = cfg->ramfs_size + 2048;   /* RAM fs + fragmentation slack */
-        c.heap_limit = cfg->heap_size > reserve + 8192 ? cfg->heap_size - reserve : cfg->heap_size;
+        size_t capacity = cfg->heap_size;
+        /* A partial startup acquisition is sealed: an unreachable requested
+         * ceiling must not postpone GC beyond the physically owned pool.
+         * Keep the backing ceiling/configuration unchanged for reporting and
+         * on-demand pools, which may still grow. */
+        if (rt->pool.dynamic && rt->pool.dynamic->sealed && capacity > rt->pool.size)
+            capacity = rt->pool.size;
+        c.heap_limit = capacity > reserve + 8192 ? capacity - reserve : capacity;
     }
 #endif
     c.write_fn = rt_write;
