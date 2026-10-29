@@ -408,3 +408,20 @@ DirectoryNotFoundException, UnauthorizedAccessException, IOException,
 DriveNotFoundException.
 For bounded-memory byte-range access, use [FileStream](#chunked-io-filestream).
 Whole-file helpers above still allocate the complete result in the VM pool.
+
+### ESP-IDF native-memory pressure during file transfers
+
+The POSIX-mounted ESP-IDF backend uses VFS descriptors directly rather than
+allocating a newlib `FILE` object and stdio buffer per open file. Filesystem
+drivers can still require their own native allocations. Free space inside a
+fixed VM pool is not available to these allocations; leave native headroom for
+open file caches, peripherals and the SDK. A reserve guards VM backing acquisition,
+not every later native allocation.
+
+Streamed shell uploads preserve backend memory/I/O errors, handle short writes
+and drain a failed transfer before accepting another command. Studio offers an
+explicitly confirmed application unload and one retry for memory/I/O failures
+when firmware advertises `Runtime.Replace`. Ordinary Save does not unload the
+app. Cleanup can release native peripherals and file handles but does not return
+fixed VM backing to the native heap; persistent failure requires more native
+headroom or a clean reboot. Filesystem capacity and native RAM are separate.

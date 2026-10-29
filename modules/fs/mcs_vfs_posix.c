@@ -64,11 +64,49 @@ static int p_open(void* ctx, const char* path, int flags, void** fh) {
     if (flags & MCS_VFS_EXCL) of |= O_EXCL;
     int fd = open(hp, of, 0666);
     if (fd < 0) return map_errno(errno);
+#if defined(ESP_PLATFORM)
+    /* ESP-IDF VFS descriptors already address the filesystem directly. Avoid
+     * newlib FILE objects and lazy stdio buffers in scarce native SRAM. Encode
+     * fd+1 so descriptor zero remains a non-null opaque handle. */
+    *fh = (void*)((intptr_t)fd + 1);
+    return MCS_VFS_OK;
+#else
     FILE* f = fdopen(fd, write ? ((flags & MCS_VFS_READ) ? "r+b" : "wb") : "rb");
     if (!f) { int e = map_errno(errno); close(fd); return e; }
     *fh = f;
     return MCS_VFS_OK;
+#endif
 }
+#if defined(ESP_PLATFORM)
+static int p_fd(void* fh) { return (int)((intptr_t)fh - 1); }
+static int p_read(void* ctx, void* fh, void* buf, size_t n) {
+    (void)ctx; if (n > 0x7fffffff) n = 0x7fffffff;
+    int r; do { r = (int)read(p_fd(fh), buf, n); } while (r < 0 && errno == EINTR);
+    return r < 0 ? map_errno(errno) : r;
+}
+static int p_write(void* ctx, void* fh, const void* buf, size_t n) {
+    (void)ctx; if (n > 0x7fffffff) n = 0x7fffffff;
+    int r; do { r = (int)write(p_fd(fh), buf, n); } while (r < 0 && errno == EINTR);
+    return r < 0 ? map_errno(errno) : r;
+}
+static int p_close(void* ctx, void* fh) {
+    (void)ctx; return close(p_fd(fh)) ? map_errno(errno) : MCS_VFS_OK;
+}
+#if MCS_ENABLE_FILE_STREAMS
+static int p_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
+    (void)ctx; int fd = p_fd(fh);
+    off_t old = lseek(fd, 0, SEEK_CUR);
+    if (old < 0) return map_errno(errno);
+    off_t pos = lseek(fd, off, origin == 0 ? SEEK_SET : origin == 1 ? SEEK_CUR : SEEK_END);
+    if (pos < 0) return map_errno(errno);
+    if ((uint64_t)pos > 0x7fffffff) { (void)lseek(fd, old, SEEK_SET); return MCS_VFS_EINVAL; }
+    *out = (int32_t)pos; return MCS_VFS_OK;
+}
+static int p_flush(void* ctx, void* fh) {
+    (void)ctx; return fsync(p_fd(fh)) ? map_errno(errno) : MCS_VFS_OK;
+}
+#endif
+#else
 static int p_read(void* ctx, void* fh, void* buf, size_t n) {
     (void)ctx;
     if (n > 0x7fffffff) n = 0x7fffffff;
@@ -92,6 +130,7 @@ static int p_seek(void* ctx, void* fh, int32_t off, int origin, int32_t* out) {
     *out = (int32_t)p; return 0;
 }
 static int p_flush(void* ctx, void* fh) { (void)ctx; return fflush((FILE*)fh) ? MCS_VFS_EIO : 0; }
+#endif
 #endif
 static int p_stat(void* ctx, const char* path, mcs_vfs_stat_t* out) {
     HOST(path);

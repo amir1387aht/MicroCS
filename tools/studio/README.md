@@ -369,3 +369,17 @@ Formatter options accept `indentSize: 2`, `4` (default), or `8` through the
 `StudioFormat.format` JavaScript API. The editor keeps its four-space convention.
 Formatting remains whitespace-only, preserves literal/comment bytes and CRLF,
 and maps selections/carets through edits. No new serial polling is introduced.
+
+### Upload recovery and editor rows
+
+Line-number rows use the same explicit height and line-height as the editor,
+including bold error markers. The browser regression checks deep scrolling,
+multiple font sizes and both themes.
+
+Save preserves running application state by default. On a device-reported
+out-of-memory or I/O failure, supported firmware permits **Unload app and retry**
+after confirmation. Cancel leaves the application alone; retries are bounded.
+This releases application resources, not a fixed VM backing pool. Repeated
+native OOM needs more native headroom; VM-free bytes do not imply native RAM
+availability. Older firmware receives a reset/headroom hint, not an unsupported
+cleanup command.

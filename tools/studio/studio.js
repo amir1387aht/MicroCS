@@ -2160,6 +2160,17 @@ const App = {
     this.checkSpace(path, data.length);
     try { return await dev.op(() => dev.put(path, data, prog)); }
     catch (e) {
+      if (/out of memory|I\/O error/i.test(e.message)) {
+        // Saving normally preserves the app. Recovery is destructive to live
+        // app state, so require explicit consent rather than resetting silently.
+        if (this.capabilities?.get("Runtime.Replace") !== true) {
+          throw new Error(e.message + ". Native filesystem memory may be exhausted. Reset the board or leave more native RAM; VM free space cannot fund native allocations.");
+        }
+        const retry = await dialog({ title: "Device upload failed", text: e.message + ". Unload the current application and retry once? This stops its timers, peripherals and globals, but preserves files and this connection. A fixed VM pool stays reserved; persistent native OOM requires more native headroom.", ok: "Unload app and retry" });
+        if (!retry) throw e;
+        await this.prepareRun();
+        return dev.op(() => dev.put(path, data, prog));
+      }
       if (!/timed out|did not answer|stalled/i.test(e.message)) throw e;
       term.line("upload stalled - retrying slower", "warn");
       return dev.op(() => dev.put(path, data, prog, 128, 12));
