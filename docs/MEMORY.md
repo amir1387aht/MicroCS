@@ -208,9 +208,9 @@ than the requested backing ceiling, applying the existing RAMFS/2 KiB slack.
 Otherwise GC could wait for an unreachable threshold and hit physical OOM while
 short-lived garbage is reclaimable. The configured backing ceiling is unchanged;
 on-demand pools retain their growth policy. This does not collect inside an
-allocation or reclaim live source/compiler state. See the
-[full OLED/settings app investigation](../tests/projects/oled_settings_memory/README.md)
-for allocation tracing, negative controls and 32-bit reproduction.
+allocation or reclaim live source/compiler state. The synthetic regression in
+`tests/c/test_startup_gc.c` covers a small acquired pool with a larger requested
+ceiling, retained data and repeated transient allocations.
 
 **What is guaranteed:** successfully acquired backing stays owned by a startup
 pool, so total minus used is actual free **allocator space**. It is not a promise

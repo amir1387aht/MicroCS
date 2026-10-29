@@ -450,15 +450,6 @@ oled-smallheap-test: mcs-u8g2
 	./build/test_oled_smallheap
 .PHONY: oled-smallheap-test
 
-# Linux host-only allocation tracer. MCU-sized gates require a 32-bit compiler
-# with 8-byte numeric alignment; trace buffers/backtraces are outside VM RAM.
-# Example: make oled-settings-memory-test CC="gcc -m32 -malign-double" \
-#   U8G2_DISPLAYS=ssd1306_i2c_96x16_er U8G2_FONTS=ncenB08_te
-oled-settings-memory-test: mcs-u8g2
-	$(CC) -std=gnu99 -O1 -g -fno-inline -fno-omit-frame-pointer -no-pie -Wall -Wextra -Werror -Iinclude -Isrc -I"$(U8G2_CSRC)" $(U8G2_DEFS) -DMCS_PROFILE=MCS_PROFILE_EMBEDDED -DMCS_ENABLE_BLE=1 -DMCS_BLE_MAX_CONN=1 -DMCS_ENABLE_NET=0 -DMCS_OS=MCS_OS_POSIX $(SRC) $(MOD_SRC) tests/c/test_oled_settings_memory.c build/u8g2lib/libu8g2.a -pthread -lm -Wl,--gc-sections -Wl,--wrap=mcs_pool_realloc -Wl,--wrap=mcs_pool_realloc_temporary -Wl,--wrap=mcs_compile -o build/profile_oled32
-	python3 tools/profile_oled_memory.py build/profile_oled32
-.PHONY: oled-settings-memory-test
-
 # Allocator telemetry and bounded dynamic execution storage.
 build/test_memory: tests/c/test_memory.c $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) $< -o $@ $(LDLIBS)
