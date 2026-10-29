@@ -202,6 +202,16 @@ Unsupported dynamic configuration fails instead of silently using unbounded RAM.
 - Direct pool users: call `mcs_pool_acquire_at_start(&pool)` immediately after
   `mcs_pool_init_dynamic`, before clients/threads. It seals the pool until destroy.
 
+**GC budgeting with partial startup acquisition:** the runtime derives the main
+VM's hard allocation/GC limit from actual sealed pool capacity when it is smaller
+than the requested backing ceiling, applying the existing RAMFS/2 KiB slack.
+Otherwise GC could wait for an unreachable threshold and hit physical OOM while
+short-lived garbage is reclaimable. The configured backing ceiling is unchanged;
+on-demand pools retain their growth policy. This does not collect inside an
+allocation or reclaim live source/compiler state. The synthetic regression in
+`tests/c/test_startup_gc.c` covers a small acquired pool with a larger requested
+ceiling, retained data and repeated transient allocations.
+
 **What is guaranteed:** successfully acquired backing stays owned by a startup
 pool, so total minus used is actual free **allocator space**. It is not a promise
 that every byte is available as one C# array: per-block overhead, region

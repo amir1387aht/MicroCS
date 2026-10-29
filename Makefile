@@ -390,7 +390,10 @@ build/test_esp_pool_growth: tests/c/test_esp_pool_growth.c ports/esp32/mcs_port_
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
 build/test_pool_pressure: tests/c/test_pool_pressure.c ports/esp32/mcs_port_esp32_heap.c $(OBJ)
 	$(CC) $(CFLAGS) -Werror -Iports/esp32 -Itests/c/heap_sdk $(OBJ) ports/esp32/mcs_port_esp32_heap.c $< -o $@ $(LDLIBS)
-firmware-heap-test: build/test_heap_policy build/test_heap_policy_startup_default build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+build/test_startup_gc: tests/c/test_startup_gc.c $(OBJ)
+	$(CC) $(CFLAGS) -Werror $(OBJ) $< -o $@ $(LDLIBS)
+firmware-heap-test: build/test_startup_gc build/test_heap_policy build/test_heap_policy_startup_default build/test_firmware_heap build/test_app_replace build/test_pool_regions build/test_esp_heap build/test_esp_pool_growth build/test_pool_pressure
+	./build/test_startup_gc
 	./build/test_heap_policy
 	./build/test_heap_policy_startup_default
 	./build/test_pool_regions
