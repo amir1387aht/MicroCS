@@ -8,8 +8,9 @@
 static int failures, checks;
 #define CHECK(x) do { checks++; if (!(x)) { failures++; printf("FAIL line %d: %s\n", __LINE__, #x); } } while (0)
 #if MCS_ENABLE_BLE
-static int starts, writes, stop_fails;
-static int radio(void* ctx, int on) { (void)ctx; if (!on && stop_fails) return MCS_HAL_EBUSY; starts += on; return 0; }
+static int starts, writes, stop_fails, start_error;
+static int radio(void* ctx, int on) { (void)ctx; if (!on && stop_fails) return MCS_HAL_EBUSY; starts += on; return on ? start_error : 0; }
+static int advertising(void* ctx, const mcs_ble_adv_t* data) { (void)ctx; (void)data; return 0; }
 static int setting(void* ctx, int opt, int32_t value) { (void)ctx; (void)value; writes++; return opt == MCS_BLE_OPT_PASSKEY ? MCS_HAL_ENOTSUP : 0; }
 #endif
 int main(void) {
@@ -63,6 +64,14 @@ int main(void) {
     CHECK(before.bytes_in_use == after.bytes_in_use && before.objects == after.objects && before.collections == after.collections);
 #if MCS_ENABLE_BLE
     CHECK(starts == 2 && writes == 1);
+    ble.adv_start = advertising; start_error = MCS_HAL_ENOMEM;
+    CHECK(mcs_exec_source(vm, "native-oom.cs", "try { Ble.StartAdvertising(); throw new Exception(\"missing native OOM\"); } catch (OutOfMemoryException e) { if (!e.Message.Contains(\"native Bluetooth memory\")) throw new Exception(\"wrong memory scope\"); } if (Ble.Enabled) throw new Exception(\"failed enable marked on\");") == MCS_OK);
+    CHECK(starts == 3);
+    CHECK(mcs_exec_source(vm, "native-oom-retry.cs", "try { Ble.Enable(); throw new Exception(\"missing native OOM\"); } catch (OutOfMemoryException e) {}") == MCS_OK);
+    CHECK(starts == 4);
+    start_error = 0;
+    CHECK(mcs_exec_source(vm, "native-recovery.cs", "Ble.Enable(); if (!Ble.Enabled) throw new Exception(\"retry did not enable\"); Ble.Reset();") == MCS_OK);
+    CHECK(starts == 5);
     mcs_ble_set(NULL);
 #endif
     mcs_free(vm);

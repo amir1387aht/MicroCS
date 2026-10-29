@@ -293,6 +293,70 @@ unknown; Studio shows backed-only pool capacity.
 
 See [automatic regions and accounting](../../docs/MEMORY.md#automatic-bounded-regions-all-ports).
 
+### Diagnosing native BLE out-of-memory on ESP32-C2
+
+`ble_controller_init failed 257` is `ESP_ERR_NO_MEM`, not a missing device.
+MicroCS propagates it as `OutOfMemoryException` with **native Bluetooth memory**
+in the message. Failed initialization also logs the stage, SDK error and internal
+heap free/largest/lifetime-minimum counters. A generic SDK error is not relabelled
+as OOM unless its error code actually says so.
+
+A startup-acquired VM pool cannot lend its unused space to the controller. For
+example, a pool with 50,232 bytes used out of 72,328 owns 22,096 free bytes, but
+those bytes are unavailable to NimBLE. A 28,672-byte native reserve is checked
+when VM regions are acquired; native initialization can subsequently consume it.
+It is neither an additional allocation nor a continuously maintained free floor.
+Increasing the VM ceiling cannot create more physical RAM. Enabling Bluetooth
+also changes the firmware's static/native footprint: compare `idf.py size` from
+both actual builds rather than extrapolating Bluetooth-disabled VM capacity.
+
+For a **diagnostic firmware**, enable:
+
+```text
+CONFIG_MICROCS_BLE_MEMORY_DIAGNOSTICS=y
+```
+
+This adds heap snapshots around controller/host initialization and installs the
+SDK's **single global failed-allocation callback**, replacing any application
+callback. It stays installed until reboot and logs all subsequent native
+allocation failures, not just BLE failures. The callback prints requested size,
+capability mask and allocator-function name using ROM output without allocating;
+it is not a stack trace. Disable this option for normal builds: diagnostic output
+has timing cost. No reserve, heap policy or capacity is changed by this flag.
+The SDK `lifetime_min` counter includes earlier activity and is **not** a BLE-only
+peak measurement. Failure snapshots may be taken after SDK cleanup has freed RAM.
+
+To isolate controller requirements, clean-boot a diagnostic firmware with a small
+VM ceiling (for example 32 KiB) and run only
+[`tests/ble/t_ble_memory_profile.cs`](../../tests/ble/t_ble_memory_profile.cs).
+This is the one-service/two-characteristic example, not a proposed 32 KiB budget
+for a full application. Capture the snapshots and failed request/capabilities;
+if it succeeds, also test connection, writes, notifications and reconnects under
+representative load. These measurements guide the native reserve; there is no
+universal minimum or guarantee from one advertising-only test. Do not repeatedly
+retry initialization in the same boot when investigating SDK partial failures.
+
+Optional smaller **MicroCS GATT tables**, tested with that service on the host:
+
+```text
+CONFIG_MICROCS_BLE_MAX_SERVICES=2
+CONFIG_MICROCS_BLE_MAX_ATTRS=8
+CONFIG_MICROCS_BLE_VALUE_POOL=512
+CONFIG_MICROCS_BLE_QUEUE=1024
+```
+
+These reduce table/value/event capacity; they are not new defaults, do not shrink
+all SDK controller buffers, and may be insufficient for more services, larger
+values or notification bursts. They do not remove BLE API roles or change MTU.
+
+For the full app, [precompile bytecode](../../docs/BYTECODE.md) on the host with
+`./mcs -c app.cs -o app.mcsb` to avoid the on-device source compiler's transient
+peak. With startup acquisition, bytecode **alone does not return VM backing to
+BLE**: choose a smaller sufficient VM ceiling or a larger measured native reserve
+and reboot. Validate both full app VM peak/contiguous requests and native BLE peak
+before declaring the combined workload fits. If their measured requirements
+exceed available dynamic SRAM, allocator regions cannot eliminate that shortfall.
+
 ## Build profile per chip
 
 `idf.py menuconfig` → *Component config* → *MicroCS* → *Build profile*. Every chip defaults

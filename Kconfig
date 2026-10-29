@@ -200,11 +200,26 @@ menu "MicroCS"
         default 48
         range 0 256
         help
-            The example firmware sizes the C# heap so that this much RAM stays
-            free for NimBLE and the controller, which start on the first Ble
-            call. 0 = no reservation.
+            The example VM provider leaves this much additional native headroom
+            when acquiring regions for the C# heap. NimBLE and the controller
+            consume native RAM when BLE starts; this is not a separate memory
+            allocation or a continuously maintained free floor. Required peak
+            headroom depends on chip, SDK and workload. 0 = no extra BLE guard.
 
     if MICROCS_BLE
+    config MICROCS_BLE_MEMORY_DIAGNOSTICS
+        bool "Debug native BLE memory and failed allocations"
+        default n
+        help
+            Log internal free/largest heap before and after BLE initialization.
+            Install the SDK's single GLOBAL failed-allocation callback when BLE
+            is first enabled; this replaces any application callback and remains
+            installed until reboot. Logs request bytes/capabilities/function for
+            ALL later native allocation failures, not just BLE. ROM printing in
+            the callback does not allocate; debug output can affect timing.
+            Disabled by default; it does not change VM capacity or reserves.
+            SDK minimum-free is a lifetime low-water mark, not a BLE-only peak.
+
     config MICROCS_BLE_NAME
         string "Default BLE device name"
         default "MicroCS"

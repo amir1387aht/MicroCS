@@ -1,0 +1,11 @@
+var svc = new BleService("19B10000-E8F2-537E-4F6C-D104768A1214");
+var sw = svc.AddCharacteristic("19B10001-E8F2-537E-4F6C-D104768A1214", BleProperty.Read | BleProperty.Write, new byte[] { 0 });
+var count = svc.AddCharacteristic("19B10002-E8F2-537E-4F6C-D104768A1214", BleProperty.Read | BleProperty.Notify, new byte[] { 0 });
+sw.Description = "LED (01 = on)";
+sw.OnWrite((data, conn) => {});
+Ble.Name = "MicroCS-LED";
+Ble.AddService(svc);
+Ble.StartAdvertising();
+if (!Ble.Enabled) throw new Exception("BLE not enabled");
+Ble.Reset();
+Console.WriteLine("BLE service profile OK");
