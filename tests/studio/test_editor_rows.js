@@ -1,5 +1,6 @@
 // Actual rendered gutter/code baselines, including error rows and deep scrolling.
-const {chromium}=require('playwright'),assert=require('assert'),path=require('path');
+let chromium;try{({chromium}=require('playwright'));}catch{({chromium}=require('playwright-core'));}
+const assert=require('assert'),path=require('path');
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROME||undefined,args:['--no-sandbox']});
 try{const page=await browser.newPage({viewport:{width:1200,height:800}});
 await page.goto('file://'+path.resolve('tools/studio/index.html'));
