@@ -415,7 +415,8 @@ static mcs_value_t fail(mcs_vm_t* vm, const char* op, int rc) {
     const char* why = rc == MCS_HAL_ENOTSUP ? "not supported" : rc == MCS_HAL_ETIMEOUT ? "timeout"
                     : rc == MCS_HAL_ENODEV ? "not connected / not found" : rc == MCS_HAL_EBUSY ? "busy"
                     : rc == MCS_HAL_EINVAL ? "invalid argument" : "failed";
-    if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s", op, why);
+    if (rc == MCS_HAL_ENOMEM) mcs_raise(vm, "OutOfMemoryException", "%s: native Bluetooth memory exhausted (not VM heap)", op);
+    else if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s", op, why);
     else if (rc == MCS_HAL_ENOTSUP) mcs_raise(vm, "NotSupportedException", "%s: %s", op, why);
     else if (rc == MCS_HAL_EINVAL) mcs_raise(vm, "ArgumentException", "%s: %s", op, why);
     else mcs_raise(vm, "IOException", "%s: %s (%d)", op, why, rc);

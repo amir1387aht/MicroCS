@@ -12,6 +12,7 @@
  *   MCS_HAL_ERR (-1) generic       MCS_HAL_ENOTSUP (-2) not supported for that pin/bus
  *   MCS_HAL_ETIMEOUT (-3) timeout  MCS_HAL_ENODEV (-4) no device / NACK
  *   MCS_HAL_EBUSY (-5) busy        MCS_HAL_EINVAL (-6) bad argument
+ *   MCS_HAL_ENOMEM (-7) native allocator exhausted (not the managed VM pool)
  * which become IOException / NotSupportedException / TimeoutException /
  * ArgumentException in C#. Calls happen on the VM thread, except
  * mcs_hal_post() / mcs_hal_gpio_edge(); encoder capture also samples gpio_read
@@ -65,7 +66,7 @@ enum { MCS_POWER_LIGHT = 1, MCS_POWER_DEEP = 2, MCS_POWER_SHUTDOWN = 4 };
 #endif
 
 enum { MCS_HAL_ERR = -1, MCS_HAL_ENOTSUP = -2, MCS_HAL_ETIMEOUT = -3, MCS_HAL_ENODEV = -4,
-       MCS_HAL_EBUSY = -5, MCS_HAL_EINVAL = -6 };
+       MCS_HAL_EBUSY = -5, MCS_HAL_EINVAL = -6, MCS_HAL_ENOMEM = -7 };
 
 /* GPIO modes and interrupt edges */
 enum { MCS_GPIO_INPUT = 0, MCS_GPIO_OUTPUT = 1, MCS_GPIO_INPUT_PULLUP = 2,

@@ -110,10 +110,22 @@ mcs-ble: | build
 	$(CC) $(BLE_FLAGS) $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble
 # tests/ble/*.cs against their .out on the simulated radio, the examples as smoke tests,
 # and the module without the simulator / without the HAL
-ble-test: mcs-ble
+build/test_esp_ble_status: tests/c/test_esp_ble_status.c ports/esp32/mcs_esp32_ble_status.h include/mcs_hal.h | build
+	$(CC) $(CFLAGS) -Werror -Iports/esp32 $< -o $@
+build/test_esp_ble_diagnostics_off: tests/c/test_esp_ble_diagnostics.c ports/esp32/mcs_esp32_ble_diagnostics.h | build
+	$(CC) $(CFLAGS) -Werror -Iports/esp32 -DCONFIG_MICROCS_BLE_MEMORY_DIAGNOSTICS=0 $< -o $@
+build/test_esp_ble_diagnostics_on: tests/c/test_esp_ble_diagnostics.c ports/esp32/mcs_esp32_ble_diagnostics.h | build
+	$(CC) $(CFLAGS) -Werror -Iports/esp32 -DCONFIG_MICROCS_BLE_MEMORY_DIAGNOSTICS=1 $< -o $@
+ble-test: mcs-ble build/test_esp_ble_status build/test_esp_ble_diagnostics_off build/test_esp_ble_diagnostics_on
+	./build/test_esp_ble_status
+	./build/test_esp_ble_diagnostics_off
+	./build/test_esp_ble_diagnostics_on
 	@for t in tests/ble/*.cs; do o=$$(head -n 1 $$t | sed -n 's|^// args: *||p'); \
 	  ./build/mcs_ble --sim $$o $$t > build/ble.txt 2>&1; \
 	  cmp -s build/ble.txt $${t%.cs}.out && echo "PASS $$t" || { echo "FAIL $$t"; diff build/ble.txt $${t%.cs}.out | head -40; exit 1; }; done
+	$(CC) $(BLE_FLAGS) -DMCS_BLE_MAX_CONN=1 -DMCS_BLE_MAX_SERVICES=2 -DMCS_BLE_MAX_ATTRS=8 -DMCS_BLE_VALUE_POOL=512 -DMCS_BLE_QUEUE=1024 $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble_compact
+	./build/mcs_ble_compact --sim tests/ble/t_ble_memory_profile.cs > build/ble-profile.txt
+	cmp build/ble-profile.txt tests/ble/t_ble_memory_profile.out
 	@for f in examples/ble/*.cs; do ./build/mcs_ble --sim --time-limit 4000 $$f > /dev/null 2>build/ble.err; rc=$$?; \
 	  if grep -q "Unhandled" build/ble.err || { [ $$rc -ne 0 ] && ! grep -q "time limit exceeded" build/ble.err; }; then \
 	  echo "FAIL $$f"; cat build/ble.err; exit 1; fi; done; echo "PASS examples/ble/*.cs (smoke, $$(ls examples/ble/*.cs | wc -l) scripts)"

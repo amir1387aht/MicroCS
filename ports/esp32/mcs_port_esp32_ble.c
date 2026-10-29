@@ -18,6 +18,12 @@
 #include "freertos/task.h"
 #include "esp_random.h"
 #include "esp_bt.h"
+#include "esp_err.h"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
+#if defined(CONFIG_MICROCS_BLE_MEMORY_DIAGNOSTICS) && CONFIG_MICROCS_BLE_MEMORY_DIAGNOSTICS
+#include "esp_rom_sys.h"
+#endif
 #include "mcs_esp32_ble_power.h"
 #include "nvs_flash.h"
 #include "nimble/nimble_port.h"
@@ -29,6 +35,7 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "mcs_ble.h"
 #include "mcs_hal.h"
+#include "mcs_esp32_ble_status.h"
 
 #if MYNEWT_VAL(BLE_EXT_ADV)
 #error "MicroCS BLE uses legacy advertising: turn CONFIG_BT_NIMBLE_EXT_ADV off"
@@ -46,6 +53,7 @@ static int32_t g_opt[MCS_BLE_OPT__COUNT];
 static int st(int rc) {
     if (rc == 0) return 0;
     if (rc == BLE_HS_ETIMEOUT || rc == BLE_HS_ETIMEOUT_HCI) return MCS_HAL_ETIMEOUT;
+    if (rc == BLE_HS_ENOMEM) return MCS_HAL_ENOMEM;
     if (rc == BLE_HS_ENOTCONN) return MCS_HAL_ENODEV;
     if (rc == BLE_HS_EBUSY || rc == BLE_HS_EALREADY) return MCS_HAL_EBUSY;
     if (rc == BLE_HS_EINVAL) return MCS_HAL_EINVAL;
@@ -307,6 +315,8 @@ static int gap_cb(struct ble_gap_event* ev, void* arg) {
     }
 }
 
+#include "mcs_esp32_ble_diagnostics.h"
+
 /* ---------------------------------------------------------------- controller */
 static void host_task(void* p) {
     (void)p;
@@ -340,9 +350,21 @@ static int e_enable(void* ctx, int on) {
         g_on = g_synced = 0;
         return 0;
     }
+    ble_memory_debug_enable();
+    ble_memory_snapshot("before NVS/controller/host init");
     esp_err_t e = nvs_flash_init();          /* bonds live in NVS (CONFIG_BT_NIMBLE_NVS_PERSIST) */
-    if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) { nvs_flash_erase(); nvs_flash_init(); }
-    if (nimble_port_init() != ESP_OK) return MCS_HAL_ENODEV;
+    if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        e = nvs_flash_erase();
+        if (e == ESP_OK) e = nvs_flash_init();
+    }
+    if (e != ESP_OK) { ble_memory_failure("NVS initialization", e); return mcs_esp32_ble_init_status(e); }
+    ble_memory_snapshot("before nimble_port_init");
+    e = nimble_port_init();
+    if (e != ESP_OK) {
+        ble_memory_failure("nimble_port_init (controller/host)", e);
+        return mcs_esp32_ble_init_status(e);
+    }
+    ble_memory_snapshot("after nimble_port_init");
     ble_hs_cfg.sync_cb = on_sync;
     ble_hs_cfg.reset_cb = on_reset;
     ble_hs_cfg.gatts_register_cb = register_cb;
@@ -357,7 +379,8 @@ static int e_enable(void* ctx, int on) {
     g_on = 1;
     nimble_port_freertos_init(host_task);
     for (int i = 0; i < 300 && !g_synced; i++) vTaskDelay(pdMS_TO_TICKS(10));
-    if (!g_synced) return MCS_HAL_ETIMEOUT;
+    if (!g_synced) { ble_memory_failure("NimBLE host synchronization", ESP_ERR_TIMEOUT); return MCS_HAL_ETIMEOUT; }
+    ble_memory_snapshot("after host sync (before user GATT/advertising)");
     if (g_opt[MCS_BLE_OPT_MTU]) ble_att_set_preferred_mtu((uint16_t)g_opt[MCS_BLE_OPT_MTU]);
     if (g_opt[MCS_BLE_OPT_TX_POWER] != 0x7F) {
         esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, (esp_power_level_t)mcs_esp32_ble_tx_level(g_opt[MCS_BLE_OPT_TX_POWER]));

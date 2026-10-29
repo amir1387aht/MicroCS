@@ -40,7 +40,8 @@ mcs_value_t hal_fail(mcs_vm_t* vm, const char* op, int rc) {
     const char* d = mcs__hal_take_error();
     const char* sep = d ? " - " : "";
     if (!d) d = "";
-    if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s%s%s", op, why, sep, d);
+    if (rc == MCS_HAL_ENOMEM) mcs_raise(vm, "OutOfMemoryException", "%s: native hardware memory exhausted%s%s", op, sep, d);
+    else if (rc == MCS_HAL_ETIMEOUT) mcs_raise(vm, "TimeoutException", "%s: %s%s%s", op, why, sep, d);
     else if (rc == MCS_HAL_ENOTSUP) mcs_raise(vm, "NotSupportedException", "%s: %s%s%s", op, why, sep, d);
     else if (rc == MCS_HAL_EINVAL) mcs_raise(vm, "ArgumentException", "%s: %s%s%s", op, why, sep, d);
     else mcs_raise(vm, "IOException", "%s: %s (%d)%s%s", op, why, rc, sep, d);
