@@ -1,0 +1,18 @@
+{
+  "name": "microcs-web-flasher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild vendor-entry.js --bundle --format=esm --minify --outfile=vendor.js --legal-comments=eof && node build-notices.mjs",
+    "test": "node --test ../../tests/flasher/*.test.mjs",
+    "test:browser": "node browser-test.mjs"
+  },
+  "dependencies": {
+    "esptool-js": "0.7.0",
+    "spark-md5": "3.0.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "playwright": "1.56.1"
+  }
+}

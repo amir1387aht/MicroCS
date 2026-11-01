@@ -1,36 +1,82 @@
 name: Pages
 
-# Publishes MicroCS Studio (tools/studio/) as https://<owner>.github.io/<repo>/ (branch gh-pages).
-# One-time setting: Settings -> Pages -> Source "Deploy from a branch", branch gh-pages, / (root).
+# Publishes Studio and the release-backed flasher to GitHub Pages.
+# One-time setting: Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
 on:
   push:
     branches: [main]
-    paths: [tools/studio/**, .github/workflows/pages.yml]
+    paths:
+      [
+        tools/studio/**,
+        tools/flasher/**,
+        tools/sync_flasher_releases.py,
+        .github/workflows/pages.yml,
+      ]
   workflow_dispatch:
+  # Release uploads complete before this event (including manual rebuilds).
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+  # Refresh if an existing release asset was replaced outside the workflow.
+  schedule:
+    - cron: "17 4 * * *"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  publish:
-    name: Publish MicroCS Studio
+  build:
+    permissions:
+      contents: read
+      pages: read
+    if: github.ref == 'refs/heads/main' && ( github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    name: Build MicroCS Studio + Web Flasher
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Push tools/studio/ to gh-pages
+      - uses: actions/setup-node@v4
+        with:
+          {
+            node-version: 22,
+            cache: npm,
+            cache-dependency-path: tools/flasher/package-lock.json,
+          }
+      - name: Build and test browser flasher
+        working-directory: tools/flasher
+        run: npm ci && npm test && npm run build
+      - name: Test release publisher
+        run: python3 tests/test_flasher_releases.py
+      - name: Assemble website and release firmware
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir site
+          mkdir -p site/flash
           cp tools/studio/index.html tools/studio/*.css tools/studio/*.js site/
-          touch site/.nojekyll
-          cd site
-          git init -q -b gh-pages
-          git add -A
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -qm "MicroCS Studio from ${GITHUB_SHA::7}"
-          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+          cp tools/flasher/index.html tools/flasher/*.css tools/flasher/{app,core,stm32,vendor}.js tools/flasher/boards.json tools/flasher/THIRD_PARTY_LICENSES.txt site/flash/
+          python3 tools/sync_flasher_releases.py --dest site/flash
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: Deploy GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

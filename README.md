@@ -34,6 +34,8 @@
 [![Open MicroCS Studio](https://img.shields.io/badge/▶_Open_MicroCS_Studio-in_your_browser-8b5cf6?style=for-the-badge)](https://amir1387aht.github.io/MicroCS/)
 [![Download firmware](https://img.shields.io/badge/⬇_Download-ready--to--flash_firmware-06b6d4?style=for-the-badge)](https://github.com/amir1387aht/MicroCS/releases/latest)
 
+[**Flash firmware in your browser →**](https://amir1387aht.github.io/MicroCS/flash/) · ESP32 serial · STM32 UART / Black Pill USB DFU · Pico BOOTSEL
+
 <img src="assets/demo.gif" alt="MicroCS Studio: typing C# with IntelliSense, pressing F5 and the script runs on the board" width="880">
 
 <sub>MicroCS Studio connected to a board (here the simulator): type C#, press F5, it runs on the device — no reflashing.</sub>

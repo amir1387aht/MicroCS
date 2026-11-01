@@ -1,0 +1,227 @@
+[
+  {
+    "id": "esp32",
+    "label": "ESP32",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 4096,
+    "imageChipId": 0
+  },
+  {
+    "id": "esp32s2",
+    "label": "ESP32-S2",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 4096,
+    "imageChipId": 2
+  },
+  {
+    "id": "esp32s3",
+    "label": "ESP32-S3",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 0,
+    "imageChipId": 9
+  },
+  {
+    "id": "esp32c2",
+    "label": "ESP32-C2",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT. ESP32-C2 releases require a 40 MHz crystal.",
+    "bootOffset": 0,
+    "imageChipId": 12
+  },
+  {
+    "id": "esp32c3",
+    "label": "ESP32-C3",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 0,
+    "imageChipId": 5
+  },
+  {
+    "id": "esp32c5",
+    "label": "ESP32-C5",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 8192,
+    "imageChipId": 23
+  },
+  {
+    "id": "esp32c6",
+    "label": "ESP32-C6",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 0,
+    "imageChipId": 13
+  },
+  {
+    "id": "esp32c61",
+    "label": "ESP32-C61",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 0,
+    "imageChipId": 20
+  },
+  {
+    "id": "esp32h2",
+    "label": "ESP32-H2",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 0,
+    "imageChipId": 16
+  },
+  {
+    "id": "esp32p4",
+    "label": "ESP32-P4",
+    "family": "ESP32",
+    "extension": "bin",
+    "methods": ["esp"],
+    "capacity": 4194304,
+    "instructions": "Close Studio and other serial apps. Connect a USB data cable (USB\u2013UART or supported native USB serial). If connection stalls, hold BOOT, tap RESET, then release BOOT.",
+    "bootOffset": 8192,
+    "imageChipId": 18
+  },
+  {
+    "id": "pico",
+    "label": "Raspberry Pi Pico",
+    "family": "RP2",
+    "extension": "uf2",
+    "methods": ["uf2"],
+    "chip": "RP2040",
+    "instructions": "Hold BOOTSEL (BOOT on RP2040-Zero) while plugging in USB. Choose the RPI-RP2 or RP2350 boot drive, not a normal folder. The board restarts after the copy. The chip can be checked; Wi-Fi and board variants cannot be auto-detected."
+  },
+  {
+    "id": "pico_w",
+    "label": "Raspberry Pi Pico W",
+    "family": "RP2",
+    "extension": "uf2",
+    "methods": ["uf2"],
+    "chip": "RP2040",
+    "instructions": "Hold BOOTSEL (BOOT on RP2040-Zero) while plugging in USB. Choose the RPI-RP2 or RP2350 boot drive, not a normal folder. The board restarts after the copy. The chip can be checked; Wi-Fi and board variants cannot be auto-detected."
+  },
+  {
+    "id": "pico2",
+    "label": "Raspberry Pi Pico 2",
+    "family": "RP2",
+    "extension": "uf2",
+    "methods": ["uf2"],
+    "chip": "RP2350",
+    "instructions": "Hold BOOTSEL (BOOT on RP2040-Zero) while plugging in USB. Choose the RPI-RP2 or RP2350 boot drive, not a normal folder. The board restarts after the copy. The chip can be checked; Wi-Fi and board variants cannot be auto-detected."
+  },
+  {
+    "id": "pico2_w",
+    "label": "Raspberry Pi Pico 2 W",
+    "family": "RP2",
+    "extension": "uf2",
+    "methods": ["uf2"],
+    "chip": "RP2350",
+    "instructions": "Hold BOOTSEL (BOOT on RP2040-Zero) while plugging in USB. Choose the RPI-RP2 or RP2350 boot drive, not a normal folder. The board restarts after the copy. The chip can be checked; Wi-Fi and board variants cannot be auto-detected."
+  },
+  {
+    "id": "waveshare_rp2040_zero",
+    "label": "Waveshare RP2040-Zero",
+    "family": "RP2",
+    "extension": "uf2",
+    "methods": ["uf2"],
+    "chip": "RP2040",
+    "instructions": "Hold BOOTSEL (BOOT on RP2040-Zero) while plugging in USB. Choose the RPI-RP2 or RP2350 boot drive, not a normal folder. The board restarts after the copy. The chip can be checked; Wi-Fi and board variants cannot be auto-detected."
+  },
+  {
+    "id": "nucleo_f401re",
+    "label": "Nucleo F401RE",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1075,
+    "capacity": 524288,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  },
+  {
+    "id": "nucleo_f411re",
+    "label": "Nucleo F411RE",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1073,
+    "capacity": 524288,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  },
+  {
+    "id": "nucleo_f446re",
+    "label": "Nucleo F446RE",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1057,
+    "capacity": 524288,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  },
+  {
+    "id": "blackpill_f411ce",
+    "label": "Black Pill F411CE",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart", "dfu"],
+    "pid": 1073,
+    "capacity": 524288,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. USB DFU: connect the board USB, hold BOOT0 high and reset. Windows may need WinUSB for the STM32 bootloader (not ST-LINK)."
+  },
+  {
+    "id": "nucleo_g474re",
+    "label": "Nucleo G474RE",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1129,
+    "capacity": 524288,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  },
+  {
+    "id": "nucleo_l476rg",
+    "label": "Nucleo L476RG",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1045,
+    "capacity": 1048576,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  },
+  {
+    "id": "nucleo_h743zi",
+    "label": "Nucleo H743ZI / ZI2",
+    "family": "STM32",
+    "extension": "bin",
+    "methods": ["uart"],
+    "pid": 1104,
+    "capacity": 2097152,
+    "instructions": "UART ROM bootloader: use a 3.3 V USB\u2013UART adapter, common GND, adapter TX \u2192 PA10 (USART1 RX), adapter RX \u2192 PA9 (USART1 TX). Never use 5 V or RS-232 levels. Select system-memory boot via BOOT0/boot option configuration, then reset (see AN2606 for your exact MCU). The normal ST-LINK console port is NOT automatically a ROM bootloader port. After flashing, restore normal boot and reset. For easiest USB installation, download the binary and copy it to the Nucleo ST-LINK drive instead."
+  }
+]

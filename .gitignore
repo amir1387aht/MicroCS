@@ -9,3 +9,8 @@ __pycache__/
 .DS_Store
 dist/
 node_modules/
+
+# Browser flasher dependencies and generated assets
+tools/flasher/node_modules/
+tools/flasher/vendor.js
+tools/flasher/THIRD_PARTY_LICENSES.txt

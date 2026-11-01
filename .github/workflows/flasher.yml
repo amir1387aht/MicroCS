@@ -1,0 +1,48 @@
+name: Web Flasher
+on:
+  push:
+    paths:
+      [
+        tools/flasher/**,
+        tools/sync_flasher_releases.py,
+        tests/flasher/**,
+        tests/test_flasher_releases.py,
+        .github/workflows/flasher.yml,
+        .github/workflows/pages.yml,
+      ]
+  pull_request:
+    paths:
+      [
+        tools/flasher/**,
+        tools/sync_flasher_releases.py,
+        tests/flasher/**,
+        tests/test_flasher_releases.py,
+        .github/workflows/flasher.yml,
+        .github/workflows/pages.yml,
+      ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          {
+            node-version: 22,
+            cache: npm,
+            cache-dependency-path: tools/flasher/package-lock.json,
+          }
+      - name: Unit tests and pinned browser bundle
+        working-directory: tools/flasher
+        run: npm ci && npm test && npm run build
+      - name: Publisher tests
+        run: python3 tests/test_flasher_releases.py
+      - name: Browser dependencies
+        working-directory: tools/flasher
+        run: npx playwright install --with-deps chromium
+      - name: Browser UI regression tests (fixture images, no hardware)
+        working-directory: tools/flasher
+        run: npm run test:browser
