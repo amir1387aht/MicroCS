@@ -383,3 +383,15 @@ This releases application resources, not a fixed VM backing pool. Repeated
 native OOM needs more native headroom; VM-free bytes do not imply native RAM
 availability. Older firmware receives a reset/headroom hint, not an unsupported
 cleanup command.
+
+### Namespace and access-aware suggestions
+
+Completion, member hover and signature help filter private/protected members
+using the cursor's enclosing class. Member declarations without modifiers are
+private by default; public expression-bodied methods are indexed normally.
+User types are resolved through the active file's namespace/usings, or by
+qualification. A `using` or file-scoped namespace in another open tab does not
+leak into the active file. Ambiguous short type names require qualification.
+Native MicroCS API names remain global, as on the device. See
+[language checking boundaries](../../docs/LANGUAGE.md#namespace-and-member-access-checking)
+for the compiler's erased-type/separately-loaded-library limitations.

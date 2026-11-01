@@ -1075,9 +1075,9 @@ class Editor {
       const recv = Lang.receiverBefore(v, dot);
       if (!recv || /^\d+$/.test(recv)) return this.hideComplete();
       const type = Lang.typeOfExpr(recv, model, dot);
-      const stat = !!(type && /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, dot));
+      const stat = !!(type && /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(recv) && Lang.isClassName(recv, model, dot) && !Lang.varType(recv, model, dot));
       if (type) {
-        const mem = Lang.membersOf(type, stat, model), own = Lang.splitType(type)?.base || type;
+        const mem = Lang.membersOf(type, stat, model, p, recv === "base"), own = Lang.splitType(type)?.base || type;
         for (const name in mem) {
           const ov = mem[name], m0 = ov[0];
           if (stat && m0.kind === "m" && m0.inst) continue;
@@ -1098,18 +1098,18 @@ class Editor {
       if (/^\d/.test(prefix)) return this.hideComplete();
       const sy = Lang.symbols(model);
       if (afterNew) {
-        for (const c of Object.keys(sy.user)) add({ label: c, kind: "c", detail: sy.user[c].kind, cls: c });
+        for (const c of Object.values(sy.user)) if (c.kind !== "enum" && Lang.resolveUser(c.shortName, model, p) === c) add({ label: c.shortName, kind: "c", detail: c.kind, cls: c.name });
         for (const c of Object.keys(Lang.classes)) if (Lang.classes[c].ctors.length) add({ label: c, kind: "c", detail: "class", cls: c });
         for (const c of ["List<int>", "List<string>", "Dictionary<string, int>", "Dictionary<string, string>", "HashSet<int>", "Queue<string>", "Stack<int>", "byte[]", "int[]", "string[]"]) add({ label: c, kind: "c", detail: "type" });
       } else {
         for (const [name, type] of Lang.locals(model, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, model, p) || "var"), local: true });
         const owner = Object.values(sy.user).filter(c => p > c.start && p < c.end).sort((a,b) => b.start-a.start)[0];
-        if (owner) for (const [name, ov] of Object.entries({...owner.s, ...owner.i})) {
+        if (owner) for (const [name, ov] of Object.entries({...Lang.membersOf(owner.name, true, model, p), ...Lang.membersOf(owner.name, false, model, p)})) {
           const m = ov[0]; add({ label: name, kind: m.kind === "m" ? "m" : "p", detail: m.ret, mems: ov, owner: owner.name });
         }
         for (const name of Object.keys(sy.funcs)) add({ label: name, kind: "m", detail: sy.funcs[name][0].ret, mems: sy.funcs[name], owner: "" });
-        for (const name of Object.keys(sy.user)) add({ label: name, kind: "c", detail: sy.user[name].kind, cls: name });
-        for (const name of Object.keys(sy.enums)) add({ label: name, kind: "e", detail: "enum" });
+        for (const c of Object.values(sy.user)) if (c.kind !== "enum" && Lang.resolveUser(c.shortName, model, p) === c) add({ label: c.shortName, kind: "c", detail: c.kind, cls: c.name });
+        for (const name of Object.keys(sy.enums)) { const c=sy.user[name]; if(c && Lang.resolveUser(c.shortName,model,p)===c) add({label:c.shortName,kind:"e",detail:"enum"}); }
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });
         for (const c of new Set([...Object.keys(Lang.classes), ...Object.keys(API)])) if (c !== "*" && !/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: Lang.classes[c] ? "class" : "class", cls: c });
         for (const k of KEYWORDS) add({ label: k, kind: "k", detail: "keyword" });
@@ -1390,23 +1390,23 @@ class Editor {
       const recv = Lang.receiverBefore(v, d - 1);
       const type = recv && Lang.typeOfExpr(recv, model, d - 1);
       if (!type) return "";
-      const stat = /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, d - 1);
-      const ov = Lang.membersOf(type, stat, model)[word];
+      const stat = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(recv) && Lang.isClassName(recv, model, d - 1) && !Lang.varType(recv, model, d - 1);
+      const ov = Lang.membersOf(type, stat, model, w.a, recv === "base")[word];
       if (!ov) return "";
       const own = Lang.splitType(type)?.base || type;
       const doc = ov.find((m) => m.doc)?.doc || "";
       return ov.slice(0, 5).map((m) => `<code>${sigHtml(m, own === "Array_i" ? type : own, -1, type)}</code>`).join("") + (ov.length > 5 ? `<small>+${ov.length - 5} overloads</small>` : "") + (doc ? `<p>${esc(doc)}</p>` : "");
     }
     if (/\bnew\s+$/.test(v.slice(Math.max(0, w.a - 8), w.a))) {
-      const ct = Lang.ctorsOf(word, model);
-      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, model)?.doc ? `<p>${esc(Lang.classInfo(word, model)?.doc || ct[0].doc)}</p>` : "");
+      const ct = Lang.ctorsOf(word, model, w.a);
+      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, model, w.a)?.doc ? `<p>${esc(Lang.classInfo(word, model, w.a)?.doc || ct[0].doc)}</p>` : "");
     }
     const sy = Lang.symbols(model);
     if (sy.funcs[word] && /^\s*\(/.test(v.slice(w.b))) return sy.funcs[word].map((m) => `<code>${sigHtml(m, "", -1)}</code>`).join("");
     const vt = Lang.varType(word, model, w.a + word.length + 1);
     if (vt) return `<code>(variable) ${typeHtml(vt === "var" ? "var" : vt)} <span class="t-loc">${esc(word)}</span></code>`;
-    if (Lang.isClassName(word, model)) {
-      const c = Lang.classInfo(word, model);
+    if (Lang.isClassName(word, model, w.a)) {
+      const c = Lang.classInfo(word, model, w.a);
       if (sy.enums[word]) return `<code><span class="t-kw">enum</span> <span class="t-if">${esc(word)}</span></code><p>${esc(sy.enums[word].join(", "))}</p>`;
       return `<code><span class="t-kw">${esc(c?.kind || "class")}</span> <span class="t-ty">${esc(word)}</span></code>${c?.doc ? `<p>${esc(c.doc)}</p>` : ""}`;
     }
@@ -2206,7 +2206,7 @@ const App = {
   languageSource(primary, active) {
     const extra = this.tabs.filter(t => t !== active && !t.binary && /\.cs$/i.test(t.path || t.name || ""))
       .map(t => t.text).filter(Boolean);
-    return extra.length ? primary + "\n" + extra.join("\n") : primary;
+    return extra.length ? primary + Lang.FILE_BOUNDARY + extra.join(Lang.FILE_BOUNDARY) : primary;
   },
   workspaceNamespaces() {
     const out = new Set();
