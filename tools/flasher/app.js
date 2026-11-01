@@ -87,6 +87,11 @@ function options(select, entries) {
 }
 function chooseBoard() {
   const board = selectedBoard();
+  if (!board) {
+    firmware = null;
+    updateButton();
+    return;
+  }
   options(
     $("method"),
     board.methods.map((id) => [id, methods[id]]),
@@ -96,6 +101,7 @@ function chooseBoard() {
   loadFirmware();
 }
 function chooseFamily() {
+  if (!boards.length) return;
   options(
     $("board"),
     boards
@@ -165,7 +171,49 @@ function syncControls() {
   for (const id of ["family", "board", "release", "method", "consent", "retry"])
     $(id).disabled = busy || refreshing;
   $("release").disabled ||= !catalog?.releases?.length;
+  if (!boards.length)
+    for (const id of ["family", "board", "method", "consent"])
+      $(id).disabled = true;
   updateButton();
+}
+async function loadBoards() {
+  const res = await fetch("boards.json", { cache: "no-cache" });
+  if (!res.ok)
+    throw new Error(`Board catalog unavailable (HTTP ${res.status}).`);
+  const next = await res.json();
+  if (
+    !Array.isArray(next) ||
+    !next.length ||
+    next.some(
+      (b) =>
+        !b ||
+        typeof b.id !== "string" ||
+        !/^[a-z0-9_]+$/.test(b.id) ||
+        typeof b.label !== "string" ||
+        !b.label ||
+        typeof b.instructions !== "string" ||
+        (b.family === "RP2"
+          ? b.extension !== "uf2" || !["RP2040", "RP2350"].includes(b.chip)
+          : b.extension !== "bin" ||
+            !Number.isSafeInteger(b.capacity) ||
+            b.capacity <= 0) ||
+        (b.family === "ESP32" &&
+          (!Number.isSafeInteger(b.bootOffset) ||
+            b.bootOffset < 0 ||
+            !Number.isSafeInteger(b.imageChipId) ||
+            b.imageChipId < 0)) ||
+        (b.family === "STM32" &&
+          (!Number.isSafeInteger(b.pid) || b.pid <= 0 || b.pid > 65535)) ||
+        !["ESP32", "RP2", "STM32"].includes(b.family) ||
+        !Array.isArray(b.methods) ||
+        !b.methods.length ||
+        b.methods.some((m) => !Object.hasOwn(methods, m)),
+    ) ||
+    new Set(next.map((b) => b.id)).size !== next.length
+  )
+    throw new Error("Invalid board catalog.");
+  boards = next;
+  chooseFamily();
 }
 async function refresh() {
   if (busy) return;
@@ -181,13 +229,41 @@ async function refresh() {
   $("integrity").className = "integrity";
   $("integrity").textContent = "Loading the official release catalog…";
   try {
+    if (!boards.length) await loadBoards();
+    if (epoch !== catalogGeneration) return;
     const res = await fetch("firmware/catalog.json", { cache: "no-store" });
     if (!res.ok)
       throw new Error(`Release catalog unavailable (HTTP ${res.status}).`);
     const next = await res.json();
     if (epoch !== catalogGeneration) return;
-    if (next.schema !== 1 || !next.releases?.length)
-      throw new Error("No published firmware catalog.");
+    if (
+      !next ||
+      next.schema !== 1 ||
+      !Array.isArray(next.releases) ||
+      !next.releases.length ||
+      next.releases.some(
+        (r) =>
+          !r ||
+          typeof r.tag !== "string" ||
+          typeof r.url !== "string" ||
+          !r.url.startsWith("https://github.com/") ||
+          !Array.isArray(r.assets) ||
+          r.assets.some(
+            (a) =>
+              !a ||
+              typeof a.board !== "string" ||
+              typeof a.name !== "string" ||
+              typeof a.path !== "string" ||
+              typeof a.downloadUrl !== "string" ||
+              !a.downloadUrl.startsWith("https://github.com/") ||
+              !Number.isSafeInteger(a.size) ||
+              a.size <= 0 ||
+              typeof a.sha256 !== "string" ||
+              !/^[a-f0-9]{64}$/.test(a.sha256),
+          ),
+      )
+    )
+      throw new Error("Invalid or empty published firmware catalog.");
     catalog = next;
     options(
       $("release"),
@@ -350,14 +426,4 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
-try {
-  const res = await fetch("boards.json");
-  if (!res.ok) throw new Error("Board catalog could not be loaded.");
-  boards = await res.json();
-  chooseFamily();
-  await refresh();
-} catch (e) {
-  status("Flasher unavailable", true);
-  log(e.message);
-  $("integrity").textContent = e.message;
-}
+await refresh();

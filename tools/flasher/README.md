@@ -3,6 +3,10 @@
 A standalone, responsive installer at `/MicroCS/flash/`, linked from Studio.
 No backend, tokens in the browser, CDN runtime dependency or third-party CORS proxy.
 
+Appearance supports **System / Light / Dark**. The explicit choice persists locally
+and is applied before the stylesheet loads; System follows OS changes automatically.
+Blocked browser storage does not prevent switching themes for the current visit.
+
 ## Supported release firmware
 
 | Targets | Browser installation | Verification / limitations |
@@ -87,7 +91,7 @@ From the repository root:
 python3 tests/test_flasher_releases.py
 mkdir -p site/flash
 cp tools/studio/index.html tools/studio/*.css tools/studio/*.js site/
-cp tools/flasher/index.html tools/flasher/*.css tools/flasher/{app,core,stm32,vendor}.js tools/flasher/boards.json tools/flasher/THIRD_PARTY_LICENSES.txt site/flash/
+cp tools/flasher/index.html tools/flasher/*.css tools/flasher/{app,core,stm32,theme,vendor}.js tools/flasher/boards.json tools/flasher/THIRD_PARTY_LICENSES.txt site/flash/
 python3 tools/sync_flasher_releases.py --dest site/flash --limit 1
 python3 -m http.server 8000 --directory site
 # Open http://localhost:8000/flash/ (not file://).

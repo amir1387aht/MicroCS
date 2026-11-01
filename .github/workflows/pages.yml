@@ -57,7 +57,7 @@ jobs:
         run: |
           mkdir -p site/flash
           cp tools/studio/index.html tools/studio/*.css tools/studio/*.js site/
-          cp tools/flasher/index.html tools/flasher/*.css tools/flasher/{app,core,stm32,vendor}.js tools/flasher/boards.json tools/flasher/THIRD_PARTY_LICENSES.txt site/flash/
+          cp tools/flasher/index.html tools/flasher/*.css tools/flasher/{app,core,stm32,theme,vendor}.js tools/flasher/boards.json tools/flasher/THIRD_PARTY_LICENSES.txt site/flash/
           python3 tools/sync_flasher_releases.py --dest site/flash
       - name: Configure Pages
         uses: actions/configure-pages@v5

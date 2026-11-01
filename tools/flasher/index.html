@@ -9,6 +9,7 @@
       content="Install official MicroCS release firmware directly from your browser. ESP32, STM32 and Raspberry Pi Pico."
     />
     <title>MicroCS · Web Flasher</title>
+    <script src="theme.js"></script>
     <link rel="stylesheet" href="flasher.css" />
   </head>
   <body>
@@ -30,8 +31,18 @@
           Install MicroCS without a toolchain. Choose your board; we’ll find the
           official firmware, check its integrity, and guide the connection.
         </p>
-        <div class="badges">
-          <span>ESP32</span><span>STM32</span><span>RP2040 / RP2350</span>
+        <div class="intro-meta">
+          <div class="badges">
+            <span>ESP32</span><span>STM32</span><span>RP2040 / RP2350</span>
+          </div>
+          <div class="theme-control">
+            <label for="theme">Appearance</label>
+            <select id="theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
         </div>
       </section>
       <div class="workspace">

@@ -101,10 +101,11 @@ const browser = await chromium.launch({
   args: ["--no-sandbox"],
 });
 try {
-  const page = await browser.newPage({
-      viewport: { width: 1440, height: 1200 },
-      colorScheme: "light",
-    }),
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1200 },
+    colorScheme: "light",
+  });
+  const page = await context.newPage(),
     errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   const shots = process.env.SCREENSHOT_DIR;
@@ -117,6 +118,192 @@ try {
     page.getByText("Ready to install", { exact: true }).waitFor();
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await ready();
+  const bodyBackground = () =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const assertPalette = async () => {
+    const pairs = await page.evaluate(() => {
+      const color = (sel, property) =>
+        getComputedStyle(document.querySelector(sel))[property];
+      return [
+        [
+          "body text",
+          color("body", "color"),
+          color("body", "backgroundColor"),
+          4.5,
+        ],
+        [
+          "secondary text",
+          color(".muted", "color"),
+          color("body", "backgroundColor"),
+          4.5,
+        ],
+        [
+          "links",
+          color("nav a", "color"),
+          color("body", "backgroundColor"),
+          4.5,
+        ],
+        [
+          "install button",
+          color(".primary", "color"),
+          color(".primary", "backgroundColor"),
+          4.5,
+        ],
+        [
+          "success message",
+          color("#integrity", "color"),
+          color(".panel", "backgroundColor"),
+          4.5,
+        ],
+        [
+          "input boundary",
+          color("#board", "borderTopColor"),
+          color("#board", "backgroundColor"),
+          3,
+        ],
+      ];
+    });
+    const luminance = (color) => {
+      const values = color
+        .match(/[0-9.]+/g)
+        .slice(0, 3)
+        .map(Number)
+        .map((n) => {
+          const c = n / 255;
+          return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+        });
+      return values[0] * 0.2126 + values[1] * 0.7152 + values[2] * 0.0722;
+    };
+    for (const [name, fg, bg, min] of pairs) {
+      const a = luminance(fg),
+        b = luminance(bg),
+        ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      assert.ok(ratio >= min, `${name}: contrast ${ratio.toFixed(2)} < ${min}`);
+    }
+  };
+  assert.equal(await page.getByLabel("Appearance").inputValue(), "system");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
+  await assertPalette();
+  await page.emulateMedia({ colorScheme: "dark" });
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
+  await assertPalette();
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.getByLabel("Appearance").selectOption("dark");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
+  await assertPalette();
+  await capture("manual-dark-desktop");
+  await page.reload();
+  await ready();
+  assert.equal(await page.getByLabel("Appearance").inputValue(), "dark");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.getByLabel("Appearance").selectOption("light");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
+  await assertPalette();
+  await page.reload();
+  await ready();
+  assert.equal(await page.getByLabel("Appearance").inputValue(), "light");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
+  await page.getByLabel("Appearance").selectOption("system");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
+  await page.emulateMedia({ colorScheme: "light" });
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
+  await page.evaluate(() =>
+    localStorage.setItem("microcs-flasher-theme", "invalid-value"),
+  );
+  await page.reload();
+  await ready();
+  assert.equal(await page.getByLabel("Appearance").inputValue(), "system");
+  const storageBlocked = await browser.newPage({ colorScheme: "light" });
+  await storageBlocked.addInitScript(() =>
+    Object.defineProperty(window, "localStorage", {
+      get() {
+        throw new DOMException("Storage blocked", "SecurityError");
+      },
+    }),
+  );
+  const blockedErrors = [];
+  storageBlocked.on("pageerror", (e) => blockedErrors.push(e.message));
+  await storageBlocked.goto(page.url());
+  await storageBlocked.getByText("Ready to install", { exact: true }).waitFor();
+  await storageBlocked.getByLabel("Appearance").selectOption("dark");
+  assert.equal(
+    await storageBlocked.evaluate(
+      () => getComputedStyle(document.body).backgroundColor,
+    ),
+    "rgb(25, 25, 25)",
+  );
+  assert.deepEqual(blockedErrors, []);
+  await storageBlocked.close();
+  const startupFailure = await browser.newPage({ colorScheme: "light" });
+  const startupErrors = [];
+  startupFailure.on("pageerror", (e) => startupErrors.push(e.message));
+  await startupFailure.route("**/boards.json", (route) =>
+    route.fulfill({ status: 503, body: "Offline" }),
+  );
+  await startupFailure.goto(page.url());
+  await startupFailure
+    .getByText("Releases unavailable", { exact: true })
+    .waitFor();
+  assert.equal(await startupFailure.locator("#family").isEnabled(), false);
+  assert.equal(await startupFailure.locator("#flash").isEnabled(), false);
+  await startupFailure.locator("#family").dispatchEvent("change");
+  await startupFailure.unroute("**/boards.json");
+  await startupFailure.route("**/boards.json", (route) =>
+    route.fulfill({ contentType: "application/json", body: "[null]" }),
+  );
+  await startupFailure.locator("#retry").click();
+  await startupFailure.waitForFunction(() =>
+    document
+      .getElementById("integrity")
+      .textContent.includes("Invalid board catalog"),
+  );
+  await startupFailure.unroute("**/boards.json");
+  await startupFailure.locator("#retry").click();
+  await startupFailure.getByText("Ready to install", { exact: true }).waitFor();
+  assert.equal(await startupFailure.locator("#family").isEnabled(), true);
+  assert.deepEqual(startupErrors, []);
+  await startupFailure.route("**/firmware/catalog.json", (route) =>
+    route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        schema: 1,
+        releases: [
+          {
+            tag: "v1.0.0",
+            url: "https://github.com/amir1387aht/MicroCS/releases",
+            assets: null,
+          },
+        ],
+      }),
+    }),
+  );
+  await startupFailure.locator("#retry").click();
+  await startupFailure.waitForFunction(() =>
+    document
+      .getElementById("integrity")
+      .textContent.includes("Invalid or empty published firmware catalog"),
+  );
+  assert.equal(await startupFailure.locator("#flash").isEnabled(), false);
+  await startupFailure.unroute("**/firmware/catalog.json");
+  await startupFailure.locator("#retry").click();
+  await startupFailure.getByText("Ready to install", { exact: true }).waitFor();
+  assert.deepEqual(startupErrors, []);
+  await startupFailure.close();
+  const sibling = await page.context().newPage();
+  await sibling.goto(page.url());
+  await sibling.getByText("Ready to install", { exact: true }).waitFor();
+  await page.getByLabel("Appearance").selectOption("dark");
+  await sibling.waitForFunction(
+    () => document.documentElement.dataset.theme === "dark",
+  );
+  await sibling.getByLabel("Appearance").selectOption("light");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.theme === "light",
+  );
+  await page.getByLabel("Appearance").selectOption("system");
+  await sibling.close();
+
   await capture("desktop");
   for (const family of ["ESP32", "RP2", "STM32"]) {
     await page.selectOption("#family", family);
@@ -352,7 +539,7 @@ try {
   await capture("unsupported");
   assert.deepEqual(errors, []);
   console.log(
-    "Browser UI passed: 22 targets, consent, UF2 copy, cancel/unlock, mobile, dark, missing target, catalog refresh races, catalog recovery, checksum mismatch, reset fallback, unsupported browser.",
+    "Browser UI passed: 22 targets, consent, UF2 copy, cancel/unlock, mobile, dark, missing target, catalog refresh races, catalog recovery, checksum mismatch, reset fallback, unsupported browser, persisted/cross-tab theme overrides, blocked storage, board-catalog startup recovery, and AA palette contrast.",
   );
 } finally {
   await browser.close();
