@@ -85,6 +85,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.click('#btnConnect');
   await page.waitForFunction(() => document.getElementById('connText').textContent.startsWith('MicroCS'), null, { timeout: 8000 }).catch(() => {});
   check((await page.textContent('#connText')).startsWith('MicroCS 1.'), 'connected, info read: ' + await page.textContent('#connText'));
+  check(await page.evaluate(() => App.capabilitiesKnown && App.capabilities.get('Compiler') === true && App.capabilities.get('GPIO') === true), 'real firmware capability report parsed on connect (no peripheral probing)');
   check(await page.evaluate(() => !window.__signals), 'connect leaves DTR/RTS alone (no reset on connect)');
   check(await page.isDisabled('#baud'), 'baud is locked while connected');
   check(await page.evaluate(() => window.__serialOpens[0].baudRate === 125000 && window.__serialOpens[0].bufferSize === 65536), 'custom 125000 passed unchanged to Web Serial with normal buffer size');

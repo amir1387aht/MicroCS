@@ -24,6 +24,11 @@ requires: GPIO, Ble, Ble.Server, Ble.Advertise
 Your own 128-bit GATT service: a phone writes 01 / 00 to switch the LED and gets a counter
 by notification.
 
+[read_value.cs] Phone reads a text value
+requires: Ble, Ble.Server, Ble.Advertise, Encoding
+A read-only GATT characteristic: connect with nRF Connect or LightBlue and press Read
+(UTF-8 text). SetValue updates the next read; no Notify call or subscription is needed.
+
 [uart_echo.cs] BLE UART console
 requires: Ble, BleUart
 Nordic UART Service: chat with the board from a "Serial Bluetooth Terminal" app.

@@ -2759,12 +2759,19 @@ const App = {
     const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
     for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
     $("gSupportedOnly").checked = g.supportedOnly;
-    const available = g.supportedOnly ? TEMPLATES.filter(t => templateCompatible(t, this.capabilities, dev.connected, this.info)) : TEMPLATES;
+    // A legacy/rejected report cannot confirm peripherals. Keep unknown examples
+    // browsable rather than hiding most/all categories behind the saved filter.
+    const filterSupported = g.supportedOnly && this.capabilitiesKnown;
+    $("gSupportedOnly").disabled = dev.connected && !this.capabilitiesKnown;
+    $("gSupportedOnly").title = dev.connected && !this.capabilitiesKnown
+      ? "Firmware capability report unavailable; all examples remain visible with their support status."
+      : "Show only examples whose requirements the firmware confirms.";
+    const available = filterSupported ? TEMPLATES.filter(t => templateCompatible(t, this.capabilities, dev.connected, this.info)) : TEMPLATES;
     const recent = this.galRecent().map((src) => available.find((t) => t.src === src)).filter(Boolean);
     const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(available.map((t) => t.cat))];
     const states = TEMPLATES.map(t => templateSupport(t, this.capabilities, dev.connected, this.info).state);
     $("gSupport").textContent = !dev.connected ? "Offline: all templates are visible. Connect a board to check support." :
-      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. ${g.supportedOnly ? "Showing only confirmed support; turn off Supported only to see unknown or unavailable examples." : "All templates are visible."} External hardware is not detected.`;
+      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. ${!this.capabilitiesKnown ? "Firmware capability report unavailable. All templates are visible; unreported requirements are unknown, not incompatible. Supported only resumes when a valid report is available." : filterSupported ? "Showing only confirmed support; turn off Supported only to see unknown or unavailable examples." : "All templates are visible."} External hardware is not detected.`;
     if (!cats.includes(g.cat)) g.cat = "All";
     const pool = (c) => (c === "All" ? available : c === "Recent" ? recent : available.filter((t) => t.cat === c));
     const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
@@ -2778,7 +2785,7 @@ const App = {
       const cs = /\.cs$/.test(t.file), support = templateSupport(t, this.capabilities, dev.connected, this.info);
       return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
         `<small class="compat ${support.state}" title="${esc(support.reason)}">${esc(support.label)}</small><em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
-    }).join("") : `<div class="none">${g.supportedOnly && dev.connected ? "No supported template matches. Turn off Supported only to see all examples." : `No template matches “${esc(g.q)}”.`}${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+    }).join("") : `<div class="none">${filterSupported && dev.connected ? "No supported template matches. Turn off Supported only to see all examples." : `No template matches “${esc(g.q)}”.`}${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
     const all = $("gAll");
     if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();
