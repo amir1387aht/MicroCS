@@ -1,3 +1,4 @@
+using App.MainApp;
 using App.Display;
 namespace App.MainApp {
     class MainApp {

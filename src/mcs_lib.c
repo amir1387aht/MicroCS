@@ -235,8 +235,9 @@ static mcs_value_t make_type(mcs_vm_t* vm, const char* name) {
     mcs_instance_t* t = mcs_new_instance(vm, tc);
     char full[96];
     snprintf(full, sizeof full, "System.%s", name);
-    t->fields[0] = lib_cstr(vm, name);
-    t->fields[1] = lib_cstr(vm, full);
+    const char* short_name = strrchr(name, '.');
+    t->fields[0] = lib_cstr(vm, short_name ? short_name + 1 : name);
+    t->fields[1] = lib_cstr(vm, short_name ? name : full);
     vm->gc_pause--;
     return OBJ_VAL(t);
 }

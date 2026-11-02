@@ -155,6 +155,7 @@ jobs:
       - name: Workbench commands, accessibility and scoped language service
         run: |
           node tests/studio/test_language.js
+          node tests/studio/test_language_scope.js
           CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_workbench.js
           CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_editor_rows.js
       - name: Terminal visibility and shortcuts

@@ -10,6 +10,8 @@ typedef struct {
     toklist_t tokens;
     uint32_t n, pos;
     program_t* prog;
+    namespace_scope_t* scope;
+    classdecl_t* enclosing;
     jmp_buf jb;
     typeref_t* target_type;   /* for target-typed `new()` */
     const char* cur_class; uint32_t cur_class_len;
@@ -122,6 +124,21 @@ static bool is_prim_kw(int t) {
     }
 }
 
+/* The lexer already removes trivia; join token spellings, not source spans,
+ * so comments/newlines inside a qualified name cannot corrupt its identity. */
+static const char* qualified_name(parser_t* P, const char* first, uint32_t* len) {
+    if (!check(P, TK_DOT) || PEEK(1)->type != TK_IDENT) return first;
+    char name[256]; uint32_t n = *len;
+    if (n >= sizeof name) perr(P, CUR, "qualified type name too long");
+    memcpy(name, first, n);
+    while (check(P, TK_DOT) && PEEK(1)->type == TK_IDENT) {
+        adv(P); token_t* q = adv(P);
+        if (n + q->len + 1 >= sizeof name) perr(P, q, "qualified type name too long");
+        name[n++] = '.'; memcpy(name + n, q->start, q->len); n += q->len;
+    }
+    *len = n; return arena_strdup(P->A, name, n);
+}
+
 /* ------------------------------------------------------------ types */
 static bool skip_type_args(parser_t* P);
 /* Parse a type. When `spec` is true failures return NULL without error. */
@@ -132,8 +149,7 @@ static typeref_t* parse_type(parser_t* P, bool spec) {
         adv(P);
         const char* name = t->start; uint32_t len = t->len;
         if (t->type == TK_IDENT) {
-            /* qualified names: take the last component */
-            while (check(P, TK_DOT) && PEEK(1)->type == TK_IDENT) { adv(P); token_t* q = adv(P); name = q->start; len = q->len; }
+            name = qualified_name(P, name, &len);
             if (check(P, TK_LT)) {
                 uint32_t save = P->pos;
                 if (!skip_type_args(P)) { P->pos = save; if (!spec) perr(P, CUR, "invalid generic type arguments"); return NULL; }
@@ -142,6 +158,7 @@ static typeref_t* parse_type(parser_t* P, bool spec) {
         ty = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
         ty->name = name; ty->len = len;
         ty->prim = mcs_prim_of(name, len, &ty->conv);
+        if (ty->prim == PT_ANY && len > 7 && !memcmp(name, "System.", 7)) ty->prim = mcs_prim_of(name + 7, len - 7, &ty->conv);
         ty->is_var = (t->type == TK_IDENT && len == 3 && memcmp(name, "var", 3) == 0);
     } else if (t->type == TK_LPAREN) {
         /* tuple type: (T1 [name1], T2 [name2], ...) - erased to ValueTuple */
@@ -437,11 +454,12 @@ static node_t* parse_new(parser_t* P) {
     if (!(is_prim_kw(t->type) || t->type == TK_IDENT)) perr(P, t, "expected type after 'new'");
     adv(P);
     const char* name = t->start; uint32_t len = t->len;
-    while (check(P, TK_DOT) && PEEK(1)->type == TK_IDENT) { adv(P); token_t* q = adv(P); name = q->start; len = q->len; }
+    name = qualified_name(P, name, &len);
     if (check(P, TK_LT)) { if (!skip_type_args(P)) perr(P, CUR, "invalid generic arguments"); }
     match(P, TK_QUESTION);
     typeref_t* ty = (typeref_t*)arena_alloc(P->A, sizeof(typeref_t));
     ty->name = name; ty->len = len; ty->prim = mcs_prim_of(name, len, &ty->conv);
+        if (ty->prim == PT_ANY && len > 7 && !memcmp(name, "System.", 7)) ty->prim = mcs_prim_of(name + 7, len - 7, &ty->conv);
     if (check(P, TK_LBRACK)) {
         adv(P);
         node_t* n = mk(P, N_NEW_ARRAY, at);
@@ -1537,7 +1555,10 @@ static uint8_t parse_modifiers(parser_t* P) {
     uint8_t m = 0;
     for (;;) {
         switch (TT) {
-        case TK_PUBLIC: case TK_PRIVATE: case TK_PROTECTED: case TK_INTERNAL: case TK_SEALED:
+        case TK_PUBLIC: case TK_INTERNAL: m |= MOD_PUBLIC; adv(P); continue;
+        case TK_PRIVATE: m |= MOD_PRIVATE; adv(P); continue;
+        case TK_PROTECTED: m |= MOD_PROTECTED; adv(P); continue;
+        case TK_SEALED:
         case TK_READONLY: case TK_EXTERN: case TK_UNSAFE: case TK_VOLATILE: adv(P); continue;
         case TK_STATIC: m |= MOD_STATIC; adv(P); continue;
         case TK_ABSTRACT: m |= MOD_ABSTRACT; adv(P); continue;
@@ -1590,9 +1611,10 @@ static void parse_property_body(parser_t* P, member_t* m) {
     bool any_auto = false, any = false;
     while (!check(P, TK_RBRACE)) {
         skip_attributes(P);
-        parse_modifiers(P);
+        uint8_t access = parse_modifiers(P) & MOD_ACCESS;
         token_t* acc = CUR;
         if (is_word(acc, "get")) {
+            m->get_access = access;
             adv(P);
             typeref_t* sr = P->cur_ret; P->cur_ret = m->type;   /* tuple names on `return (a, b);` */
             token_t* gat = CUR;
@@ -1603,6 +1625,7 @@ static void parse_property_body(parser_t* P, member_t* m) {
             any = true;
         }
         else if (is_word(acc, "set") || is_word(acc, "init")) {
+            m->set_access = access;
             adv(P); m->setter = parse_accessor_body(P, acc->line); if (!m->setter) any_auto = true; any = true;
             if (m->setter) { /* implicit `value` parameter */
                 param_t* p = (param_t*)arena_alloc(P->A, sizeof(param_t));
@@ -1657,10 +1680,13 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
         skip_attributes(P);
         token_t* start = CUR;
         uint8_t mods = parse_modifiers(P);
-        if (c->kind == C_INTERFACE) mods |= MOD_ABSTRACT;
+        if (c->kind == C_INTERFACE) mods |= MOD_ABSTRACT | MOD_PUBLIC;
+        if (!(mods & MOD_ACCESS)) mods |= MOD_PRIVATE;
         if (check(P, TK_CLASS) || check(P, TK_STRUCT) || check(P, TK_INTERFACE) || check(P, TK_ENUM) || is_word(CUR, "record")) {
             const char* sc = P->cur_class; uint32_t sl = P->cur_class_len;
+            classdecl_t* save_enclosing = P->enclosing; P->enclosing = c;
             classdecl_t* nested = parse_type_decl(P, mods);
+            P->enclosing = save_enclosing;
             nested->outer = c;
             P->cur_class = sc; P->cur_class_len = sl;
             continue;
@@ -1814,18 +1840,21 @@ static void parse_class_body(parser_t* P, classdecl_t* c) {
 #undef ADDM
 }
 
-static classdecl_t* find_class(program_t* prog, const char* name, uint32_t len) {
-    for (classdecl_t* c = prog->classes; c; c = c->next) if (c->len == len && memcmp(c->name, name, len) == 0) return c;
-    return NULL;
-}
-
 static classdecl_t* parse_type_decl(parser_t* P, uint8_t mods) {
     token_t* kt = adv(P);
     int kind = kt->type == TK_CLASS ? C_CLASS : kt->type == TK_STRUCT ? C_STRUCT : kt->type == TK_INTERFACE ? C_INTERFACE :
                kt->type == TK_ENUM ? C_ENUM : C_CLASS;
     if (is_word(kt, "record")) { if (check(P, TK_CLASS) || check(P, TK_STRUCT)) adv(P); }
     token_t* nm = expect(P, TK_IDENT, "type name");
-    classdecl_t* c = find_class(P->prog, nm->start, nm->len);
+    const char* prefix = P->enclosing ? P->enclosing->qualified : P->scope->name;
+    uint32_t plen = P->enclosing ? P->enclosing->qualified_len : P->scope->len;
+    char* qualified = (char*)arena_alloc(P->A, plen + nm->len + 2);
+    if (plen) { memcpy(qualified, prefix, plen); qualified[plen++] = '.'; }
+    memcpy(qualified + plen, nm->start, nm->len); qualified[plen + nm->len] = 0;
+    uint32_t qlen = plen + nm->len;
+    classdecl_t* c = NULL;
+    for (classdecl_t* x = P->prog->classes; x; x = x->next)
+        if (x->qualified_len == qlen && !memcmp(x->qualified, qualified, qlen)) { c = x; break; }
     bool is_new = c == NULL;
     if (c && (kind == C_ENUM || c->kind != (uint8_t)kind))   /* only partial class/struct/interface reopen */
         perr(P, nm, "the type '%.*s' is already defined", (int)nm->len, nm->start);
@@ -1833,6 +1862,7 @@ static classdecl_t* parse_type_decl(parser_t* P, uint8_t mods) {
         c = (classdecl_t*)arena_alloc(P->A, sizeof(classdecl_t));
         c->kind = (uint8_t)kind; c->name = nm->start; c->len = nm->len; c->line = nm->line;
         c->is_static = (mods & MOD_STATIC) != 0;
+        c->qualified = qualified; c->qualified_len = qlen; c->scope = P->scope;
     }
     P->cur_class = c->name; P->cur_class_len = c->len;
     if (check(P, TK_LT)) skip_type_args(P);
@@ -1882,16 +1912,30 @@ static void parse_namespace_members(parser_t* P, bool braced) {
         if (braced && check(P, TK_RBRACE)) { adv(P); return; }
         if (check(P, TK_EOF)) { if (braced) perr(P, CUR, "expected '}'"); return; }
         if (check(P, TK_USING) && PEEK(1)->type != TK_LPAREN && !is_word(PEEK(1), "var")) {
-            while (!check(P, TK_SEMI) && !check(P, TK_EOF)) adv(P);
             adv(P);
+            if (check(P, TK_STATIC) || PEEK(1)->type == TK_ASSIGN)
+                perr(P, CUR, "using aliases and using static are not supported");
+            typeref_t* t = parse_type(P, false);
+            expect(P, TK_SEMI, "';'");
+            namelist_t* n = (namelist_t*)arena_alloc(P->A, sizeof(namelist_t));
+            n->name = t->name; n->len = t->len; n->next = P->scope->imports; P->scope->imports = n;
             continue;
         }
         if (check(P, TK_NAMESPACE)) {
             adv(P);
-            while (TT == TK_IDENT || TT == TK_DOT) adv(P);
-            if (match(P, TK_SEMI)) continue;      /* file-scoped */
+            typeref_t* t = parse_type(P, false);
+            namespace_scope_t* parent = P->scope;
+            namespace_scope_t* ns = (namespace_scope_t*)arena_alloc(P->A, sizeof(*ns));
+            ns->parent = parent; ns->len = parent->len + (parent->len ? 1 : 0) + t->len;
+            char* name = (char*)arena_alloc(P->A, ns->len + 1);
+            memcpy(name, parent->name, parent->len); uint32_t at = parent->len;
+            if (at) name[at++] = '.';
+            memcpy(name + at, t->name, t->len); name[ns->len] = 0; ns->name = name;
+            P->scope = ns;
+            if (match(P, TK_SEMI)) continue;
             expect(P, TK_LBRACE, "'{'");
             parse_namespace_members(P, true);
+            P->scope = parent;
             continue;
         }
         skip_attributes(P);
@@ -1937,6 +1981,8 @@ bool mcs_parse(front_ctx_t* ctx, const char* src, program_t* prog) {
     prescan_tuple_members(P);
     ctx->tuple_member_count = P->ntmems;
     memcpy(ctx->tuple_members, P->tmems, sizeof P->tmems);
+    prog->root_scope = (namespace_scope_t*)arena_alloc(P->A, sizeof(namespace_scope_t));
+    prog->root_scope->name = ""; P->scope = prog->root_scope;
     parse_namespace_members(P, false);
     mcs_front_free_tokens(ctx);   /* the AST points into the source text, not into tokens */
     return ctx->errors == 0;

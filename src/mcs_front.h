@@ -125,6 +125,10 @@ enum { M_FIELD, M_METHOD, M_CTOR, M_PROP, M_CONST, M_INDEXER, M_OPERATOR };
 #define MOD_VIRTUAL  0x04
 #define MOD_OVERRIDE 0x08
 #define MOD_CONST    0x10
+#define MOD_PUBLIC   0x20
+#define MOD_PRIVATE  0x40
+#define MOD_PROTECTED 0x80
+#define MOD_ACCESS (MOD_PUBLIC | MOD_PRIVATE | MOD_PROTECTED)
 
 typedef struct funcdecl {
     const char* name; uint32_t len;
@@ -151,6 +155,7 @@ typedef struct member {
     funcdecl_t* getter;      /* properties/indexers */
     funcdecl_t* setter;
     uint8_t auto_prop;
+    uint8_t get_access, set_access;
     node_t* ctor_args;       /* : base(...) or : this(...) */
     uint8_t ctor_call;       /* 0 none, 1 base, 2 this */
     uint8_t has_ctor_call;
@@ -160,6 +165,11 @@ typedef struct enumval { struct enumval* next; const char* name; uint32_t len; n
 
 typedef struct typename_list { struct typename_list* next; const char* name; uint32_t len; } namelist_t;
 
+typedef struct namespace_scope {
+    struct namespace_scope* parent;
+    const char* name; uint32_t len;
+    namelist_t* imports;
+} namespace_scope_t;
 enum { C_CLASS, C_STRUCT, C_INTERFACE, C_ENUM };
 typedef struct classdecl {
     struct classdecl* next;
@@ -168,6 +178,8 @@ typedef struct classdecl {
     uint8_t is_static;
     uint32_t line;
     const char* name; uint32_t len;
+    const char* qualified; uint32_t qualified_len;
+    namespace_scope_t* scope;
     namelist_t* bases;        /* base class + interfaces as written */
     const char* base; uint32_t base_len; /* resolved base class (may be native) */
     struct classdecl* base_decl;          /* script base class or NULL */
@@ -178,6 +190,7 @@ typedef struct classdecl {
 
 typedef struct {
     classdecl_t* classes;
+    namespace_scope_t* root_scope;
     node_t* stmts;            /* top-level statements (incl. local funcs) */
     node_t* stmts_tail;
 } program_t;
