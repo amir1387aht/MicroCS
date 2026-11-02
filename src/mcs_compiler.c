@@ -431,7 +431,7 @@ static bool is_toplevel_name(comp_t* c, const char* name, uint32_t len) {
     }
     mcs_string_t* str = mcs_find_interned(c->vm, name, len);
     if (str && str->obj.aux) return true;
-    return mcs_lazy_known(c->vm, name, len);   /* built-in class not created yet */
+    return mcs_lazy_known_any(c->vm, name, len);   /* built-in class / ROM global not created yet */
 }
 static uint32_t global_slot(comp_t* c, const char* name, uint32_t len) {
     name = type_name(c, name, &len);

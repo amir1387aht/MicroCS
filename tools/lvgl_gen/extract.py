@@ -40,7 +40,7 @@ NEVER = re.compile(r'LV_USE_(OS|STDLIB|DRAW_|GPU|PXP|VG_LITE|NEMA|PPA|SIFLI|G2D|
                    r'WINDOWS|LINUX|EVDEV|LIBINPUT|NUTTX|OPENGLES|GLFW|QNX|UEFI|ST7|ILI|NV3|GENERIC_MIPI|'
                    r'NXP|RENESAS|ST_LTDC|TFT_ESPI|LOVYAN|FT81|NANOVG|REFR_DEBUG|LAYER_DEBUG|'
                    r'PARALLEL|GSTREAMER|GLTF|3DTEXTURE|FREERTOS|THORVG$|EXT_DATA|MEM_MONITOR_POS|'
-                   r'PERF_MONITOR_POS|PERF_MONITOR_LOG|SVG_DEBUG|SVG_ANIMATION|USER_DATA)')
+                   r'PERF_MONITOR_POS|PERF_MONITOR_LOG|SVG|LOTTIE|RLOTTIE|VECTOR_GRAPHIC|USER_DATA)')
 
 
 def widget_names(root):
@@ -284,7 +284,10 @@ def chain_conditions(file, line, sites, depth=0):
     fc = file_conditions(file)
     if fc is not None and 0 < line < len(fc):
         conds.extend(fc[line])
-    if depth < 40 and file in sites:
+    # Only lvgl.h's own #if blocks guard the headers it includes. Conditions of
+    # other parents are artifacts of the first include path (lv_label.h is first
+    # reached through lv_bar.h etc.), so they are not part of the API's guard.
+    if depth < 40 and file in sites and os.path.basename(sites[file][0]) == 'lvgl.h':
         pf, pl = sites[file]
         conds = chain_conditions(pf, pl, sites, depth + 1) + conds
     out = []
@@ -608,7 +611,11 @@ def probe(base, root, names, _):
                     if ln in index:
                         more.add(index[ln])
                 if not more:
-                    raise RuntimeError(r.stderr[-3000:])
+                    # the error is reported only inside a header: bisect
+                    if len(names) <= 1:
+                        return []
+                    half = len(names) // 2
+                    return attempt(names[:half], mode) + attempt(names[half:], mode)
                 bad = more
             names = [n for n in names if n not in bad]
 
