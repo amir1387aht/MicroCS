@@ -531,8 +531,10 @@ def doc_comment(path, line):
 
 
 def read_version(root):
-    txt = open(os.path.join(root, 'lv_version.h')).read() if os.path.exists(os.path.join(root, 'lv_version.h')) \
-        else open(os.path.join(root, 'lvgl.h')).read()
+    txt = ''
+    for cand in ('lv_version.h', 'include/lvgl/lv_version.h', 'src/lv_version.h', 'lvgl.h'):
+        if os.path.exists(os.path.join(root, cand)):
+            txt += open(os.path.join(root, cand)).read()
     g = lambda k: int(re.search(r'#define\s+%s\s+(\d+)' % k, txt).group(1))
     return [g('LVGL_VERSION_MAJOR'), g('LVGL_VERSION_MINOR'), g('LVGL_VERSION_PATCH')]
 

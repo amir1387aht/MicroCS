@@ -142,3 +142,41 @@ mcs_native_fn mcs_native_fn_of(mcs_value_t v); /* map native C# value -> C fn (f
   * `api.js` / `snippets.js` / `docs.js` and the Studio README;
   * `tests/studio/test_templates.js --only=lvgl`.
 * Run `make docs-check`, `make test` and `make check`.
+
+## Progress log (session 2, 2026-11-02)
+Done and pushed:
+* **Core VM**: `mcs_register_rom_globals` / `mcs_native_fn_of` (include/mcs.h 1.20 section,
+  src/mcs_lib.c `rom_find`/`rom_resolve`, `mcs_lazy_known_any` used by vm.c and
+  compiler `is_toplevel_name`). Tested with a small C program; `tests/run_tests.sh` 106/106 pass.
+* **Extractor** fixes: macro probe bisects header-only errors; vector/SVG/Lottie off;
+  v9.6 version header path; feature guards only from the declaring header + lvgl.h.
+  Works for v8.1.0 v8.2.0 v8.3.0 v8.3.11 v8.4.0 v9.0.0 v9.1.0 v9.2.0 v9.2.2 v9.3.0 v9.4.0 v9.5.0
+  (v9.6.0 rerun pending; **v8.0.0 fails**: pycparser "Invalid declaration" in lv_ll.h).
+  Run: `cd /data/lv && python3 MicroCS/tools/lvgl_gen/extract.py v9.2.2 work v9.2.2 work/v9.2.2.json`
+* **Generator** `tools/lvgl_gen/gen.py <db-dir>` -> `modules/lvgl/mcs_lvgl_api.inc` (~2 MB,
+  NOT committed yet - regenerate it; ~3168 fn entries, 2080 consts, 113 classes) and
+  `tools/lvgl_gen/lvgl_api.json` (for Studio IntelliSense/docs). Version-range + feature
+  guards, signature groups, v8 alias names, LV_SYMBOL getters, fonts/extern getters,
+  struct classes with field get/set and `new`, path params auto "M:" prefix.
+* **Runtime** `modules/lvgl/mcs_lvgl.c` (hand-written, NOT compiled yet against LVGL):
+  wrappers/identity map for lv_obj_t with delete tracking (dying/reap), keep list,
+  events, timers, async, anims (custom exec cb, path map, ready/start), user data,
+  line points, btnmatrix/keyboard maps, LVGL fs driver on MicroCS VFS, open/close.
+* `include/mcs_lvgl.h`, config options in `include/mcs_config.h`, `MCS_EXT_LVGL` slot.
+* Host: `ports/unix/mcs_lvgl_host.c` (in-memory display, pointer, lvgl_host_run/pixel/
+  touch/screenshot) + `--lvgl[=WxH]` in ports/unix/main.c. Test confs tests/lvgl/v8, v9.
+
+Next steps (in order):
+1. Makefile target `mcs-lvgl LVGL_DIR=...`: compile LVGL `src/**/*.c` with
+   `-DLV_CONF_INCLUDE_SIMPLE -Itests/lvgl/v9 -I$LVGL_DIR`, then MicroCS with
+   `-DMCS_ENABLE_LVGL=1 -I$LVGL_DIR` + ports/unix/mcs_lvgl_host.c. Fix compile errors in
+   the .inc (expect: missing implementations -> SKIP list; casts; LVB_C_ names used in
+   mcs_lvgl.c like LVB_C_lv_point_precise_t that may not exist in v8).
+2. Not yet implemented overrides listed in gen.py OVERRIDE (observers, chart ext arrays,
+   calendar dates, canvas buffer, grid dsc arrays, style transitions, tree walk, lv_msg,
+   log cb, dropdown/roller get_selected_str) -> currently simply absent.
+3. Wire `mcs_lvgl_open_lib/close_lib` into modules/runtime/mcs_runtime.c and main.c close.
+4. Tests tests/lvgl/*.cs (+ .out), CI, build files (CMake/Kconfig/idf/Arduino/PIO),
+   docs/LVGL.md, README, Studio templates 33-lvgl + IntelliSense from lvgl_api.json.
+Note: an older, different-design attempt exists on branch `feat/host-owned-lvgl`
+(OO `LvObject` API, not C names) - useful reference for tests/build files only.

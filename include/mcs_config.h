@@ -405,6 +405,35 @@
 #define MCS_ENABLE_SERVO 0
 #endif
 
+/* Optional LVGL 8.x / 9.x binding (modules/lvgl, docs/LVGL.md): C# calls the LVGL C API
+ * with the C names - lv_obj_create(null), LV_ALIGN_CENTER, new lv_style_t(). LVGL is not
+ * bundled: the firmware links its own LVGL and does the port (lv_init, display, input,
+ * tick) before scripts run. Off by default.
+ *   MCS_LVGL_INCLUDE       "path/lvgl.h" when <lvgl.h> / "lvgl/lvgl.h" is not on the include path
+ *   MCS_LVGL_FS_LETTER     LVGL drive letter served by the MicroCS VFS (LittleFS, YAFFS...):
+ *                          lv_image_set_src(img, "M:/logo.png"); paths starting with '/' get it
+ *                          automatically. 0 = do not register a driver.
+ *   MCS_LVGL_AUTO_HANDLER  1: Thread.Sleep and the runtime loop run lv_timer_handler()
+ *   MCS_LVGL_LOCK()/UNLOCK() wrap every LVGL call (an RTOS GUI mutex); default: nothing
+ *   MCS_LVGL_CLEANUP_ON_CLOSE 1: closing the VM deletes the objects, timers and animations
+ *                          the scripts created and reloads the screen that was active */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL 0
+#endif
+#ifndef MCS_LVGL_FS_LETTER
+#define MCS_LVGL_FS_LETTER 'M'
+#endif
+#ifndef MCS_LVGL_AUTO_HANDLER
+#define MCS_LVGL_AUTO_HANDLER 0
+#endif
+#ifndef MCS_LVGL_CLEANUP_ON_CLOSE
+#define MCS_LVGL_CLEANUP_ON_CLOSE 1
+#endif
+#ifndef MCS_LVGL_LOCK
+#define MCS_LVGL_LOCK() ((void)0)
+#define MCS_LVGL_UNLOCK() ((void)0)
+#endif
+
 /* Optional "u8g2" driver: C# U8g2 / U8x8 classes for monochrome OLED / LCD displays
  * (SSD1306, SH1106, ST7920, ...) with olikraus' u8g2 library - not bundled, off by
  * default; the build looks for it (or downloads it) when this is 1. docs/U8G2.md.
