@@ -269,11 +269,24 @@ failures; it is not a continuously polled meter. See
 [memory budgets](../../docs/MEMORY.md) for scope, exclusions and the 40 KiB
 source-Project regression/configuration.
 
+## BLE: phone reads without notifications
+
+**Bluetooth LE → Phone reads a text value** (`read_value.cs`) is a read-only GATT
+peripheral example with nRF Connect / LightBlue instructions. The phone presses
+Read and views UTF-8 text. `SetValue(Encoding.UTF8.GetBytes(text))` changes the value
+returned by the next read. There is no subscription and no `Notify()` call.
+`StringValue` is a local read-only getter, not a setter. Demo readings are not
+sensor measurements.
+
 ## Older firmware and template compatibility
 
 The gallery defaults to **Supported only**, remembered locally. On a connected board,
-only examples whose exact requirements and minimum firmware are confirmed are shown;
-unsupported examples and unknown legacy requirements are hidden. Turn the toggle off
+with a valid capability report, only examples whose exact requirements and minimum
+firmware are confirmed are shown. Unsupported examples and unreported requirements
+are hidden. If the report is unavailable (older/custom firmware, failed or invalid
+`caps` response), all examples stay visible, with unknown requirements marked
+**Support unknown**, not incompatible. The filter is temporarily disabled; its saved
+preference resumes on a connection with a valid report. Turn the toggle off
 to browse every category and copy/open examples for adaptation. Offline, all examples
 remain visible and are marked **Not checked**. Adding a template does not run it.
 
