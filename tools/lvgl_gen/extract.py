@@ -427,7 +427,16 @@ def extract(root, work, tag):
         for sub in iter_nodes(t):
             if isinstance(sub, c_ast.Enum) and sub.values:
                 for e in sub.values.enumerators:
-                    if e.name not in db['enums']:
+                    if e.name in db['enums']:
+                        # same enumerator in several branches of an #if/#elif chain (LV_COLOR_FORMAT_NATIVE):
+                        # keep only the conditions common to all branches
+                        old_c, new_c = db['enums'][e.name]['conds'], conds_of(e.coord)
+                        if old_c != new_c:
+                            k = 0
+                            while k < min(len(old_c), len(new_c)) and old_c[k] == new_c[k]:
+                                k += 1
+                            db['enums'][e.name]['conds'] = old_c[:k]
+                    else:
                         db['enums'][e.name] = {'enum': sub.name, 'typedef': tdname, 'file': rel(e.coord.file) if e.coord else None,
                                                'conds': conds_of(e.coord), 'value': gen.visit(e.value) if e.value else None}
             if isinstance(sub, (c_ast.Struct, c_ast.Union)) and sub.decls is not None:

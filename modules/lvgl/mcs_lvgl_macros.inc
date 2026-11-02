@@ -1,0 +1,257 @@
+/* mcs_lvgl_macros.inc - the integer function-like macros of LVGL as functions (LV_PCT(50), LV_GRID_FR(1), LV_MIN(a, b)...).
+ * Included by mcs_lvgl.c; each one exists only when this LVGL defines the macro. lvb_extra_fns is the sixth ROM table. */
+#define LVM_ARG(i) ((int32_t)mcs_to_int(vm, argv[i]))
+#define LVM_FN(NAME, ARGS) static mcs_value_t lvm_##NAME(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) { \
+    (void)self; (void)argc; (void)argv; return mcs_int((mcs_int_t)NAME ARGS); }
+
+#ifdef LV_PCT
+LVM_FN(LV_PCT, (LVM_ARG(0)))
+#endif
+#ifdef LV_GRID_FR
+LVM_FN(LV_GRID_FR, (LVM_ARG(0)))
+#endif
+#ifdef LV_ABS
+LVM_FN(LV_ABS, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_IS_PCT
+LVM_FN(LV_COORD_IS_PCT, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_GET_PCT
+LVM_FN(LV_COORD_GET_PCT, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_IS_PX
+LVM_FN(LV_COORD_IS_PX, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_IS_SPEC
+LVM_FN(LV_COORD_IS_SPEC, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_SET_SPEC
+LVM_FN(LV_COORD_SET_SPEC, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_PLAIN
+LVM_FN(LV_COORD_PLAIN, (LVM_ARG(0)))
+#endif
+#ifdef LV_COORD_TYPE
+LVM_FN(LV_COORD_TYPE, (LVM_ARG(0)))
+#endif
+#ifdef LV_UDIV255
+LVM_FN(LV_UDIV255, (LVM_ARG(0)))
+#endif
+#ifdef LV_COLOR_FORMAT_GET_BPP
+LVM_FN(LV_COLOR_FORMAT_GET_BPP, (LVM_ARG(0)))
+#endif
+#ifdef LV_COLOR_FORMAT_GET_SIZE
+LVM_FN(LV_COLOR_FORMAT_GET_SIZE, (LVM_ARG(0)))
+#endif
+#ifdef LV_COLOR_FORMAT_IS_INDEXED
+LVM_FN(LV_COLOR_FORMAT_IS_INDEXED, (LVM_ARG(0)))
+#endif
+#ifdef LV_COLOR_FORMAT_IS_ALPHA_ONLY
+LVM_FN(LV_COLOR_FORMAT_IS_ALPHA_ONLY, (LVM_ARG(0)))
+#endif
+#ifdef LV_COLOR_INDEXED_PALETTE_SIZE
+LVM_FN(LV_COLOR_INDEXED_PALETTE_SIZE, (LVM_ARG(0)))
+#endif
+#ifdef LV_MIN
+LVM_FN(LV_MIN, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_MAX
+LVM_FN(LV_MAX, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_OPA_MIX2
+LVM_FN(LV_OPA_MIX2, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_ROUND_UP
+LVM_FN(LV_ROUND_UP, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_DRAW_BUF_STRIDE
+LVM_FN(LV_DRAW_BUF_STRIDE, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR
+LVM_FN(LV_IMG_BUF_SIZE_TRUE_COLOR, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR_ALPHA
+LVM_FN(LV_IMG_BUF_SIZE_TRUE_COLOR_ALPHA, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR_CHROMA_KEYED
+LVM_FN(LV_IMG_BUF_SIZE_TRUE_COLOR_CHROMA_KEYED, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_1BIT
+LVM_FN(LV_IMG_BUF_SIZE_ALPHA_1BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_2BIT
+LVM_FN(LV_IMG_BUF_SIZE_ALPHA_2BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_4BIT
+LVM_FN(LV_IMG_BUF_SIZE_ALPHA_4BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_8BIT
+LVM_FN(LV_IMG_BUF_SIZE_ALPHA_8BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_1BIT
+LVM_FN(LV_IMG_BUF_SIZE_INDEXED_1BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_2BIT
+LVM_FN(LV_IMG_BUF_SIZE_INDEXED_2BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_4BIT
+LVM_FN(LV_IMG_BUF_SIZE_INDEXED_4BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_8BIT
+LVM_FN(LV_IMG_BUF_SIZE_INDEXED_8BIT, (LVM_ARG(0),LVM_ARG(1)))
+#endif
+#ifdef LV_CLAMP
+LVM_FN(LV_CLAMP, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_MIN3
+LVM_FN(LV_MIN3, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_MAX3
+LVM_FN(LV_MAX3, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_OPA_MIX3
+LVM_FN(LV_OPA_MIX3, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_DRAW_BUF_SIZE
+LVM_FN(LV_DRAW_BUF_SIZE, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_VERSION_CHECK
+LVM_FN(LV_VERSION_CHECK, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2)))
+#endif
+#ifdef LV_MIN4
+LVM_FN(LV_MIN4, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2),LVM_ARG(3)))
+#endif
+#ifdef LV_MAX4
+LVM_FN(LV_MAX4, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2),LVM_ARG(3)))
+#endif
+#ifdef LV_CANVAS_BUF_SIZE
+LVM_FN(LV_CANVAS_BUF_SIZE, (LVM_ARG(0),LVM_ARG(1),LVM_ARG(2),LVM_ARG(3)))
+#endif
+static mcs_value_t lvg_LV_FS_LETTER(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv);
+static const mcs_reg_t lvb_extra_fns[] = {   /* sorted */
+#ifdef LV_ABS
+    MCS_FN("LV_ABS", lvm_LV_ABS, 1),
+#endif
+#ifdef LV_CANVAS_BUF_SIZE
+    MCS_FN("LV_CANVAS_BUF_SIZE", lvm_LV_CANVAS_BUF_SIZE, 4),
+#endif
+#ifdef LV_CLAMP
+    MCS_FN("LV_CLAMP", lvm_LV_CLAMP, 3),
+#endif
+#ifdef LV_COLOR_FORMAT_GET_BPP
+    MCS_FN("LV_COLOR_FORMAT_GET_BPP", lvm_LV_COLOR_FORMAT_GET_BPP, 1),
+#endif
+#ifdef LV_COLOR_FORMAT_GET_SIZE
+    MCS_FN("LV_COLOR_FORMAT_GET_SIZE", lvm_LV_COLOR_FORMAT_GET_SIZE, 1),
+#endif
+#ifdef LV_COLOR_FORMAT_IS_ALPHA_ONLY
+    MCS_FN("LV_COLOR_FORMAT_IS_ALPHA_ONLY", lvm_LV_COLOR_FORMAT_IS_ALPHA_ONLY, 1),
+#endif
+#ifdef LV_COLOR_FORMAT_IS_INDEXED
+    MCS_FN("LV_COLOR_FORMAT_IS_INDEXED", lvm_LV_COLOR_FORMAT_IS_INDEXED, 1),
+#endif
+#ifdef LV_COLOR_INDEXED_PALETTE_SIZE
+    MCS_FN("LV_COLOR_INDEXED_PALETTE_SIZE", lvm_LV_COLOR_INDEXED_PALETTE_SIZE, 1),
+#endif
+#ifdef LV_COORD_GET_PCT
+    MCS_FN("LV_COORD_GET_PCT", lvm_LV_COORD_GET_PCT, 1),
+#endif
+#ifdef LV_COORD_IS_PCT
+    MCS_FN("LV_COORD_IS_PCT", lvm_LV_COORD_IS_PCT, 1),
+#endif
+#ifdef LV_COORD_IS_PX
+    MCS_FN("LV_COORD_IS_PX", lvm_LV_COORD_IS_PX, 1),
+#endif
+#ifdef LV_COORD_IS_SPEC
+    MCS_FN("LV_COORD_IS_SPEC", lvm_LV_COORD_IS_SPEC, 1),
+#endif
+#ifdef LV_COORD_PLAIN
+    MCS_FN("LV_COORD_PLAIN", lvm_LV_COORD_PLAIN, 1),
+#endif
+#ifdef LV_COORD_SET_SPEC
+    MCS_FN("LV_COORD_SET_SPEC", lvm_LV_COORD_SET_SPEC, 1),
+#endif
+#ifdef LV_COORD_TYPE
+    MCS_FN("LV_COORD_TYPE", lvm_LV_COORD_TYPE, 1),
+#endif
+#ifdef LV_DRAW_BUF_SIZE
+    MCS_FN("LV_DRAW_BUF_SIZE", lvm_LV_DRAW_BUF_SIZE, 3),
+#endif
+#ifdef LV_DRAW_BUF_STRIDE
+    MCS_FN("LV_DRAW_BUF_STRIDE", lvm_LV_DRAW_BUF_STRIDE, 2),
+#endif
+#ifdef LV_GRID_FR
+    MCS_FN("LV_GRID_FR", lvm_LV_GRID_FR, 1),
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_1BIT
+    MCS_FN("LV_IMG_BUF_SIZE_ALPHA_1BIT", lvm_LV_IMG_BUF_SIZE_ALPHA_1BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_2BIT
+    MCS_FN("LV_IMG_BUF_SIZE_ALPHA_2BIT", lvm_LV_IMG_BUF_SIZE_ALPHA_2BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_4BIT
+    MCS_FN("LV_IMG_BUF_SIZE_ALPHA_4BIT", lvm_LV_IMG_BUF_SIZE_ALPHA_4BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_ALPHA_8BIT
+    MCS_FN("LV_IMG_BUF_SIZE_ALPHA_8BIT", lvm_LV_IMG_BUF_SIZE_ALPHA_8BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_1BIT
+    MCS_FN("LV_IMG_BUF_SIZE_INDEXED_1BIT", lvm_LV_IMG_BUF_SIZE_INDEXED_1BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_2BIT
+    MCS_FN("LV_IMG_BUF_SIZE_INDEXED_2BIT", lvm_LV_IMG_BUF_SIZE_INDEXED_2BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_4BIT
+    MCS_FN("LV_IMG_BUF_SIZE_INDEXED_4BIT", lvm_LV_IMG_BUF_SIZE_INDEXED_4BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_INDEXED_8BIT
+    MCS_FN("LV_IMG_BUF_SIZE_INDEXED_8BIT", lvm_LV_IMG_BUF_SIZE_INDEXED_8BIT, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR
+    MCS_FN("LV_IMG_BUF_SIZE_TRUE_COLOR", lvm_LV_IMG_BUF_SIZE_TRUE_COLOR, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR_ALPHA
+    MCS_FN("LV_IMG_BUF_SIZE_TRUE_COLOR_ALPHA", lvm_LV_IMG_BUF_SIZE_TRUE_COLOR_ALPHA, 2),
+#endif
+#ifdef LV_IMG_BUF_SIZE_TRUE_COLOR_CHROMA_KEYED
+    MCS_FN("LV_IMG_BUF_SIZE_TRUE_COLOR_CHROMA_KEYED", lvm_LV_IMG_BUF_SIZE_TRUE_COLOR_CHROMA_KEYED, 2),
+#endif
+#ifdef LV_MAX
+    MCS_FN("LV_MAX", lvm_LV_MAX, 2),
+#endif
+#ifdef LV_MAX3
+    MCS_FN("LV_MAX3", lvm_LV_MAX3, 3),
+#endif
+#ifdef LV_MAX4
+    MCS_FN("LV_MAX4", lvm_LV_MAX4, 4),
+#endif
+#ifdef LV_MIN
+    MCS_FN("LV_MIN", lvm_LV_MIN, 2),
+#endif
+#ifdef LV_MIN3
+    MCS_FN("LV_MIN3", lvm_LV_MIN3, 3),
+#endif
+#ifdef LV_MIN4
+    MCS_FN("LV_MIN4", lvm_LV_MIN4, 4),
+#endif
+#ifdef LV_OPA_MIX2
+    MCS_FN("LV_OPA_MIX2", lvm_LV_OPA_MIX2, 2),
+#endif
+#ifdef LV_OPA_MIX3
+    MCS_FN("LV_OPA_MIX3", lvm_LV_OPA_MIX3, 3),
+#endif
+#ifdef LV_PCT
+    MCS_FN("LV_PCT", lvm_LV_PCT, 1),
+#endif
+#ifdef LV_ROUND_UP
+    MCS_FN("LV_ROUND_UP", lvm_LV_ROUND_UP, 2),
+#endif
+#ifdef LV_UDIV255
+    MCS_FN("LV_UDIV255", lvm_LV_UDIV255, 1),
+#endif
+#ifdef LV_VERSION_CHECK
+    MCS_FN("LV_VERSION_CHECK", lvm_LV_VERSION_CHECK, 3),
+#endif
+    { "MCS_LVGL_FS_LETTER", lvg_LV_FS_LETTER, 0, 'g' },
+    MCS_REG_END
+};

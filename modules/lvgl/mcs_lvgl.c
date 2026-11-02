@@ -79,7 +79,7 @@ typedef struct {
     void* p;
 } lvb_ud_t;
 
-enum { CB_EVENT = 1, CB_TIMER, CB_ASYNC, CB_ANIM };
+enum { CB_EVENT = 1, CB_TIMER, CB_ASYNC, CB_ANIM, CB_OBSERVER, CB_MSG, CB_MSGOBJ, CB_LOG };
 typedef struct lvb_cb {
     uint32_t magic;
     uint8_t kind;
@@ -90,6 +90,8 @@ typedef struct lvb_cb {
     int fn, ud;       /* keep-list indexes (C# callable, C# user data) */
     int var, ready, start, deleted;   /* animations */
     int code;         /* event filter (CB_EVENT) */
+    int getval;       /* anim get_value_cb */
+    uint8_t custom;   /* anim exec cb takes (anim, value) instead of (var, value) */
 } lvb_cb_t;
 
 typedef struct lvb_kept { struct lvb_kept* next; const char* key; int idx; } lvb_kept_t;
@@ -104,6 +106,9 @@ typedef struct {
 
 typedef struct lvb_own { struct lvb_own* next; size_t size; } lvb_own_t;   /* + storage */
 
+/* arrays / buffers LVGL keeps pointing to, replaced when the same (kind, k1, k2) is set again */
+typedef struct lvb_slot { struct lvb_slot* next; int kind; const void* k1; const void* k2; size_t size; void* raw; void* mem; } lvb_slot_t;
+
 typedef struct lvb_state {
     mcs_vm_t* vm;
     int keep_pin;           /* mcs_pin of the keep List */
@@ -113,6 +118,7 @@ typedef struct lvb_state {
     lvb_cb_t* cbs;          /* live callbacks */
     lvb_cb_t* zombies;      /* removed, freed at the next safe point */
     lvb_own_t* owned;       /* retained `new` storage */
+    lvb_slot_t* slots;
     int event_depth;
     void* del_target;
     uint8_t wrapping, closing, has_dying;
@@ -178,7 +184,7 @@ static void cb_zombify(lvb_state_t* st, lvb_cb_t* c) {
         if (*pp == c) { *pp = c->next; break; }
     c->magic = LVB_DEAD;
     unkeep(st, c->fn); unkeep(st, c->ud); unkeep(st, c->var); unkeep(st, c->ready); unkeep(st, c->start); unkeep(st, c->deleted);
-    c->fn = c->ud = c->var = c->ready = c->start = c->deleted = -1;
+    c->fn = c->ud = c->var = c->ready = c->start = c->deleted = c->getval = -1;
     c->next = st->zombies; st->zombies = c;
 }
 
@@ -742,6 +748,15 @@ static void anim_exec_tramp(lv_anim_t* a, int32_t v) {
     if (!c || c->magic != LVB_MAGIC) return;
     lvb_ud_t* vu = ud_of(kept(c->st, c->var));
     if (vu && vu->dying) return;       /* the animated object is being deleted */
+    if (c->custom) {   /* lv_anim_set_custom_exec_cb: (anim, value) */
+        mcs_value_t w = new_wrapper(c->st->vm, a, LVB_C_lv_anim_t);
+        mcs_push_root(c->st->vm, w);
+        mcs_value_t cargs[2] = { w, mcs_int(v) };
+        cb_call(c->st, c->fn, 2, cargs);
+        tmp_dispose(w);
+        mcs_pop_root(c->st->vm, 1);
+        return;
+    }
     mcs_value_t args[2] = { kept(c->st, c->var), mcs_int(v) };
     cb_call(c->st, c->fn, 2, args);
 }
@@ -776,6 +791,7 @@ static mcs_value_t lvo_lv_anim_set_var(mcs_vm_t* vm, mcs_value_t self, int argc,
 }
 static mcs_value_t lvo_lv_anim_set_exec_cb(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; check_callable(vm, argv[1], 1); if (mcs_has_exception(vm)) return mcs_null(); ANIM_ARG(0);
+    c->custom = 0;
     set_kept(st, &c->fn, argv[1]);
     if (!a->var) lv_anim_set_var(a, c);
     lv_anim_set_custom_exec_cb(a, mcs_is_null(argv[1]) ? NULL : anim_exec_tramp);
@@ -976,6 +992,8 @@ static mcs_value_t lvo_btnm_set_ctrl_map(mcs_vm_t* vm, mcs_value_t self, int arg
 #define LVB_HAS_BTNM 1
 #endif
 
+#include "mcs_lvgl_more.inc"   /* more hand-written wrappers: arrays, observers, tree walk, log, msg... */
+
 static const mcs_reg_t lvb_override_fns[] = {   /* sorted */
     MCS_FN("lv_anim_del", lvo_lv_anim_delete, 2),
     MCS_FN("lv_anim_delete", lvo_lv_anim_delete, 2),
@@ -1116,11 +1134,13 @@ bool mcs_lvgl_fs_register(void* vfs, char letter) {
 static mcs_value_t lvg_LV_FS_LETTER(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; (void)argv; char s[2] = { (char)MCS_LVGL_FS_LETTER, 0 }; return mcs_string(vm, s);
 }
-static const mcs_reg_t lvb_extra_fns[] = { { "MCS_LVGL_FS_LETTER", lvg_LV_FS_LETTER, 0, 'g' }, MCS_REG_END };
+#include "mcs_lvgl_macros.inc"   /* LV_PCT(), LV_GRID_FR()... + MCS_LVGL_FS_LETTER: lvb_extra_fns */
 
 /* ---------------------------------------------------------------- open / close */
 static const mcs_rom_globals_t lvb_rom_override = {
     lvb_override_fns, (uint32_t)(sizeof lvb_override_fns / sizeof lvb_override_fns[0] - 1u), NULL, 0, NULL, 0 };
+static const mcs_rom_globals_t lvb_rom_override2 = {
+    lvb_override2_fns, (uint32_t)(sizeof lvb_override2_fns / sizeof lvb_override2_fns[0] - 1u), NULL, 0, NULL, 0 };
 static const mcs_rom_globals_t lvb_rom_main = {
     lvb_rom_fns, (uint32_t)(sizeof lvb_rom_fns / sizeof lvb_rom_fns[0] - 1u),
     lvb_rom_consts, (uint32_t)(sizeof lvb_rom_consts / sizeof lvb_rom_consts[0] - 1u),
@@ -1152,6 +1172,7 @@ bool mcs_lvgl_open_lib(mcs_vm_t* vm) {
     mcs_set_ext(vm, MCS_EXT_LVGL, st);
     /* the overrides come first: they replace generated entries of the same name */
     mcs_register_rom_globals(vm, &lvb_rom_override);
+    mcs_register_rom_globals(vm, &lvb_rom_override2);
     mcs_register_rom_globals(vm, &lvb_rom_main);
     mcs_register_rom_globals(vm, &lvb_rom_extra);
     st->initial_screen = LVB_SCREEN_ACTIVE();
@@ -1170,6 +1191,7 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
     if (!st) return;
     MCS_LVGL_LOCK();
     st->closing = 1;
+    lvb_more_close_early(st);
     /* callbacks first: nothing may call into the VM any more */
     for (lvb_cb_t* c = st->cbs, *nx; c; c = nx) {
         nx = c->next;
@@ -1216,6 +1238,7 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
     }
     while (st->cbs) { lvb_cb_t* c = st->cbs; st->cbs = c->next; if (c->magic != LVB_DEAD) LVB_FREE(c); }
     while (st->zombies) { lvb_cb_t* c = st->zombies; st->zombies = c->next; LVB_FREE(c); }
+    lvb_more_close_late(st);
     while (st->owned) { lvb_own_t* o = st->owned; st->owned = o->next; LVB_FREE(o); }
 #if MCS_LVGL_AUTO_HANDLER
     mcs_set_idle(vm, st->prev_idle, st->prev_idle_ud);

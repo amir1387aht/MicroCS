@@ -486,7 +486,11 @@ int main(int argc, char** argv) {
         mcs_result_t r = mcs_compile_image_ex(vm, in, src, (strip ? MCS_IMAGE_STRIP : 0u) | (no_opt ? MCS_IMAGE_NO_OPT : 0u), &img, &n);
         free(src);
         /* compile errors were already reported through the error hook */
-        if (r != MCS_OK) { if (r != MCS_ERR_COMPILE) fprintf(stderr, "%s\n", mcs_last_error(vm)); mcs_free(vm); return 2; }
+        if (r != MCS_OK) { if (r != MCS_ERR_COMPILE) fprintf(stderr, "%s\n", mcs_last_error(vm));
+#if MCS_ENABLE_LVGL
+            if (g_lvgl_w > 0) mcs_lvgl_close_lib(vm);
+#endif
+            mcs_free(vm); return 2; }
         if (compile_h) rc = write_header(out, name, img, n);
         else {
             char def[512];
@@ -576,6 +580,9 @@ int main(int argc, char** argv) {
         mcs_mem_stats_t st; mcs_mem_stats(vm, &st);
         fprintf(stderr, "[mem] in use: %zu bytes, peak: %zu bytes, objects: %u, collections: %u\n", st.bytes_in_use, st.peak_bytes, st.objects, st.collections);
     }
+#if MCS_ENABLE_LVGL
+    if (g_lvgl_w > 0) mcs_lvgl_close_lib(vm);
+#endif
     mcs_free(vm);
     free(xip_data);   /* --xip: the image buffer must outlive the VM */
     return rc;

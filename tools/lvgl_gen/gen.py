@@ -55,15 +55,16 @@ OVERRIDE = {
     'lv_anim_set_var', 'lv_anim_start', 'lv_anim_delete', 'lv_anim_del', 'lv_event_get_target',
     'lv_event_get_current_target', 'lv_line_set_points', 'lv_line_set_points_mutable',
     'lv_btnmatrix_set_map', 'lv_buttonmatrix_set_map', 'lv_keyboard_set_map', 'lv_btnmatrix_set_ctrl_map',
-    'lv_buttonmatrix_set_ctrl_map', 'lv_anim_set_get_value_cb', 'lv_anim_set_early_apply',
+    'lv_buttonmatrix_set_ctrl_map', 'lv_anim_set_get_value_cb',
     'lv_dropdown_get_selected_str', 'lv_roller_get_selected_str', 'lv_subject_add_observer', 'lv_subject_add_observer_obj',
-    'lv_obj_bind_flag_if_eq', 'lv_observer_get_user_data', 'lv_subject_init_string', 'lv_subject_init_pointer',
+    'lv_observer_get_user_data', 'lv_subject_init_string', 'lv_subject_init_pointer',
     'lv_subject_set_pointer', 'lv_subject_get_pointer', 'lv_subject_get_previous_pointer',
     'lv_chart_set_ext_y_array', 'lv_chart_set_ext_x_array', 'lv_calendar_set_highlighted_dates',
     'lv_canvas_set_buffer', 'lv_obj_set_grid_dsc_array', 'lv_style_set_grid_row_dsc_array',
     'lv_style_set_grid_column_dsc_array', 'lv_obj_set_style_grid_row_dsc_array',
     'lv_obj_set_style_grid_column_dsc_array', 'lv_style_transition_dsc_init', 'lv_log_register_print_cb',
-    'lv_obj_tree_walk', 'lv_msg_subscribe', 'lv_msg_subscribe_obj', 'lv_msg_get_user_data',
+    'lv_obj_tree_walk', 'lv_msg_subscribe', 'lv_msg_subscribe_obj', 'lv_msg_get_user_data', 'lv_msg_subsribe',
+    'lv_msg_subsribe_obj', 'lv_msg_unsubscribe',
 }
 # struct types C# may `new` (storage owned by the VM); all others only wrap LVGL's pointers
 NO_CTOR = re.compile(r'^(lv_obj_t|_lv_obj_t|lv_disp_t|lv_display_t|lv_indev_t|lv_timer_t|lv_group_t|lv_event_t|'
@@ -442,25 +443,30 @@ class Gen:
         exts = {}
         for t in self.tags:
             for n, e in t.db['externs'].items():
-                if not n.startswith('lv_') or e['type']['k'] != 'name':
+                if not n.lower().startswith('lv_') or e['type']['k'] != 'name':
                     continue
                 cat, extra = t.resolve(e['type'])
-                if cat != 'struct':
-                    continue
-                exts.setdefault((n, extra, tuple(e['conds'])), set()).add(t)
+                if cat not in ('struct', 'int'):
+                    continue   # int: variables used like constants (LV_LAYOUT_GRID, LV_STYLE_FLEX_FLOW in LVGL 8)
+                exts.setdefault((n, extra if cat == 'struct' else None, tuple(e['conds'])), set()).add(t)
         for (n, cls, conds), tags in sorted(exts.items(), key=lambda kv: kv[0][0]):
-            for t in tags:
-                self.note_class(cls, t)
+            if cls:
+                for t in tags:
+                    self.note_class(cls, t)
             vg = guard_expr({t.tag for t in tags}, self.tags)
             fname = 'lvg_%s_%d' % (n, len(self.wrappers))
             out = []
             k = open_guards(out, vg, list(conds))
+            if cls:
+                body = 'lvb_ret_ptr(vm, (void*)&%s, %s)' % (n, cid(cls))
+            else:
+                body = 'mcs_int((mcs_int_t)%s)' % n
             out.append('static mcs_value_t %s(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {\n'
-                       '    (void)self; (void)argc; (void)argv; return lvb_ret_ptr(vm, (void*)&%s, %s);\n}' % (fname, n, cid(cls)))
+                       '    (void)vm; (void)self; (void)argc; (void)argv; return %s;\n}' % (fname, body))
             close_guards(out, k)
             self.wrappers.append('\n'.join(out))
             self.fn_entries.append((n, fname, 0, 'g', vg, list(conds)))
-            self.api[n] = {'k': 'v', 'type': cls}
+            self.api[n] = {'k': 'v', 'type': cls} if cls else {'k': 'c'}
 
     # ---- struct classes
     def gen_classes(self, out):
