@@ -40,6 +40,9 @@ SKIP_PREFIX = ('_lv_', 'lv_mem_', 'lv_ll_', 'lv_rb_', 'lv_cache_', 'lv_os_', 'lv
 KEEP_PREFIX = ('lv_qrcode_create', 'lv_qrcode_update', 'lv_qrcode_set_', 'lv_barcode_create', 'lv_barcode_set_',
                'lv_barcode_update', 'lv_gif_create', 'lv_gif_set_src', 'lv_gif_restart', 'lv_gif_pause',
                'lv_gif_resume', 'lv_tiny_ttf_create_file', 'lv_tiny_ttf_destroy', 'lv_tiny_ttf_set_size')
+# v9 name -> v8 name for renames that lv_api_map_v8.h has no #define for
+EXTRA_REV = {'lv_obj_send_event': 'lv_event_send', 'lv_binfont_create': 'lv_font_load',
+             'lv_binfont_destroy': 'lv_font_free'}
 SKIP = {'lv_init', 'lv_deinit', 'lv_is_initialized', 'lv_timer_handler_run_in_period'}
 # hand-written in modules/lvgl/mcs_lvgl.c (callbacks, user data, kept-alive arrays)
 OVERRIDE = {
@@ -323,6 +326,7 @@ class Gen:
     def gen_functions(self):
         names = sorted({n for t in self.tags for n in t.db['functions']})
         self.wrapper_of = {}
+        self.wrapper_tags = {}   # wrapper name -> LVGL tags it is valid for
         for name in names:
             if self.skip_name(name):
                 continue
@@ -355,6 +359,7 @@ class Gen:
                 self.wrappers.append('\n'.join(out))
                 self.fn_entries.append((name, wname, arity, 'f', vg, list(conds)))
                 self.wrapper_of.setdefault(name, []).append((wname, arity, vg, list(conds)))
+                self.wrapper_tags[wname] = {t.tag for t in gtags}
             w, fn = info
             self.api[name] = {'k': 'f', 'sig': [s[1] for s in w['sig']], 'p': w['pnames'], 'ret': fn['ret_c'],
                               'doc': (fn.get('doc') or {}).get('brief', ''), 'file': fn['file'],
@@ -383,6 +388,9 @@ class Gen:
             for old, new in t.db['macros']['alias'].items():
                 if old.startswith('lv_') and new.startswith('lv_') and old in self.wrapper_of:
                     rev.setdefault(new, set()).add(old)
+        for new, old in EXTRA_REV.items():       # renames the v9 api map does not list
+            if old in self.wrapper_of:
+                rev.setdefault(new, set()).add(old)
         for new, olds in sorted(rev.items()):
             import difflib
             ar = {w[1] for w in self.wrapper_of.get(new, [])}
@@ -390,8 +398,11 @@ class Gen:
             if not cand:
                 continue
             old = max(sorted(cand), key=lambda o: difflib.SequenceMatcher(None, new, o).ratio())
+            native = {t.tag for t in self.tags if new in t.db['functions']}
             for wname, arity, vg, conds in self.wrapper_of[old]:
-                self.fn_entries.append((new, wname, arity, 'f', vg, conds))
+                only = self.wrapper_tags[wname] - native      # never shadow a native function of that name
+                if only:
+                    self.fn_entries.append((new, wname, arity, 'f', guard_expr(only, self.tags), conds))
             self.api.setdefault(new, dict(self.api.get(old, {}), alias=old))
 
     # ---- constants, strings, externs

@@ -52,17 +52,17 @@ def main():
     if a.dirs:
         items += [d.split('=', 1) for d in a.dirs]
     if a.all:
-        for t in TAGS:
-            d = os.path.join(a.work, 'src', t)
-            print('fetch', t); clone(t, d)
-            items.append((t, d))
+        items += [(t, os.path.join(a.work, 'src', t)) for t in TAGS]
     if not items:
         ap.error('give --lvgl DIR, --all or --dirs')
     dbdir = os.path.join(a.work, 'db-' + ('all' if a.all else items[0][0]))
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     for t, d in items:
-        if os.path.isfile(os.path.join(dbdir, t + '.json')) and os.path.getmtime(os.path.join(dbdir, t + '.json')) > os.path.getmtime(os.path.join(HERE, 'extract.py')):
-            continue
+        j = os.path.join(dbdir, t + '.json')
+        if os.path.isfile(j) and os.path.getmtime(j) > os.path.getmtime(os.path.join(HERE, 'extract.py')):
+            continue      # up to date (CI caches build/lvgl-api)
+        if a.all:
+            print('fetch', t); clone(t, d)
         print('extract', t); extract_one(t, d, a.work, dbdir)
     cmd = [sys.executable, os.path.join(HERE, 'gen.py'), dbdir, '--out', a.out]
     if a.api_json:

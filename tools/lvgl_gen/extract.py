@@ -69,6 +69,8 @@ def make_conf(root, out_dir):
         on = False
         if name.startswith('LV_USE_') and not NEVER.match(name):
             on = name in ENABLE_EXACT or name in widgets or name.startswith('LV_USE_THEME_')
+        if name == 'LV_TINY_TTF_FILE_SUPPORT':      # lv_tiny_ttf_create_file (fonts from the file system)
+            on = True
         if name.startswith('LV_FONT_') and name not in ('LV_FONT_FMT_TXT_LARGE', 'LV_FONT_USE_CUSTOM_INCLUDE',
                                                         'LV_FONT_CUSTOM'):
             on = True

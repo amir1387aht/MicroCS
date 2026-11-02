@@ -252,6 +252,9 @@ static void lvb_arg_struct(mcs_vm_t* vm, mcs_value_t v, uint16_t cls, void* out,
     void* p = lvb_arg_ptr(vm, v, cls, 0);
     if (p) memcpy(out, p, size); else memset(out, 0, size);
 }
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
 static double lvb_arg_float(mcs_vm_t* vm, mcs_value_t v) {
 #if MCS_ENABLE_FLOAT
     return (double)mcs_to_float(vm, v);
@@ -259,6 +262,9 @@ static double lvb_arg_float(mcs_vm_t* vm, mcs_value_t v) {
     return (double)mcs_to_int(vm, v);
 #endif
 }
+#if defined(__GNUC__)
+__attribute__((unused))
+#endif
 static mcs_value_t lvb_ret_float(double d) {
 #if MCS_ENABLE_FLOAT
     return mcs_float((mcs_float_t)d);
@@ -267,8 +273,6 @@ static mcs_value_t lvb_ret_float(double d) {
 #endif
 }
 static lv_color_t lvb_arg_color(mcs_vm_t* vm, mcs_value_t v) {
-    lvb_ud_t* u = ud_of(v);
-    if (u && u->p && lvb_canon(u->cls) == lvb_canon(LVB_C_lv_color_t)) return *(lv_color_t*)u->p;
     return lv_color_hex((uint32_t)mcs_to_int(vm, v) & 0xFFFFFFu);
 }
 static mcs_value_t lvb_ret_color(lv_color_t c) { return mcs_int(LVB_COLOR_TO_INT(c)); }
@@ -326,7 +330,12 @@ static void lvb_keep_for(mcs_vm_t* vm, void* obj, const char* key, mcs_value_t v
 }
 
 /* ---------------------------------------------------------------- wrappers */
-#include "mcs_lvgl_api.inc"
+static mcs_value_t lvb_ret_created(mcs_vm_t* vm, void* p);
+#ifdef MCS_LVGL_API_INC
+#include MCS_LVGL_API_INC   /* make mcs-lvgl: tables generated for exactly this LVGL */
+#else
+#include "mcs_lvgl_api.inc"  /* python3 tools/lvgl_gen/build_api.py --all (generated, not committed) */
+#endif
 
 static int is_obj_class(uint16_t cls) {
     uint16_t c = lvb_canon(cls);
@@ -406,7 +415,7 @@ static void lvb_ctor(mcs_vm_t* vm, mcs_value_t self, size_t size, uint16_t cls, 
     memset(o, 0, sizeof(lvb_own_t) + size + 8u);
     o->size = size;
     u->owned = 1; u->retained = (uint8_t)(retain && st);
-    u->p = (void*)((uintptr_t)(o + 1) + 7u & ~(uintptr_t)7u);
+    u->p = (void*)(((uintptr_t)(o + 1) + 7u) & ~(uintptr_t)7u);
     if (u->retained) { o->next = st->owned; st->owned = o; }
 }
 static void lvb_finalize(mcs_vm_t* vm, void* data) {
@@ -417,7 +426,7 @@ static void lvb_finalize(mcs_vm_t* vm, void* data) {
     uintptr_t base = (uintptr_t)u->p;
     for (uintptr_t off = sizeof(lvb_own_t); off <= sizeof(lvb_own_t) + 8u; off++) {
         lvb_own_t* o = (lvb_own_t*)(base - off);
-        if (((uintptr_t)(o + 1) + 7u & ~(uintptr_t)7u) == base) { LVB_FREE(o); break; }
+        if ((((uintptr_t)(o + 1) + 7u) & ~(uintptr_t)7u) == base) { LVB_FREE(o); break; }
     }
     u->p = NULL;
 }
@@ -710,6 +719,8 @@ static lvb_cb_t* anim_rec(mcs_vm_t* vm, lv_anim_t* a) {
 static void anim_exec_tramp(lv_anim_t* a, int32_t v) {
     lvb_cb_t* c = (lvb_cb_t*)a->user_data;
     if (!c || c->magic != LVB_MAGIC) return;
+    lvb_ud_t* vu = ud_of(kept(c->st, c->var));
+    if (vu && vu->dying) return;       /* the animated object is being deleted */
     mcs_value_t args[2] = { kept(c->st, c->var), mcs_int(v) };
     cb_call(c->st, c->fn, 2, args);
 }
@@ -815,7 +826,7 @@ static void* own_block(mcs_vm_t* vm, size_t size) {
     memset(b, 0, sizeof(lvb_own_t) + size + 8u);
     b->size = size;
     b->next = st->owned; st->owned = b;   /* LVGL keeps the pointer: freed when the VM closes */
-    return (void*)((uintptr_t)(b + 1) + 7u & ~(uintptr_t)7u);
+    return (void*)(((uintptr_t)(b + 1) + 7u) & ~(uintptr_t)7u);
 }
 #if LVGL_VERSION_MAJOR >= 9
 typedef lv_point_precise_t lvb_line_point_t;

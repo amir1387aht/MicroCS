@@ -103,6 +103,9 @@ u8g2-test: mcs-u8g2
 	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
 	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
 
+# Optional LVGL 8.x / 9.x (docs/LVGL.md): mcs-lvgl, lvgl-test, fetch-lvgl
+include tools/lvgl_gen/lvgl.mk
+
 # Bluetooth LE (docs/BLE.md): opt-in for custom builds; default host `mcs` is without it.
 # ESP32 release firmware enables BLE on capable chips. build/mcs_ble uses the simulated radio (--sim).
 BLE_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1
@@ -301,7 +304,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

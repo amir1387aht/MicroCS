@@ -16,4 +16,6 @@
 #define LV_USE_SNAPSHOT 1
 #define LV_USE_OBSERVER 1
 #define LV_BIN_DECODER_RAM_LOAD 1
+#define LV_USE_TINY_TTF 1
+#define LV_TINY_TTF_FILE_SUPPORT 1
 #endif

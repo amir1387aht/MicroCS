@@ -15,4 +15,6 @@
 #define LV_USE_PNG 1
 #define LV_USE_BMP 1
 #define LV_USE_SNAPSHOT 1
+#define LV_USE_TINY_TTF 1
+#define LV_TINY_TTF_FILE_SUPPORT 1
 #endif
