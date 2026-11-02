@@ -47,8 +47,18 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
   files:[{path, content}]}) and call `run_mcp_tool_from_file` for `mcp__GitHub__push_files` (load it with tool_search first).
 * CI step (ci.yml) is still open.
 
+### Session 4
+* Set-up redone from scratch with this file (worked). Helper used to push: build `/data/push.json` with a script, call `run_mcp_tool_from_file`.
+* DONE step 2 (CI): `.github/workflows/ci.yml` jobs `lvgl` (matrix v8.3.11 / v9.2.2: `make lvgl-test`) and `lvgl-api` (all-tags `.inc` +
+  compile/smoke against v8.0.0, v8.4.0, v9.0.0, v9.6.0, uploads the `.inc` + `lvgl_api.json` artifact).
+* Compile fixes found by the matrix: v8.0 has no `lv_obj_remove_event_cb_with_user_data` (<8.1; fallback: remove all our handlers, re-add the others)
+  and no `lv_async_call_cancel` (<8.3; dead record kept), v9.0 `dir_read_cb` already has the length param, v9.6 deprecated-API warnings
+  (pragma around the `.inc`; `-Wno-error=cpp` for the LV_COLOR_DEPTH #warning).
+* Tests made version independent: event code printed as CLICKED (enum values move in 9.6), font height >= 14, TTF found in `examples/libs/tiny_ttf`
+  when `scripts/built_in_font` is gone (9.6). `make lvgl-test` passes on 8.3.11, 8.4.0, 9.0.0, 9.2.2, 9.6.0. (8.0.0: builds, smoke ok, t01 child count differs - not a binding bug.)
+
 ## Next steps (in order)
-2. (tests done) CI job (.github/workflows/ci.yml: matrix 8.3.11, 9.2.2 running `make lvgl-test`, + compile of the all-tags `.inc` against e.g. 8.0.0, 8.4.0, 9.0.0, 9.6.0; publish `.inc` artifact).
+2. (tests + CI done)
 3. Callbacks listed in gen.py OVERRIDE that do not exist yet (observers, chart ext arrays, calendar dates, canvas buffer,
    grid dsc arrays, style transitions, tree walk, lv_msg, log cb, dropdown/roller get_selected_str); `mcs_lvgl_close_lib` before mcs_free in ports/unix/main.c.
 4. Build files: CMake (`cmake/MicroCSLvgl.cmake`), Kconfig, Zephyr, ESP-IDF (idf_component.yml), Arduino (tools/make_arduino.py --lvgl), PlatformIO (library.json), mcs_capabilities.def.

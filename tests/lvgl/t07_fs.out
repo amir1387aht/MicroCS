@@ -3,7 +3,7 @@ png size 16x16
 bmp FF0000 0000FF
 png 00FF00 FFFF00
 missing 000000
-binfont True height 17
+binfont True height>=14 True
 ttf True height>=24 True
 ttf text drawn True
 done

@@ -89,6 +89,7 @@ typedef struct lvb_cb {
     void* handle;     /* lv_timer_t* */
     int fn, ud;       /* keep-list indexes (C# callable, C# user data) */
     int var, ready, start, deleted;   /* animations */
+    int code;         /* event filter (CB_EVENT) */
 } lvb_cb_t;
 
 typedef struct lvb_kept { struct lvb_kept* next; const char* key; int idx; } lvb_kept_t;
@@ -331,10 +332,17 @@ static void lvb_keep_for(mcs_vm_t* vm, void* obj, const char* key, mcs_value_t v
 
 /* ---------------------------------------------------------------- wrappers */
 static mcs_value_t lvb_ret_created(mcs_vm_t* vm, void* p);
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"   /* the binding wraps deprecated API too */
+#endif
 #ifdef MCS_LVGL_API_INC
 #include MCS_LVGL_API_INC   /* make mcs-lvgl: tables generated for exactly this LVGL */
 #else
 #include "mcs_lvgl_api.inc"  /* python3 tools/lvgl_gen/build_api.py --all (generated, not committed) */
+#endif
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 static int is_obj_class(uint16_t cls) {
@@ -511,10 +519,27 @@ static mcs_value_t lvo_lv_obj_add_event_cb(mcs_vm_t* vm, mcs_value_t self, int a
     if (!c) return mcs_null();
     c->fn = keep(st, argv[1]);
     c->ud = keep(st, argv[3]);
+    c->code = (int)code;
     MCS_LVGL_LOCK();
     lv_obj_add_event_cb(obj, event_tramp, code, c);
     MCS_LVGL_UNLOCK();
     return mcs_null();
+}
+/* LVGL < 8.1 can only remove event handlers by callback: drop all of ours, add the others back (oldest first) */
+#if MCS_LV_VER < 80100
+static void readd_events(lv_obj_t* obj, lvb_cb_t* x, lvb_cb_t* skip) {
+    if (!x) return;
+    readd_events(obj, x->next, skip);
+    if (x->kind == CB_EVENT && x->target == obj && x != skip) lv_obj_add_event_cb(obj, event_tramp, (lv_event_code_t)x->code, x);
+}
+#endif
+static void remove_one_event(lv_obj_t* obj, lvb_cb_t* c) {
+#if MCS_LV_VER >= 80100
+    lv_obj_remove_event_cb_with_user_data(obj, event_tramp, c);
+#else
+    while (lv_obj_remove_event_cb(obj, event_tramp)) { }
+    readd_events(obj, c->st->cbs, c);
+#endif
 }
 /* remove the handlers of `obj` whose callable (and user data) match; -1 = any */
 static int remove_events(mcs_vm_t* vm, lv_obj_t* obj, mcs_value_t* fn, mcs_value_t* ud) {
@@ -532,11 +557,7 @@ static int remove_events(mcs_vm_t* vm, lv_obj_t* obj, mcs_value_t* fn, mcs_value
             if (!(a.type == ud->type && (a.type < MCS_T_OBJ ? a.as.i == ud->as.i : a.as.o == ud->as.o))) continue;
         }
         MCS_LVGL_LOCK();
-#if LVGL_VERSION_MAJOR >= 9
-        lv_obj_remove_event_cb_with_user_data(obj, event_tramp, c);
-#else
-        lv_obj_remove_event_cb_with_user_data(obj, event_tramp, c);
-#endif
+        remove_one_event(obj, c);
         MCS_LVGL_UNLOCK();
         cb_zombify(st, c);
         n++;
@@ -1064,7 +1085,7 @@ static lv_fs_res_t fs_dir_read_n(void* dp, char* fn, uint32_t cap) {
     if (l.found) d->index++;
     return LV_FS_RES_OK;
 }
-#if MCS_LV_VER >= 90100
+#if LVGL_VERSION_MAJOR >= 9
 static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dp, char* fn, uint32_t len) { (void)drv; return fs_dir_read_n(dp, fn, len); }
 #else
 static lv_fs_res_t fs_dir_read(lv_fs_drv_t* drv, void* dp, char* fn) { (void)drv; return fs_dir_read_n(dp, fn, 256); }
@@ -1152,10 +1173,14 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
     /* callbacks first: nothing may call into the VM any more */
     for (lvb_cb_t* c = st->cbs, *nx; c; c = nx) {
         nx = c->next;
-        if (c->kind == CB_EVENT && c->target && lv_obj_is_valid((lv_obj_t*)c->target)) lv_obj_remove_event_cb_with_user_data((lv_obj_t*)c->target, event_tramp, c);
+        if (c->kind == CB_EVENT && c->target && lv_obj_is_valid((lv_obj_t*)c->target)) remove_one_event((lv_obj_t*)c->target, c);
         else if (c->kind == CB_TIMER && timer_alive((lv_timer_t*)c->handle)) LVB_TIMER_DELETE((lv_timer_t*)c->handle);
         else if (c->kind == CB_ANIM) LVB_ANIM_DELETE(c, NULL);
+#if MCS_LV_VER >= 80300
         else if (c->kind == CB_ASYNC) lv_async_call_cancel(async_tramp, c);
+#else
+        else if (c->kind == CB_ASYNC) c->magic = LVB_DEAD;   /* cannot cancel: the dead record is kept for LVGL */
+#endif
     }
 #if MCS_LVGL_CLEANUP_ON_CLOSE
     if (st->initial_screen && lv_obj_is_valid(st->initial_screen) && LVB_SCREEN_ACTIVE() != st->initial_screen)
@@ -1166,7 +1191,11 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
         if (!r->p || r->p == TOMB || r->dying) continue;
         lv_obj_t* o = (lv_obj_t*)r->p;
         if (!lv_obj_is_valid(o)) continue;
+#if MCS_LV_VER >= 80100
         lv_obj_remove_event_cb_with_user_data(o, on_obj_delete, st);
+#else
+        while (lv_obj_remove_event_cb(o, on_obj_delete)) { }
+#endif
     }
 #if MCS_LVGL_CLEANUP_ON_CLOSE
     /* delete the screens / widgets the scripts created (parents delete their children) */
@@ -1185,7 +1214,7 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
         if (u) u->p = NULL;
         while (r->kept) { lvb_kept_t* k = r->kept; r->kept = k->next; mcs_mem_realloc(vm, k, sizeof *k, 0); }
     }
-    while (st->cbs) { lvb_cb_t* c = st->cbs; st->cbs = c->next; LVB_FREE(c); }
+    while (st->cbs) { lvb_cb_t* c = st->cbs; st->cbs = c->next; if (c->magic != LVB_DEAD) LVB_FREE(c); }
     while (st->zombies) { lvb_cb_t* c = st->zombies; st->zombies = c->next; LVB_FREE(c); }
     while (st->owned) { lvb_own_t* o = st->owned; st->owned = o->next; LVB_FREE(o); }
 #if MCS_LVGL_AUTO_HANDLER

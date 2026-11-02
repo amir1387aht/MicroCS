@@ -92,6 +92,12 @@ def main():
             if os.path.exists(p):
                 ttf = p
                 break
+        if not ttf:   # newer LVGL: no scripts/built_in_font; its tiny_ttf / freetype examples ship TrueType files
+            for n in ('examples/libs/tiny_ttf/Ubuntu-Medium.ttf', 'examples/libs/freetype/Lato-Regular.ttf'):
+                p = os.path.join(a.lvgl, n)
+                if os.path.exists(p):
+                    ttf = p
+                    break
     if ttf:
         shutil.copy(ttf, os.path.join(out, 'fonts', 'face.ttf'))
         if not a.no_font_conv:

@@ -29,7 +29,7 @@ Console.WriteLine("missing " + lvgl_host_pixel(42, 2).ToString("X6"));
 
 // LVGL binary font and TrueType font from the file system
 var bf = lv_binfont_create("/fonts/face16.bin");
-Console.WriteLine("binfont " + (bf != null) + " height " + lv_font_get_line_height(bf));
+Console.WriteLine("binfont " + (bf != null) + " height>=14 " + (lv_font_get_line_height(bf) >= 14));
 var tf = lv_tiny_ttf_create_file("/fonts/face.ttf", 24);
 Console.WriteLine("ttf " + (tf != null) + " height>=24 " + (lv_font_get_line_height(tf) >= 24));
 var l = lv_label_create(scr);

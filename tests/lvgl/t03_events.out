@@ -1,10 +1,10 @@
 user data: hello
-click #1 code=7 target ok=True
+click #1 code=CLICKED target ok=True
 clicks 1
-click #2 code=7 target ok=True
+click #2 code=CLICKED target ok=True
 clicks 2
 user data: hello
-click #3 code=7 target ok=True
+click #3 code=CLICKED target ok=True
 seen more than 3: True
 after remove 0
 caught boom

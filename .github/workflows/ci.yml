@@ -237,6 +237,55 @@ jobs:
         run: cmake -S tests/c/config -B build/cfg && cmake --build build/cfg -j && build/cfg/test_config
 
 
+  lvgl:
+    name: LVGL ${{ matrix.lvgl }} (tests)
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        lvgl: [v8.3.11, v9.2.2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: pip install pycparser
+      - uses: actions/cache@v4
+        with:
+          path: build/lvgl-api
+          key: lvgl-api-${{ hashFiles('tools/lvgl_gen/*.py') }}
+      - name: Fetch LVGL ${{ matrix.lvgl }}
+        run: make fetch-lvgl LVGL_VERSION=${{ matrix.lvgl }}
+      - name: Build LVGL + MicroCS (-Werror) and run tests/lvgl/*.cs (every v8 and v9 name on both)
+        run: make -j4 lvgl-test LVGL_VERSION=${{ matrix.lvgl }}
+
+  lvgl-api:
+    name: LVGL API tables (all 8.x/9.x releases)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pycparser
+      - uses: actions/cache@v4
+        with:
+          path: build/lvgl-api
+          key: lvgl-api-all-${{ hashFiles('tools/lvgl_gen/*.py') }}
+      - name: Generate modules/lvgl/mcs_lvgl_api.inc (v8.0.0 .. v9.6.0) and lvgl_api.json
+        run: make lvgl-api
+      - name: Compile against the oldest, a middle and the newest releases of each major
+        run: |
+          for t in v8.0.0 v8.4.0 v9.0.0 v9.6.0; do
+            make fetch-lvgl LVGL_VERSION=$t
+            make -j4 mcs-lvgl LVGL_TABLES=all LVGL_VERSION=$t
+            echo 'var s = lv_obj_create(null); lv_screen_load(s); lv_scr_load(s); Console.WriteLine(lv_obj_get_width(s));' > /tmp/l.cs
+            build/mcs_lvgl --lvgl /tmp/l.cs
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcs_lvgl_api
+          path: |
+            modules/lvgl/mcs_lvgl_api.inc
+            build/lvgl-api/lvgl_api.json
+
   u8g2:
     name: U8g2 displays (optional, u8g2 2.37.1)
     runs-on: ubuntu-24.04

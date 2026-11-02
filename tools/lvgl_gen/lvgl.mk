@@ -36,7 +36,7 @@ mcs-lvgl: | build
 	@cat $(LVGL_OUT)/srcs.txt | xargs -P $$(nproc 2>/dev/null || echo 2) -I{} sh -c 'o=$(LVGL_OUT)/lib/$$(echo {} | tr / _ | sed s/\\.c$$/.o/); \
 	  [ "$$o" -nt "$(LVGL_DIR)/{}" ] && [ "$$o" -nt tests/lvgl/$(LVGL_API)/lv_conf.h ] || $(CC) $(LVGL_CFLAGS) -c "$(LVGL_DIR)/{}" -o $$o || { echo "LVGL BUILD FAIL {}"; exit 255; }'
 	@rm -f $(LVGL_OUT)/liblvgl.a && ar rcs $(LVGL_OUT)/liblvgl.a $(LVGL_OUT)/lib/*.o
-	$(CC) -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_LVGL=1 '-DMCS_LVGL_API_INC="$(LVGL_INC)"' -DLV_CONF_INCLUDE_SIMPLE -Itests/lvgl/$(LVGL_API) -I$(LVGL_DIR) \
+	$(CC) -std=gnu99 -O1 -g -Wall -Wextra -Werror -Wno-error=cpp -Iinclude -DMCS_ENABLE_LVGL=1 '-DMCS_LVGL_API_INC="$(LVGL_INC)"' -DLV_CONF_INCLUDE_SIMPLE -Itests/lvgl/$(LVGL_API) -I$(LVGL_DIR) \
 	  $(SRC) $(MOD_SRC) ports/unix/main.c ports/unix/mcs_lvgl_host.c $(LVGL_OUT)/liblvgl.a -lm -Wl,--gc-sections -o build/mcs_lvgl_$(LVGL_API)
 	@cp build/mcs_lvgl_$(LVGL_API) build/mcs_lvgl
 	@echo "built build/mcs_lvgl and build/mcs_lvgl_$(LVGL_API) (LVGL from $(LVGL_DIR), $(LVGL_API) config)"

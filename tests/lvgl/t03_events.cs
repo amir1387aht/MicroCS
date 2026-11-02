@@ -9,7 +9,7 @@ int clicks = 0;
 lv_obj_add_event_cb(btn, e => {
     clicks++;
     var code = lv_event_get_code(e);
-    Console.WriteLine("click #" + clicks + " code=" + code + " target ok=" + (lv_event_get_target(e) == btn));
+    Console.WriteLine("click #" + clicks + " code=" + (code == LV_EVENT_CLICKED ? "CLICKED" : "" + code) + " target ok=" + (lv_event_get_target(e) == btn));
 }, LV_EVENT_CLICKED, null);
 
 lv_obj_add_event_cb(btn, e => {
