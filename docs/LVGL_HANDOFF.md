@@ -175,7 +175,7 @@ Next steps (in order):
 2. Not yet implemented overrides listed in gen.py OVERRIDE (observers, chart ext arrays,
    calendar dates, canvas buffer, grid dsc arrays, style transitions, tree walk, lv_msg,
    log cb, dropdown/roller get_selected_str) -> currently simply absent.
-3. Wire `mcs_lvgl_open_lib/close_lib` into modules/runtime/mcs_runtime.c and main.c close.
+3. DONE (runtime opens/closes LVGL); still add mcs_lvgl_close_lib before mcs_free in ports/unix/main.c.
 4. Tests tests/lvgl/*.cs (+ .out), CI, build files (CMake/Kconfig/idf/Arduino/PIO),
    docs/LVGL.md, README, Studio templates 33-lvgl + IntelliSense from lvgl_api.json.
 Note: an older, different-design attempt exists on branch `feat/host-owned-lvgl`

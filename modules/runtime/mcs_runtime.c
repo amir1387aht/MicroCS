@@ -1,5 +1,8 @@
 /* MicroCS - complete firmware runtime: VM + filesystem + HAL + scheduler + REPL/shell. */
 #include "mcs_runtime.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+#endif
 #if MCS_ENABLE_RUNTIME
 #include <string.h>
 #include "mcs_threads.h"
@@ -169,6 +172,9 @@ static void rt_open_modules(void* ud) {
 #if MCS_ENABLE_HAL
     if (cfg->hal) mcs_hal_open_lib(vm, cfg->hal);
 #endif
+#if MCS_ENABLE_LVGL
+    mcs_lvgl_open_lib(vm);   /* the firmware did lv_init + display/input before */
+#endif
 #if MCS_ENABLE_SCHED
     mcs_sched_init(&rt->sched, vm, vfs, rt_ticks, rt);
     mcs_sched_open_lib(vm, &rt->sched);
@@ -200,6 +206,9 @@ static void rt_free_vm(mcs_runtime_t* rt) {
 #if MCS_ENABLE_SCHED
     if (rt->sched.vm == rt->vm) mcs_sched_free(&rt->sched);
     memset(&rt->sched, 0, sizeof rt->sched);
+#endif
+#if MCS_ENABLE_LVGL
+    mcs_lvgl_close_lib(rt->vm);
 #endif
 #if MCS_ENABLE_HAL
     mcs_hal_close_lib(rt->vm);
