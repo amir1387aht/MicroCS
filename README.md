@@ -699,7 +699,7 @@ call allocations.
 
 ### MicroCS vs Lua vs nanoFramework — host comparison
 
-Measured 2026-11-03 on the same x86-64 host: MicroCS PR **b1698b4**,
+Rerun 2026-11-03 on the same x86-64 host, after host tests completed: MicroCS PR **1cb5405**,
 stock Lua **5.4.8** (`-O2`) and nanoFramework nanoCLR CLI **1.1.311** with
 CoreLibrary **1.17.12** on its x86-64 virtual device. Times in ms are medians
 of three rounds, each the median of three runs; runtime order was rotated and
@@ -707,12 +707,15 @@ processes pinned to one CPU. Lower is better.
 
 | Workload | MicroCS image | Lua bytecode | nanoFramework |
 |---|---:|---:|---:|
-| fib(30) | 42.0 | 71.9 | 732.5 |
-| integer loop, 10 million iterations | 106.5 | 112.2 | 1,505.9 |
-| objects, 1 million operations | 144.3 | 319.0 | 4,359.1 |
+| fib(30) | 42.2 | 51.1 | 715.2 |
+| integer loop, 10 million iterations | 94.1 | 72.6 | 1,500.2 |
+| objects, 1 million operations | 139.3 | 293.5 | 4,300.9 |
 
-All workloads produced matching checksums. These are **host** results, not MCU
-results: Lua objects are tables/metatables, MicroCS uses `List<P>`, and
+An earlier run was variable: its Lua loop median was 112.2 ms versus 72.6 ms
+in the latest rerun; the cause is not established. Treat close rankings cautiously.
+[Per-round results from all three runs](bench/compare/lua/results-2026-11-03.json)
+are included. All workloads produced matching checksums. These are **host**
+results, not MCU results: Lua objects are tables/metatables, MicroCS uses `List<P>`, and
 nanoFramework uses `ArrayList`. MicroCS measures image loading and execution
 with startup subtracted; Lua includes bytecode load and execution but not VM
 creation; nanoFramework times execution internally without assembly load.
