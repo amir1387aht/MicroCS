@@ -67,6 +67,13 @@ CI toolchain; switch dispatch costs the M0 ~3 % more instructions); such VMs run
 `-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
 same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 
+`MCS_VM_COMPACT` (default 0 with computed goto, 1 without) selects the size-oriented VM
+layout: shared push tail, no `ENTER_FAST`, shared dispatch. The speed layout (0) is about
+5 KB larger on a Cortex-M4 build and avoids the extra jumps; set `-DMCS_VM_COMPACT=1` where
+flash is tighter than speed. `MCS_NATIVE_ARENA` (default 32 slots, 8 in `min`/`lowram`)
+sizes the per-VM argument arena used for native calls (calls needing more fall back to the
+heap).
+
 ## MicroCS vs MicroPython vs .NET nanoFramework
 
 The `bench/mcu/` scripts (and the three host scripts) ported idiomatically to Python, to

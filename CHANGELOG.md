@@ -2,6 +2,22 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Interpreter hot-path restoration
+
+* Restore the pre-1.16 VM speed: `PUSH` is a single compare against the stack
+  limit with a cold, out-of-line grow path; interpreter `sp`/`slots`/`frame` are
+  real locals again (the internal `exec_views` indirection that forced them into
+  memory is removed and every re-entrant call-out reloads them); the shared
+  push-tail, `ENTER_FAST` and shared dispatch size trade-offs are now gated by
+  `MCS_VM_COMPACT` (default: on only without computed goto; set 1 on flash-tight
+  targets to trade speed for ~5 KB of flash).
+* Native calls take their argument vector from a small per-VM arena
+  (`MCS_NATIVE_ARENA`, default 32 slots, 8 in `min`/`lowram`) instead of the heap.
+* Faster `name_is` (library lookup) removes most of the 1.17 compile-time
+  regression caused by namespace-qualified type resolution.
+* Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
+  poison the old block) and `tests/t34_stack_relocation.cs`.
+
 ## 1.19.0 — Studio workbench and editor intelligence
 
 * Refresh Studio with calmer dark/light chrome, separate action/document rows,
