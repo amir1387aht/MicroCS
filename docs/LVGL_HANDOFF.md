@@ -84,9 +84,18 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
   Studio templates `33-lvgl` (12 examples; `requires: Lvgl`), `mcs --features` prints `lvgl`, `tests/studio/test_templates.js --only=lvgl`
   (runs them with `--lvgl=320x240`; passes on v8.3.11 and v9.2.2). Templates avoid names that differ between 8.x and 9.x
   (use `lv_anim_set_playback_time`, no `lv_font_montserrat_24`).
-* Known: `make docs-check` fails (tests/test_wiki_sync.py): docs/LVGL_HANDOFF.md (and later docs/LVGL.md) must be mapped in tools/wiki_sync.py
-  SECTIONS or excluded from `documentation_sources()`. Fix in step 5.
+* DONE step 5b (docs): `docs/LVGL.md` (full guide), README (feature list, platform table, status table, roadmap), `docs/README.md`, TESTING, guides
+  (ARDUINO, ZEPHYR, ESP32), `tools/studio/README.md`, CHANGELOG ("Unreleased"), `tools/wiki_sync.py` (LVGL.md in SECTIONS, `UNPUBLISHED` excludes this
+  handoff file) -> `make docs-check` passes. CI: `lvgl` job also runs the Studio templates + test_lvgl.js, `lvgl-api` checks studio_data/renames.json,
+  Makefile Studio test line runs test_lvgl.js.
+* Verified at the end of session 6: config-check, capabilities-test, `tests/run_tests.sh ./mcs` (106), both `lvgl-test` runs (13 + skip), all Node Studio tests
+  (browser tests need `CHROME=/usr/local/bin/chromium` here; `test_app_replace_browser.js` times out in this sandbox also on the pre-step-5 commit 6fcbb18, not caused by LVGL).
 
-## Next steps (in order)
-5. docs/LVGL.md, README, other docs, CHANGELOG, Studio template 33-lvgl + IntelliSense from `--api-json`.
+## Next steps
+All five steps are done. What remains is outside what this sandbox can check:
+1. Build the ESP-IDF, Zephyr and PlatformIO integrations once with real toolchains (written, never built) and fix what shows up.
+2. Run on a real display (flush callback, touch, `MCS_LVGL_AUTO_HANDLER`, `MCS_LVGL_LOCK` with an RTOS GUI task) and measure flash/RAM; add the numbers to docs/LVGL.md and MEMORY.md.
+3. Optional: publish the all-releases `mcs_lvgl_api.inc` as a release asset (the CI `lvgl-api` job already uploads it as an artifact) so users without Python can build.
+4. Optional: hand-written wrappers for the `unsupported` list entries people ask for (see `lvgl_api.json`).
+5. Remove this file when the PR is merged.
 Note: an older, different-design attempt exists on branch `feat/host-owned-lvgl` (useful for tests/build files only).

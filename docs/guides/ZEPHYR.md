@@ -69,7 +69,7 @@ Pins, pull-ups and speeds of the buses are set in the devicetree too (`pinctrl`,
 
 `prj.conf` or `-DEXTRA_CONF_FILE=...`: `CONFIG_MICROCS_HEAP_SIZE`, `CONFIG_MICROCS_THREADS=y`
 (`overlay-threads.conf`), TinyFS (`overlay-tinyfs.conf`), YAFFS2, U8g2 displays
-(`CONFIG_MICROCS_U8G2=y`, [U8G2.md](../U8G2.md)) — see the [Kconfig table](../../ports/zephyr/README.md#kconfig).
+(`CONFIG_MICROCS_U8G2=y`, [U8G2.md](../U8G2.md)), LVGL (`CONFIG_LVGL=y` and `CONFIG_MICROCS_LVGL=y`, [LVGL.md](../LVGL.md)) — see the [Kconfig table](../../ports/zephyr/README.md#kconfig).
 
 ## Your program on the board
 
