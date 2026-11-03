@@ -258,6 +258,10 @@ jobs:
         run: make fetch-lvgl LVGL_VERSION=${{ matrix.lvgl }}
       - name: Build LVGL + MicroCS (-Werror) and run tests/lvgl/*.cs (every v8 and v9 name on both)
         run: make -j4 lvgl-test LVGL_VERSION=${{ matrix.lvgl }}
+      - name: Studio LVGL templates (33-lvgl) run on the in-memory display
+        run: make -j4 mcs-lvgl LVGL_VERSION=${{ matrix.lvgl }} && node tests/studio/test_templates.js build/mcs_lvgl --only=lvgl
+      - name: Studio LVGL IntelliSense data
+        run: node tests/studio/test_lvgl.js
 
   lvgl-api:
     name: LVGL API tables (all 8.x/9.x releases)
@@ -271,6 +275,10 @@ jobs:
           key: lvgl-api-all-${{ hashFiles('tools/lvgl_gen/*.py') }}
       - name: Generate modules/lvgl/mcs_lvgl_api.inc (v8.0.0 .. v9.6.0) and lvgl_api.json
         run: make lvgl-api
+      - name: Studio IntelliSense data (tools/studio/lvgl_api.js) and renames.json are current
+        run: |
+          python3 tools/lvgl_gen/studio_data.py --json build/lvgl-api/lvgl_api.json --check
+          git diff --exit-code tools/lvgl_gen/renames.json
       - name: Compile against the oldest, a middle and the newest releases of each major
         run: |
           for t in v8.0.0 v8.4.0 v9.0.0 v9.6.0; do

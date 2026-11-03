@@ -392,6 +392,14 @@ class Gen:
         for new, old in EXTRA_REV.items():       # renames the v9 api map does not list
             if old in self.wrapper_of:
                 rev.setdefault(new, set()).add(old)
+        # a build for ONE LVGL does not see the other major's names: renames.json (written by an all-tags run,
+        # committed) tells a v8 build that lv_screen_load is lv_scr_load, so scripts run on both
+        renames_file = os.path.join(HERE, 'renames.json')
+        if len(self.tags) == 1 and os.path.isfile(renames_file):
+            for new, old in json.load(open(renames_file)).items():
+                if old in self.wrapper_of:
+                    rev.setdefault(new, set()).add(old)
+        chosen = {}
         for new, olds in sorted(rev.items()):
             import difflib
             ar = {w[1] for w in self.wrapper_of.get(new, [])}
@@ -399,12 +407,17 @@ class Gen:
             if not cand:
                 continue
             old = max(sorted(cand), key=lambda o: difflib.SequenceMatcher(None, new, o).ratio())
+            chosen[new] = old
             native = {t.tag for t in self.tags if new in t.db['functions']}
             for wname, arity, vg, conds in self.wrapper_of[old]:
                 only = self.wrapper_tags[wname] - native      # never shadow a native function of that name
                 if only:
                     self.fn_entries.append((new, wname, arity, 'f', guard_expr(only, self.tags), conds))
             self.api.setdefault(new, dict(self.api.get(old, {}), alias=old))
+        if len(self.tags) > 1:
+            with open(renames_file, 'w') as fh:
+                json.dump(chosen, fh, indent=0, sort_keys=True)
+                fh.write('\n')
 
     # ---- constants, strings, externs
     def gen_consts(self):

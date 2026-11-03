@@ -254,6 +254,9 @@ static void print_features(void) {
 #if MCS_ENABLE_U8G2
     printf(" u8g2");
 #endif
+#if MCS_ENABLE_LVGL
+    printf(" lvgl");
+#endif
     putchar('\n');
 }
 

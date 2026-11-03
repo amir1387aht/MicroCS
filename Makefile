@@ -449,7 +449,7 @@ project-test: build/test_access_scope build/test_project build/test_source_resol
 	./build/test_posix_fd_off
 	./build/test_shell_put_errors
 	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js && node tests/studio/test_lvgl.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)

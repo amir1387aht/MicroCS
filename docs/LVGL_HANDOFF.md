@@ -78,6 +78,12 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
     without PIO); `microcs.mk` (MICROCS_LVGL_DIR / MICROCS_LVGL_API_INC); idf_component.yml comment; capability `Lvgl` in mcs_capabilities.def
     (`Hal.Has("Lvgl")`, test t14); `config/mcs_user_config.h` got the LVGL options + MCS_ROM_GLOBALS_MAX (`make config-check` was failing).
   * CI job `lvgl-build-files` (CMake host builds, own lvgl target, Arduino package compile, microcs.mk).
+* DONE step 5a (Studio): `tools/lvgl_gen/studio_data.py` -> `tools/studio/lvgl_api.js` (all functions/constants/enums, `--check` in CI job `lvgl-api`),
+  `tools/studio/lvgl.js` (lazy loader `StudioLvgl`; completion/hover/signature help hooks in studio.js + lang.js; test `tests/studio/test_lvgl.js`),
+  `tools/lvgl_gen/renames.json` (written by the all-tags run; single-LVGL builds read it so v9 names such as `lv_screen_load` work on a v8 table),
+  Studio templates `33-lvgl` (12 examples; `requires: Lvgl`), `mcs --features` prints `lvgl`, `tests/studio/test_templates.js --only=lvgl`
+  (runs them with `--lvgl=320x240`; passes on v8.3.11 and v9.2.2). Templates avoid names that differ between 8.x and 9.x
+  (use `lv_anim_set_playback_time`, no `lv_font_montserrat_24`).
 * Known: `make docs-check` fails (tests/test_wiki_sync.py): docs/LVGL_HANDOFF.md (and later docs/LVGL.md) must be mapped in tools/wiki_sync.py
   SECTIONS or excluded from `documentation_sources()`. Fix in step 5.
 
