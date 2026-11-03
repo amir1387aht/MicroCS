@@ -92,9 +92,19 @@ same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
 `MCS_VM_COMPACT` (default 0 with computed goto, 1 without) selects the size-oriented VM
 layout: shared push tail, no `ENTER_FAST`, shared dispatch. The speed layout (0) is about
 5 KB larger on a Cortex-M4 build and avoids the extra jumps; set `-DMCS_VM_COMPACT=1` where
-flash is tighter than speed. `MCS_NATIVE_ARENA` (default 32 slots, 8 in `min`/`lowram`)
+flash is tighter than speed. `MCS_NATIVE_ARENA` (default 32 slots, 8 in `lowram`, 0 in `min`)
 sizes the per-VM argument arena used for native calls (calls needing more fall back to the
-heap).
+heap). The `min` profile defaults to heap-backed native arguments to fit the
+64 KiB flash target; set `MCS_NATIVE_ARENA` above zero to trade flash and RAM for
+native-call speed. Type-name memoization is bypassed for VMs with a nonzero
+heap limit at or below 64 KiB so scratch caches cannot crowd out application
+state; this can slow compilation, not script execution.
+
+The ready-to-flash STM32 G474 firmware uses compact dispatch and LTO, and the
+ESP32-C6 BLE example defaults to compact dispatch (`MicroCS > Compact VM dispatch`
+in menuconfig). Those builds retain the same features and storage partitions,
+but may execute scripts more slowly than the fast layout. Other targets keep
+their existing defaults.
 
 ## MicroCS vs MicroPython vs .NET nanoFramework
 

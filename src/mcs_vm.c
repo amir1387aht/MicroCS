@@ -271,12 +271,14 @@ typedef struct { mcs_native_args_t* heap; uint16_t top; } nargs_mark_t;
 static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc, nargs_mark_t* m) {
     m->heap = vm->native_args; m->top = vm->nargs_top;
     if (!argc) return NULL;
+    #if MCS_NATIVE_ARENA > 0
     if ((size_t)vm->nargs_top + (size_t)argc <= MCS_NATIVE_ARENA) {
         mcs_value_t* v = vm->nargs_arena + vm->nargs_top;
         memcpy(v, vm->sp - argc, (size_t)argc * sizeof(mcs_value_t));
         vm->nargs_top = (uint16_t)(vm->nargs_top + argc);
         return v;
     }
+    #endif
     size_t size = sizeof(mcs_native_args_t) + (size_t)argc * sizeof(mcs_value_t);
     mcs_native_args_t* a = mcs_realloc(vm, NULL, 0, size);
     a->prev = vm->native_args; a->count = argc;

@@ -249,7 +249,9 @@ static const char* known_type_name_slow(comp_t* c, const char* name, uint32_t le
     return NULL;
 }
 static const char* known_type_name(comp_t* c, const char* name, uint32_t len) {
-    if (!len || len > KT_KEY) return known_type_name_slow(c, name, len);
+    /* A cache must not displace the AST or application state in small pools. */
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !len || len > KT_KEY)
+        return known_type_name_slow(c, name, len);
     uint32_t h = len;
     for (uint32_t i = 0; i < len; i++) h = h * 31u + (uint8_t)name[i];
     if (!c->kt) { c->kt = (kt_ent_t*)arena_alloc(c->ctx->arena, sizeof(kt_ent_t) * KT_SLOTS); memset(c->kt, 0, sizeof(kt_ent_t) * KT_SLOTS); }
@@ -317,7 +319,8 @@ static const char* type_name_slow(comp_t* c, const char* name, uint32_t* len) {
 typedef struct tn_ent { const void* scope; const char* val; uint32_t hash; uint32_t rlen; uint8_t len; bool same; char key[KT_KEY]; } tn_ent_t;
 static const char* type_name(comp_t* c, const char* name, uint32_t* len) {
     uint32_t n = *len;
-    if (!n || n > KT_KEY) return type_name_slow(c, name, len);
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !n || n > KT_KEY)
+        return type_name_slow(c, name, len);
     const void* scope = c->fc && c->fc->cls ? (const void*)c->fc->cls : (const void*)c->prog->root_scope;
     uint32_t h = n ^ (uint32_t)(uintptr_t)scope;
     for (uint32_t i = 0; i < n; i++) h = h * 31u + (uint8_t)name[i];

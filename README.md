@@ -697,12 +697,35 @@ and omits the inline float fast path; test speed and flash on the target before
 choosing a profile. `MCS_NATIVE_ARENA` also trades per-VM RAM for fewer native
 call allocations.
 
+### MicroCS vs Lua vs nanoFramework — host comparison
+
+Measured 2026-11-03 on the same x86-64 host: MicroCS PR **b1698b4**,
+stock Lua **5.4.8** (`-O2`) and nanoFramework nanoCLR CLI **1.1.311** with
+CoreLibrary **1.17.12** on its x86-64 virtual device. Times in ms are medians
+of three rounds, each the median of three runs; runtime order was rotated and
+processes pinned to one CPU. Lower is better.
+
+| Workload | MicroCS image | Lua bytecode | nanoFramework |
+|---|---:|---:|---:|
+| fib(30) | 42.0 | 71.9 | 732.5 |
+| integer loop, 10 million iterations | 106.5 | 112.2 | 1,505.9 |
+| objects, 1 million operations | 144.3 | 319.0 | 4,359.1 |
+
+All workloads produced matching checksums. These are **host** results, not MCU
+results: Lua objects are tables/metatables, MicroCS uses `List<P>`, and
+nanoFramework uses `ArrayList`. MicroCS measures image loading and execution
+with startup subtracted; Lua includes bytecode load and execution but not VM
+creation; nanoFramework times execution internally without assembly load.
+Consequently this is an indicative comparison, not an identical measurement of
+all runtime overhead. Sources, versions, commands and per-round method are in
+[bench/compare/lua](bench/compare/lua/README.md).
+
 ### Historical Cortex-M figures — current PR not yet remeasured
 
 The following embedded tables are earlier project measurements, **not
-results for the current PR**. An attempted `make mcu-bench` could not run here:
-`arm-none-eabi-gcc` and Python `unicorn` were unavailable. Real ESP32 hardware,
-MicroPython and nanoFramework were also unavailable. Rerun `make mcu-bench` and
+results for the current PR**. These older measurements have not been rerun for the current PR on a real board.
+The host nanoFramework comparison above is not a substitute for hardware results.
+Rerun `make mcu-bench` and
 `make cm-check` on the intended toolchain and measure on real boards before
 relying on the historical speed or footprint numbers. Historical methods and
 comparisons are in [PERFORMANCE.md](docs/PERFORMANCE.md).
