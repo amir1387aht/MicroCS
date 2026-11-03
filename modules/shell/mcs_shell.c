@@ -307,28 +307,28 @@ static bool parse_ms(const char* s, uint32_t* out) {
 /* ------------------------------------------------------------ REPL helpers */
 bool mcs_repl_complete(const char* s, size_t len) {
     int depth = 0;
-    enum { CODE, STR, CHR, VERB, LINE, BLOCK } st = CODE;
+    enum { SC_CODE, SC_STR, SC_CHR, SC_VERB, SC_LINE, SC_BLOCK } st = SC_CODE;
     for (size_t i = 0; i < len; i++) {
         char c = s[i], n = i + 1 < len ? s[i + 1] : 0;
         switch (st) {
-        case STR: if (c == '\\' && n) i++; else if (c == '"') st = CODE; break;
-        case CHR: if (c == '\\' && n) i++; else if (c == '\'') st = CODE; break;
-        case VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = CODE; break;
-        case LINE: if (c == '\n') st = CODE; break;
-        case BLOCK: if (c == '*' && n == '/') { st = CODE; i++; } break;
-        case CODE:
-            if (c == '/' && n == '/') { st = LINE; i++; }
-            else if (c == '/' && n == '*') { st = BLOCK; i++; }
-            else if (c == '@' && n == '"') { st = VERB; i++; }
-            else if (c == '$' && n == '@' && i + 2 < len && s[i + 2] == '"') { st = VERB; i += 2; }
-            else if (c == '"') st = STR;
-            else if (c == '\'') st = CHR;
+        case SC_STR: if (c == '\\' && n) i++; else if (c == '"') st = SC_CODE; break;
+        case SC_CHR: if (c == '\\' && n) i++; else if (c == '\'') st = SC_CODE; break;
+        case SC_VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = SC_CODE; break;
+        case SC_LINE: if (c == '\n') st = SC_CODE; break;
+        case SC_BLOCK: if (c == '*' && n == '/') { st = SC_CODE; i++; } break;
+        case SC_CODE:
+            if (c == '/' && n == '/') { st = SC_LINE; i++; }
+            else if (c == '/' && n == '*') { st = SC_BLOCK; i++; }
+            else if (c == '@' && n == '"') { st = SC_VERB; i++; }
+            else if (c == '$' && n == '@' && i + 2 < len && s[i + 2] == '"') { st = SC_VERB; i += 2; }
+            else if (c == '"') st = SC_STR;
+            else if (c == '\'') st = SC_CHR;
             else if (c == '{' || c == '(' || c == '[') depth++;
             else if (c == '}' || c == ')' || c == ']') depth--;
             break;
         }
     }
-    return depth <= 0 && (st == CODE || st == LINE);
+    return depth <= 0 && (st == SC_CODE || st == SC_LINE);
 }
 
 static bool ident_char(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'; }
@@ -359,22 +359,22 @@ static bool is_statement(const char* s, size_t n) {
 
 /* end of the significant code: trailing whitespace and comments do not count */
 static size_t code_end(const char* s, size_t len) {
-    enum { CODE, STR, CHR, VERB, LINE, BLOCK } st = CODE;
+    enum { SC_CODE, SC_STR, SC_CHR, SC_VERB, SC_LINE, SC_BLOCK } st = SC_CODE;
     size_t end = 0;
     for (size_t i = 0; i < len; i++) {
         char c = s[i], n = i + 1 < len ? s[i + 1] : 0;
         switch (st) {
-        case STR: if (c == '\\' && n) i++; else if (c == '"') st = CODE; end = i + 1; break;
-        case CHR: if (c == '\\' && n) i++; else if (c == '\'') st = CODE; end = i + 1; break;
-        case VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = CODE; end = i + 1; break;
-        case LINE: if (c == '\n') st = CODE; break;
-        case BLOCK: if (c == '*' && n == '/') { st = CODE; i++; } break;
-        case CODE:
-            if (c == '/' && n == '/') { st = LINE; i++; }
-            else if (c == '/' && n == '*') { st = BLOCK; i++; }
+        case SC_STR: if (c == '\\' && n) i++; else if (c == '"') st = SC_CODE; end = i + 1; break;
+        case SC_CHR: if (c == '\\' && n) i++; else if (c == '\'') st = SC_CODE; end = i + 1; break;
+        case SC_VERB: if (c == '"' && n == '"') i++; else if (c == '"') st = SC_CODE; end = i + 1; break;
+        case SC_LINE: if (c == '\n') st = SC_CODE; break;
+        case SC_BLOCK: if (c == '*' && n == '/') { st = SC_CODE; i++; } break;
+        case SC_CODE:
+            if (c == '/' && n == '/') { st = SC_LINE; i++; }
+            else if (c == '/' && n == '*') { st = SC_BLOCK; i++; }
             else {
-                if (c == '"' || (c == '@' && n == '"')) st = c == '@' ? (i++, VERB) : STR;
-                else if (c == '\'') st = CHR;
+                if (c == '"' || (c == '@' && n == '"')) st = c == '@' ? (i++, SC_VERB) : SC_STR;
+                else if (c == '\'') st = SC_CHR;
                 if (c != ' ' && c != '\t' && c != '\r' && c != '\n') end = i + 1;
             }
             break;

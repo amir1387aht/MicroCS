@@ -159,6 +159,11 @@ tsan-test: | build
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads_tsan
 	TSAN_OPTIONS=halt_on_error=1 ./build/test_threads_tsan
 
+# NuttX backend + ports/nuttx on the NuttX simulator (sim:nsh, downloads NuttX and apps into
+# build/nuttx; needs cmake, ninja, genromfs, xxd, kconfiglib). NUTTX_SMP=1 adds an SMP build.
+nuttx-test:
+	sh tools/nuttx_check.sh
+
 # FreeRTOS backend on the FreeRTOS POSIX (Linux simulator) port: downloads FreeRTOS-Kernel
 # V11.1.0 (MIT) into build/third_party; tests/c/test_threads.c runs as a FreeRTOS task
 FREERTOS_TEST_DIR = build/third_party/FreeRTOS-Kernel-11.1.0
@@ -301,7 +306,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test nuttx-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

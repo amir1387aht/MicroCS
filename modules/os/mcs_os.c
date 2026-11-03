@@ -1,4 +1,4 @@
-/* MicroCS - OS layer (mcs_os.h) for FreeRTOS, Zephyr and POSIX threads.
+/* MicroCS - OS layer (mcs_os.h) for FreeRTOS, Zephyr, NuttX and POSIX threads.
  * Compiled to nothing unless an OS is chosen with MCS_OS (default: none). */
 #if defined(__linux__) && !defined(_GNU_SOURCE)
 #define _GNU_SOURCE                 /* sched_getcpu, pthread_setaffinity_np */
@@ -371,8 +371,179 @@ static pthread_mutex_t g_irq = PTHREAD_MUTEX_INITIALIZER;
 unsigned mcs_os_irq_lock(void) { pthread_mutex_lock(&g_irq); return 0; }
 void mcs_os_irq_unlock(unsigned key) { (void)key; pthread_mutex_unlock(&g_irq); }
 
+/* ================================================================ NuttX */
+#elif MCS_OS == MCS_OS_NUTTX
+#if !defined(__NuttX__)
+#error "MicroCS: MCS_OS=MCS_OS_NUTTX outside a NuttX build. Build MicroCS as a NuttX application (ports/nuttx: link or copy it into apps/interpreters/microcs and enable CONFIG_INTERPRETERS_MICROCS), or build without an OS (MCS_OS_NONE, the default). See docs/THREADS.md"
+#endif
+#if defined(__NuttX__)    /* else only the message above */
+#include <nuttx/config.h>
+#include <nuttx/arch.h>
+#include <nuttx/irq.h>
+#include <pthread.h>
+#include <sched.h>
+#include <semaphore.h>
+#include <stdlib.h>
+#include <time.h>
+#include <errno.h>
+#if defined(CONFIG_DISABLE_PTHREAD)
+#error "MicroCS threads on NuttX need pthreads: disable CONFIG_DISABLE_PTHREAD (Kconfig: Library Routines / Scheduler > Disable pthread support)"
+#endif
+
+#if defined(CONFIG_SMP) && defined(CONFIG_SMP_NCPUS)
+#define MCS_NX_CORES CONFIG_SMP_NCPUS
 #else
-#error "MicroCS: unknown MCS_OS (MCS_OS_NONE, MCS_OS_FREERTOS, MCS_OS_ZEPHYR, MCS_OS_POSIX or MCS_OS_AUTO)"
+#define MCS_NX_CORES 1
+#endif
+
+struct mcs_os_thread { pthread_t th; int core; };
+struct mcs_os_mutex { pthread_mutex_t m; };
+struct mcs_os_sem { sem_t s; unsigned max; };
+
+const char* mcs_os_name(void) { return "NuttX"; }
+int mcs_os_cores(void) { return MCS_NX_CORES; }
+int mcs_os_core(void) { return (int)up_cpu_index(); }
+int mcs_os_smp(void) { return MCS_NX_CORES > 1; }
+
+typedef struct { void (*fn)(void*); void* arg; } nx_start_t;
+static void* nx_thread_entry(void* p) {
+    nx_start_t s = *(nx_start_t*)p;
+    free(p);
+    s.fn(s.arg);
+    return NULL;
+}
+
+mcs_os_thread_t* mcs_os_thread_start(const mcs_os_thread_cfg_t* cfg, void (*fn)(void*), void* arg) {
+    if (cfg->core >= MCS_NX_CORES) return NULL;
+#if !defined(CONFIG_SMP)
+    if (cfg->core > 0) return NULL;
+#endif
+    mcs_os_thread_t* t = (mcs_os_thread_t*)malloc(sizeof *t);
+    nx_start_t* s = (nx_start_t*)malloc(sizeof *s);
+    if (!t || !s) { free(t); free(s); return NULL; }
+    s->fn = fn; s->arg = arg; t->core = cfg->core;
+
+    pthread_attr_t a;
+    if (pthread_attr_init(&a)) { free(t); free(s); return NULL; }
+    size_t bytes = cfg->stack_bytes ? cfg->stack_bytes : MCS_THREAD_STACK;
+    if (bytes < (size_t)PTHREAD_STACK_MIN) bytes = (size_t)PTHREAD_STACK_MIN;
+    int e = pthread_attr_setstacksize(&a, bytes);
+
+    /* priority relative to the creating thread; NuttX: a larger number is more urgent.
+     * The policy is the creator's (SCHED_FIFO unless the build uses round-robin). */
+    if (!e) {
+        struct sched_param sp;
+        int pol = sched_getscheduler(0);
+        if (pol < 0 || sched_getparam(0, &sp)) { pol = SCHED_FIFO; sp.sched_priority = sched_get_priority_min(SCHED_FIFO); }
+#if defined(CONFIG_RR_INTERVAL) && CONFIG_RR_INTERVAL > 0
+        if (pol == SCHED_FIFO) pol = SCHED_RR;      /* time slicing among equal priorities, as on FreeRTOS / Zephyr */
+#endif
+        int lo = sched_get_priority_min(pol), hi = sched_get_priority_max(pol);
+        long prio = (long)sp.sched_priority + cfg->priority;
+        if (prio < lo) prio = lo;
+        if (prio > hi) prio = hi;
+        sp.sched_priority = (int)prio;
+        e = pthread_attr_setinheritsched(&a, PTHREAD_EXPLICIT_SCHED);
+        if (!e) e = pthread_attr_setschedpolicy(&a, pol);
+        if (!e) e = pthread_attr_setschedparam(&a, &sp);
+    }
+#if defined(CONFIG_SMP)
+    if (!e && cfg->core >= 0) {         /* pin to one CPU */
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        CPU_SET(cfg->core, &set);
+        e = pthread_attr_setaffinity_np(&a, sizeof set, &set);
+    }
+#endif
+    if (!e) e = pthread_create(&t->th, &a, nx_thread_entry, s);
+    pthread_attr_destroy(&a);
+    if (e) { free(t); free(s); return NULL; }
+#if defined(CONFIG_TASK_NAME_SIZE) && CONFIG_TASK_NAME_SIZE > 0
+    pthread_setname_np(t->th, cfg->name ? cfg->name : "mcs");   /* best effort */
+#endif
+    return t;
+}
+void mcs_os_thread_free(mcs_os_thread_t* t) {
+    if (!t) return;
+    pthread_join(t->th, NULL);          /* releases the thread's stack */
+    free(t);
+}
+
+void mcs_os_sleep(uint32_t ms) {
+    if (!ms) { sched_yield(); return; }
+    struct timespec ts = { (time_t)(ms / 1000), (long)(ms % 1000) * 1000000L };
+    while (nanosleep(&ts, &ts) && errno == EINTR) {}
+}
+void mcs_os_yield(void) { sched_yield(); }
+uint32_t mcs_os_ticks(void) {
+    struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
+}
+
+mcs_os_mutex_t* mcs_os_mutex_new(void) {
+    mcs_os_mutex_t* m = (mcs_os_mutex_t*)malloc(sizeof *m);
+    if (m && pthread_mutex_init(&m->m, NULL)) { free(m); m = NULL; }
+    return m;
+}
+void mcs_os_mutex_lock(mcs_os_mutex_t* m) { pthread_mutex_lock(&m->m); }
+void mcs_os_mutex_unlock(mcs_os_mutex_t* m) { pthread_mutex_unlock(&m->m); }
+void mcs_os_mutex_free(mcs_os_mutex_t* m) { if (m) { pthread_mutex_destroy(&m->m); free(m); } }
+
+mcs_os_sem_t* mcs_os_sem_new(unsigned initial, unsigned max) {
+    mcs_os_sem_t* s = (mcs_os_sem_t*)malloc(sizeof *s);
+    if (s && sem_init(&s->s, 0, initial)) { free(s); s = NULL; }
+    if (s) s->max = max;
+    return s;
+}
+bool mcs_os_sem_take(mcs_os_sem_t* s, uint32_t ms) {
+    int e;
+    if (ms == MCS_OS_FOREVER) {
+        while ((e = sem_wait(&s->s)) != 0 && errno == EINTR) {}
+        return e == 0;
+    }
+    if (ms == 0) return sem_trywait(&s->s) == 0;
+    struct timespec until;                  /* absolute, on the monotonic clock: immune to wall-clock steps */
+    clock_gettime(CLOCK_MONOTONIC, &until);
+    until.tv_sec += (time_t)(ms / 1000);
+    until.tv_nsec += (long)(ms % 1000) * 1000000L;
+    if (until.tv_nsec >= 1000000000L) { until.tv_sec++; until.tv_nsec -= 1000000000L; }
+    while ((e = sem_clockwait(&s->s, CLOCK_MONOTONIC, &until)) != 0 && errno == EINTR) {}
+    return e == 0;
+}
+void mcs_os_sem_give(mcs_os_sem_t* s) {
+    /* counting semaphore with a ceiling, like FreeRTOS' xSemaphoreCreateCounting */
+    unsigned key = mcs_os_irq_lock();
+    int v = 0;
+    if (sem_getvalue(&s->s, &v) == 0 && (v < 0 || (unsigned)v < s->max)) sem_post(&s->s);
+    mcs_os_irq_unlock(key);
+}
+void mcs_os_sem_free(mcs_os_sem_t* s) { if (s) { sem_destroy(&s->s); free(s); } }
+
+void* mcs_os_malloc(size_t n) { return malloc(n); }
+void mcs_os_free(void* p) { free(p); }
+
+/* enter_critical_section() masks interrupts on this CPU (and, with SMP, takes the global IRQ
+ * lock), so it is also safe from interrupt handlers. irqstate_t is as wide as a register on
+ * 64-bit parts and cannot be squeezed into the `unsigned` key of mcs_os.h, so the saved states
+ * live in a small stack that only the holder of the critical section touches: the key is the
+ * nesting depth, and unlock is always LIFO. */
+#define NX_IRQ_DEPTH 8
+static irqstate_t g_irq_saved[NX_IRQ_DEPTH];
+static unsigned g_irq_depth;
+unsigned mcs_os_irq_lock(void) {
+    irqstate_t f = enter_critical_section();
+    unsigned d = g_irq_depth++;
+    if (d < NX_IRQ_DEPTH) g_irq_saved[d] = f;       /* deeper nesting cannot happen: never block inside */
+    return d;
+}
+void mcs_os_irq_unlock(unsigned key) {
+    g_irq_depth = key;
+    leave_critical_section(g_irq_saved[key < NX_IRQ_DEPTH ? key : NX_IRQ_DEPTH - 1]);
+}
+
+#endif /* __NuttX__ */
+#else
+#error "MicroCS: unknown MCS_OS (MCS_OS_NONE, MCS_OS_FREERTOS, MCS_OS_ZEPHYR, MCS_OS_NUTTX, MCS_OS_POSIX or MCS_OS_AUTO)"
 #endif
 #else
 typedef int mcs_os_unused_t;   /* no OS chosen: empty unit */

@@ -67,6 +67,16 @@ CONFIG_MICROCS=y
 folder (or its `include/` / `src/`) is used automatically; `CONFIG_MICROCS_USER_CONFIG_FILE`
 names another one.
 
+### Apache NuttX
+Link the application folder into the NuttX apps tree and enable it in `menuconfig`
+(*Application Configuration → Interpreters → MicroCS*):
+```sh
+ln -s /path/to/MicroCS/ports/nuttx  apps/interpreters/microcs
+```
+That builds the library and the NSH command `mcs`; `CONFIG_INTERPRETERS_MICROCS_THREADS=y` puts
+C# threads on NuttX pthreads. Make and CMake builds of NuttX are both supported. See
+[ports/nuttx](../ports/nuttx/README.md).
+
 ### PlatformIO
 ```ini
 [env:board]
@@ -116,6 +126,7 @@ registers behind the SDK's back.
 | `ports/esp32` | ESP-IDF 5.0+ | ESP32, S2, S3, C3, C6, H2, P4 | `mcs_esp32_console()` (UART0 + USB) / `_usb()` / `_uart(n, baud)` | [README](../ports/esp32/README.md) |
 | `ports/rp2` | pico-sdk 1.5 / 2.x | RP2040, RP2350 (Arm and RISC-V) | `mcs_rp2_console_stdio()` | [README](../ports/rp2/README.md) |
 | `ports/zephyr` | Zephyr 3.6+ (CI: 4.1) | every board with devicetree support | `mcs_zephyr_console()` (UART or USB CDC ACM), files: `mcs_zephyr_fs_mount()` | [README](../ports/zephyr/README.md) |
+| `ports/nuttx` | NuttX apps (POSIX, NSH) | every NuttX board and the `sim` simulator | the NuttX console (`mcs`) | [README](../ports/nuttx/README.md) |
 | `ports/arduino` | Arduino API | ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, Renesas | `mcs_arduino_console(&Serial)`, files: `MCS_ARDUINO_FS(LittleFS, …)` | [README](../ports/arduino/README.md) |
 | `ports/cortex-m` | none (bare metal) | Cortex-M0/M4/M33 reference | UART registers | below |
 | `ports/unix` | POSIX | Linux, macOS | stdin/stdout | the `mcs` CLI |

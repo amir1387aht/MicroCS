@@ -1,6 +1,6 @@
 /*
  * MicroCS - C# on real OS threads (optional, MCS_ENABLE_THREADS; needs an OS chosen
- * with MCS_OS: FreeRTOS, Zephyr or POSIX - see docs/THREADS.md). Without an OS this
+ * with MCS_OS: FreeRTOS, Zephyr, NuttX or POSIX - see docs/THREADS.md). Without an OS this
  * header declares nothing and MicroCS is the single-threaded runtime it always was.
  *
  * Every thread runs its own VM with its own heap (a VM is never shared between

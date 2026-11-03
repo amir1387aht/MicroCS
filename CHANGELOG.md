@@ -4,6 +4,16 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Interpreter hot-path restoration
 
+* Apache NuttX as an optional OS (`MCS_OS_NUTTX`, auto-detected through
+  `__NuttX__`): `Thread.Run` / `RunOn` / `Every`, `Worker` and `Channel` run on
+  NuttX pthreads, semaphores and critical sections (CPU pinning with
+  `CONFIG_SMP`). New `ports/nuttx` NuttX application (Kconfig, Make, CMake) that
+  builds the `mcs` NSH command from the unix CLI; verified on NuttX 12.11.0
+  `sim:nsh` (single core and SMP) with the full C# thread suite
+  (`make nuttx-test`). No NuttX board HAL port yet. On NuttX the default
+  `MCS_THREAD_PRIORITY` is -1 without round-robin so a busy script thread cannot
+  starve the shell. The shell module's internal enum constants were renamed
+  (`SC_*`) because NuttX defines a `CODE` macro.
 * Restore the pre-1.16 VM speed: `PUSH` is a single compare against the stack
   limit with a cold, out-of-line grow path; interpreter `sp`/`slots`/`frame` are
   real locals again (the internal `exec_views` indirection that forced them into

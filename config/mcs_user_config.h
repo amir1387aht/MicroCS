@@ -518,7 +518,8 @@
 
 /* ---- OS threads (docs/THREADS.md). Off unless you choose an OS: MCS_OS_FREERTOS (headers on the
  * include path; CMake MICROCS_OS=freertos, ESP-IDF menuconfig), MCS_OS_ZEPHYR (CONFIG_MICROCS_THREADS),
- * MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect). MCS_OS_NONE: single-threaded, as always. */
+ * MCS_OS_NUTTX (CONFIG_INTERPRETERS_MICROCS_THREADS), MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect).
+ * MCS_OS_NONE: single-threaded, as always. */
 #ifndef MCS_OS
 #define MCS_OS                    MCS_OS_NONE
 #endif

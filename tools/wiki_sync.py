@@ -65,6 +65,7 @@ SECTIONS = [
         ("ports/stm32/README.md", "Port-STM32"),
         ("ports/stm32/firmware/README.md", "Port-STM32-Firmware"),
         ("ports/zephyr/README.md", "Port-Zephyr"),
+        ("ports/nuttx/README.md", "Port-NuttX"),
         ("ports/arduino/README.md", "Port-Arduino"),
     ]),
     ("C# and the runtime", [

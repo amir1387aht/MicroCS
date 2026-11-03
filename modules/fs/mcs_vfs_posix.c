@@ -1,10 +1,10 @@
-/* MicroCS - POSIX directory backend for host builds, embedded Linux and
+/* MicroCS - POSIX directory backend for host builds, embedded Linux, NuttX and
  * ESP-IDF (any VFS-mounted filesystem, e.g. LittleFS on a flash partition).
  * The VFS has already normalised paths, so "../" cannot escape `root`.
  * Symlinks inside the root are followed; do not mount untrusted trees that
  * contain links pointing outside if confinement matters. */
 #include "mcs_vfs.h"
-#if MCS_ENABLE_FS && (defined(__unix__) || defined(__APPLE__) || defined(_WIN32) || defined(ESP_PLATFORM))
+#if MCS_ENABLE_FS && (defined(__unix__) || defined(__APPLE__) || defined(_WIN32) || defined(ESP_PLATFORM) || defined(__NuttX__))
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>

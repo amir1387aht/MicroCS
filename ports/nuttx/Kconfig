@@ -1,0 +1,86 @@
+#
+# MicroCS on Apache NuttX: C# for NuttX targets (NSH command `mcs`).
+# Link or copy this folder to apps/interpreters/microcs - see README.md.
+#
+
+config INTERPRETERS_MICROCS
+	bool "MicroCS C# interpreter"
+	default n
+	depends on !LIBM_NONE
+	select LIBC_FLOATINGPOINT
+	select LIBC_LONG_LONG
+	---help---
+		MicroCS is a small C# compiler and bytecode VM written in portable C99.
+		This adds the NSH command `mcs` (REPL, script runner and device shell
+		on the NuttX console) and the MicroCS library to the build.
+		Files come from the NuttX VFS (any mounted filesystem: LittleFS, FAT,
+		SmartFS, hostfs on the simulator...).
+
+		NOTE: the C# Math class needs a full math library (hypot, fma,
+		remainder, cbrt, log2...): pick the toolchain's, newlib or OpenLibm
+		(Library Routines > Math library). NuttX's small built-in libm does
+		not have all of them and fails at link time.
+
+if INTERPRETERS_MICROCS
+
+config INTERPRETERS_MICROCS_PROGNAME
+	string "Program name"
+	default "mcs"
+	---help---
+		Name of the NSH built-in command.
+
+config INTERPRETERS_MICROCS_PRIORITY
+	int "MicroCS task priority"
+	default 100
+
+config INTERPRETERS_MICROCS_STACKSIZE
+	int "MicroCS task stack size"
+	default 16384
+	---help---
+		Stack of the `mcs` task. The C# compiler recurses; 16 KB is comfortable,
+		8 KB is enough for precompiled images and short scripts.
+
+choice
+	prompt "Configuration profile"
+	default INTERPRETERS_MICROCS_PROFILE_DEFAULT
+
+config INTERPRETERS_MICROCS_PROFILE_DEFAULT
+	bool "Library default (full)"
+
+config INTERPRETERS_MICROCS_PROFILE_EMBEDDED
+	bool "embedded"
+
+config INTERPRETERS_MICROCS_PROFILE_MCU
+	bool "mcu"
+
+config INTERPRETERS_MICROCS_PROFILE_LOWRAM
+	bool "lowram"
+
+config INTERPRETERS_MICROCS_PROFILE_MIN
+	bool "min"
+
+endchoice # Configuration profile
+
+config INTERPRETERS_MICROCS_USER_CONFIG_FILE
+	string "Project config header"
+	default ""
+	---help---
+		Optional path of a mcs_user_config.h (template: config/mcs_user_config.h
+		in the MicroCS repository) that sets any MCS_* option. Use an absolute
+		path or one on the include path. MCS_PROFILE in the header wins over the
+		profile selected above.
+
+config INTERPRETERS_MICROCS_THREADS
+	bool "Real threads on NuttX pthreads (C# Thread.Run / RunOn, SMP CPUs)"
+	default n
+	depends on !DISABLE_PTHREAD
+	---help---
+		C# scripts and functions on their own NuttX threads: Thread.Start,
+		Thread.Run, Thread.RunOn(cpu, ...) (pinned with the pthread affinity on
+		CONFIG_SMP builds), Thread.Every for OS-timed periodic work, Channels
+		between threads and `thread core=<n>` jobs in jobs.cfg. Every thread has
+		its own VM and heap (MCS_THREAD_HEAP, taken from the NuttX heap) and a
+		stack of MCS_THREAD_STACK bytes. Off: MicroCS stays the single-threaded
+		runtime. See docs/THREADS.md.
+
+endif # INTERPRETERS_MICROCS

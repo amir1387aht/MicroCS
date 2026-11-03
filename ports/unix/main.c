@@ -333,6 +333,10 @@ int main(int argc, char** argv) {
     char* xip_data = NULL;
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
+#if defined(__NuttX__)
+    char cwd[128];                          /* "." does not resolve in a NuttX task: use its working directory */
+    if (getcwd(cwd, sizeof cwd)) fs_dir = cwd;
+#endif
     size_t ramfs = 0;
     bool oled = false;
     bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true, echo = false;

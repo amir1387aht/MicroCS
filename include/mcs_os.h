@@ -3,8 +3,8 @@
  *
  * Only compiled when an OS is chosen with MCS_OS (mcs_config.h; default MCS_OS_NONE =
  * no OS, nothing here exists). The thread module (mcs_threads.h) runs C# on threads of
- * that OS: FreeRTOS tasks (vanilla, SMP or ESP-IDF), Zephyr kernel threads, or pthreads
- * on a host. modules/os/mcs_os.c implements this small surface once per OS. Everything
+ * that OS: FreeRTOS tasks (vanilla, SMP or ESP-IDF), Zephyr kernel threads, NuttX pthreads, or
+ * pthreads on a host. modules/os/mcs_os.c implements this small surface once per OS. Everything
  * may be called from any thread; mcs_os_irq_lock() also from interrupt handlers.
  */
 #ifndef MCS_OS_H
@@ -31,7 +31,7 @@ typedef struct {
     int core;               /* MCS_OS_ANY_CORE or a core number < mcs_os_cores() */
 } mcs_os_thread_cfg_t;
 
-const char* mcs_os_name(void);          /* "FreeRTOS", "Zephyr", "POSIX" */
+const char* mcs_os_name(void);          /* "FreeRTOS", "Zephyr", "NuttX", "POSIX" */
 int mcs_os_cores(void);                 /* cores threads can run on (1 = single core) */
 int mcs_os_core(void);                  /* core of the calling thread (0 when unknown) */
 

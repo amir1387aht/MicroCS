@@ -606,13 +606,16 @@
  *   MCS_OS_FREERTOS  FreeRTOS / FreeRTOS SMP / ESP-IDF FreeRTOS. Its headers must be on the
  *                    include path (#error otherwise: tell the build where FreeRTOS is)
  *   MCS_OS_ZEPHYR    Zephyr kernel threads (only inside a Zephyr build)
+ *   MCS_OS_NUTTX     Apache NuttX pthreads (only inside a NuttX build, ports/nuttx)
  *   MCS_OS_POSIX     pthreads (Linux / macOS hosts)
- *   MCS_OS_AUTO      pick for me: Zephyr in a Zephyr build, FreeRTOS under ESP-IDF or when
- *                    FreeRTOS.h + FreeRTOSConfig.h are found on the include path, else none */
+ *   MCS_OS_AUTO      pick for me: Zephyr in a Zephyr build, NuttX in a NuttX build, FreeRTOS under
+ *                    ESP-IDF or when FreeRTOS.h + FreeRTOSConfig.h are found on the include path,
+ *                    else none */
 #define MCS_OS_NONE     0
 #define MCS_OS_FREERTOS 1
 #define MCS_OS_ZEPHYR   2
 #define MCS_OS_POSIX    3
+#define MCS_OS_NUTTX    4
 #define MCS_OS_AUTO     9
 #ifndef MCS_OS
 #define MCS_OS MCS_OS_NONE
@@ -621,6 +624,8 @@
 #undef MCS_OS
 #if defined(__ZEPHYR__)
 #define MCS_OS MCS_OS_ZEPHYR
+#elif defined(__NuttX__)
+#define MCS_OS MCS_OS_NUTTX
 #elif defined(ESP_PLATFORM)
 #define MCS_OS MCS_OS_FREERTOS
 #elif defined(__has_include)
@@ -665,8 +670,18 @@
 #ifndef MCS_THREAD_FRAMES
 #define MCS_THREAD_FRAMES 48       /* call depth of a thread's VM */
 #endif
+#if MCS_OS == MCS_OS_NUTTX
+#include <nuttx/config.h>          /* CONFIG_RR_INTERVAL */
+#endif
 #ifndef MCS_THREAD_PRIORITY
+#if MCS_OS == MCS_OS_NUTTX && !(defined(CONFIG_RR_INTERVAL) && CONFIG_RR_INTERVAL > 0)
+/* NuttX runs threads of equal priority first-in-first-out, without time slicing (unless
+ * CONFIG_RR_INTERVAL > 0): a busy script thread would starve the thread that started it
+ * (the shell). One level below the starter keeps that thread responsive. */
+#define MCS_THREAD_PRIORITY -1
+#else
 #define MCS_THREAD_PRIORITY 0      /* relative to the starting thread: > 0 higher, < 0 lower (docs/THREADS.md) */
+#endif
 #endif
 #ifndef MCS_SCHED_THREADS
 #define MCS_SCHED_THREADS MCS_ENABLE_THREADS /* jobs.cfg / shell file jobs run on OS threads (`main` opts out) */

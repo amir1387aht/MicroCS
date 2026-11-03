@@ -18,7 +18,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 🖥️ | [U8g2 displays](U8G2.md) | optional C# `U8g2` / `U8x8` on olikraus' u8g2: turning it on in each build, choosing displays and fonts, fonts from files, the whole API, the `--oled` simulator |
 | 🧩 | [Device drivers](DRIVERS.md) | the driver registry, the built-in `ws2812` (`LedStrip`) and `servo` (`Servo`) drivers and their backends, writing your own, turning drivers off |
 | ⚙️ | [Configuration](CONFIGURATION.md) | the project config header `mcs_user_config.h`, `-D` options, profiles, precedence, per build system |
-| 🧭 | [Porting & build systems](PORTING.md) | Make, CMake, ESP-IDF, Zephyr, PlatformIO, Arduino, CubeIDE/Keil/IAR; the vendor ports; new chips |
+| 🧭 | [Porting & build systems](PORTING.md) | Make, CMake, ESP-IDF, Zephyr, NuttX, PlatformIO, Arduino, CubeIDE/Keil/IAR; the vendor ports; new chips |
 | 📟 | [Standalone firmware](STANDALONE.md) | `mcs_runtime`, the REPL, boot sequence, upload protocol, `mcs_remote.py` |
 | 🔧 | [Embedding](EMBEDDING.md) | the C API: VMs, running code, C bindings, calling scripts, limits, GC rules |
 | 🧩 | [Language](LANGUAGE.md) | the supported C# subset, feature by feature, and every known difference from .NET |
@@ -26,7 +26,7 @@ MicroCS (a library inside your firmware, or the whole firmware as a C# REPL).
 | 📚 | [Standard library](STDLIB.md) | generated reference of every class and member a script can call |
 | 💾 | [Filesystem](FILESYSTEM.md) | VFS mounts, RAM / POSIX / TinyFS / LittleFS / YAFFS2 backends, flash ports, `File` / `Directory` / `Path`, bounded-memory `FileStream` byte reads/writes and seeking |
 | ⏱️ | [Scheduler](SCHEDULER.md) | startup / once / periodic jobs, `jobs.cfg` |
-| 🧵 | [Threads](THREADS.md) | optional real OS threads: FreeRTOS / Zephyr / POSIX, second core, `Channel` |
+| 🧵 | [Threads](THREADS.md) | optional real OS threads: FreeRTOS / Zephyr / NuttX / POSIX, second core, `Channel` |
 | 🪫 | [Small MCUs](LOW_RESOURCE.md) | running in 24–64 KB of RAM: profiles, execute-in-place images, GC tuning, measured results |
 | 🧮 | [Memory budgets](MEMORY.md) | VM vs device heap counters, reserves, application replacement and reproducible low-RAM tests |
 | 📊 | [Performance](PERFORMANCE.md) | benchmarks, Cortex-M footprint, memory findings — with commands to reproduce |
