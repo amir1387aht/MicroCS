@@ -6,6 +6,22 @@
 > counts* in an emulator, not cycles. Real-hardware results:
 > [ESP32-S3](#real-hardware--esp32-s3).
 
+## Float-heavy runtime benchmark (host)
+
+The VM speed layout inlines float arithmetic and comparisons; the compact
+layout (`MCS_VM_COMPACT=1`) uses the existing generic implementation instead.
+This trades code size for speed and does not require additional heap allocation.
+For a reproducible host workload, compile `bench/float_filter.cs` to an image
+with `mcs -c bench/float_filter.cs -o float_filter.mcsb`, then run that same
+image with each VM binary. On x86-64 with GCC `-O2`, the median of eight
+alternating runs was **573 ms before** and **288 ms after** (~2.0× faster),
+with identical output. Timings depend on workload and machine.
+
+The host VM object `.text` grew from 76,580 to 87,668 bytes (+11,088 bytes).
+This is **not** a Cortex-M flash measurement; target code size and speed must
+be checked on the intended toolchain and device. The float fast path is absent
+in compact builds, including the min profile.
+
 ## Bytecode images
 
 A precompiled image (`mcs -c`) is the fast path — it is optimized, the on-device compiler's

@@ -868,6 +868,61 @@ static bool compare_op(mcs_vm_t* vm, int op, mcs_value_t a, mcs_value_t b, mcs_v
     return true;
 }
 
+/* Inline float paths for the interpreter. They give exactly the result arith() / compare_op()
+ * give for two numbers of which at least one is a float (int operands convert the same way),
+ * without the call-out and the register save/reload around it. Anything else returns false and
+ * takes the generic path. Compiled out (always false) when MCS_VM_COMPACT is set. */
+#if defined(__GNUC__)
+#define MCS_FORCE_INLINE static inline __attribute__((always_inline))
+#else
+#define MCS_FORCE_INLINE static inline
+#endif
+#if MCS_ENABLE_FLOAT
+#define FVAL(f) mcs_float(f)
+#else
+#define FVAL(f) mcs_null()   /* never reached: farith() is constant false */
+#endif
+#if MCS_ENABLE_FLOAT && !MCS_VM_COMPACT   /* speed layout only: each inline copy costs flash */
+MCS_FORCE_INLINE bool fnum_pair(const mcs_value_t* a, const mcs_value_t* b, mcs_float_t* x, mcs_float_t* y) {
+    if (a->type == MCS_T_FLOAT) {
+        *x = a->as.f;
+        if (b->type == MCS_T_FLOAT) *y = b->as.f;
+        else if (b->type == MCS_T_INT) *y = (mcs_float_t)b->as.i;
+        else return false;
+        return true;
+    }
+    if (a->type == MCS_T_INT && b->type == MCS_T_FLOAT) { *x = (mcs_float_t)a->as.i; *y = b->as.f; return true; }
+    return false;
+}
+MCS_FORCE_INLINE bool farith(int op, mcs_value_t a, mcs_value_t b, mcs_float_t* out) {
+    mcs_float_t x, y;
+    if (!fnum_pair(&a, &b, &x, &y)) return false;
+    switch (op) {
+    case OP_ADD: *out = x + y; return true;
+    case OP_SUB: *out = x - y; return true;
+    case OP_MUL: *out = x * y; return true;
+    case OP_DIV: *out = x / y; return true;
+    default: return false;
+    }
+}
+MCS_FORCE_INLINE bool fcmp(int op, mcs_value_t a, mcs_value_t b, bool* res) {
+    mcs_float_t x, y;
+    if (!fnum_pair(&a, &b, &x, &y)) return false;
+    switch (op) {   /* NaN compares false (!= true), as in compare_op */
+    case OP_EQ: *res = x == y; return true;
+    case OP_NE: *res = x != y; return true;
+    case OP_LT: *res = x < y; return true;
+    case OP_LE: *res = x <= y; return true;
+    case OP_GT: *res = x > y; return true;
+    case OP_GE: *res = x >= y; return true;
+    default: return false;
+    }
+}
+#else
+MCS_FORCE_INLINE bool farith(int op, mcs_value_t a, mcs_value_t b, mcs_float_t* out) { (void)op; (void)a; (void)b; (void)out; return false; }
+MCS_FORCE_INLINE bool fcmp(int op, mcs_value_t a, mcs_value_t b, bool* res) { (void)op; (void)a; (void)b; (void)res; return false; }
+#endif
+
 static bool convert(mcs_vm_t* vm, int kind, mcs_value_t v, mcs_value_t* out) {
     if (v.type == MCS_T_NULL) { *out = v; return true; }
     mcs_int_t i;
@@ -1070,6 +1125,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LOAD_GMAP(f) ((void)0)
 #endif
     mcs_value_t a, b, r;
+    mcs_float_t fz_;   /* float fast-path result (kept out of r, which is addressable) */
     /* the stack pointer lives in a register inside the loop; vm->sp is only
      * written back (SAVE/SYNC) before anything that may look at the stack */
     mcs_value_t* sp;
@@ -1290,6 +1346,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { pa_->as.i = (mcs_int_t)(EXPR); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        if (farith(OPC, a, b, &fz_)) { sp--; sp[-1] = FVAL(fz_); DISPATCH(); } \
         SAVE(); \
         CHECKED(arith(vm, OPC, a, b, &r)); \
         sp--; sp[-1] = r; DISPATCH(); \
@@ -1307,6 +1364,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT && pa_[1].as.i > 0) { pa_->as.i = pa_[0].as.i OPR pa_[1].as.i; sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        if (farith(OPC, a, b, &fz_)) { sp--; sp[-1] = FVAL(fz_); DISPATCH(); } \
         SAVE(); CHECKED(arith(vm, OPC, a, b, &r)); sp--; sp[-1] = r; DISPATCH(); \
     }
     DIVOP(DIV, OP_DIV, /)
@@ -1354,6 +1412,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { *pa_ = mcs_bool(pa_[0].as.i CMP pa_[1].as.i); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        { bool fr_; if (fcmp(OPC, a, b, &fr_)) { sp--; sp[-1] = mcs_bool(fr_); DISPATCH(); } } \
         SAVE(); \
         CHECKED(compare_op(vm, OPC, a, b, &r)); \
         sp--; sp[-1] = r; DISPATCH(); \
@@ -1373,6 +1432,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         const mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { sp -= 2; if (!(pa_[0].as.i CMP pa_[1].as.i)) ip += o; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        { bool fr_; if (fcmp(OPC, a, b, &fr_)) { sp -= 2; if (!fr_) ip += o; DISPATCH(); } } \
         SAVE(); \
         CHECKED(compare_op(vm, OPC, a, b, &r)); \
         sp -= 2; if (!mcs_truthy(r)) ip += o; DISPATCH(); \
@@ -1430,7 +1490,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     BX_EACH(LI_FORM)
     li_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); ip += 2; SAVE();
+        b = mcs_int((int8_t)ip[1]); ip += 2;
+        if (farith(sop, *pa_, b, &fz_)) PUSH_DISPATCH(FVAL(fz_));
+        SAVE();
         CHECKED(arith(vm, sop, *pa_, b, &r));
         PUSH_DISPATCH(r);
     }
@@ -1443,7 +1505,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     BX_EACH(SI_FORM)
     si_slow: {
-        a = sp[-1]; b = mcs_int((int8_t)ip[0]); ip++; SAVE();
+        a = sp[-1]; b = mcs_int((int8_t)ip[0]); ip++;
+        if (farith(sop, a, b, &fz_)) { sp[-1] = FVAL(fz_); DISPATCH(); }
+        SAVE();
         CHECKED(arith(vm, sop, a, b, &r));
         sp[-1] = r; DISPATCH();
     }
@@ -1460,7 +1524,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     CASE(ACC) { sop = bx_ops[ip[0] & 15]; ip++; goto acc_slow; }
     acc_slow: {
-        uint8_t d_ = ip[0]; ip++; a = slots[d_]; b = sp[-1]; SAVE();
+        uint8_t d_ = ip[0]; ip++; a = slots[d_]; b = sp[-1];
+        if (farith(sop, a, b, &fz_)) { slots[d_] = FVAL(fz_); sp--; DISPATCH(); }
+        SAVE();
         CHECKED(arith(vm, sop, a, b, &r));
         slots[d_] = r; sp--; DISPATCH();
     }
@@ -1474,7 +1540,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JFLI_FORM)
     jfli_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, b, &fr_)) { if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
         CHECKED(compare_op(vm, sop, *pa_, b, &r));
         if (!mcs_truthy(r)) ip += o_;
         DISPATCH();
@@ -1491,7 +1559,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JBLI_FORM)
     jbli_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, b, &fr_)) { if (fr_) { ip -= o_; SAFEPOINT(); } DISPATCH(); } }
+        SAVE();
         CHECKED(compare_op(vm, sop, *pa_, b, &r));
         if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
         DISPATCH();
@@ -1505,7 +1575,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     JX_EACH(JFSI_FORM)
     jfsi_slow: {
-        a = sp[-1]; b = mcs_int((int8_t)ip[0]); uint16_t o_ = K16(ip + 1); ip += 3; SAVE();
+        a = sp[-1]; b = mcs_int((int8_t)ip[0]); uint16_t o_ = K16(ip + 1); ip += 3;
+        { bool fr_; if (fcmp(sop, a, b, &fr_)) { sp--; if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
         CHECKED(compare_op(vm, sop, a, b, &r));
         sp--;
         if (!mcs_truthy(r)) ip += o_;
@@ -1521,7 +1593,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JFLL_FORM)
     jfll_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
-        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, *pb_, &fr_)) { if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
         CHECKED(compare_op(vm, sop, *pa_, *pb_, &r));
         if (!mcs_truthy(r)) ip += o_;
         DISPATCH();
@@ -1538,7 +1612,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JBLL_FORM)
     jbll_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
-        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
+        uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, *pb_, &fr_)) { if (fr_) { ip -= o_; SAFEPOINT(); } DISPATCH(); } }
+        SAVE();
         CHECKED(compare_op(vm, sop, *pa_, *pb_, &r));
         if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
         DISPATCH();
@@ -1579,7 +1655,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         F##_ushr: z_ = (mcs_uint_t)x_ >> ((mcs_uint_t)y_ & IBITS); \
         F##_int: ip += LEN; PUT((mcs_int_t)z_); DISPATCH(); \
         F##_slow: \
-        ip += LEN; SAVE(); \
+        ip += LEN; \
+        if (farith(bx_ops[op_ & 15], *pa_, *pb_, &fz_)) { PUTV(FVAL(fz_)); DISPATCH(); } \
+        SAVE(); \
         CHECKED(arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)); \
         PUTV(r); DISPATCH(); \
     }
@@ -1609,6 +1687,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             default: break;
             }
         }
+        if (farith(sop, a, b, &fz_)) { slots[d_] = FVAL(fz_); DISPATCH(); }
         SAVE();
         CHECKED(arith(vm, sop, a, b, &r));
         slots[d_] = r; DISPATCH();
@@ -1631,6 +1710,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         F##_gt: t_ = x_ > y_; goto F##_done; \
         F##_ge: t_ = x_ >= y_; goto F##_done; \
         F##_slow: \
+        { bool fr_; if (fcmp(jx_ops[c_ & 7], *pa_, *pb_, &fr_)) { t_ = fr_; goto F##_done; } } \
         SAVE(); \
         CHECKED(compare_op(vm, jx_ops[c_ & 7], *pa_, *pb_, &r)); \
         t_ = mcs_truthy(r); \

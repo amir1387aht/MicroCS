@@ -18,6 +18,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   and `type_name()` (keyed by enclosing class/scope; a few KB of transient
   compile arena). Output is unchanged; `tests/t35_type_scope.cs` covers
   same-named types in different namespaces, nested classes and `using`.
+* Inline float/int and float/float arithmetic and comparisons in the VM's speed
+  layout, including optimized superinstructions. The generic paths remain for
+  other types and operations. `MCS_VM_COMPACT=1` retains the smaller layout;
+  the flash cost on microcontrollers still needs measurement. Numeric edge
+  cases are covered by `tests/t36_float_fastpath.cs`.
 * Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
   poison the old block) and `tests/t34_stack_relocation.cs`.
 
