@@ -1313,7 +1313,7 @@ static const struct { const mcs_lib_entry_t* tab; void (*make)(mcs_vm_t*, int); 
 };
 #define LIB_AREAS ((int)(sizeof lib_areas / sizeof lib_areas[0]))
 
-static bool name_is(const char* a, const char* b, size_t len) { return strncmp(a, b, len) == 0 && a[len] == 0; }
+static bool name_is(const char* a, const char* b, size_t len) { return (!len || a[0] == b[0]) && strncmp(a, b, len) == 0 && a[len] == 0; }   /* the first byte rejects most entries cheaply */
 static uint8_t lib_mask(mcs_vm_t* vm) { return (uint8_t)(vm->cfg.stdlib | MCS_LIB_CORE); }
 
 static const mcs_lib_entry_t* lib_find(mcs_vm_t* vm, const char* name, size_t len, int* area) {
