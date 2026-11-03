@@ -131,3 +131,9 @@
 #ifndef MCS_POOL_ALIGN
 #define MCS_POOL_ALIGN 4
 #endif
+
+/* Save flash and RAM on the 64 KiB profile: native calls use the same rooted
+ * heap fallback as a full arena. Set a positive size for faster native calls. */
+#ifndef MCS_NATIVE_ARENA
+#define MCS_NATIVE_ARENA 0
+#endif

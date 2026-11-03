@@ -16,12 +16,14 @@ M7="-mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard"
 # board: family device startup cpu | flash layout: vector sector, files right after it (F4:
 # the 16 KB sectors 1-3; 0 = files in the top MCS_INTFLASH_SIZE bytes), program | RAM, stack
 F4="vect=16K; gap=48K; prog=448K; fs=49152"
+# G474 keeps its 128 KiB filesystem; compact VM + LTO fit the remaining flash.
+lto=
 case "$board" in
 nucleo_f401re)    fam=f4; dev=STM32F401xE; start=stm32f401xe; cpu=$M4; eval "$F4"; ram=0x20000000; ramsz=96K;  stack=16K ;;
 nucleo_f411re)    fam=f4; dev=STM32F411xE; start=stm32f411xe; cpu=$M4; eval "$F4"; ram=0x20000000; ramsz=128K; stack=16K ;;
 blackpill_f411ce) fam=f4; dev=STM32F411xE; start=stm32f411xe; cpu=$M4; eval "$F4"; ram=0x20000000; ramsz=128K; stack=16K ;;
 nucleo_f446re)    fam=f4; dev=STM32F446xx; start=stm32f446xx; cpu=$M4; eval "$F4"; ram=0x20000000; ramsz=128K; stack=16K ;;
-nucleo_g474re)    fam=g4; dev=STM32G474xx; start=stm32g474xx; cpu=$M4; vect=4K; gap=0; prog=380K;  fs=131072; extra=-DMCS_STM32_FS_BLOCK=4096; ram=0x20000000; ramsz=128K; stack=16K ;;
+nucleo_g474re)    fam=g4; dev=STM32G474xx; start=stm32g474xx; cpu=$M4; vect=4K; gap=0; prog=380K;  fs=131072; extra="-DMCS_STM32_FS_BLOCK=4096 -DMCS_VM_COMPACT=1"; lto=-flto; ram=0x20000000; ramsz=128K; stack=16K ;;
 nucleo_l476rg)    fam=l4; dev=STM32L476xx; start=stm32l476xx; cpu=$M4; vect=4K; gap=0; prog=892K;  fs=131072; extra=-DMCS_STM32_FS_BLOCK=4096; ram=0x20000000; ramsz=96K;  stack=16K ;;
 nucleo_h743zi)    fam=h7; dev=STM32H743xx; start=stm32h743xx; cpu=$M7; vect=4K; gap=0; prog=1532K; fs=524288; ram=0x24000000; ramsz=512K; stack=32K ;;
 list) echo $BOARDS; exit 0 ;;
@@ -44,7 +46,7 @@ rm -rf "$obj"; mkdir -p "$obj" "$out"
 # every HAL module enabled (the linker drops what is unused); HSE unused (HSI + PLL)
 cp "$hal/Inc/stm32${fam}xx_hal_conf_template.h" "$obj/stm32${fam}xx_hal_conf.h"
 
-CFLAGS="$cpu -std=gnu99 -Os -g -ffunction-sections -fdata-sections -D$dev -DUSE_HAL_DRIVER -D$macro \
+CFLAGS="$cpu $lto -std=gnu99 -Os -g -ffunction-sections -fdata-sections -D$dev -DUSE_HAL_DRIVER -D$macro \
  -DMCS_PORT_HAL=1 -DMCS_PROFILE=MCS_PROFILE_AUTO -DMCS_ENABLE_TINYFS=1 -DMCS_INTFLASH_SIZE=$fs -DMCS_STM32_EXTI_HANDLERS=1 $extra \
  -I$obj -I$hal/Inc -I$cmsis/Include -I$core -Iinclude -Iports/stm32"
 # MicroCS (warnings are errors) and the vendor code (as shipped) compiled in parallel
@@ -70,7 +72,7 @@ xargs -P "$(nproc 2>/dev/null || echo 4)" -L 1 sh -c '
     arm-none-eabi-gcc $CFLAGS $w -c "$1" -o "$2" 2> "$2.log" || { echo "FAIL $1"; cat "$2.log"; exit 255; }' < "$obj/jobs"
 
 elf=$out/microcs-$board.elf
-arm-none-eabi-gcc $cpu -T ports/stm32/firmware/stm32.ld \
+arm-none-eabi-gcc $cpu $lto -T ports/stm32/firmware/stm32.ld \
     -Wl,--defsym=VECT_SIZE=$vect -Wl,--defsym=FS_SIZE=$gap -Wl,--defsym=FLASH_SIZE=$prog -Wl,--defsym=RAM_ORIGIN=$ram -Wl,--defsym=RAM_SIZE=$ramsz -Wl,--defsym=STACK_SIZE=$stack \
     -Wl,--gc-sections -Wl,--no-warn-rwx-segments -Wl,-Map="$obj/microcs.map" --specs=nano.specs --specs=nosys.specs \
     "$obj"/*.o -lm -o "$elf"

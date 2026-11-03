@@ -61,6 +61,8 @@ typedef struct {
     struct fcomp* fc_free; /* recycled states retain their arena-backed workspaces */
     uint32_t last_store;  /* code offset of the last SET_LOCAL/SET_GLOBAL emitted (peephole) */
     mcs_function_t* last_store_fn;
+    struct kt_ent* kt;    /* known_type_name memo, allocated on first use */
+    struct tn_ent* tn;    /* type_name memo, allocated on first use */
 } comp_t;
 
 static uint8_t compile_expr(comp_t* c, node_t* n);
@@ -228,7 +230,16 @@ static int resolve_upvalue(comp_t* c, fcomp_t* f, const char* name, uint32_t len
 }
 
 /* ------------------------------------------------------------ declarations lookup */
-static const char* known_type_name(comp_t* c, const char* name, uint32_t len) {
+/* known_type_name() is probed several times per type reference (class chain,
+ * namespace, every using, parent namespaces) and each miss walks the class list,
+ * the lazy list and the library tables. Nothing it reads changes while a program
+ * is being compiled (classes are only added by the parser, the GC is paused), so
+ * answers - including misses - are memoized in a small direct-mapped table whose
+ * keys are copied inline (long names simply bypass it). */
+#define KT_SLOTS 64
+#define KT_KEY 32
+typedef struct kt_ent { const char* val; uint32_t hash; uint8_t len; char key[KT_KEY]; } kt_ent_t;
+static const char* known_type_name_slow(comp_t* c, const char* name, uint32_t len) {
     for (classdecl_t* d = c->prog->classes; d; d = d->next)
         if (name_eq(d->qualified, d->qualified_len, name, len)) return d->qualified;
     mcs_string_t* str = mcs_find_interned(c->vm, name, len);
@@ -236,6 +247,19 @@ static const char* known_type_name(comp_t* c, const char* name, uint32_t len) {
     for (mcs_lazy_t* l = c->vm->lazy; l; l = l->next) if (strlen(l->name) == len && !memcmp(l->name, name, len)) return l->name;
     if (mcs_lazy_known(c->vm, name, len)) return istr(c, name, len)->chars;
     return NULL;
+}
+static const char* known_type_name(comp_t* c, const char* name, uint32_t len) {
+    /* A cache must not displace the AST or application state in small pools. */
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !len || len > KT_KEY)
+        return known_type_name_slow(c, name, len);
+    uint32_t h = len;
+    for (uint32_t i = 0; i < len; i++) h = h * 31u + (uint8_t)name[i];
+    if (!c->kt) { c->kt = (kt_ent_t*)arena_alloc(c->ctx->arena, sizeof(kt_ent_t) * KT_SLOTS); memset(c->kt, 0, sizeof(kt_ent_t) * KT_SLOTS); }
+    kt_ent_t* e = &c->kt[(h ^ (h >> 5)) % KT_SLOTS];
+    if (e->len == len && e->hash == h && !memcmp(e->key, name, len)) return e->val;
+    const char* r = known_type_name_slow(c, name, len);
+    e->val = r; e->hash = h; e->len = (uint8_t)len; memcpy(e->key, name, len);
+    return r;
 }
 static bool known_type(comp_t* c, const char* name, uint32_t len) { return known_type_name(c, name, len) != NULL; }
 static const char* prefixed_type(comp_t* c, const char* prefix, uint32_t plen, const char* name, uint32_t len, uint32_t* outlen) {
@@ -247,7 +271,7 @@ static const char* prefixed_type(comp_t* c, const char* prefix, uint32_t plen, c
     if (!hit) return NULL;
     *outlen = n; return hit;
 }
-static const char* type_name(comp_t* c, const char* name, uint32_t* len) {
+static const char* type_name_slow(comp_t* c, const char* name, uint32_t* len) {
     uint32_t n = *len;
     namespace_scope_t* scope = c->fc && c->fc->cls ? c->fc->cls->scope : c->prog->root_scope;
     for (classdecl_t* d = c->fc ? c->fc->cls : NULL; d; d = d->outer) {
@@ -288,6 +312,27 @@ static const char* type_name(comp_t* c, const char* name, uint32_t* len) {
         if (native) { *len = tlen; return native; }
     }
     *len = n; return name;
+}
+/* type_name() result depends only on (enclosing class or root scope, name) while a
+ * program compiles, so repeated references to the same identifier are memoized.
+ * A result that is just the caller's own name pointer is recorded as such. */
+typedef struct tn_ent { const void* scope; const char* val; uint32_t hash; uint32_t rlen; uint8_t len; bool same; char key[KT_KEY]; } tn_ent_t;
+static const char* type_name(comp_t* c, const char* name, uint32_t* len) {
+    uint32_t n = *len;
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !n || n > KT_KEY)
+        return type_name_slow(c, name, len);
+    const void* scope = c->fc && c->fc->cls ? (const void*)c->fc->cls : (const void*)c->prog->root_scope;
+    uint32_t h = n ^ (uint32_t)(uintptr_t)scope;
+    for (uint32_t i = 0; i < n; i++) h = h * 31u + (uint8_t)name[i];
+    if (!c->tn) { c->tn = (tn_ent_t*)arena_alloc(c->ctx->arena, sizeof(tn_ent_t) * KT_SLOTS); memset(c->tn, 0, sizeof(tn_ent_t) * KT_SLOTS); }
+    tn_ent_t* e = &c->tn[(h ^ (h >> 5)) % KT_SLOTS];
+    if (e->len == n && e->hash == h && e->scope == scope && !memcmp(e->key, name, n)) {
+        *len = e->rlen; return e->same ? name : e->val;
+    }
+    const char* r = type_name_slow(c, name, len);   /* may raise a compile error: nothing cached then */
+    e->scope = scope; e->hash = h; e->len = (uint8_t)n; memcpy(e->key, name, n);
+    e->same = r == name; e->val = r; e->rlen = *len;
+    return r;
 }
 static classdecl_t* find_class(comp_t* c, const char* name, uint32_t len) {
     name = type_name(c, name, &len);
@@ -2081,7 +2126,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
     if (!mcs_parse(&w->ctx, src, &w->prog)) goto done;
     {
         comp_t* c = (comp_t*)arena_alloc(&w->arena, sizeof(comp_t));
-        c->ctx = &w->ctx; c->vm = vm; c->prog = &w->prog; c->arr_conv = 0xff; c->gvars = NULL;
+        c->ctx = &w->ctx; c->vm = vm; c->prog = &w->prog; c->arr_conv = 0xff; c->gvars = NULL; c->kt = NULL; c->tn = NULL;
         c->src_name = mcs_intern_c(vm, name);
         if (setjmp(c->jb)) goto done;
         fcomp_t* mainfc = (fcomp_t*)arena_alloc(&w->arena, sizeof(fcomp_t));
