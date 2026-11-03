@@ -1,7 +1,7 @@
 # LVGL support: work-in-progress handoff
 
 Status: **WIP.** The binding compiles and runs against LVGL 8.3.11 and 9.2.2; `make lvgl-test` passes (13 tests) on both (session 6).
-Steps 1-3 (make target, tests + CI, callbacks) are done. Build files, docs and Studio are still to do (see "Next steps").
+Steps 1-4 (make target, tests + CI, callbacks, build files) are done. Docs and Studio are still to do (see "Next steps").
 
 Goal, design and generator/runtime details: sections "Goal" .. "Docs / Studio" of the previous version of this file: `git show 0b5a304:docs/LVGL_HANDOFF.md` (still valid; its status/progress parts are replaced by this file).
 
@@ -65,7 +65,22 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
 * Set-up from scratch worked (pip install pycparser; LVGL worktrees v8.3.11 + v9.2.2; `python3 tools/lvgl_gen/build_api.py --all` takes ~3 min).
   Re-verified: both `make lvgl-test` runs pass (12 run + 1 `only:` skip each).
 
+* DONE step 4 (build files), all tested on the host unless noted:
+  * `cmake/MicroCSLvgl.cmake`: `microcs_lvgl_wanted/find_lvgl/lvgl_api/add_lvgl/add_lvgl_host`. Options MICROCS_LVGL, MICROCS_LVGL_DIR (or an `lvgl`
+    target / lvgl/ folder / ZEPHYR_LVGL_MODULE_DIR), MICROCS_LVGL_API_INC (ready-made tables, no Python), MICROCS_LVGL_BUILD (host: builds LVGL +
+    `mcs_lvgl_host.c` -> `mcs --lvgl`), MICROCS_LVGL_FS_LETTER/AUTO_HANDLER/CLEANUP_ON_CLOSE. Tables are generated at configure time into
+    `<build>/microcs_lvgl/` (stamp = LVGL + generator hashes). Needs `pip install cmake ninja` here (cmake is not preinstalled).
+    Verified: host build on v8.3.11 + v9.2.2, and a project with `add_subdirectory(lvgl)` + MicroCS linking `lvgl`.
+  * ESP-IDF (`CMakeLists.txt` + `Kconfig` MICROCS_LVGL*), Zephyr (`zephyr/CMakeLists.txt`, `zephyr/Kconfig`, depends on LVGL): written, NOT built
+    (no IDF/Zephyr here). IDF adds `lvgl__lvgl` / `lvgl` to REQUIRES when the project has that component (like mdns).
+  * Arduino: `tools/make_arduino.py --lvgl --lvgl-dir DIR | --lvgl-api-inc FILE` (copies the `.inc` files, writes the tables, `depends=lvgl`);
+    PlatformIO: `tools/pio_build.py` (MCS_ENABLE_LVGL=1 in build_flags -> generates tables; ini options `custom_microcs_lvgl_dir/_api_inc`; untested
+    without PIO); `microcs.mk` (MICROCS_LVGL_DIR / MICROCS_LVGL_API_INC); idf_component.yml comment; capability `Lvgl` in mcs_capabilities.def
+    (`Hal.Has("Lvgl")`, test t14); `config/mcs_user_config.h` got the LVGL options + MCS_ROM_GLOBALS_MAX (`make config-check` was failing).
+  * CI job `lvgl-build-files` (CMake host builds, own lvgl target, Arduino package compile, microcs.mk).
+* Known: `make docs-check` fails (tests/test_wiki_sync.py): docs/LVGL_HANDOFF.md (and later docs/LVGL.md) must be mapped in tools/wiki_sync.py
+  SECTIONS or excluded from `documentation_sources()`. Fix in step 5.
+
 ## Next steps (in order)
-4. Build files: CMake (`cmake/MicroCSLvgl.cmake`), Kconfig, Zephyr, ESP-IDF (idf_component.yml), Arduino (tools/make_arduino.py --lvgl), PlatformIO (library.json), mcs_capabilities.def.
 5. docs/LVGL.md, README, other docs, CHANGELOG, Studio template 33-lvgl + IntelliSense from `--api-json`.
 Note: an older, different-design attempt exists on branch `feat/host-owned-lvgl` (useful for tests/build files only).

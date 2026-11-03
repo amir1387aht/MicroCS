@@ -43,3 +43,19 @@ endif
 ifeq ($(MICROCS_SERVO),0)
 MICROCS_DEFS += -DMCS_ENABLE_SERVO=0
 endif
+# LVGL 8.x / 9.x (docs/LVGL.md): C# calls lv_obj_create, LV_ALIGN_CENTER... with the C names. LVGL is not bundled
+# and you do the porting (lv_init, display, input). MICROCS_LVGL_DIR := path/to/lvgl turns the binding on: the API
+# tables are generated for that LVGL when the makefile is read (python3 + pycparser), or give a ready-made file:
+# MICROCS_LVGL_API_INC := path/to/mcs_lvgl_api.inc (all-versions file of the releases, no Python needed).
+# Your own build must compile LVGL with your lv_conf.h; C_INCLUDES gets the LVGL folder.
+ifneq ($(MICROCS_LVGL_DIR),)
+ifeq ($(MICROCS_LVGL_API_INC),)
+MICROCS_LVGL_API_INC := $(abspath $(or $(MICROCS_LVGL_OUT),build/microcs_lvgl))/mcs_lvgl_api.inc
+_mcs_lvgl_gen := $(shell mkdir -p $(dir $(MICROCS_LVGL_API_INC)) && python3 $(MICROCS_DIR)/tools/lvgl_gen/build_api.py --lvgl $(MICROCS_LVGL_DIR) --work $(dir $(MICROCS_LVGL_API_INC))work --out $(MICROCS_LVGL_API_INC) >&2 || echo failed)
+ifneq ($(_mcs_lvgl_gen),)
+$(error MicroCS: generating the LVGL API tables failed (pip install pycparser; or set MICROCS_LVGL_API_INC))
+endif
+endif
+MICROCS_DEFS += -DMCS_ENABLE_LVGL=1 -DMCS_LVGL_API_INC=\"$(abspath $(MICROCS_LVGL_API_INC))\"
+MICROCS_INCS += -I$(MICROCS_LVGL_DIR)
+endif

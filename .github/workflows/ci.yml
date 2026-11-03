@@ -286,6 +286,38 @@ jobs:
             modules/lvgl/mcs_lvgl_api.inc
             build/lvgl-api/lvgl_api.json
 
+  lvgl-build-files:
+    name: LVGL build files (CMake, Arduino package, microcs.mk)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pycparser
+      - name: Fetch LVGL 8.3.11 and 9.2.2
+        run: make fetch-lvgl LVGL_VERSION=v8.3.11 && make fetch-lvgl LVGL_VERSION=v9.2.2
+      - name: CMake host build (MICROCS_LVGL=ON, MICROCS_LVGL_DIR) -> mcs --lvgl
+        run: |
+          for v in v8.3.11 v9.2.2; do
+            cmake -S . -B build/cm-$v -DMICROCS_LVGL=ON -DMICROCS_LVGL_DIR=$PWD/build/third_party/lvgl-$v
+            cmake --build build/cm-$v -j4
+            echo 'var s = lv_obj_create(null); lv_scr_load(s); Console.WriteLine(lv_obj_get_width(s));' > /tmp/l.cs
+            build/cm-$v/mcs --lvgl /tmp/l.cs
+          done
+      - name: CMake with the project's own lvgl target (add_subdirectory(lvgl) before MicroCS)
+        run: |
+          mkdir -p build/app && cd build/app
+          printf 'cmake_minimum_required(VERSION 3.13)\nproject(app C)\nset(LV_CONF_PATH ${{ github.workspace }}/tests/lvgl/v9/lv_conf.h CACHE STRING "")\nadd_subdirectory(${{ github.workspace }}/build/third_party/lvgl-v9.2.2 lvgl)\nset(MICROCS_LVGL ON)\nadd_subdirectory(${{ github.workspace }} microcs)\nadd_executable(app app.c)\ntarget_link_libraries(app PRIVATE microcs lvgl)\n' > CMakeLists.txt
+          echo 'int main(void){return 0;}' > app.c
+          cmake -S . -B b && cmake --build b -j4
+      - name: Arduino library with --lvgl compiles
+        run: |
+          python3 tools/make_arduino.py --out build/ard --lvgl --lvgl-dir build/third_party/lvgl-v9.2.2
+          cd build/ard/MicroCS/src
+          gcc -std=gnu99 -c -Wall -DLV_CONF_INCLUDE_SIMPLE -I$GITHUB_WORKSPACE/tests/lvgl/v9 -I$GITHUB_WORKSPACE/build/third_party/lvgl-v9.2.2 -I. mcs_lvgl.c -o /tmp/x.o
+      - name: microcs.mk MICROCS_LVGL_DIR
+        run: |
+          printf 'MICROCS_DIR := $(CURDIR)\nMICROCS_LVGL_DIR := $(CURDIR)/build/third_party/lvgl-v8.3.11\ninclude $(MICROCS_DIR)/microcs.mk\nall:\n\t@echo $(MICROCS_DEFS) | grep MCS_LVGL_API_INC\n' > build/mk.mk
+          make -f build/mk.mk
+
   u8g2:
     name: U8g2 displays (optional, u8g2 2.37.1)
     runs-on: ubuntu-24.04

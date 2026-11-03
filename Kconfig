@@ -380,4 +380,51 @@ menu "MicroCS"
         depends on MICROCS_U8G2
         default ""
 
+    config MICROCS_LVGL
+        bool "LVGL 8.x / 9.x (C# calls lv_obj_create, LV_ALIGN_CENTER, lv_style_t... with the C names)"
+        default n
+        help
+            The LVGL binding (docs/LVGL.md). LVGL is not bundled and you do the
+            porting (lv_init, display driver, input, lv_tick) in your firmware
+            - for example with the espressif/esp_lvgl_port component. Add the
+            lvgl component to the project (idf.py add-dependency lvgl/lvgl);
+            MicroCS finds its headers and generates the API tables for exactly
+            that LVGL at configure time (python3 + pycparser needed on the build
+            machine) or uses MICROCS_LVGL_API_INC. Fonts and images load from
+            the MicroCS file system (LittleFS / YAFFS2) as "M:/path".
+
+    config MICROCS_LVGL_DIR
+        string "LVGL sources (folder with lvgl.h)"
+        depends on MICROCS_LVGL
+        default ""
+        help
+            Empty: managed_components/lvgl__lvgl or components/lvgl of the project.
+
+    config MICROCS_LVGL_API_INC
+        string "Ready-made LVGL API tables (mcs_lvgl_api.inc, optional)"
+        depends on MICROCS_LVGL
+        default ""
+        help
+            The all-versions file from the MicroCS release artifacts or from
+            python3 tools/lvgl_gen/build_api.py --all. Works with any 8.x / 9.x
+            and needs no Python. Empty: generate it for the LVGL found.
+
+    config MICROCS_LVGL_FS_LETTER
+        string "LVGL drive letter of the MicroCS file system"
+        depends on MICROCS_LVGL
+        default "M"
+
+    config MICROCS_LVGL_AUTO_HANDLER
+        bool "Run lv_timer_handler() while scripts sleep"
+        depends on MICROCS_LVGL
+        default n
+        help
+            Off: your own LVGL task calls lv_timer_handler() (wrap it with the
+            same lock the scripts use, MCS_LVGL_LOCK in the config header).
+
+    config MICROCS_LVGL_CLEANUP_ON_CLOSE
+        bool "Delete the objects, timers and animations a script made when it ends"
+        depends on MICROCS_LVGL
+        default y
+
 endmenu

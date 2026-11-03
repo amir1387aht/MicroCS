@@ -24,6 +24,11 @@ library (Arduino/libraries/MicroCS/src/), or bake the options in here:
     --u8g2-displays A,B     displays compiled in (python3 tools/u8g2.py displays)
     --u8g2-fonts A,B        U8g2 fonts in flash, the first is the default (tools/u8g2.py fonts)
     --u8x8-fonts A,B        U8x8 fonts in flash
+    --lvgl                  C# calls LVGL 8.x / 9.x with the C names (docs/LVGL.md): needs the LVGL library
+                            (Library Manager: "lvgl") + your own lv_conf.h / port; the binding's API tables
+                            are generated at packaging time (python3 + pycparser), from
+    --lvgl-dir DIR          the LVGL checkout / library folder (the version you build against), or
+    --lvgl-api-inc FILE     a ready-made mcs_lvgl_api.inc (the all-versions file of the releases)
     --define NAME[=VALUE]   any MCS_* option, e.g. --define MCS_ENABLE_SCHED=0 (repeatable)
     --fs littlefs|yaffs2|tinyfs  bundle a flash filesystem so mcs_flashfs_mount() works on any
                             mcs_flash_t (SPI NOR / NAND chip, internal flash). The board
@@ -138,6 +143,24 @@ def u8g2_defines(displays, fonts, xfonts):
     return out
 
 
+def bundle_lvgl(lvgl_dir, api_inc, src):
+    """modules/lvgl/*.inc + the API tables (mcs_lvgl.c includes "mcs_lvgl_api.inc" when MCS_LVGL_API_INC is unset)"""
+    for f in glob.glob(os.path.join(ROOT, "modules", "lvgl", "*.inc")):
+        if os.path.basename(f) != "mcs_lvgl_api.inc":
+            shutil.copy(f, src)
+    dst = os.path.join(src, "mcs_lvgl_api.inc")
+    if api_inc:
+        shutil.copy(api_inc, dst)
+    elif lvgl_dir:
+        import subprocess
+        subprocess.check_call([sys.executable, os.path.join(ROOT, "tools", "lvgl_gen", "build_api.py"), "--lvgl", lvgl_dir,
+                               "--work", os.path.join(ROOT, "build", "lvgl-arduino"), "--out", dst])
+    else:
+        raise SystemExit("make_arduino: --lvgl needs --lvgl-dir <LVGL checkout> or --lvgl-api-inc <mcs_lvgl_api.inc> "
+                         "(python3 tools/lvgl_gen/build_api.py --all makes the all-versions file)")
+    print(f"LVGL tables: {os.path.getsize(dst) // 1024} KB")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=os.path.join(ROOT, "dist", "arduino"))
@@ -148,6 +171,9 @@ def main():
     ap.add_argument("--u8g2-displays", help="comma list of u8g2 displays to compile in")
     ap.add_argument("--u8g2-fonts", help="comma list of U8g2 fonts in flash")
     ap.add_argument("--u8x8-fonts", help="comma list of U8x8 fonts in flash")
+    ap.add_argument("--lvgl", action="store_true", help="C# LVGL API (needs the lvgl library)")
+    ap.add_argument("--lvgl-dir", help="LVGL checkout the API tables are generated from")
+    ap.add_argument("--lvgl-api-inc", help="ready-made mcs_lvgl_api.inc")
     ap.add_argument("--define", action="append", default=[], metavar="NAME[=VALUE]", help="MCS_* build option")
     ap.add_argument("--config", help="your mcs_user_config.h (default: config/mcs_user_config.h)")
     ap.add_argument("--profile", choices=PROFILES, help="build profile (MCS_PROFILE)")
@@ -178,6 +204,10 @@ def main():
     if a.u8g2 or a.u8g2_displays or a.u8g2_fonts or a.u8x8_fonts:
         a.u8g2 = True
         defines += u8g2_defines(a.u8g2_displays, a.u8g2_fonts, a.u8x8_fonts)
+    if a.lvgl or a.lvgl_dir or a.lvgl_api_inc:
+        a.lvgl = True
+        defines.append("MCS_ENABLE_LVGL=1")
+        bundle_lvgl(a.lvgl_dir, a.lvgl_api_inc, src)
     if a.fs:
         defines += bundle_fs(a.fs, fs_dir, src)
         print(f"bundled {a.fs}" + (f" from {fs_dir}" if fs_dir else " (built in)"))
@@ -229,8 +259,8 @@ category=Other
 url=https://github.com/amir1387aht/MicroCS
 architectures=*
 includes=MicroCS.h
-""" + (("depends=" + ",".join(d for d, on in (("U8g2", a.u8g2), ("ArduinoBLE", a.ble)) if on) + "\n")
-       if a.u8g2 or a.ble else ""))
+""" + (("depends=" + ",".join(d for d, on in (("U8g2", a.u8g2), ("ArduinoBLE", a.ble), ("lvgl", a.lvgl)) if on) + "\n")
+       if a.u8g2 or a.ble or a.lvgl else ""))
     zpath = os.path.join(a.out, f"MicroCS-{v}.zip")
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for base, _, names in os.walk(lib):
