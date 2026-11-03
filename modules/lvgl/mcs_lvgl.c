@@ -992,7 +992,15 @@ static mcs_value_t lvo_btnm_set_ctrl_map(mcs_vm_t* vm, mcs_value_t self, int arg
 #define LVB_HAS_BTNM 1
 #endif
 
+/* Like the generated wrappers, these expose APIs that LVGL 9.6 deprecates. */
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include "mcs_lvgl_more.inc"   /* more hand-written wrappers: arrays, observers, tree walk, log, msg... */
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 static const mcs_reg_t lvb_override_fns[] = {   /* sorted */
     MCS_FN("lv_anim_del", lvo_lv_anim_delete, 2),

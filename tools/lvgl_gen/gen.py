@@ -45,6 +45,8 @@ EXTRA_REV = {'lv_obj_send_event': 'lv_event_send', 'lv_binfont_create': 'lv_font
              'lv_binfont_destroy': 'lv_font_free'}
 # Invalidate the wrapper passed to a font destructor to prevent reuse or double-free.
 FONT_FREE = {'lv_font_free', 'lv_binfont_destroy', 'lv_tiny_ttf_destroy'}
+# LVGL 9.0 predates its v8 compatibility map for these two screen names.
+EARLY_V9_ALIASES = {'lv_scr_load': 'lv_screen_load', 'lv_scr_load_anim': 'lv_screen_load_anim'}
 SKIP = {'lv_init', 'lv_deinit', 'lv_is_initialized', 'lv_timer_handler_run_in_period'}
 # hand-written in modules/lvgl/mcs_lvgl.c (callbacks, user data, kept-alive arrays)
 OVERRIDE = {
@@ -387,6 +389,18 @@ class Gen:
                 g = ' && '.join('(%s)' % x for x in (vg_alias, vg) if x) or None
                 self.fn_entries.append((old, wname, arity, 'f', g, conds + ['defined(%s)' % old]))
             self.api.setdefault(old, dict(self.api.get(new, {}), alias=new))
+
+        # LVGL 9.0 has the new screen functions but lacks these v8 aliases. Use
+        # the new wrapper directly; do not require a C preprocessor macro.
+        for old, new in EARLY_V9_ALIASES.items():
+            eligible = {t.tag for t in self.tags if 90000 <= t.ver < 90100
+                        and old not in t.db['functions'] and old not in t.db['macros']['alias']
+                        and new in t.db['functions']}
+            for wname, arity, vg, conds in self.wrapper_of.get(new, []):
+                tags = eligible & self.wrapper_tags[wname]
+                if tags:
+                    self.fn_entries.append((old, wname, arity, 'f', guard_expr(tags, self.tags), conds))
+                    self.api.setdefault(old, dict(self.api.get(new, {}), alias=new))
 
         # v9 names on v8: lv_screen_load -> lv_scr_load, wherever the v9 api map says old == new
         rev = {}

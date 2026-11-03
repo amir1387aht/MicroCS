@@ -46,13 +46,17 @@ static void* slot_block(mcs_vm_t* vm, int kind, const void* k1, const void* k2, 
     return s->mem;
 }
 static int is_seq(mcs_value_t v) { int k = mcs_obj_kind(v); return k == MCS_O_ARRAY || k == MCS_O_LIST; }
+#if MCS_LV_VER >= 80300
 static int val_same(mcs_value_t a, mcs_value_t b) {
     return a.type == b.type && (a.type < MCS_T_OBJ ? a.as.i == b.as.i : a.as.o == b.as.o);
 }
+#endif
+#if LVGL_VERSION_MAJOR >= 9 || (MCS_LV_VER >= 80300 && defined(LV_USE_MSG) && LV_USE_MSG)
 static lvb_cb_t* cb_find(lvb_state_t* st, const void* p, int kind) {
     for (lvb_cb_t* c = st->cbs; c; c = c->next) if ((const void*)c == p && c->kind == kind) return c;
     return NULL;
 }
+#endif
 /* like cb_call, but returns the callback's result (ok = 0 when it did not run or failed) */
 static int cb_call_ret(lvb_state_t* st, int fn_idx, int argc, mcs_value_t* argv, mcs_value_t* res) {
     mcs_vm_t* vm = st->vm;
@@ -277,6 +281,8 @@ static mcs_value_t lvo_lv_obj_remove_event(mcs_vm_t* vm, mcs_value_t self, int a
     if (r && c) { cb_zombify(st, c); REAP(st); }
     return mcs_bool(r);
 }
+#endif
+#if MCS_LV_VER >= 90100
 static mcs_value_t lvo_lv_obj_remove_event_dsc(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc;
     lvb_state_t* st = ST(vm);
@@ -290,7 +296,7 @@ static mcs_value_t lvo_lv_obj_remove_event_dsc(mcs_vm_t* vm, mcs_value_t self, i
     if (r && c) { cb_zombify(st, c); REAP(st); }
     return mcs_bool(r);
 }
-#else
+#elif LVGL_VERSION_MAJOR < 9
 static mcs_value_t lvo_lv_obj_remove_event_dsc(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; (void)argv;
     mcs_raise(vm, "NotSupportedException", "lv_obj_remove_event_dsc: LVGL 8 descriptors are not stable - use lv_obj_remove_event_cb");
@@ -310,6 +316,7 @@ static int32_t anim_getval_tramp(lv_anim_t* a) {
     mcs_pop_root(vm, 1);
     return ok && !mcs_is_null(res) ? (int32_t)mcs_to_int(vm, res) : 0;
 }
+#if MCS_LV_VER >= 80300
 static void anim_deleted_tramp(lv_anim_t* a) {
     lvb_cb_t* c = (lvb_cb_t*)a->user_data;
     if (!c || c->magic != LVB_MAGIC || c->deleted < 0) return;
@@ -319,6 +326,7 @@ static void anim_deleted_tramp(lv_anim_t* a) {
     tmp_dispose(w);
     mcs_pop_root(c->st->vm, 1);
 }
+#endif
 static mcs_value_t lvo_lv_anim_set_custom_exec_cb(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; check_callable(vm, argv[1], 1); if (mcs_has_exception(vm)) return mcs_null(); ANIM_ARG(0);
     set_kept(st, &c->fn, argv[1]);
@@ -326,12 +334,14 @@ static mcs_value_t lvo_lv_anim_set_custom_exec_cb(mcs_vm_t* vm, mcs_value_t self
     lv_anim_set_custom_exec_cb(a, mcs_is_null(argv[1]) ? NULL : anim_exec_tramp);
     return mcs_null();
 }
+#if MCS_LV_VER >= 80300
 static mcs_value_t lvo_lv_anim_set_deleted_cb(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; check_callable(vm, argv[1], 1); if (mcs_has_exception(vm)) return mcs_null(); ANIM_ARG(0);
     set_kept(st, &c->deleted, argv[1]);
     lv_anim_set_deleted_cb(a, mcs_is_null(argv[1]) ? NULL : anim_deleted_tramp);
     return mcs_null();
 }
+#endif
 static mcs_value_t lvo_lv_anim_set_get_value_cb(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; check_callable(vm, argv[1], 1); if (mcs_has_exception(vm)) return mcs_null(); ANIM_ARG(0);
     set_kept(st, &c->getval, argv[1]);
@@ -377,10 +387,17 @@ static mcs_value_t lvo_lv_dropdown_get_selected_str(mcs_vm_t* vm, mcs_value_t se
 static mcs_value_t lvo_lv_roller_get_selected_str(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) { (void)self; (void)argc; return selected_str(vm, argv, 1); }
 #endif
 
-/* ---- observers / subjects (LVGL 9.1+, LV_USE_OBSERVER): cb(observer, subject) */
+/* ---- observers / subjects (LVGL 9.x, LV_USE_OBSERVER): cb(observer, subject) */
 #if LV_USE_OBSERVER
+static void* observer_user_data(lv_observer_t* o) {
+#if MCS_LV_VER >= 90200
+    return lv_observer_get_user_data(o);
+#else
+    return o->user_data;   /* LVGL 9.0/9.1 exposes the struct, not the getter */
+#endif
+}
 static void observer_tramp(lv_observer_t* o, lv_subject_t* s) {
-    lvb_cb_t* c = (lvb_cb_t*)lv_observer_get_user_data(o);
+    lvb_cb_t* c = (lvb_cb_t*)observer_user_data(o);
     if (!c || c->magic != LVB_MAGIC || c->kind != CB_OBSERVER) return;
     mcs_vm_t* vm = c->st->vm;
     if (c->st->closing || mcs_has_exception(vm)) return;
@@ -425,7 +442,7 @@ static mcs_value_t lvo_lv_observer_get_user_data(mcs_vm_t* vm, mcs_value_t self,
     (void)self; (void)argc;
     lvb_state_t* st = ST(vm);
     lv_observer_t* o = (lv_observer_t*)lvb_arg_ptr(vm, argv[0], LVB_C_lv_observer_t, 0);
-    lvb_cb_t* c = o ? cb_find(st, lv_observer_get_user_data(o), CB_OBSERVER) : NULL;
+    lvb_cb_t* c = o ? cb_find(st, observer_user_data(o), CB_OBSERVER) : NULL;
     return c ? kept(st, c->ud) : mcs_null();
 }
 /* string subjects: the buffers are allocated here (size bytes each), the C buffers given are ignored */
@@ -498,7 +515,7 @@ static mcs_value_t lvo_lv_subject_get_previous_pointer(mcs_vm_t* vm, mcs_value_t
 #endif
 
 /* ---- LVGL 8 messages (LV_USE_MSG): the subscription is an int token for lv_msg_unsubscribe */
-#if LVGL_VERSION_MAJOR < 9 && defined(LV_USE_MSG) && LV_USE_MSG
+#if MCS_LV_VER >= 80300 && LVGL_VERSION_MAJOR < 9 && defined(LV_USE_MSG) && LV_USE_MSG
 static void msg_tramp(void* s, lv_msg_t* m) {
     lvb_cb_t* c = (lvb_cb_t*)lv_msg_get_user_data(m);
     if (!c || c->magic != LVB_MAGIC || c->kind != CB_MSG) return;
@@ -626,7 +643,9 @@ static void lvb_more_close_late(lvb_state_t* st) {
 
 static const mcs_reg_t lvb_override2_fns[] = {   /* sorted */
     MCS_FN("lv_anim_set_custom_exec_cb", lvo_lv_anim_set_custom_exec_cb, 2),
+#if MCS_LV_VER >= 80300
     MCS_FN("lv_anim_set_deleted_cb", lvo_lv_anim_set_deleted_cb, 2),
+#endif
     MCS_FN("lv_anim_set_get_value_cb", lvo_lv_anim_set_get_value_cb, 2),
     MCS_FN("lv_async_call_cancel", lvo_lv_async_call_cancel, 2),
 #if LV_USE_CALENDAR
@@ -648,7 +667,7 @@ static const mcs_reg_t lvb_override2_fns[] = {   /* sorted */
 #if LV_USE_LOG
     MCS_FN("lv_log_register_print_cb", lvo_lv_log_register_print_cb, 1),
 #endif
-#if LVGL_VERSION_MAJOR < 9 && defined(LV_USE_MSG) && LV_USE_MSG
+#if MCS_LV_VER >= 80300 && LVGL_VERSION_MAJOR < 9 && defined(LV_USE_MSG) && LV_USE_MSG
     MCS_FN("lv_msg_get_user_data", lvo_lv_msg_get_user_data, 1),
     MCS_FN("lv_msg_subscribe", lvo_lv_msg_subscribe, 3),
     MCS_FN("lv_msg_subscribe_obj", lvo_lv_msg_subscribe_obj, 3),
@@ -659,7 +678,9 @@ static const mcs_reg_t lvb_override2_fns[] = {   /* sorted */
 #if LVGL_VERSION_MAJOR >= 9
     MCS_FN("lv_obj_remove_event", lvo_lv_obj_remove_event, 2),
 #endif
+#if LVGL_VERSION_MAJOR < 9 || MCS_LV_VER >= 90100
     MCS_FN("lv_obj_remove_event_dsc", lvo_lv_obj_remove_event_dsc, 2),
+#endif
 #if LV_USE_GRID
     MCS_FN("lv_obj_set_grid_dsc_array", lvo_lv_obj_set_grid_dsc_array, 3),
     MCS_FN("lv_obj_set_style_grid_column_dsc_array", lvo_lv_obj_set_style_grid_column_dsc_array, 3),

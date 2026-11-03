@@ -80,7 +80,7 @@ mcs_lvgl_open_lib(vm);               /* makes the lv_* names visible to scripts 
 
 Every function, enum constant, `LV_*` macro constant, `LV_SYMBOL_*` string, built-in font (`lv_font_montserrat_14`...) and struct type
 keeps its C name. Only the names your LVGL really has exist; a name that is missing (an `LV_USE_*` feature that is off, a function
-from a newer LVGL) raises `MissingMemberException` when it is used.
+from a newer LVGL) raises `MissingMemberException` when it is used. For example, animation deleted callbacks and LVGL 8 messages require 8.3 or later; descriptor-based event removal requires 9.1 or later on LVGL 9.
 
 **v8 and v9 spellings both work.** `lv_screen_active()` and `lv_scr_act()`, `lv_button_create` and `lv_btn_create`, `lv_obj_delete` and
 `lv_obj_del`, `lv_obj_send_event` and `lv_event_send`, `lv_binfont_create` and `lv_font_load`... map to whatever your LVGL has (taken from
@@ -266,7 +266,7 @@ The **LVGL graphics** template category needs a firmware that reports the `Lvgl`
   on the in-memory display.
 * ASan/UBSan with LVGL using the C allocator and LeakSanitizer expose native lifetime issues that the default LVGL pool allocator can hide. In LVGL 9.2.2, drawing a partially populated line chart can trigger a signed-overflow UBSan report in LVGL `lv_chart.c:847` (the `LV_CHART_POINT_NONE` sentinel); this is upstream code, not a clean sanitizer result.
 * CI (`.github/workflows/ci.yml`): `lvgl` (8.3.11 and 9.2.2: tests and templates), `lvgl-api` (tables for all releases, compile against
-  8.0.0, 8.4.0, 9.0.0 and 9.6.0, generated Studio data is current), `lvgl-build-files` (CMake host builds, a project with its own `lvgl` target,
+  8.0.0, 8.2.0, 8.4.0, 9.0.0, 9.1.0 and 9.6.0, generated Studio data is current), `lvgl-build-files` (CMake host builds, a project with its own `lvgl` target,
   the Arduino package, `microcs.mk`).
 
 ## How the API tables are generated

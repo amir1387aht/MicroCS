@@ -279,13 +279,12 @@ jobs:
         run: |
           python3 tools/lvgl_gen/studio_data.py --json build/lvgl-api/lvgl_api.json --check
           git diff --exit-code tools/lvgl_gen/renames.json
-      - name: Compile against the oldest, a middle and the newest releases of each major
+      - name: Compile against oldest, feature boundaries and newest releases
         run: |
-          for t in v8.0.0 v8.4.0 v9.0.0 v9.6.0; do
+          for t in v8.0.0 v8.2.0 v8.4.0 v9.0.0 v9.1.0 v9.6.0; do
             make fetch-lvgl LVGL_VERSION=$t
             make -j4 mcs-lvgl LVGL_TABLES=all LVGL_VERSION=$t
-            echo 'var s = lv_obj_create(null); lv_screen_load(s); lv_scr_load(s); Console.WriteLine(lv_obj_get_width(s));' > /tmp/l.cs
-            build/mcs_lvgl --lvgl /tmp/l.cs
+            build/mcs_lvgl --lvgl tests/lvgl/compat/matrix.cs
           done
       - uses: actions/upload-artifact@v4
         with:

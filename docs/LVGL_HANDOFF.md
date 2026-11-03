@@ -97,6 +97,11 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
 * LVGL 9.2.2 `lv_chart.c:847` triggers signed integer overflow with unpopulated line-chart points under UBSan. This is in upstream LVGL and remains unresolved here.
 * Added tests t15–t17 (1,000 object/callback/timer cycles with GC and pending async, explicit font destroy/reuse, and 150 array/style cycles) and five Studio/standalone examples. After the fix, C-heap ASan/UBSan/LeakSanitizer passed 16 applicable tests on v8 and 15 on v9; the remaining v9 test aborted on the upstream chart UBSan finding, so its leak result is unknown. Hardware and constrained heap/OOM/VM-reopen stress remain to be tested.
 
+### PR #76 CI compatibility fix
+* The all-release table job failed first on LVGL 8.0: message and animation deleted-callback wrappers assumed APIs introduced in 8.3, and callback helpers were unused. Guarded both code and registration.
+* Subsequent matrix runs exposed LVGL 9.0/9.1 differences: descriptor removal is only available from 9.1; observer user data is a struct field before 9.2. Added a compatibility accessor and 9.0 screen aliases for both all-release and single-release generation. LVGL 9.6 deprecated subject init functions are retained with scoped warning suppression.
+* Verified all-release builds and compatibility smoke tests for 8.0.0, 8.2.0, 8.4.0, 9.0.0, 9.1.0 and 9.6.0, plus single-release 9.0.0. Both 8.3.11 and 9.2.2 LVGL suites pass (16 tests each). CI now exercises the boundary versions and observer callbacks.
+
 ## Next steps
 All five steps are done. What remains is outside what this sandbox can check:
 1. Build the ESP-IDF, Zephyr and PlatformIO integrations once with real toolchains (written, never built) and fix what shows up.
