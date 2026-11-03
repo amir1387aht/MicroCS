@@ -1,7 +1,7 @@
 # LVGL support: work-in-progress handoff
 
-Status: **WIP.** The binding compiles and runs against LVGL 8.3.11 and 9.2.2; `make lvgl-test` passes (9 tests) on both (session 3).
-CI, remaining callbacks, build files, docs and Studio are still to do (see "Next steps").
+Status: **WIP.** The binding compiles and runs against LVGL 8.3.11 and 9.2.2; `make lvgl-test` passes (13 tests) on both (session 6).
+Steps 1-3 (make target, tests + CI, callbacks) are done. Build files, docs and Studio are still to do (see "Next steps").
 
 Goal, design and generator/runtime details: sections "Goal" .. "Docs / Studio" of the previous version of this file: `git show 0b5a304:docs/LVGL_HANDOFF.md` (still valid; its status/progress parts are replaced by this file).
 
@@ -57,10 +57,15 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
 * Tests made version independent: event code printed as CLICKED (enum values move in 9.6), font height >= 14, TTF found in `examples/libs/tiny_ttf`
   when `scripts/built_in_font` is gone (9.6). `make lvgl-test` passes on 8.3.11, 8.4.0, 9.0.0, 9.2.2, 9.6.0. (8.0.0: builds, smoke ok, t01 child count differs - not a binding bug.)
 
+### Session 5 (pushed as 7c7544e, was not logged)
+* DONE step 3: every name in gen.py OVERRIDE now has a hand-written wrapper: `modules/lvgl/mcs_lvgl_more.inc` (arrays, observers, tree walk,
+  log, lv_msg, chart/calendar/canvas/grid/transition) and `mcs_lvgl_macros.inc` (LV_PCT(), LV_GRID_FR()... macro functions, extern constants).
+  Tests t10 (arrays), t11 (callbacks), t12 (observer), t13 (lv_msg). `mcs_lvgl_close_lib` is called in ports/unix/main.c.
+### Session 6
+* Set-up from scratch worked (pip install pycparser; LVGL worktrees v8.3.11 + v9.2.2; `python3 tools/lvgl_gen/build_api.py --all` takes ~3 min).
+  Re-verified: both `make lvgl-test` runs pass (12 run + 1 `only:` skip each).
+
 ## Next steps (in order)
-2. (tests + CI done)
-3. Callbacks listed in gen.py OVERRIDE that do not exist yet (observers, chart ext arrays, calendar dates, canvas buffer,
-   grid dsc arrays, style transitions, tree walk, lv_msg, log cb, dropdown/roller get_selected_str); `mcs_lvgl_close_lib` before mcs_free in ports/unix/main.c.
 4. Build files: CMake (`cmake/MicroCSLvgl.cmake`), Kconfig, Zephyr, ESP-IDF (idf_component.yml), Arduino (tools/make_arduino.py --lvgl), PlatformIO (library.json), mcs_capabilities.def.
 5. docs/LVGL.md, README, other docs, CHANGELOG, Studio template 33-lvgl + IntelliSense from `--api-json`.
 Note: an older, different-design attempt exists on branch `feat/host-owned-lvgl` (useful for tests/build files only).
