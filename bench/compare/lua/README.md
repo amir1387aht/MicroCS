@@ -8,7 +8,8 @@ All programs print the same checksums (832040, 29999994, 980302).
 Reproduce on Linux x86-64 with GCC, Python, .NET 8 and a Lua 5.4.8 source build:
 
 ```sh
-make -j2 mcs build/bench_host
+make -j2 mcs
+make bench                          # builds build/bench_host
 sh bench/compare/nanoframework/run.sh   # downloads and builds nanoCLR benchmark
 export LUA_DIR=/path/to/lua-5.4.8      # build with: make generic MYCFLAGS=-O2
 mkdir -p build/compare-lua
