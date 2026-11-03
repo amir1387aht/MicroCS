@@ -1,5 +1,11 @@
 # Performance and footprint
 
+> **Benchmark provenance:** except for the explicitly labelled host float benchmark below,
+> the target footprint, emulator and cross-runtime numbers on this page are historical
+> and have not been remeasured for PR b1698b4. The cross-runtime comparison used MicroCS
+> 1.6.0. See the [README](../README.md#-performance--footprint) for the latest PR-versus-main
+> host benchmark; rerun target tests before relying on historical hardware figures.
+
 > [!IMPORTANT]
 > Unless marked **real hardware**, every number on this page was produced in this
 > repository's sandbox with the command next to it; Cortex-M figures there are *instruction
