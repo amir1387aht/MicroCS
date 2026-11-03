@@ -13,8 +13,11 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   targets to trade speed for ~5 KB of flash).
 * Native calls take their argument vector from a small per-VM arena
   (`MCS_NATIVE_ARENA`, default 32 slots, 8 in `min`/`lowram`) instead of the heap.
-* Faster `name_is` (library lookup) removes most of the 1.17 compile-time
-  regression caused by namespace-qualified type resolution.
+* Cut the compile-time cost of namespace-qualified type resolution: cheaper
+  `name_is` library lookup, plus per-compile memoization of `known_type_name()`
+  and `type_name()` (keyed by enclosing class/scope; a few KB of transient
+  compile arena). Output is unchanged; `tests/t35_type_scope.cs` covers
+  same-named types in different namespaces, nested classes and `using`.
 * Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
   poison the old block) and `tests/t34_stack_relocation.cs`.
 
