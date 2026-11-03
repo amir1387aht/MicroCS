@@ -131,3 +131,8 @@
 #ifndef MCS_POOL_ALIGN
 #define MCS_POOL_ALIGN 4
 #endif
+
+/* native argv arena: a few values are enough for the typical call (heap fallback beyond it) */
+#ifndef MCS_NATIVE_ARENA
+#define MCS_NATIVE_ARENA 8
+#endif

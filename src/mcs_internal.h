@@ -236,13 +236,6 @@ enum {
 #define MCS_MAX_PINS 16
 #endif
 
-/* Suspended interpreter registers are relocation roots, including native reentry. */
-typedef struct mcs_exec_view {
-    struct mcs_exec_view* prev;
-    mcs_value_t** sp;
-    mcs_value_t** slots;
-    mcs_frame_t** frame;
-} mcs_exec_view_t;
 typedef struct mcs_native_args {
     struct mcs_native_args* prev;
     int count;
@@ -257,8 +250,9 @@ struct mcs_vm {
     uint32_t stack_cap;       /* actual reservation; cfg.stack_slots stays the execution limit */
     mcs_frame_t* frames;
     uint16_t frame_cap;
-    mcs_exec_view_t* exec_views;
     mcs_native_args_t* native_args;
+    uint16_t nargs_top;
+    mcs_value_t nargs_arena[MCS_NATIVE_ARENA];
     uint32_t stack_peak;
     uint16_t frame_peak;
     int frame_count;
