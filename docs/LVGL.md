@@ -27,7 +27,8 @@ Contents: [Design](#design) · [Turning it on](#turning-it-on) · [What the firm
   (`modules/lvgl/mcs_lvgl.c`, `mcs_lvgl_more.inc`, `mcs_lvgl_macros.inc`) only covers value conversion, object lifetime, callbacks and the
   file-system driver.
 * **Costs no RAM until used.** The tables are flat `const` flash tables; a name is looked up when a script uses it (`MCS_ROM_GLOBALS_MAX`
-  allows the two tables the binding needs). A firmware without `MCS_ENABLE_LVGL` has nothing of this in it.
+  allows the four tables the binding needs). LVGL data and wrappers are omitted when `MCS_ENABLE_LVGL=0`.
+  Generic ROM-table lookup remains available by default; set `MCS_ROM_GLOBALS_MAX=0` to omit it on non-LVGL builds.
 * **Tested on the host** against LVGL 8.3.11 and 9.2.2 (`make lvgl-test`, `tests/lvgl/t01`…`t14`) and compiled against the oldest, a middle and the
   newest release of each major in CI. See [Limits](#limits) for what has not been run on real targets.
 

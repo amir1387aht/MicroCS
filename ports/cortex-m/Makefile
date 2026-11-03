@@ -93,8 +93,9 @@ $(OUT)/m0-16k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefi
 # (the linker fails if the firmware does not fit in 64 KB). No -u _printf_float.
 # Link-time optimization, like the other constrained M0 targets above: retain
 # all enabled language semantics while removing unreachable firmware code.
+# This firmware does not use ROM API tables; omit that optional lookup machinery.
 # Keep the two newlib syscall symbols whose references can appear after LTO.
-MIN_F := $(M0) -flto -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+MIN_F := $(M0) -flto -DMCS_ROM_GLOBALS_MAX=0 -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 all: $(OUT)/m0-64k.elf
 $(OUT)/m0-64k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
 	@mkdir -p $(OUT)

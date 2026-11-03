@@ -483,7 +483,12 @@ typedef struct {
 #ifndef MCS_ROM_GLOBALS_MAX
 #define MCS_ROM_GLOBALS_MAX 4
 #endif
-/* false when the per-VM table limit is reached */
+/* Set MCS_ROM_GLOBALS_MAX=0 to omit ROM-table support (registration then
+ * returns false), e.g. on a very small target that does not use LVGL.
+ * false when the per-VM table limit is reached */
+#if MCS_ENABLE_LVGL && MCS_ROM_GLOBALS_MAX < 4
+#error "LVGL requires MCS_ROM_GLOBALS_MAX >= 4"
+#endif
 bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table);
 /* The C function behind a native function value (NULL for anything else),
  * so a binding can hand a native back to C, e.g. an LVGL animation path. */

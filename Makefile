@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: rom-globals-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -190,6 +190,12 @@ test-config: | build
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -DMCS_GC_GROW=3 \
 	  $(SRC) $(MOD_SRC) tests/c/test_config.c -o build/test_config $(LDLIBS) && ./build/test_config || { echo "FAIL config: $$f"; exit 1; }; done
 
+# Verify both the normal ROM tables and the optional no-ROM small-target build.
+rom-globals-test: | build
+	@for max in 0 4; do \
+	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_ROM_GLOBALS_MAX=$$max \
+	  $(SRC) $(MOD_SRC) tests/c/test_rom_globals.c -o build/test_rom_globals $(LDLIBS) && ./build/test_rom_globals || exit 1; done
+
 # The config template holds every option with the full profile's defaults;
 # tools/gen_config.py writes it for the other profiles (each must build -Werror,
 # and a header for another profile than the build asks for must warn).
@@ -304,7 +310,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test rom-globals-test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips

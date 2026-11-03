@@ -736,8 +736,10 @@ Measure speed and footprint before choosing a profile.
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
-- [x] Optional [LVGL 8.x / 9.x](docs/LVGL.md) binding (every function, enum and constant with its C name; experimental)
-- [ ] ROM-resident class metadata
+- [ ] ROM-resident class metadata; LVGL bindings ([work in progress](https://github.com/amir1387aht/MicroCS/pull/76))
+
+See [CHANGELOG.md](CHANGELOG.md) for release details. The shell is not authenticated;
+do not expose it on an untrusted link until authentication is implemented ([security](docs/SECURITY.md)).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 

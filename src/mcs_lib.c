@@ -1346,6 +1346,10 @@ mcs_class_t* mcs_core_class(mcs_vm_t* vm, int which) {
     return *slot;
 }
 
+mcs_native_fn mcs_native_fn_of(mcs_value_t v) {
+    return IS_KIND(v, MCS_O_NATIVE) ? AS_NATIVE(v)->fn : NULL;
+}
+#if MCS_ROM_GLOBALS_MAX > 0
 /* ---- flat ROM tables (mcs_register_rom_globals): binary search by name */
 static int rom_cmp(const char* entry, const char* name, size_t len) {
     int r = strncmp(entry, name, len);
@@ -1377,9 +1381,6 @@ bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table) {
     vm->rom[vm->nrom++] = table;
     return true;
 }
-mcs_native_fn mcs_native_fn_of(mcs_value_t v) {
-    return IS_KIND(v, MCS_O_NATIVE) ? AS_NATIVE(v)->fn : NULL;
-}
 static bool rom_resolve(mcs_vm_t* vm, const char* name, size_t len) {
     const mcs_rom_globals_t* g; int32_t i;
     char k = rom_find(vm, name, len, false, &g, &i);
@@ -1397,18 +1398,32 @@ static bool rom_resolve(mcs_vm_t* vm, const char* name, size_t len) {
     mcs_pop_root(vm, 2);
     return true;
 }
+#else
+bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table) {
+    (void)vm; (void)table;
+    return false;
+}
+#endif
 
 bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len) {
     int area;
     if (lib_find(vm, name, len, &area) || exc_find(name, len) >= 0) return true;
     for (mcs_lazy_t* z = vm->lazy; z; z = z->next) if (name_is(z->name, name, len)) return true;
+#if MCS_ROM_GLOBALS_MAX > 0
     const mcs_rom_globals_t* g; int32_t i;
     return rom_find(vm, name, len, true, &g, &i) != 0;
+#else
+    return false;
+#endif
 }
 bool mcs_lazy_known_any(mcs_vm_t* vm, const char* name, size_t len) {
     if (mcs_lazy_known(vm, name, len)) return true;
+#if MCS_ROM_GLOBALS_MAX > 0
     const mcs_rom_globals_t* g; int32_t i;
     return rom_find(vm, name, len, false, &g, &i) != 0;
+#else
+    return false;
+#endif
 }
 
 /* A registration is detached while applying it so nested resolution cannot
@@ -1445,7 +1460,9 @@ bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
         if (code) mcs_rethrow_native(vm, code);
         any = true;
     }
+#if MCS_ROM_GLOBALS_MAX > 0
     if (!any && vm->nrom) any = rom_resolve(vm, name, len);
+#endif
     vm->gc_pause--;
     return any;
 }

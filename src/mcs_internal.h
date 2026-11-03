@@ -298,8 +298,10 @@ struct mcs_vm {
     mcs_class_t* cls_delegate;
     mcs_class_t* exc[EXC__COUNT];
     mcs_lazy_t* lazy;           /* pending registrations (MCS_LAZY_CLASSES) */
+#if MCS_ROM_GLOBALS_MAX > 0
     const mcs_rom_globals_t* rom[MCS_ROM_GLOBALS_MAX];   /* flat flash API tables */
     uint8_t nrom;
+#endif
 
     /* pre-interned names */
     mcs_string_t* s_ctor;
