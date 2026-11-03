@@ -45,6 +45,106 @@ void mcs_format_int(char* out, mcs_int_t v) {
 }
 
 #if MCS_ENABLE_FLOAT
+#if MCS_FLOAT_DOUBLE && MCS_OWN_DTOA
+/* Exact decimal digits of a double without printf: some C libraries (NuttX) print at most
+ * DBL_DIG significant digits, which is too few for the shortest round-trip form. The value
+ * m * 2^e2 is scaled to an 18-digit integer with a small bignum; the sticky flag records a
+ * non-zero rest, so rounding to p digits is exactly what a correct printf would do. */
+#define BN_LIMBS 40
+typedef struct { uint32_t w[BN_LIMBS]; int n; } bn_t;
+static void bn_mul(bn_t* b, uint32_t m) {
+    uint64_t c = 0;
+    for (int i = 0; i < b->n; i++) { uint64_t t = (uint64_t)b->w[i] * m + c; b->w[i] = (uint32_t)t; c = t >> 32; }
+    if (c && b->n < BN_LIMBS) b->w[b->n++] = (uint32_t)c;
+}
+static uint32_t bn_div(bn_t* b, uint32_t d) {
+    uint64_t r = 0;
+    for (int i = b->n - 1; i >= 0; i--) { uint64_t t = (r << 32) | b->w[i]; b->w[i] = (uint32_t)(t / d); r = t % d; }
+    while (b->n > 0 && b->w[b->n - 1] == 0) b->n--;
+    return (uint32_t)r;
+}
+static void bn_shl(bn_t* b, int s) {
+    int words = s / 32, bits = s % 32;
+    uint32_t t[BN_LIMBS + 1];
+    if (b->n == 0) return;
+    if (b->n + words + 1 > BN_LIMBS) { b->n = BN_LIMBS; return; }     /* cannot happen for a double */
+    memset(t, 0, sizeof t);
+    for (int i = 0; i < b->n; i++) {
+        uint64_t v = (uint64_t)b->w[i] << bits;
+        t[i + words] |= (uint32_t)v; t[i + words + 1] |= (uint32_t)(v >> 32);
+    }
+    b->n += words + 1;
+    memcpy(b->w, t, (size_t)b->n * sizeof(uint32_t));
+    while (b->n > 0 && b->w[b->n - 1] == 0) b->n--;
+}
+static bool bn_shr(bn_t* b, int s) {
+    int words = s / 32, bits = s % 32;
+    bool sticky = false;
+    for (int i = 0; i < words && i < b->n; i++) if (b->w[i]) sticky = true;
+    if (words >= b->n) { if (b->n) sticky = true; b->n = 0; return sticky; }
+    if (bits && (b->w[words] & ((1u << bits) - 1))) sticky = true;
+    int n = b->n - words;
+    for (int i = 0; i < n; i++) {
+        uint64_t v = b->w[i + words] >> bits;
+        if (bits && i + words + 1 < b->n) v |= (uint64_t)b->w[i + words + 1] << (32 - bits);
+        b->w[i] = (uint32_t)v;
+    }
+    b->n = n;
+    while (b->n > 0 && b->w[b->n - 1] == 0) b->n--;
+    return sticky;
+}
+static const uint32_t pow10_32[10] = { 1u, 10u, 100u, 1000u, 10000u, 100000u, 1000000u, 10000000u, 100000000u, 1000000000u };
+/* floor(m * 2^e2 * 10^s); *sticky = the rest is not zero. UINT64_MAX when it does not fit. */
+static uint64_t dtoa_scaled(uint64_t m, int e2, int s, bool* sticky) {
+    bn_t b; memset(&b, 0, sizeof b);
+    b.w[0] = (uint32_t)m; b.w[1] = (uint32_t)(m >> 32); b.n = b.w[1] ? 2 : (b.w[0] ? 1 : 0);
+    *sticky = false;
+    if (e2 > 0) bn_shl(&b, e2);
+    if (s > 0) { int k = s; while (k >= 9) { bn_mul(&b, pow10_32[9]); k -= 9; } bn_mul(&b, pow10_32[k]); }
+    if (s < 0) {
+        int k = -s;
+        while (k >= 9) { if (bn_div(&b, pow10_32[9])) *sticky = true; k -= 9; }
+        if (bn_div(&b, pow10_32[k])) *sticky = true;
+    }
+    if (e2 < 0 && bn_shr(&b, -e2)) *sticky = true;
+    if (b.n > 2) return UINT64_MAX;
+    return (b.n > 0 ? (uint64_t)b.w[0] : 0) | (b.n > 1 ? (uint64_t)b.w[1] << 32 : 0);
+}
+static const uint64_t pow10_64[19] = { 1ull, 10ull, 100ull, 1000ull, 10000ull, 100000ull, 1000000ull, 10000000ull,
+    100000000ull, 1000000000ull, 10000000000ull, 100000000000ull, 1000000000000ull, 10000000000000ull,
+    100000000000000ull, 1000000000000000ull, 10000000000000000ull, 100000000000000000ull, 1000000000000000000ull };
+typedef struct { uint64_t q; bool sticky; int e10; } dtoa_t;   /* q: 18 digits, value ~ q * 10^(e10-17) */
+static void dtoa_prepare(dtoa_t* d, double f) {      /* f > 0 and finite */
+    int e2; double fr = frexp(f, &e2);
+    uint64_t m = (uint64_t)ldexp(fr, 53); e2 -= 53;   /* f = m * 2^e2, exactly */
+    int estimate = (e2 + 52) * 78913;
+    int e10 = estimate >= 0 ? estimate / 262144 : -((-estimate + 262143) / 262144); /* floor, maybe one off */
+    for (int tries = 0; tries < 4; tries++) {
+        d->q = dtoa_scaled(m, e2, 17 - e10, &d->sticky);
+        if (d->q >= pow10_64[18]) e10++;
+        else if (d->q < pow10_64[17]) e10--;
+        else break;
+    }
+    d->e10 = e10;
+}
+/* what printf("%.*e", p - 1, f) prints (without the sign) */
+static void dtoa_fmt_e(char* out, const dtoa_t* d, int p) {
+    uint64_t div = pow10_64[18 - p], head = d->q / div, rem = d->q % div, half = div / 2;
+    int e10 = d->e10;
+    if (rem > half || (rem == half && (d->sticky || (head & 1)))) head++;
+    if (head >= pow10_64[p]) { head /= 10; e10++; }
+    char dg[20];
+    for (int i = p - 1; i >= 0; i--) { dg[i] = (char)('0' + (int)(head % 10)); head /= 10; }
+    char* o = out;
+    *o++ = dg[0];
+    if (p > 1) { *o++ = '.'; memcpy(o, dg + 1, (size_t)p - 1); o += p - 1; }
+    *o++ = 'e'; *o++ = e10 < 0 ? '-' : '+';
+    unsigned ue = (unsigned)(e10 < 0 ? -e10 : e10);
+    if (ue >= 100) *o++ = (char)('0' + ue / 100);
+    *o++ = (char)('0' + ue / 10 % 10); *o++ = (char)('0' + ue % 10); *o = 0;
+}
+#endif
+
 /* shortest round-trip representation, .NET Core style */
 void mcs_format_float(char* out, mcs_float_t f) {
     if (f != f) { strcpy(out, "NaN"); return; }
@@ -54,10 +154,22 @@ void mcs_format_float(char* out, mcs_float_t f) {
     char buf[48];
     int maxp = MCS_FLOAT_DOUBLE ? 17 : 9;
     int p;
+#if MCS_FLOAT_DOUBLE && MCS_OWN_DTOA
+    dtoa_t dd; dtoa_prepare(&dd, f < 0 ? -(double)f : (double)f);
+#endif
     for (p = 1; p <= maxp; p++) {
+#if MCS_FLOAT_DOUBLE && MCS_OWN_DTOA
+        dtoa_fmt_e(buf + 1, &dd, p);
+        buf[0] = f < 0 ? '-' : ' ';
+        if ((mcs_float_t)strtod(f < 0 ? buf : buf + 1, NULL) == f) break;
+#else
         snprintf(buf, sizeof buf, "%.*e", p - 1, (double)f);
         if ((mcs_float_t)strtod(buf, NULL) == f) break;
+#endif
     }
+#if MCS_FLOAT_DOUBLE && MCS_OWN_DTOA
+    if (f >= 0) memmove(buf, buf + 1, strlen(buf + 1) + 1);
+#endif
     /* parse d.ddde±x */
     const char* s = buf; bool neg = false;
     if (*s == '-') { neg = true; s++; }

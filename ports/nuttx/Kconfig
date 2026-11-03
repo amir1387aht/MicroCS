@@ -37,8 +37,8 @@ config INTERPRETERS_MICROCS_STACKSIZE
 	int "MicroCS task stack size"
 	default 16384
 	---help---
-		Stack of the `mcs` task. The C# compiler recurses; 16 KB is comfortable,
-		8 KB is enough for precompiled images and short scripts.
+		Stack of the `mcs` task. Compiler and native calls use this stack;
+		deeply recursive scripts may need more. Measure on the target.
 
 choice
 	prompt "Configuration profile"

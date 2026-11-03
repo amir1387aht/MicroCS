@@ -117,6 +117,17 @@
 #ifndef MCS_FLOAT_DOUBLE
 #define MCS_FLOAT_DOUBLE 1
 #endif
+/* 1 = format doubles with the library's own exact digit generator
+ * instead of printf("%.17e"). Needed where the C library's printf stops after DBL_DIG (15)
+ * significant digits and so cannot print the shortest round-trip form of a double: NuttX.
+ * Default: 1 on NuttX, 0 elsewhere. Only used with MCS_FLOAT_DOUBLE=1. */
+#ifndef MCS_OWN_DTOA
+#if defined(__NuttX__)
+#define MCS_OWN_DTOA 1
+#else
+#define MCS_OWN_DTOA 0
+#endif
+#endif
 
 /* Pack mcs_value_t to 4-byte alignment. Only matters when the payload is
  * 8 bytes (MCS_FLOAT_DOUBLE=1 or MCS_INT64=1) on a 32-bit CPU: values shrink

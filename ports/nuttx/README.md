@@ -45,7 +45,7 @@ Files come from the NuttX VFS: LittleFS, FAT, SmartFS, ROMFS, hostfs on the simu
 |---|---|---|
 | `INTERPRETERS_MICROCS_PROGNAME` | `mcs` | NSH built-in name |
 | `INTERPRETERS_MICROCS_PRIORITY` | 100 | task priority of `mcs` |
-| `INTERPRETERS_MICROCS_STACKSIZE` | 16384 | stack of the `mcs` task (the compiler recurses; 8 KB is enough for precompiled images and short scripts) |
+| `INTERPRETERS_MICROCS_STACKSIZE` | 16384 | stack of the `mcs` task; stack needs depend on script and board (see below) |
 | profile | full | `embedded`, `mcu`, `lowram`, `min` = `MCS_PROFILE_*` ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md)) |
 | `INTERPRETERS_MICROCS_USER_CONFIG_FILE` | – | path of a `mcs_user_config.h` that sets any `MCS_*` option |
 | `INTERPRETERS_MICROCS_THREADS` | off | C# threads on pthreads (needs `!DISABLE_PTHREAD`) |
@@ -54,6 +54,19 @@ Requirements: floating point and `long long` printf support (selected automatica
 math library** — the C# `Math` class uses `hypot`, `fma`, `remainder`, `cbrt`, `log2`, … NuttX's small
 built-in libm does not have all of them; use the toolchain's libm, newlib or OpenLibm
 (*Library Routines > Math library*).
+
+NuttX printf limits double output to 15 significant digits. `MCS_OWN_DTOA=1` (the NuttX
+default) supplies exact digits for default shortest-round-trip double formatting instead. Explicit
+`ToString` formats such as `E16` and `F` still use printf and can lose precision beyond 15 digits.
+Networking APIs are disabled by default on NuttX; native network and hardware integration have not
+been validated.
+
+The compiler and native calls use the task stack; deeply recursive scripts can exhaust it. The
+default 16 KB is not a guarantee for arbitrary scripts. Increase `INTERPRETERS_MICROCS_STACKSIZE`
+and measure stack use on the target; complex recursive scripts require particular care. In the
+12.11.0 simulator, `tests/t26_robustness.cs` crashed with the 16 KB default, and repeated XIP
+runs could crash with 64 KB; source, image and ten repeated XIP runs passed with 256 KB. These
+measurements are simulator-specific, not a recommended stack size or proof of the crash cause.
 
 ## Threads on NuttX
 

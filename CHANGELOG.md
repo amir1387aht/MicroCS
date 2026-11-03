@@ -14,6 +14,10 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   `MCS_THREAD_PRIORITY` is -1 without round-robin so a busy script thread cannot
   starve the shell. The shell module's internal enum constants were renamed
   (`SC_*`) because NuttX defines a `CODE` macro.
+* Fix `Directory.Delete(path, true)` deadlocking with the threaded VFS lock by removing
+  entries outside directory-list callbacks.
+* Use an exact double digit generator by default on NuttX (`MCS_OWN_DTOA`) for
+  shortest-round-trip formatting, avoiding its printf 15-digit precision limit.
 * Restore the pre-1.16 VM speed: `PUSH` is a single compare against the stack
   limit with a cold, out-of-line grow path; interpreter `sp`/`slots`/`frame` are
   real locals again (the internal `exec_views` indirection that forced them into

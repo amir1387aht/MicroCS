@@ -52,3 +52,14 @@ for (int i = 0; i < 6; i++) ws.Add(Thread.Run("/math.cs", "Fib", 15 + i));
 int tot = 0;
 foreach (var w in ws) tot += (int)w.Result;
 Console.WriteLine("parallel " + tot);
+// the filesystem lock is not recursive: a recursive delete must not call back into the filesystem
+// from inside a directory listing (it deadlocked with threads enabled)
+Directory.CreateDirectory("/rmtree/a/b");
+File.WriteAllText("/rmtree/a/b/x.txt", "x");
+File.WriteAllText("/rmtree/a/y.txt", "y");
+File.WriteAllText("/rmtree/z.txt", "z");
+Directory.Delete("/rmtree", true);
+Console.WriteLine("recursive delete " + !Directory.Exists("/rmtree"));
+
+// NuttX printf stops at 15 significant digits; default formatting must still round-trip doubles.
+Console.WriteLine("double " + (1.0 / 3.0) + " " + 1.2345678901234567);

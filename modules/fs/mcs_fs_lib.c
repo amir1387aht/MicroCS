@@ -485,21 +485,30 @@ NATIVE(d_dirs) { return list_entries(vm, argv, 2); }
 NATIVE(d_entries) { return list_entries(vm, argv, 3); }
 
 static int remove_tree(mcs_vfs_t* vfs, const char* path);
-typedef struct { mcs_vfs_t* vfs; const char* dir; int err; } rm_t;
-static int rm_child(void* ud, const char* name, const mcs_vfs_stat_t* st) {
-    rm_t* r = (rm_t*)ud;
-    char full[MCS_VFS_PATH_MAX];
-    snprintf(full, sizeof full, "%s/%s", strcmp(r->dir, "/") ? r->dir : "", name);
-    r->err = st->is_dir ? remove_tree(r->vfs, full) : mcs_vfs_remove(r->vfs, full);
-    return r->err;
+/* The VFS lock of the thread runtime (mcs_vfs_lock_t) is not recursive and is held while a
+ * listing calls back, so the callback must not touch the filesystem: it only remembers the
+ * first entry and stops the listing, the entry is removed after the listing returned. */
+typedef struct { char name[MCS_VFS_PATH_MAX]; bool found, is_dir, too_long; } rm_first_t;
+static int rm_first(void* ud, const char* name, const mcs_vfs_stat_t* st) {
+    rm_first_t* f = (rm_first_t*)ud;
+    int n = snprintf(f->name, sizeof f->name, "%s", name);
+    f->too_long = n < 0 || (size_t)n >= sizeof f->name;
+    f->found = true; f->is_dir = st->is_dir;
+    return 1;
 }
-/* Both built-in backends snapshot a directory before calling back, so
- * children can be deleted from inside the listing callback. */
 static int remove_tree(mcs_vfs_t* vfs, const char* path) {
-    rm_t r = { vfs, path, 0 };
-    int e = mcs_vfs_list(vfs, path, rm_child, &r);
-    if (e) return e;
-    if (r.err) return r.err;
+    for (;;) {
+        rm_first_t f; f.found = false; f.is_dir = false; f.too_long = false;
+        int e = mcs_vfs_list(vfs, path, rm_first, &f);
+        if (e) return e;
+        if (!f.found) break;
+        if (f.too_long) return MCS_VFS_ENAMETOOLONG;
+        char full[MCS_VFS_PATH_MAX];
+        int n = snprintf(full, sizeof full, "%s/%s", strcmp(path, "/") ? path : "", f.name);
+        if (n < 0 || (size_t)n >= sizeof full) return MCS_VFS_ENAMETOOLONG;
+        e = f.is_dir ? remove_tree(vfs, full) : mcs_vfs_remove(vfs, full);
+        if (e) return e;
+    }
     return mcs_vfs_remove(vfs, path);
 }
 NATIVE(d_delete) {

@@ -88,9 +88,15 @@ check_suite() { # <config name>
     got=$W/threads_$1.txt
     run_sim "$1" "mount -t hostfs -o fs=$ROOT/tests /host" \
         "mcs --fs /host/threads /host/threads/t_threads.cs" > "$W/raw_$1.txt"
-    # the C# test output starts at its first line, thread crash reports go to stderr (same console)
-    sed -n '/^os True/,/^parallel /p' "$W/raw_$1.txt" | grep -v '^\[thread' | grep -v '^$' > "$got"
-    grep -v '^\[thread' "$ROOT/tests/threads/t_threads.out" | grep -v '^$' > "$W/expected.txt"
+    # Thread exception diagnostics are deliberately tested but stderr writes can interleave on
+    # SMP, even within a line. Compare the stable script output around that diagnostic block.
+    stable() { awk '
+        /^sum 550 state done count 0$/ { print; diagnostic=1; next }
+        diagnostic && /^caught: True$/ { diagnostic=0 }
+        !diagnostic && NF { print }
+    '; }
+    sed -n '/^os True/,/^double /p' "$W/raw_$1.txt" | stable > "$got"
+    stable < "$ROOT/tests/threads/t_threads.out" > "$W/expected.txt"
     if cmp -s "$got" "$W/expected.txt"; then
         echo "PASS tests/threads/t_threads.cs (NuttX $REF sim:$1)"
     else
