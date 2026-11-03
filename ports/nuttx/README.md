@@ -94,7 +94,7 @@ NUTTX_SMP=1 make nuttx-test     # plus an SMP simulator: Thread.Cores > 1, RunOn
 `tools/nuttx_check.sh` downloads NuttX and apps (`NUTTX_REF`, default `nuttx-12.11.0`) into
 `build/nuttx`, links this folder as `apps/interpreters/microcs`, builds `sim:nsh` with MicroCS and
 threads, mounts `tests/` through hostfs and runs `tests/threads/t_threads.cs`, comparing the output
-with `tests/threads/t_threads.out`. It needs `git`, `cmake`, `ninja`, `genromfs`, `xxd` and
+with `tests/threads/t_threads.out` (excluding the interleaved thread exception diagnostics). It needs `git`, `cmake`, `ninja`, `genromfs`, `xxd` and
 `pip install kconfiglib`. The same job runs in CI.
 
 By hand, on any simulator build that has `CONFIG_FS_HOSTFS=y`:

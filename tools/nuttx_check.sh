@@ -88,7 +88,7 @@ check_suite() { # <config name>
     got=$W/threads_$1.txt
     run_sim "$1" "mount -t hostfs -o fs=$ROOT/tests /host" \
         "mcs --fs /host/threads /host/threads/t_threads.cs" > "$W/raw_$1.txt"
-    # Thread exception diagnostics are deliberately tested but stderr writes can interleave on
+    # The test deliberately triggers a thread exception; stderr writes can interleave on
     # SMP, even within a line. Compare the stable script output around that diagnostic block.
     stable() { awk '
         /^sum 550 state done count 0$/ { print; diagnostic=1; next }
