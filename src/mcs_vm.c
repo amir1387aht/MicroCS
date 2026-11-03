@@ -197,8 +197,11 @@ static void close_upvalues(mcs_vm_t* vm, mcs_value_t* last) {
 }
 
 /* Grow only what execution needs. Configured sizes are ceilings, not reservations.
- * Rebase every suspended interpreter, frame and open capture. Native argv lives
- * in separately rooted pool blocks, never in movable value-stack storage. */
+ * Rebase every frame and open capture. The interpreter keeps sp/slots/frame in
+ * locals (they must stay in registers) and reloads them from vm->sp / vm->frames
+ * after anything that can grow the stack (see RELOAD in run()). Native argv lives
+ * in the VM's argv arena or in separately rooted pool blocks, never in movable
+ * value-stack storage. */
 static bool stack_need(mcs_vm_t* vm, size_t need) {
     if (need > vm->cfg.stack_slots) {
         mcs_throw(vm, EXC_STACKOVF, "Value stack limit (%u slots) exceeded.", (unsigned)vm->cfg.stack_slots);
@@ -206,10 +209,23 @@ static bool stack_need(mcs_vm_t* vm, size_t need) {
     }
     if (need > vm->stack_cap) {
         uint32_t cap = vm->stack_cap;
+#ifdef MCS_STACK_STRESS   /* test builds: grow by exactly what is needed so every growth relocates the stack */
+        cap = (uint32_t)need;
+#else
         while (cap < need) cap = cap > vm->cfg.stack_slots / 2 ? vm->cfg.stack_slots : cap * 2;
+#endif
         size_t depth = (size_t)(vm->sp - vm->stack);
         uintptr_t old = (uintptr_t)vm->stack;
+#ifdef MCS_STACK_STRESS   /* never realloc in place: move to a new block and poison the old one */
+        mcs_value_t* stack = mcs_try_realloc(vm, NULL, 0, cap * sizeof(*stack));
+        if (stack) {
+            memcpy(stack, vm->stack, vm->stack_cap * sizeof(*stack));
+            memset(vm->stack, 0xDD, vm->stack_cap * sizeof(*stack));
+            mcs_try_realloc(vm, vm->stack, vm->stack_cap * sizeof(*stack), 0);
+        }
+#else
         mcs_value_t* stack = mcs_try_realloc(vm, vm->stack, vm->stack_cap * sizeof(*stack), cap * sizeof(*stack));
+#endif
         if (!stack) {
             cap = (uint32_t)need;
             stack = MCS_GROW(vm, mcs_value_t, vm->stack, vm->stack_cap, cap);
@@ -218,9 +234,6 @@ static bool stack_need(mcs_vm_t* vm, size_t need) {
 #define REBASE_VALUE(p) ((p) = stack + ((uintptr_t)(p) - old) / sizeof(*stack))
         for (int i = 0; i < vm->frame_count; i++) REBASE_VALUE(vm->frames[i].slots);
         for (mcs_upvalue_t* u = vm->open_upvalues; u; u = u->next_open) REBASE_VALUE(u->location);
-        for (mcs_exec_view_t* v = vm->exec_views; v; v = v->prev) {
-            REBASE_VALUE(*v->sp); REBASE_VALUE(*v->slots);
-        }
 #undef REBASE_VALUE
     }
     return true;
@@ -231,18 +244,49 @@ static bool frame_need(mcs_vm_t* vm) {
         return false;
     }
     if (vm->frame_count == vm->frame_cap) {
+#ifdef MCS_STACK_STRESS
+        uint16_t cap = (uint16_t)(vm->frame_cap + 1);
+#else
         uint16_t cap = vm->frame_cap > vm->cfg.max_frames / 2 ? vm->cfg.max_frames : (uint16_t)(vm->frame_cap * 2);
-        uintptr_t old = (uintptr_t)vm->frames;
+#endif
+#ifdef MCS_STACK_STRESS
+        mcs_frame_t* frames = mcs_try_realloc(vm, NULL, 0, cap * sizeof(*frames));
+        if (frames) {
+            memcpy(frames, vm->frames, vm->frame_cap * sizeof(*frames));
+            memset(vm->frames, 0xDD, vm->frame_cap * sizeof(*frames));
+            mcs_try_realloc(vm, vm->frames, vm->frame_cap * sizeof(*frames), 0);
+        }
+#else
         mcs_frame_t* frames = mcs_try_realloc(vm, vm->frames, vm->frame_cap * sizeof(*frames), cap * sizeof(*frames));
+#endif
         if (!frames) { cap = (uint16_t)(vm->frame_count + 1); frames = MCS_GROW(vm, mcs_frame_t, vm->frames, vm->frame_cap, cap); }
         vm->frames = frames; vm->frame_cap = cap;
-        for (mcs_exec_view_t* v = vm->exec_views; v; v = v->prev)
-            *v->frame = frames + ((uintptr_t)*v->frame - old) / sizeof(*frames);
     }
     return true;
 }
-static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc) {
+/* Native argv copies (the value stack may be reallocated while a native re-enters the VM, so natives
+ * must not point into it). Common case: bump-allocate from a small arena embedded in the VM, with no
+ * pool allocation per native call; deeper nesting / many arguments falls back to rooted pool blocks. */
+typedef struct {
+    mcs_native_args_t* heap;
+#if MCS_NATIVE_ARENA > 0
+    uint16_t top;
+#endif
+} nargs_mark_t;
+static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc, nargs_mark_t* m) {
+    m->heap = vm->native_args;
+#if MCS_NATIVE_ARENA > 0
+    m->top = vm->nargs_top;
+#endif
     if (!argc) return NULL;
+    #if MCS_NATIVE_ARENA > 0
+    if ((size_t)vm->nargs_top + (size_t)argc <= MCS_NATIVE_ARENA) {
+        mcs_value_t* v = vm->nargs_arena + vm->nargs_top;
+        memcpy(v, vm->sp - argc, (size_t)argc * sizeof(mcs_value_t));
+        vm->nargs_top = (uint16_t)(vm->nargs_top + argc);
+        return v;
+    }
+    #endif
     size_t size = sizeof(mcs_native_args_t) + (size_t)argc * sizeof(mcs_value_t);
     mcs_native_args_t* a = mcs_realloc(vm, NULL, 0, size);
     a->prev = vm->native_args; a->count = argc;
@@ -257,22 +301,25 @@ static void native_args_restore(mcs_vm_t* vm, mcs_native_args_t* prev) {
         mcs_realloc(vm, a, sizeof(*a) + (size_t)a->count * sizeof(mcs_value_t), 0);
     }
 }
+static void native_args_end(mcs_vm_t* vm, const nargs_mark_t* m) {
+    if (vm->native_args != m->heap) native_args_restore(vm, m->heap);
+#if MCS_NATIVE_ARENA > 0
+    vm->nargs_top = m->top;
+#endif
+}
 
-/* One shared push slow path instead of duplicating growth/peak bookkeeping at
- * every bytecode handler (important to the unchanged 64 KiB Cortex-M0 build).
- * The value is copied before entering: it may have come from movable storage. */
-static bool run_push(mcs_vm_t* vm, mcs_exec_view_t* view, uint8_t* ip, const mcs_value_t* value) {
-    mcs_value_t* sp = *view->sp;
-    if (sp == vm->stack_end) {
-        (*view->frame)->ip = ip;
-        vm->sp = sp;
-        if (!stack_need(vm, (size_t)(sp - vm->stack) + 1)) return false;
-        sp = *view->sp;
-    }
-    *sp++ = *value;
-    *view->sp = sp;
-    if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack);
-    return true;
+/* Cold path of the interpreter's PUSH: the value stack is full. The caller has
+ * published sp / frame->ip (SAVE) and reloads its registers afterwards (RELOAD).
+ * The hot path of PUSH is a single compare against vm->stack_end. */
+#if defined(__GNUC__)
+#define MCS_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#define MCS_COLD_NOINLINE __attribute__((noinline, cold))
+#else
+#define MCS_UNLIKELY(x) (x)
+#define MCS_COLD_NOINLINE
+#endif
+static MCS_COLD_NOINLINE bool run_grow(mcs_vm_t* vm) {
+    return stack_need(vm, (size_t)(vm->sp - vm->stack) + 1);
 }
 
 /* ================================================================ calls */
@@ -313,6 +360,7 @@ static int call_closure(mcs_vm_t* vm, mcs_closure_t* cl, int argc) {
     if (!frame_need(vm) || !stack_need(vm, (size_t)(vm->sp - vm->stack - argc - 1) + fn->max_slots + 1)) return CALL_ERR;
     mcs_frame_t* f = &vm->frames[vm->frame_count++];
     if (vm->frame_count > vm->frame_peak) vm->frame_peak = (uint16_t)vm->frame_count;
+    { size_t top_ = (size_t)(vm->sp - vm->stack - argc - 1) + fn->max_slots; if (top_ > vm->stack_peak) vm->stack_peak = (uint32_t)top_; }  /* sampled at frame entry, not per push */
     f->closure = cl; f->ip = fn->code; f->slots = vm->sp - argc - 1; f->argc = (uint8_t)orig;
     return CALL_FRAME;
 }
@@ -322,10 +370,10 @@ static int call_native(mcs_vm_t* vm, mcs_native_t* nf, mcs_value_t self, int arg
         mcs_throw(vm, EXC_ARGUMENT, "No overload for method '%s' takes %d arguments", nf->name ? nf->name->chars : "?", argc);
         return CALL_ERR;
     }
-    mcs_native_args_t* prev = vm->native_args;
-    mcs_value_t* args = native_args_begin(vm, argc);
+    nargs_mark_t nm;
+    mcs_value_t* args = native_args_begin(vm, argc, &nm);
     mcs_value_t r = nf->fn(vm, self, argc, args);
-    native_args_restore(vm, prev);
+    native_args_end(vm, &nm);
     if (vm->abort_req) return CALL_ERR;  /* native waits can be the final statement */
     if (vm->has_exc) return CALL_ERR;
     vm->sp -= argc + 1;
@@ -402,20 +450,20 @@ static int call_value(mcs_vm_t* vm, mcs_value_t callee, int argc) {
                 mcs_userdata_t* u = mcs_new_userdata(vm, cls, cls->def->instance_size);
                 vm->sp[-argc - 1] = OBJ_VAL(u);
                 if (cls->def->ctor) {
-                    mcs_native_args_t* prev = vm->native_args;
-                    mcs_value_t* args = native_args_begin(vm, argc);
+                    nargs_mark_t nm;
+                    mcs_value_t* args = native_args_begin(vm, argc, &nm);
                     cls->def->ctor(vm, OBJ_VAL(u), argc, args);
-                    native_args_restore(vm, prev);
+                    native_args_end(vm, &nm);
                     if (vm->has_exc) return CALL_ERR;
                 }
                 vm->sp -= argc;
                 return CALL_DONE;
             }
             if (cls->native_ctor) {
-                mcs_native_args_t* prev = vm->native_args;
-                mcs_value_t* args = native_args_begin(vm, argc);
+                nargs_mark_t nm;
+                mcs_value_t* args = native_args_begin(vm, argc, &nm);
                 mcs_value_t r = cls->native_ctor(vm, callee, argc, args);
-                native_args_restore(vm, prev);
+                native_args_end(vm, &nm);
                 if (vm->has_exc) return CALL_ERR;
                 vm->sp -= argc + 1;
                 PUSH(r);
@@ -832,6 +880,61 @@ static bool compare_op(mcs_vm_t* vm, int op, mcs_value_t a, mcs_value_t b, mcs_v
     return true;
 }
 
+/* Inline float paths for the interpreter. They give exactly the result arith() / compare_op()
+ * give for two numbers of which at least one is a float (int operands convert the same way),
+ * without the call-out and the register save/reload around it. Anything else returns false and
+ * takes the generic path. Compiled out (always false) when MCS_VM_COMPACT is set. */
+#if defined(__GNUC__)
+#define MCS_FORCE_INLINE static inline __attribute__((always_inline))
+#else
+#define MCS_FORCE_INLINE static inline
+#endif
+#if MCS_ENABLE_FLOAT
+#define FVAL(f) mcs_float(f)
+#else
+#define FVAL(f) mcs_null()   /* never reached: farith() is constant false */
+#endif
+#if MCS_ENABLE_FLOAT && !MCS_VM_COMPACT   /* speed layout only: each inline copy costs flash */
+MCS_FORCE_INLINE bool fnum_pair(const mcs_value_t* a, const mcs_value_t* b, mcs_float_t* x, mcs_float_t* y) {
+    if (a->type == MCS_T_FLOAT) {
+        *x = a->as.f;
+        if (b->type == MCS_T_FLOAT) *y = b->as.f;
+        else if (b->type == MCS_T_INT) *y = (mcs_float_t)b->as.i;
+        else return false;
+        return true;
+    }
+    if (a->type == MCS_T_INT && b->type == MCS_T_FLOAT) { *x = (mcs_float_t)a->as.i; *y = b->as.f; return true; }
+    return false;
+}
+MCS_FORCE_INLINE bool farith(int op, mcs_value_t a, mcs_value_t b, mcs_float_t* out) {
+    mcs_float_t x, y;
+    if (!fnum_pair(&a, &b, &x, &y)) return false;
+    switch (op) {
+    case OP_ADD: *out = x + y; return true;
+    case OP_SUB: *out = x - y; return true;
+    case OP_MUL: *out = x * y; return true;
+    case OP_DIV: *out = x / y; return true;
+    default: return false;
+    }
+}
+MCS_FORCE_INLINE bool fcmp(int op, mcs_value_t a, mcs_value_t b, bool* res) {
+    mcs_float_t x, y;
+    if (!fnum_pair(&a, &b, &x, &y)) return false;
+    switch (op) {   /* NaN compares false (!= true), as in compare_op */
+    case OP_EQ: *res = x == y; return true;
+    case OP_NE: *res = x != y; return true;
+    case OP_LT: *res = x < y; return true;
+    case OP_LE: *res = x <= y; return true;
+    case OP_GT: *res = x > y; return true;
+    case OP_GE: *res = x >= y; return true;
+    default: return false;
+    }
+}
+#else
+MCS_FORCE_INLINE bool farith(int op, mcs_value_t a, mcs_value_t b, mcs_float_t* out) { (void)op; (void)a; (void)b; (void)out; return false; }
+MCS_FORCE_INLINE bool fcmp(int op, mcs_value_t a, mcs_value_t b, bool* res) { (void)op; (void)a; (void)b; (void)res; return false; }
+#endif
+
 static bool convert(mcs_vm_t* vm, int kind, mcs_value_t v, mcs_value_t* out) {
     if (v.type == MCS_T_NULL) { *out = v; return true; }
     mcs_int_t i;
@@ -1034,10 +1137,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LOAD_GMAP(f) ((void)0)
 #endif
     mcs_value_t a, b, r;
+    mcs_float_t fz_;   /* float fast-path result (kept out of r, which is addressable) */
     /* the stack pointer lives in a register inside the loop; vm->sp is only
      * written back (SAVE/SYNC) before anything that may look at the stack */
     mcs_value_t* sp;
-    mcs_exec_view_t view = {vm->exec_views, &sp, &slots, &frame};
     uint16_t fk;
 #if MCS_ENABLE_SUPEROPS
     int sop;   /* operation of a superinstruction slow path */
@@ -1045,9 +1148,19 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef PUSH
 #undef POP
 #undef PEEK
-#define ENSURE(n) do { if ((size_t)(vm->stack_end - sp) < (size_t)(n)) { SAVE(); if (!stack_need(vm, (size_t)(sp - vm->stack) + (n))) THROWN(); } } while (0)
-#define PUSH(v) do { mcs_value_t pushed_ = (v); if (!run_push(vm, &view, ip, &pushed_)) THROWN(); } while (0)
+#define ENSURE(n) do { if ((size_t)(vm->stack_end - sp) < (size_t)(n)) { SAVE(); CHECKED(stack_need(vm, (size_t)(sp - vm->stack) + (n))); } } while (0)
+/* continue after a call-out: leave through the exception path on failure, else reload the registers */
+#define CHECKED(ok) do { if (!(ok)) THROWN(); RELOAD(); } while (0)
+#define GROW1() do { SAVE(); CHECKED(run_grow(vm)); } while (0)
+#define PUSH(v) do { mcs_value_t pushed_ = (v); if (MCS_UNLIKELY(sp == vm->stack_end)) GROW1(); *sp++ = pushed_; } while (0)
+/* MCS_VM_COMPACT=1 shares the push tail and the call-entry code between opcodes (smaller Thumb-1
+ * code, one indirect jump site). It defaults on only for switch dispatch (profile min); builds with
+ * computed goto keep one inlined tail per handler, which is what makes the dispatch fast. */
+#if MCS_VM_COMPACT
 #define PUSH_DISPATCH(v) do { r = (v); goto push_dispatch; } while (0)
+#else
+#define PUSH_DISPATCH(v) do { PUSH(v); DISPATCH(); } while (0)
+#endif
 #define POP() (*--sp)
 #define PEEK(n) (sp[-1 - (n)])
 #define SYNC() (vm->sp = sp)
@@ -1061,18 +1174,29 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     vm->run_depth++;
 
 #define LOAD() do { frame = &vm->frames[vm->frame_count - 1]; ip = frame->ip; slots = frame->slots; consts = frame->closure->fn->consts; LOAD_GMAP(frame->closure->fn); } while (0)
+/* SAVE publishes ip/sp before anything that may run script code or grow the value stack
+ * (and so move it). sp, slots and frame are plain locals: they are NOT rebased when the
+ * stack or the frame array moves, so every path that continues after such a call must
+ * RELOAD() them from the VM. Under MCS_STACK_STRESS SAVE poisons them, so a missing
+ * RELOAD() faults in the tests instead of silently using a stale pointer. */
+#define RELOAD() do { sp = vm->sp; frame = &vm->frames[vm->frame_count - 1]; slots = frame->slots; } while (0)
+#define SAVE_KEEP() do { frame->ip = ip; SYNC(); } while (0)   /* call-out that cannot move the stack (GC) */
+#ifdef MCS_STACK_STRESS
+#define SAVE() do { frame->ip = ip; SYNC(); sp = (mcs_value_t*)(uintptr_t)8; slots = (mcs_value_t*)(uintptr_t)8; frame = (mcs_frame_t*)(uintptr_t)8; } while (0)
+#else
 #define SAVE() do { frame->ip = ip; SYNC(); } while (0)
+#endif
 #define READ8() (*ip++)
 #define READ16() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 #define KSTR(i) AS_STRING(consts[i])
 #define THROWN() goto on_exception
-#define CHECKCALL(res) do { int _r = (res); sp = vm->sp; if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) LOAD(); } while (0)
+#define CHECKCALL(res) do { int _r = (res); if (_r == CALL_ERR) THROWN(); if (_r == CALL_FRAME) { sp = vm->sp; LOAD(); } else RELOAD(); } while (0)
 /* push a frame for closure CL called with ARGC arguments and continue in it,
  * when the call needs no adjustment (exact arity, no params array, room left) */
 /* In size-optimized firmware share call setup instead of emitting the same
  * inline fast entry at every call opcode. Speed builds retain the fast entry;
  * both paths use the same limits, frames, language semantics and capabilities. */
-#if defined(__OPTIMIZE_SIZE__)
+#if MCS_VM_COMPACT
 #define ENTER_FAST(CL, ARGC) do { (void)(CL); (void)(ARGC); } while (0)
 #else
 #define ENTER_FAST(CL, ARGC) do { \
@@ -1081,15 +1205,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             (size_t)(vm->stack_end - sp) > fn_->max_slots) { \
             frame = &vm->frames[vm->frame_count++]; if (vm->frame_count > vm->frame_peak) vm->frame_peak = (uint16_t)vm->frame_count; \
             frame->closure = (CL); frame->ip = ip = fn_->code; frame->slots = slots = sp - (ARGC) - 1; frame->argc = (uint8_t)(ARGC); \
+            { size_t top_ = (size_t)(slots - vm->stack) + fn_->max_slots; if (top_ > vm->stack_peak) vm->stack_peak = (uint32_t)top_; } \
             consts = fn_->consts; LOAD_GMAP(fn_); \
             DISPATCH(); \
         } \
     } while (0)
 #endif
-#define GCPOINT() do { if (vm->gc_wanted) { SAVE(); mcs_collect(vm); } } while (0)
+#define GCPOINT() do { if (vm->gc_wanted) { SAVE_KEEP(); mcs_collect(vm); } } while (0)
 #define SAFEPOINT() do { \
         if (vm->gc_wanted) { SYNC(); mcs_collect(vm); } \
-        if (--vm->hook_counter == 0) { SAVE(); if (hook_tick(vm)) goto on_abort; } \
+        if (--vm->hook_counter == 0) { SAVE(); if (hook_tick(vm)) goto on_abort; else RELOAD(); } \
     } while (0)
 
 #if MCS_COMPUTED_GOTO
@@ -1099,7 +1224,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #undef X
     };
 #define CASE(name) L_##name:
-#if defined(__OPTIMIZE_SIZE__)
+#if MCS_VM_COMPACT
 /* Share opcode fetch/dispatch in flash-constrained firmware, rather than
  * repeating its pointer load, increment and indirect branch at every tail.
  * Speed builds retain direct-threaded dispatch. No opcode or check is omitted. */
@@ -1117,7 +1242,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define DISPATCH_END() default: mcs_throw(vm, EXC_SYSTEM, "invalid opcode"); THROWN(); }
 #endif
 
-    LOAD(); sp = vm->sp; vm->exec_views = &view;
+    LOAD(); sp = vm->sp;
     DISPATCH_START()
     CASE(CONST) { uint16_t k = READ16(); PUSH_DISPATCH(consts[k]); }
     CASE(NULL) PUSH_DISPATCH(mcs_null());
@@ -1148,6 +1273,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             SAVE();
             mcs_string_t* gn = vm->global_names[s];
             if (mcs_lazy_resolve(vm, gn->chars, gn->len)) a = vm->globals[s];
+            RELOAD();
         }
         if (a.type == MCS_T_UNDEF) { SAVE(); mcs_throw(vm, EXC_MISSINGMEMBER, "The name '%s' does not exist in the current context", vm->global_names[s]->chars); THROWN(); }
         PUSH_DISPATCH(a);
@@ -1232,8 +1358,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { pa_->as.i = (mcs_int_t)(EXPR); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        if (farith(OPC, a, b, &fz_)) { sp--; sp[-1] = FVAL(fz_); DISPATCH(); } \
         SAVE(); \
-        if (!arith(vm, OPC, a, b, &r)) THROWN(); \
+        CHECKED(arith(vm, OPC, a, b, &r)); \
         sp--; sp[-1] = r; DISPATCH(); \
     }
     BINOP(ADD, OP_ADD, (mcs_uint_t)pa_[0].as.i + (mcs_uint_t)pa_[1].as.i)
@@ -1249,13 +1376,14 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT && pa_[1].as.i > 0) { pa_->as.i = pa_[0].as.i OPR pa_[1].as.i; sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
-        SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); \
+        if (farith(OPC, a, b, &fz_)) { sp--; sp[-1] = FVAL(fz_); DISPATCH(); } \
+        SAVE(); CHECKED(arith(vm, OPC, a, b, &r)); sp--; sp[-1] = r; DISPATCH(); \
     }
     DIVOP(DIV, OP_DIV, /)
     DIVOP(MOD, OP_MOD, %)
 #undef DIVOP
 #define SLOWOP(NAME, OPC) \
-    CASE(NAME) { a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); }
+    CASE(NAME) { a = PEEK(1); b = PEEK(0); SAVE(); CHECKED(arith(vm, OPC, a, b, &r)); sp--; sp[-1] = r; DISPATCH(); }
 #define SHIFTOP(NAME, OPC, EXPR) \
     CASE(NAME) { \
         mcs_value_t* pa_ = sp - 2; \
@@ -1263,7 +1391,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             mcs_uint_t x_ = (mcs_uint_t)pa_[0].as.i, n_ = (mcs_uint_t)pa_[1].as.i & (mcs_uint_t)(sizeof(mcs_int_t) * 8 - 1); \
             pa_->as.i = (mcs_int_t)(EXPR); sp--; DISPATCH(); \
         } \
-        a = PEEK(1); b = PEEK(0); SAVE(); if (!arith(vm, OPC, a, b, &r)) THROWN(); sp--; sp[-1] = r; DISPATCH(); \
+        a = PEEK(1); b = PEEK(0); SAVE(); CHECKED(arith(vm, OPC, a, b, &r)); sp--; sp[-1] = r; DISPATCH(); \
     }
     SHIFTOP(SHL, OP_SHL, x_ << n_)
     SHIFTOP(SHR, OP_SHR, ((void)x_, pa_[0].as.i >> n_))
@@ -1279,7 +1407,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         if (IS_KIND(a, MCS_O_INSTANCE)) {
             mcs_value_t f; mcs_string_t* nm = mcs_intern_c(vm, "op_UnaryNegation");
             if (mcs_table_get_s(&AS_INSTANCE(a)->cls->statics, nm, &f)) {
-                SAVE(); if (mcs_call_internal(vm, f, mcs_null(), 1, &a, &r) != MCS_OK) THROWN();
+                SAVE(); CHECKED(mcs_call_internal(vm, f, mcs_null(), 1, &a, &r) == MCS_OK);
                 sp[-1] = r; DISPATCH();
             }
         }
@@ -1296,8 +1424,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { *pa_ = mcs_bool(pa_[0].as.i CMP pa_[1].as.i); sp--; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        { bool fr_; if (fcmp(OPC, a, b, &fr_)) { sp--; sp[-1] = mcs_bool(fr_); DISPATCH(); } } \
         SAVE(); \
-        if (!compare_op(vm, OPC, a, b, &r)) THROWN(); \
+        CHECKED(compare_op(vm, OPC, a, b, &r)); \
         sp--; sp[-1] = r; DISPATCH(); \
     }
     CMPOP(EQ, OP_EQ, ==)
@@ -1315,8 +1444,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         const mcs_value_t* pa_ = sp - 2; \
         if (pa_[0].type == MCS_T_INT && pa_[1].type == MCS_T_INT) { sp -= 2; if (!(pa_[0].as.i CMP pa_[1].as.i)) ip += o; DISPATCH(); } \
         a = PEEK(1); b = PEEK(0); \
+        { bool fr_; if (fcmp(OPC, a, b, &fr_)) { sp -= 2; if (!fr_) ip += o; DISPATCH(); } } \
         SAVE(); \
-        if (!compare_op(vm, OPC, a, b, &r)) THROWN(); \
+        CHECKED(compare_op(vm, OPC, a, b, &r)); \
         sp -= 2; if (!mcs_truthy(r)) ip += o; DISPATCH(); \
     }
     JCMP(JF_EQ, OP_EQ, ==)
@@ -1366,14 +1496,16 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define LI_FORM(O) \
     CASE(LI_##O) { \
         const mcs_value_t* pa_ = &slots[ip[0]]; mcs_int_t y_ = (int8_t)ip[1]; \
-        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { r = mcs_int(BXE_##O(pa_->as.i, y_)); ip += 2; goto push_dispatch; } \
+        if (pa_->type == MCS_T_INT && BXG_##O(y_)) { ip += 2; PUSH_DISPATCH(mcs_int(BXE_##O(pa_->as.i, y_))); } \
         sop = OP_##O; goto li_slow; \
     }
     BX_EACH(LI_FORM)
     li_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); ip += 2; SAVE();
-        if (!arith(vm, sop, *pa_, b, &r)) THROWN();
+        b = mcs_int((int8_t)ip[1]); ip += 2;
+        if (farith(sop, *pa_, b, &fz_)) PUSH_DISPATCH(FVAL(fz_));
+        SAVE();
+        CHECKED(arith(vm, sop, *pa_, b, &r));
         PUSH_DISPATCH(r);
     }
     /* SI_<op> i: top = top <op> i */
@@ -1385,8 +1517,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     BX_EACH(SI_FORM)
     si_slow: {
-        b = mcs_int((int8_t)ip[0]); ip++; SAVE();
-        if (!arith(vm, sop, sp[-1], b, &r)) THROWN();
+        a = sp[-1]; b = mcs_int((int8_t)ip[0]); ip++;
+        if (farith(sop, a, b, &fz_)) { sp[-1] = FVAL(fz_); DISPATCH(); }
+        SAVE();
+        CHECKED(arith(vm, sop, a, b, &r));
         sp[-1] = r; DISPATCH();
     }
     /* ACC_ADD / ACC_SUB d: slots[d] = slots[d] <op> pop */
@@ -1402,8 +1536,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     CASE(ACC) { sop = bx_ops[ip[0] & 15]; ip++; goto acc_slow; }
     acc_slow: {
-        uint8_t d_ = ip[0]; ip++; SAVE();
-        if (!arith(vm, sop, slots[d_], sp[-1], &r)) THROWN();
+        uint8_t d_ = ip[0]; ip++; a = slots[d_]; b = sp[-1];
+        if (farith(sop, a, b, &fz_)) { slots[d_] = FVAL(fz_); sp--; DISPATCH(); }
+        SAVE();
+        CHECKED(arith(vm, sop, a, b, &r));
         slots[d_] = r; sp--; DISPATCH();
     }
     /* JFLI_<c> a i o16: jump forward unless slots[a] <c> i;  JBLI_<c>: jump back if true */
@@ -1416,8 +1552,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JFLI_FORM)
     jfli_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
-        if (!compare_op(vm, sop, *pa_, b, &r)) THROWN();
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, b, &fr_)) { if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
+        CHECKED(compare_op(vm, sop, *pa_, b, &r));
         if (!mcs_truthy(r)) ip += o_;
         DISPATCH();
     }
@@ -1433,8 +1571,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JBLI_FORM)
     jbli_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]];
-        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
-        if (!compare_op(vm, sop, *pa_, b, &r)) THROWN();
+        b = mcs_int((int8_t)ip[1]); uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, b, &fr_)) { if (fr_) { ip -= o_; SAFEPOINT(); } DISPATCH(); } }
+        SAVE();
+        CHECKED(compare_op(vm, sop, *pa_, b, &r));
         if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
         DISPATCH();
     }
@@ -1447,8 +1587,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     }
     JX_EACH(JFSI_FORM)
     jfsi_slow: {
-        b = mcs_int((int8_t)ip[0]); uint16_t o_ = K16(ip + 1); ip += 3; SAVE();
-        if (!compare_op(vm, sop, sp[-1], b, &r)) THROWN();
+        a = sp[-1]; b = mcs_int((int8_t)ip[0]); uint16_t o_ = K16(ip + 1); ip += 3;
+        { bool fr_; if (fcmp(sop, a, b, &fr_)) { sp--; if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
+        CHECKED(compare_op(vm, sop, a, b, &r));
         sp--;
         if (!mcs_truthy(r)) ip += o_;
         DISPATCH();
@@ -1463,8 +1605,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JFLL_FORM)
     jfll_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
-        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
-        if (!compare_op(vm, sop, *pa_, *pb_, &r)) THROWN();
+        uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, *pb_, &fr_)) { if (!fr_) ip += o_; DISPATCH(); } }
+        SAVE();
+        CHECKED(compare_op(vm, sop, *pa_, *pb_, &r));
         if (!mcs_truthy(r)) ip += o_;
         DISPATCH();
     }
@@ -1480,8 +1624,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     JX_EACH(JBLL_FORM)
     jbll_slow: {
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pb_ = &slots[ip[1]];
-        uint16_t o_ = K16(ip + 2); ip += 4; SAVE();
-        if (!compare_op(vm, sop, *pa_, *pb_, &r)) THROWN();
+        uint16_t o_ = K16(ip + 2); ip += 4;
+        { bool fr_; if (fcmp(sop, *pa_, *pb_, &fr_)) { if (fr_) { ip -= o_; SAFEPOINT(); } DISPATCH(); } }
+        SAVE();
+        CHECKED(compare_op(vm, sop, *pa_, *pb_, &r));
         if (mcs_truthy(r)) { ip -= o_; SAFEPOINT(); }
         DISPATCH();
     }
@@ -1521,8 +1667,10 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         F##_ushr: z_ = (mcs_uint_t)x_ >> ((mcs_uint_t)y_ & IBITS); \
         F##_int: ip += LEN; PUT((mcs_int_t)z_); DISPATCH(); \
         F##_slow: \
-        ip += LEN; SAVE(); \
-        if (!arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)) THROWN(); \
+        ip += LEN; \
+        if (farith(bx_ops[op_ & 15], *pa_, *pb_, &fz_)) { PUTV(FVAL(fz_)); DISPATCH(); } \
+        SAVE(); \
+        CHECKED(arith(vm, bx_ops[op_ & 15], *pa_, *pb_, &r)); \
         PUTV(r); DISPATCH(); \
     }
 #define PUT_PUSH(v) PUSH_DISPATCH(mcs_int(v))
@@ -1551,8 +1699,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             default: break;
             }
         }
+        if (farith(sop, a, b, &fz_)) { slots[d_] = FVAL(fz_); DISPATCH(); }
         SAVE();
-        if (!arith(vm, sop, a, b, &r)) THROWN();
+        CHECKED(arith(vm, sop, a, b, &r));
         slots[d_] = r; DISPATCH();
     }
     /* compare-and-branch: POPN values popped, BACK = jump backwards when true */
@@ -1573,8 +1722,9 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         F##_gt: t_ = x_ > y_; goto F##_done; \
         F##_ge: t_ = x_ >= y_; goto F##_done; \
         F##_slow: \
+        { bool fr_; if (fcmp(jx_ops[c_ & 7], *pa_, *pb_, &fr_)) { t_ = fr_; goto F##_done; } } \
         SAVE(); \
-        if (!compare_op(vm, jx_ops[c_ & 7], *pa_, *pb_, &r)) THROWN(); \
+        CHECKED(compare_op(vm, jx_ops[c_ & 7], *pa_, *pb_, &r)); \
         t_ = mcs_truthy(r); \
         F##_done: \
         sp -= (POPN); \
@@ -1607,7 +1757,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         ENSURE(2);
         const mcs_value_t* pa_ = &slots[ip[0]]; const mcs_value_t* pi_ = &slots[ip[1]];
         if (IS_SEQ(*pa_) && pi_->type == MCS_T_INT && (mcs_uint_t)pi_->as.i < AS_LIST(*pa_)->count) {
-            r = AS_LIST(*pa_)->items[pi_->as.i]; ip += 2; goto push_dispatch;
+            ip += 2; PUSH_DISPATCH(AS_LIST(*pa_)->items[pi_->as.i]);
         }
         sp[0] = *pa_; sp[1] = *pi_; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
@@ -1622,8 +1772,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         b = sp[-1]; sp[-1] = *pa_; sp[0] = *pi_; sp[1] = b; sp += 2; if ((size_t)(sp - vm->stack) > vm->stack_peak) vm->stack_peak = (uint32_t)(sp - vm->stack); ip += 2;
         SAVE();
-        if (!index_set_stmt(vm)) THROWN();
-        sp = vm->sp;
+        CHECKED(index_set_stmt(vm));
         DISPATCH();
     }
     CASE(SETF_L) {
@@ -1646,8 +1795,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         }
         a = *ov;
         SAVE();
-        if (!setf_slow(vm, a, KSTR(k))) THROWN();
-        sp = vm->sp;
+        CHECKED(setf_slow(vm, a, KSTR(k)));
         DISPATCH();
     }
 #endif
@@ -1660,7 +1808,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #endif
         if (a.type == MCS_T_CHAR) { slots[s].as.i += d; DISPATCH(); }
         SAVE();
-        if (!arith(vm, OP_ADD, a, mcs_int(d), &r)) THROWN();
+        CHECKED(arith(vm, OP_ADD, a, mcs_int(d), &r));
         slots[s] = r;
         DISPATCH();
     }
@@ -1761,7 +1909,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         /* mcs_cls_get also materializes lazily registered native members
          * (e.g. Exception's .ctor when a script class calls base(msg)) */
         if (!mcs_cls_get(vm, AS_CLASS(a), MCS_TAB_METHODS, nm, &m)) {
-            if ((nm == vm->s_ctor || nm == vm->s_init) && argc == 0) DISPATCH();
+            if ((nm == vm->s_ctor || nm == vm->s_init) && argc == 0) { RELOAD(); DISPATCH(); }
             missing_member(vm, PEEK(argc), nm);
             THROWN();
         }
@@ -1787,7 +1935,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         vm->frame_count--;
         *slots = r;
         sp = slots + 1;
-        if (vm->frame_count <= base_frame) { SYNC(); vm->exec_views = view.prev; vm->run_depth--; return MCS_OK; }
+        if (vm->frame_count <= base_frame) { SYNC(); vm->run_depth--; return MCS_OK; }
         LOAD();
         DISPATCH();
     }
@@ -1865,13 +2013,13 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         a = PEEK(0);
         if (k == CV_INT && a.type == MCS_T_INT) DISPATCH();
         SAVE();
-        if (!convert(vm, k, a, &r)) THROWN();
+        CHECKED(convert(vm, k, a, &r));
         sp[-1] = r;
         DISPATCH();
     }
     CASE(TOSTR) { GCPOINT();
         a = PEEK(0);
-        if (!IS_STRING(a)) { SAVE(); mcs_string_t* s = mcs_value_to_string(vm, a); if (!s) THROWN(); sp[-1] = OBJ_VAL(s); }
+        if (!IS_STRING(a)) { SAVE(); mcs_string_t* s = mcs_value_to_string(vm, a); CHECKED(s); sp[-1] = OBJ_VAL(s); }
         DISPATCH();
     }
     CASE(TOSTR_FMT) {
@@ -1879,19 +2027,20 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         SAVE();
         mcs_buf_t buf; mcs_buf_init(&buf, vm);
         if (!mcs_format_spec(vm, &buf, a, AS_CSTR(b), AS_STRING(b)->len)) { mcs_buf_free(&buf); THROWN(); }
+        RELOAD();
         sp--;
         sp[-1] = OBJ_VAL(mcs_buf_to_string(&buf));
         DISPATCH();
     }
     CASE(CONCAT) { GCPOINT();
         int n = READ8();
-        SAVE();
+        SAVE_KEEP();
         size_t total = 0;
         for (int i = n; i >= 1; i--) {
             mcs_value_t* p = sp - i;
             if (!IS_STRING(*p)) {
                 if (p->type == MCS_T_NULL) { *p = OBJ_VAL(mcs_intern(vm, "", 0)); }
-                else { mcs_string_t* s = mcs_value_to_string(vm, *p); if (!s) THROWN(); *p = OBJ_VAL(s); }
+                else { mcs_string_t* s = mcs_value_to_string(vm, *p); CHECKED(s); p = sp - i; *p = OBJ_VAL(s); }
             }
             total += AS_STRING(*p)->len;
         }
@@ -1902,11 +2051,11 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
         sp -= n;
         PUSH_DISPATCH(OBJ_VAL(res));
     }
-    CASE(IS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
-    CASE(AS) { SAVE(); mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) sp[-1] = mcs_null(); DISPATCH(); }
+    CASE(IS) { SAVE_KEEP(); mcs_string_t* tn = KSTR(READ16()); sp[-1] = mcs_bool(mcs_is_instance_of(vm, PEEK(0), tn)); DISPATCH(); }
+    CASE(AS) { SAVE_KEEP(); mcs_string_t* tn = KSTR(READ16()); if (!mcs_is_instance_of(vm, PEEK(0), tn)) sp[-1] = mcs_null(); DISPATCH(); }
     CASE(CAST) {
         mcs_string_t* tn = KSTR(READ16());
-        SAVE();
+        SAVE_KEEP();
         a = PEEK(0);
         if (a.type != MCS_T_NULL && !mcs_is_instance_of(vm, a, tn)) {
             SAVE(); mcs_throw(vm, EXC_INVCAST, "Unable to cast object of type '%s' to type '%s'.", mcs_type_name(vm, a), tn->chars); THROWN();
@@ -1956,7 +2105,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
             mcs_value_t m, r;
             mcs_string_t* gn = mcs_intern_c(vm, "GetEnumerator");
             if (mcs_table_get_s(&mcs_class_of(vm, a)->methods, gn, &m)) {
-                if (mcs_call_internal(vm, m, a, 0, NULL, &r) != MCS_OK) THROWN();
+                CHECKED(mcs_call_internal(vm, m, a, 0, NULL, &r) == MCS_OK);
                 if (IS_KIND(r, MCS_O_ARRAY) || IS_KIND(r, MCS_O_LIST) || IS_KIND(r, MCS_O_DICT) || IS_STRING(r)) {
                     slots[s] = r;
                     ip -= 4; /* re-run FOR_ITER on the returned collection */
@@ -1992,21 +2141,22 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
     DISPATCH_END()
 
 /* Terminal stack-producing opcodes share their checked push and dispatch. */
+#if MCS_VM_COMPACT
 push_dispatch:
     PUSH(r);
     DISPATCH();
+#endif
 
 on_exception:
     /* a native stopped early because the run must end (time limit, Ctrl-C, hook) and the
      * script then tripped over its result: report the abort, not the follow-up error */
     if (vm->abort_req) { vm->abort_reason = vm->abort_hint ? vm->abort_hint : MCS_ABORT_REQUEST; vm->abort_hint = 0; goto on_abort; }
     if (unwind(vm, base_frame)) { LOAD(); sp = vm->sp; DISPATCH(); }
-    vm->exec_views = view.prev; vm->run_depth--;
+    vm->run_depth--;
     return MCS_ERR_RUNTIME;
 on_abort:
-    SYNC();
     vm->abort_req = false;
-    vm->exec_views = view.prev; vm->run_depth--;
+    vm->run_depth--;
     mcs_throw(vm, EXC_SYSTEM, "Script aborted");
     vm->exc_value = mcs_null(); vm->has_exc = true;
     return MCS_ERR_ABORTED;
@@ -2143,18 +2293,25 @@ typedef struct {
     jmp_buf* panic;
     size_t spoff;
     int frames, handlers, gc_pause, run_depth, roots;
-    mcs_exec_view_t* views;
     mcs_native_args_t* args;
+#if MCS_NATIVE_ARENA > 0
+    uint16_t nargs_top;
+#endif
 } mcs_guard_state_t;
 static void guard_save(mcs_vm_t* vm, mcs_guard_state_t* saved) {
     saved->panic = vm->panic; saved->spoff = (size_t)(vm->sp - vm->stack);
     saved->frames = vm->frame_count; saved->handlers = vm->handler_count;
     saved->gc_pause = vm->gc_pause; saved->run_depth = vm->run_depth; saved->roots = vm->root_count;
-    saved->views = vm->exec_views; saved->args = vm->native_args;
+    saved->args = vm->native_args;
+#if MCS_NATIVE_ARENA > 0
+    saved->nargs_top = vm->nargs_top;
+#endif
 }
 static void guard_recover(mcs_vm_t* vm, const mcs_guard_state_t* saved) {
-    vm->exec_views = saved->views;
     native_args_restore(vm, saved->args);
+#if MCS_NATIVE_ARENA > 0
+    vm->nargs_top = saved->nargs_top;
+#endif
     vm->panic = saved->panic;
     vm->sp = vm->stack + saved->spoff;
     vm->frame_count = saved->frames; vm->handler_count = saved->handlers;
@@ -2534,7 +2691,11 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
     vm->panic = &jb;
     if (setjmp(jb)) { vm->panic = NULL; mcs_free(vm); return NULL; }
     vm->gc_pause++;
+#ifdef MCS_STACK_STRESS
+    vm->stack_cap = 1;
+#else
     vm->stack_cap = cfg.stack_slots < 32 ? cfg.stack_slots : 32;
+#endif
     vm->stack = MCS_ALLOC(vm, mcs_value_t, vm->stack_cap);
     vm->sp = vm->stack; vm->stack_end = vm->stack + vm->stack_cap;
     vm->frame_cap = 1;

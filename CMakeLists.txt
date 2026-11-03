@@ -154,6 +154,9 @@ if(ESP_PLATFORM)
         INCLUDE_DIRS include ports/esp32 ${_mcs_fs_incs} ${_mcs_u8g2_incs}
         REQUIRES driver esp_adc esp_timer esp_partition joltwallet__littlefs ${_mcs_net_reqs}
         PRIV_REQUIRES esp_system)
+    if(CONFIG_MICROCS_VM_COMPACT)
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_VM_COMPACT=1)
+    endif()
     if(CONFIG_MICROCS_VM_HEAP_ACQUIRE_AT_START)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_RUNTIME_HEAP_POLICY=MCS_HEAP_ACQUIRE_AT_START)
     endif()

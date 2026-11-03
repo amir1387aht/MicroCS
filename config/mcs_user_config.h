@@ -168,6 +168,10 @@
 
 /* ================================================================ VM speed and memory */
 //#define MCS_COMPUTED_GOTO        1    /* computed-goto dispatch (default: 1 with GCC/Clang) */
+//#define MCS_VM_COMPACT           0    /* share dispatch/push/call-entry code between opcodes: smaller, slower (default: 1 only without computed goto) */
+#ifndef MCS_NATIVE_ARENA
+#define MCS_NATIVE_ARENA          32    /* native argv slots inside the VM; no pool allocation per native call (sizeof(value) bytes each) */
+#endif
 #ifndef MCS_FIELD_CACHE
 #define MCS_FIELD_CACHE           1    /* inline cache for obj.field (~8 B per name constant on 32-bit) */
 #endif

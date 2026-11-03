@@ -76,17 +76,17 @@ Scheduler.Every(1000, () => {
 
 <div align="center">
 
-| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 📶 **Wi-Fi · HTTPS · ESP-NOW** | 🧱 **8 build systems** |
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **optimized bytecode images** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 📶 **Wi-Fi · HTTPS · ESP-NOW** | 🧱 **8 build systems** |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | ESP32 family: station + AP, TCP/UDP, HTTP(S), NTP, mDNS, JSON | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
+| historically built and run in CI; current PR needs target remeasurement | current host benchmarks below | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | ESP32 family: station + AP, TCP/UDP, HTTP(S), NTP, mDNS, JSON | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
 
 </div>
 
 > [!TIP]
 > **Precompile for speed.** `mcs -c` turns a script into an optimized bytecode image
-> (superinstructions, loop rotation, method and constructor caches, compact format). Images run
-> **up to 2× faster** than compiling on the device, need up to half the RAM, run straight from
-> flash and are usually smaller than the source. [Numbers](docs/PERFORMANCE.md#bytecode-images)
+> (superinstructions, loop rotation, method and constructor caches, compact format). Images can
+> run straight from flash and are often smaller than the source. See the current
+> [host measurements](#-performance--footprint); embedded results require target testing.
 
 <details>
 <summary><b>📑 Contents</b></summary>
@@ -116,8 +116,9 @@ Output is **byte-identical to .NET 8** for every program in the test suite
 
 ### 🪶 Small & portable
 One C99 library, no dependencies. Pool allocator included, feature flags and 7 build
-profiles (`auto` sizes itself to the chip). Runs in **16 KB of RAM and 64 KB of flash**; a VM
-starts in 1.7–8 KB of heap; bytecode can run straight from flash.
+profiles (`auto` sizes itself to the chip). Historically tested down to **16 KB RAM and 64 KB
+flash**; the current PR still needs its embedded footprint remeasured. Bytecode can run straight
+from flash.
 
 </td>
 <td width="33%" valign="top">
@@ -142,8 +143,9 @@ ASan + UBSan.
 
 ### ⚡ Fast
 An optimizing image compiler (71 superinstructions, loop rotation), computed-goto dispatch,
-method/field/constructor caches, precise mark & sweep GC. **2–9× faster than CPython 3.13**
-on every benchmark in this repo.
+method/field/constructor caches, precise mark & sweep GC. See the current
+[host benchmarks](#-performance--footprint) and historical cross-runtime comparisons in
+[PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework).
 
 </td>
 <td valign="top">
@@ -592,17 +594,16 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 
 ## ⚖️ MicroCS vs MicroPython vs .NET nanoFramework
 
+Feature comparison below. The older numerical comparisons in [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework) used MicroCS 1.6.0 and have **not** been rerun for this PR.
+
 | | **MicroCS** | **MicroPython** | **.NET nanoFramework** |
 |---|---|---|---|
 | Language | modern C# subset (generics, LINQ, tuples, pattern matching) | Python 3 subset | C# (.NET subset, IL from Roslyn) |
 | Compile on the device + REPL | ✅ both | ✅ both | ❌ compiled on the PC, no REPL |
 | Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
 | Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
-| Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
-| Speed on real hardware — ESP32-S3, `fib(18)` | **30 ms** | 98 ms | not measured |
-| Speed on Cortex-M (same 5 scripts, emulated M4F + M0, same toolchain) | **2.3–3.7× fewer instructions** than MicroPython precompiled, 1.8–3.6× compiling on the device | 1× | not measured (no bare-metal build for the emulator) |
-| Speed on a PC — fib(30) / 10 M loop / 1 M objects | **41 / 95 / 132 ms** | 254 / 780 / 548 ms | 717 / 1485 / 4272 ms (nanoCLR virtual device) |
-| Smallest heap for those 5 scripts | 7.6–42 KB (incl. ~5.7 KB VM state + stack) | **0.7–21 KB** | not measured |
+| Minimum footprint | Previously built for **64 KB flash / 16 KB RAM** with `min`; current PR target footprint not remeasured | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
+| Current-PR cross-runtime speed and memory | Not remeasured | Not remeasured | Not remeasured |
 | Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
@@ -615,10 +616,9 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
-<p align="center"><img src="assets/compare.svg" alt="bare-metal C vs MicroCS vs MicroPython vs nanoFramework: emulated Cortex-M4F instructions and PC run times" width="100%"></p>
-
-**And against bare-metal C** — the same 5 workloads written in C, same board, toolchain and
-`-Os` (emulated Cortex-M4F, million instructions; × = times the C count):
+**Historical comparison against bare-metal C** — MicroCS 1.6.0, not the current PR; the same
+5 workloads, same board and toolchain, `-Os` (emulated Cortex-M4F, million instructions;
+× = times the C count):
 
 | | C | MicroCS | MicroPython |
 |---|---:|---:|---:|
@@ -628,15 +628,9 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 | `sensor` — `double` math + formatting | 0.25 | 0.68 (2.7×) | 2.15 (8.5×) |
 | `strings` — build, split, parse | 0.13 | 0.49 (3.8×) | 1.79 (14×) |
 
-Hot inner loops still belong in C — MicroCS calls into your C functions directly (see
-[Option 1](#-option-1--drop-the-library-into-an-existing-project)) — but glue, logic and I/O-bound code runs
-within 3–4× of C.
-
-Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
-nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve
-the device, and C# developers get a REPL on a $4 board. Where it does not (yet): heap use
-on small scripts, the breadth of board-specific radio support, a step debugger and the size of the ecosystem.
-Method, all numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
+Hot inner loops can call directly into C (see [Option 1](#-option-1--drop-the-library-into-an-existing-project)).
+These historical ratios are not current-PR results; remeasure each runtime on the same target
+before making a speed or memory comparison. Method, historical numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
 · reproduce: [`bench/compare/`](bench/compare).
 
 ## 🏗️ Architecture
@@ -658,15 +652,87 @@ flowchart LR
 ```
 
 The compiler (dashed) is optional: ship only the VM and load precompiled images to save
-~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+flash and compile-time RAM; the saving depends on the target and build configuration. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
 ## 📊 Performance & footprint
 
-<p align="center"><img src="assets/bench.svg" alt="Benchmark on a PC: MicroCS vs MicroPython vs CPython" width="720"></p>
-<p align="center"><img src="assets/footprint.svg" alt="Flash by component on Cortex-M33" width="720"></p>
+### Current PR vs `main` — host benchmark
+
+Measured 2026-11-03 on x86-64 Intel Xeon 2.90 GHz, GCC 11.5.0 `-O2`, comparing
+`main` **481e225** with PR **b1698b4**. Times are milliseconds, lower is better;
+“faster” is main time ÷ PR time. Each value is the **median of five alternating
+rounds**, with each round the best of five `bench_host` runs. Each run uses a
+fresh VM; the harness subtracts its measured startup time. Both versions used
+identical source files and relative filenames, compiled by their respective
+versions; image output matched (excluding the workloads’ elapsed-time lines).
+
+| Workload | Main image (ms) | PR image (ms) | Image speedup | Source run main → PR (ms) | VM peak main → PR (KiB) |
+|---|---:|---:|---:|---:|---:|
+| fib — recursion | 61.12 | 42.41 | 1.44× | 103.46 → 53.89 | 5.7 → 5.7 |
+| loop — integer arithmetic | 193.77 | 92.95 | 2.08× | 352.07 → 181.85 | 4.1 → 4.1 |
+| objects — allocation and calls | 194.21 | 141.08 | 1.38× | 226.31 → 150.33 | 1512.3 → 1512.3 |
+| demo — mixed workload | 0.31 | 0.23 | 1.37× | 0.78 → 0.42 | 40.7 → 40.7 |
+| float filter — arithmetic | 633.89 | 270.44 | 2.34× | 933.68 → 388.74 | 3.0 → 2.9 |
+
+Source run includes compiling and executing the script; image run loads and
+executes an optimized image. VM peak is the harness’s tracked allocation peak
+for image execution, not process RSS or an MCU pool-size requirement. These are
+host measurements for these workloads, not guarantees for other programs.
+The demo’s image compilation time fell from 382.2 to 192.9 µs (VM startup subtracted).
+
+```sh
+make -j2 mcs
+make bench                                  # fib, loop, objects and demo; best of 5
+./build/bench_host bench/float_filter.cs 5  # float filter; best of 5
+make mcu-bench                              # requires ARM GCC and Python unicorn
+make cm-check                               # target footprint and emulator checks
+```
+
+**Code-size tradeoff:** on this host, `src/mcs_vm.c` built at `-O2` grew from
+74,198 to 87,668 bytes of object `.text` (+13,470 bytes) versus `main`. This is
+not an MCU flash measurement. `MCS_VM_COMPACT=1` selects the smaller VM layout
+and omits the inline float fast path; test speed and flash on the target before
+choosing a profile. `MCS_NATIVE_ARENA` also trades per-VM RAM for fewer native
+call allocations.
+
+### MicroCS vs Lua vs nanoFramework — host comparison
+
+Rerun 2026-11-03 on the same x86-64 host, after host tests completed: MicroCS PR **1cb5405**,
+stock Lua **5.4.8** (`-O2`) and nanoFramework nanoCLR CLI **1.1.311** with
+CoreLibrary **1.17.12** on its x86-64 virtual device. Times in ms are medians
+of three rounds, each the median of three runs; runtime order was rotated and
+processes pinned to one CPU. Lower is better.
+
+| Workload | MicroCS image | Lua bytecode | nanoFramework |
+|---|---:|---:|---:|
+| fib(30) | 42.2 | 51.1 | 715.2 |
+| integer loop, 10 million iterations | 94.1 | 72.6 | 1,500.2 |
+| objects, 1 million operations | 139.3 | 293.5 | 4,300.9 |
+
+An earlier run was variable: its Lua loop median was 112.2 ms versus 72.6 ms
+in the latest rerun; the cause is not established. Treat close rankings cautiously.
+[Per-round results from all three runs](bench/compare/lua/results-2026-11-03.json)
+are included. All workloads produced matching checksums. These are **host**
+results, not MCU results: Lua objects are tables/metatables, MicroCS uses `List<P>`, and
+nanoFramework uses `ArrayList`. MicroCS measures image loading and execution
+with startup subtracted; Lua includes bytecode load and execution but not VM
+creation; nanoFramework times execution internally without assembly load.
+Consequently this is an indicative comparison, not an identical measurement of
+all runtime overhead. Sources, versions, commands and per-round method are in
+[bench/compare/lua](bench/compare/lua/README.md).
+
+### Historical Cortex-M figures — current PR not yet remeasured
+
+The following embedded tables are earlier project measurements, **not
+results for the current PR**. These older measurements have not been rerun for the current PR on a real board.
+The host nanoFramework comparison above is not a substitute for hardware results.
+Rerun `make mcu-bench` and
+`make cm-check` on the intended toolchain and measure on real boards before
+relying on the historical speed or footprint numbers. Historical methods and
+comparisons are in [PERFORMANCE.md](docs/PERFORMANCE.md).
 
 | Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
 |---|---:|---:|---:|---:|---:|
@@ -690,7 +756,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | `strings` (string building) | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 31.7 → 30.6 KB |
 
 > [!NOTE]
-> Instruction counts and memory peaks are measured by `make cm-check` and `make mcu-bench`. 1 KB = 1024 B. Flash
+> These historical instruction counts and memory peaks were measured by `make cm-check` and `make mcu-bench`; they have not been verified for the current PR. 1 KB = 1024 B. Flash
 > includes newlib + libm (~49 KB; the `min` build uses the built-in tiny printf and no libm)
 > and the optional modules. Method and raw data: [PERFORMANCE.md](docs/PERFORMANCE.md). For
 > 16–64 KB RAM parts see [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) and the firmware in
@@ -703,7 +769,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Area | Status | Evidence |
 |---|:---:|---|
 | Interpreter core, GC, stdlib | ✅ | `make check`: source/image/XIP regressions, GC stress, feature-flag / profile builds `-Werror`, and alternate-configuration script suites |
-| 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
+| 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | Historical `m0-16k` and `m0-64k` runs matched the host; current PR needs `make cm-check` |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API (peripherals, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |

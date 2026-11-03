@@ -1181,6 +1181,9 @@ static void free_obj(mcs_vm_t* vm, mcs_obj_t* o) {
 }
 
 static void mark_roots(mcs_vm_t* vm) {
+    #if MCS_NATIVE_ARENA > 0
+    for (uint16_t i = 0; i < vm->nargs_top; i++) mark_val(vm, vm->nargs_arena[i]);
+    #endif
     for (mcs_native_args_t* a = vm->native_args; a; a = a->prev)
         for (int i = 0; i < a->count; i++) mark_val(vm, a->values[i]);
     for (mcs_value_t* v = vm->stack; v < vm->sp; v++) mark_val(vm, *v);

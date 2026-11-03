@@ -86,6 +86,7 @@ SECTIONS = [
         ("examples/lowram/README.md", "Low-RAM-Firmware-Example"),
         ("docs/PERFORMANCE.md", "Performance"),
         ("bench/compare/README.md", "Runtime-Benchmark-Comparison"),
+        ("bench/compare/lua/README.md", "Lua-Host-Benchmark"),
     ]),
     ("Internals", [
         ("docs/ARCHITECTURE.md", "Architecture"),
