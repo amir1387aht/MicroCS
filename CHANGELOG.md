@@ -25,7 +25,9 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   other types and operations. `MCS_VM_COMPACT=1` retains the smaller layout;
   the flash cost on microcontrollers still needs measurement. Numeric edge
   cases are covered by `tests/t36_float_fastpath.cs`.
-* Fit the G474 firmware with compact dispatch and LTO; ESP32-C6 BLE defaults to
+* Fit the 256 KiB Cortex-M0 reference builds with compact dispatch and the
+  runtime-only variant with heap-backed native arguments. Fit the G474 firmware
+  with compact dispatch and LTO; ESP32-C6 BLE defaults to
   compact dispatch through menuconfig. These retain features and storage layout,
   but may reduce runtime speed relative to the fast VM.
 * Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,

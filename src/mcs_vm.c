@@ -267,9 +267,17 @@ static bool frame_need(mcs_vm_t* vm) {
 /* Native argv copies (the value stack may be reallocated while a native re-enters the VM, so natives
  * must not point into it). Common case: bump-allocate from a small arena embedded in the VM, with no
  * pool allocation per native call; deeper nesting / many arguments falls back to rooted pool blocks. */
-typedef struct { mcs_native_args_t* heap; uint16_t top; } nargs_mark_t;
+typedef struct {
+    mcs_native_args_t* heap;
+#if MCS_NATIVE_ARENA > 0
+    uint16_t top;
+#endif
+} nargs_mark_t;
 static mcs_value_t* native_args_begin(mcs_vm_t* vm, int argc, nargs_mark_t* m) {
-    m->heap = vm->native_args; m->top = vm->nargs_top;
+    m->heap = vm->native_args;
+#if MCS_NATIVE_ARENA > 0
+    m->top = vm->nargs_top;
+#endif
     if (!argc) return NULL;
     #if MCS_NATIVE_ARENA > 0
     if ((size_t)vm->nargs_top + (size_t)argc <= MCS_NATIVE_ARENA) {
@@ -295,7 +303,9 @@ static void native_args_restore(mcs_vm_t* vm, mcs_native_args_t* prev) {
 }
 static void native_args_end(mcs_vm_t* vm, const nargs_mark_t* m) {
     if (vm->native_args != m->heap) native_args_restore(vm, m->heap);
+#if MCS_NATIVE_ARENA > 0
     vm->nargs_top = m->top;
+#endif
 }
 
 /* Cold path of the interpreter's PUSH: the value stack is full. The caller has
@@ -2284,17 +2294,24 @@ typedef struct {
     size_t spoff;
     int frames, handlers, gc_pause, run_depth, roots;
     mcs_native_args_t* args;
+#if MCS_NATIVE_ARENA > 0
     uint16_t nargs_top;
+#endif
 } mcs_guard_state_t;
 static void guard_save(mcs_vm_t* vm, mcs_guard_state_t* saved) {
     saved->panic = vm->panic; saved->spoff = (size_t)(vm->sp - vm->stack);
     saved->frames = vm->frame_count; saved->handlers = vm->handler_count;
     saved->gc_pause = vm->gc_pause; saved->run_depth = vm->run_depth; saved->roots = vm->root_count;
-    saved->args = vm->native_args; saved->nargs_top = vm->nargs_top;
+    saved->args = vm->native_args;
+#if MCS_NATIVE_ARENA > 0
+    saved->nargs_top = vm->nargs_top;
+#endif
 }
 static void guard_recover(mcs_vm_t* vm, const mcs_guard_state_t* saved) {
     native_args_restore(vm, saved->args);
+#if MCS_NATIVE_ARENA > 0
     vm->nargs_top = saved->nargs_top;
+#endif
     vm->panic = saved->panic;
     vm->sp = vm->stack + saved->spoff;
     vm->frame_count = saved->frames; vm->handler_count = saved->handlers;

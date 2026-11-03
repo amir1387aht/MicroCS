@@ -100,7 +100,9 @@ native-call speed. Type-name memoization is bypassed for VMs with a nonzero
 heap limit at or below 64 KiB so scratch caches cannot crowd out application
 state; this can slow compilation, not script execution.
 
-The ready-to-flash STM32 G474 firmware uses compact dispatch and LTO, and the
+The 256 KiB Cortex-M0 reference builds use compact dispatch; the runtime-only
+reference also uses heap-backed native arguments to fit flash. The ready-to-flash
+STM32 G474 firmware uses compact dispatch and LTO, and the
 ESP32-C6 BLE example defaults to compact dispatch (`MicroCS > Compact VM dispatch`
 in menuconfig). Those builds retain the same features and storage partitions,
 but may execute scripts more slowly than the fast layout. Other targets keep

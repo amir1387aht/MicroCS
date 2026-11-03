@@ -251,8 +251,8 @@ struct mcs_vm {
     mcs_frame_t* frames;
     uint16_t frame_cap;
     mcs_native_args_t* native_args;
-    uint16_t nargs_top;
     #if MCS_NATIVE_ARENA > 0
+    uint16_t nargs_top;
     mcs_value_t nargs_arena[MCS_NATIVE_ARENA];
     #endif
     uint32_t stack_peak;
