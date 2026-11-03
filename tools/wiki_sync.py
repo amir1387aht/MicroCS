@@ -76,6 +76,7 @@ SECTIONS = [
         ("tools/studio/README.md", "MicroCS-Studio"),
         ("tools/studio/templates/README.md", "Studio-Template-Authoring"),
         ("examples/README.md", "Examples"),
+        ("examples/lvgl/README.md", "LVGL-Examples"),
     ]),
     ("Embedding and tuning", [
         ("docs/EMBEDDING.md", "Embedding"),

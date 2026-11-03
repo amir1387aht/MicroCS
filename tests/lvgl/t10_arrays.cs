@@ -48,3 +48,5 @@ var st = new lv_style_t();
 lv_style_init(st);
 lv_style_set_transition(st, tr);
 Console.WriteLine("transition ok");
+
+lv_style_reset(st);

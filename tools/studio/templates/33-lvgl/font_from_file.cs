@@ -20,8 +20,13 @@ lv_obj_align(big, LV_ALIGN_CENTER, 0, 30);
 if (ttf != null) lv_obj_set_style_text_font(big, ttf, 0);
 else Console.WriteLine("no /fonts/face.ttf: using the default font");
 
-while (true)
+// Run for 15 seconds. Delete the labels before releasing the fonts they use.
+for (int i = 0; i < 3000; i++)
 {
     lv_timer_handler();
     Thread.Sleep(5);
 }
+lv_obj_delete(label);
+lv_obj_delete(big);
+if (bin != null) lv_binfont_destroy(bin);
+if (ttf != null) lv_tiny_ttf_destroy(ttf);

@@ -11,7 +11,8 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
   port. See [docs/LVGL.md](docs/LVGL.md).
 * Build support: CMake (`cmake/MicroCSLvgl.cmake`), ESP-IDF and Zephyr Kconfig, Arduino (`make_arduino.py --lvgl`), PlatformIO, `microcs.mk`;
   `make mcs-lvgl` / `lvgl-test` / `fetch-lvgl` / `lvgl-api`; `mcs --lvgl[=WxH]` in-memory display on the host; capability `Lvgl`.
-* Studio: LVGL completion, hover and signature help (lazy-loaded data) and the *LVGL graphics* template category.
+* Studio: LVGL completion, hover and signature help (lazy-loaded data) and the *LVGL graphics* template category, including keyboard, calendar, canvas, dashboard and tree-walk examples.
+* Prevent reuse of the same font wrapper after an explicit font destroy; add lifetime/GC stress and explicit cleanup tests. Font and style cleanup still belongs to the script or host.
 
 ## 1.19.0 — Studio workbench and editor intelligence
 

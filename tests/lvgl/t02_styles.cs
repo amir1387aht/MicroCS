@@ -43,5 +43,6 @@ Console.WriteLine("mix 0x" + lv_color_mix(lv_color_hex(0xFF0000), lv_color_hex(0
 var f = lv_obj_get_style_text_font(o, 0);
 Console.WriteLine(f != null);
 Console.WriteLine("line height " + lv_font_get_line_height(lv_font_montserrat_14));
+lv_obj_delete(o);  // detach the shared style before releasing its properties
 lv_style_reset(st);
 Console.WriteLine("done");

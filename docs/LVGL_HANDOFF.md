@@ -91,6 +91,12 @@ Core VM ROM global tables, extractor fixes, generator, runtime module, host disp
 * Verified at the end of session 6: config-check, capabilities-test, `tests/run_tests.sh ./mcs` (106), both `lvgl-test` runs (13 + skip), all Node Studio tests
   (browser tests need `CHROME=/usr/local/bin/chromium` here; `test_app_replace_browser.js` times out in this sandbox also on the pre-step-5 commit 6fcbb18, not caused by LVGL).
 
+### Memory debug follow-up
+* ASan/UBSan + LeakSanitizer host tests used LVGL 8.3.11 and 9.2.2 with the LVGL allocator switched to the C heap. The original file-font test leaked its loaded fonts and the v9 transition-style test leaked style properties: explicit cleanup was added to the tests. Font destroy now disposes the passed wrapper, preventing its direct reuse or double-free; independent aliases are not invalidated.
+* Automatic font cleanup was deliberately not added: fonts and script-created styles can be referenced by host-owned objects that survive VM shutdown. Scripts/hosts must remove those references, destroy loaded fonts and reset style properties before closing. Abrupt interruption can still leak fonts and style properties. Persistent host objects retaining script-owned buffers or styles after VM close can dangle; a complete ownership-aware teardown remains open.
+* LVGL 9.2.2 `lv_chart.c:847` triggers signed integer overflow with unpopulated line-chart points under UBSan. This is in upstream LVGL and remains unresolved here.
+* Added tests t15–t17 (1,000 object/callback/timer cycles with GC and pending async, explicit font destroy/reuse, and 150 array/style cycles) and five Studio/standalone examples. After the fix, C-heap ASan/UBSan/LeakSanitizer passed 16 applicable tests on v8 and 15 on v9; the remaining v9 test aborted on the upstream chart UBSan finding, so its leak result is unknown. Hardware and constrained heap/OOM/VM-reopen stress remain to be tested.
+
 ## Next steps
 All five steps are done. What remains is outside what this sandbox can check:
 1. Build the ESP-IDF, Zephyr and PlatformIO integrations once with real toolchains (written, never built) and fix what shows up.

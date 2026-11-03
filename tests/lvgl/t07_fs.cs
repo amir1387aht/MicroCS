@@ -41,4 +41,7 @@ lvgl_host_run(50);
 int white = 0;
 for (int y = 20; y < 40; y++) for (int x = 0; x < 30; x++) if (lvgl_host_pixel(x, y) != 0) white++;
 Console.WriteLine("ttf text drawn " + (white > 20));
+lv_obj_delete(l);
+lv_binfont_destroy(bf);
+lv_tiny_ttf_destroy(tf);
 Console.WriteLine("done");

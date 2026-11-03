@@ -432,7 +432,7 @@ Full reference: [HAL.md](docs/HAL.md) · add your own devices: [DRIVERS.md](docs
 17 commented, runnable scripts: [examples/hardware](examples/hardware/)
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
 wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger) · displays:
-[examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal) · LVGL examples: Studio template category *LVGL graphics* (`tools/studio/templates/33-lvgl`).
+[examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal) · LVGL examples: [standalone scripts](examples/lvgl/README.md) and Studio template category *LVGL graphics* (`tools/studio/templates/33-lvgl`).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -708,7 +708,7 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API (peripherals, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
-| LVGL 8.x / 9.x binding (optional, generated from the LVGL headers, you port LVGL) | 🧪 | `make lvgl-test`: 14 scripts on an in-memory display with LVGL 8.3.11 and 9.2.2, tables compiled against 8.0.0 … 9.6.0, CMake / Arduino / `microcs.mk` builds in CI; ESP-IDF, Zephyr, PlatformIO written but not built, nothing run on a real display yet |
+| LVGL 8.x / 9.x binding (optional, generated from the LVGL headers, you port LVGL) | 🧪 | `make lvgl-test`: LVGL scripts on an in-memory display with LVGL 8.3.11 and 9.2.2, tables compiled against 8.0.0 … 9.6.0, CMake / Arduino / `microcs.mk` builds in CI; ESP-IDF, Zephyr, PlatformIO written but not built, nothing run on a real display yet |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF build matrix for ESP32-family targets, including Wi-Fi and BLE configurations where the chip supports them |

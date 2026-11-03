@@ -43,6 +43,8 @@ KEEP_PREFIX = ('lv_qrcode_create', 'lv_qrcode_update', 'lv_qrcode_set_', 'lv_bar
 # v9 name -> v8 name for renames that lv_api_map_v8.h has no #define for
 EXTRA_REV = {'lv_obj_send_event': 'lv_event_send', 'lv_binfont_create': 'lv_font_load',
              'lv_binfont_destroy': 'lv_font_free'}
+# Invalidate the wrapper passed to a font destructor to prevent reuse or double-free.
+FONT_FREE = {'lv_font_free', 'lv_binfont_destroy', 'lv_tiny_ttf_destroy'}
 SKIP = {'lv_init', 'lv_deinit', 'lv_is_initialized', 'lv_timer_handler_run_in_period'}
 # hand-written in modules/lvgl/mcs_lvgl.c (callbacks, user data, kept-alive arrays)
 OVERRIDE = {
@@ -279,7 +281,10 @@ class Gen:
         keep = ''
         if name in KEEP_STR and len(params) >= 2 and sig[0][0].startswith('ptr:'):
             keep = '    lvb_keep_for(vm, a0, "%s", argv[1]);\n' % name
-        if rcat == 'void':
+        if name in FONT_FREE and rcat == 'void' and len(params) == 1:
+            body = '    %s;\n    lvb_ud_t* u = ud_of(argv[0]); if (u) u->p = NULL;\n    return mcs_null();' % call
+            rk = 'void'
+        elif rcat == 'void':
             body = '    %s;\n%s    return mcs_null();' % (call, keep)
             rk = 'void'
         elif rcat == 'int':

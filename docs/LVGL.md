@@ -178,8 +178,9 @@ lv_obj_set_grid_cell(cell, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_CENTER, 0,
 Charts (`lv_chart_set_ext_y_array`, `lv_chart_set_series_values`...), `lv_line_set_points`, `lv_buttonmatrix_set_map`, `lv_keyboard_set_map`,
 `lv_dropdown`/`lv_roller` options, `lv_canvas`, `lv_calendar`, `lv_msg`, observers/subjects (LVGL 9), `lv_obj_tree_walk`, `lv_log` and
 `lv_obj_set_user_data` all work through the conversions above. The Studio template category **LVGL graphics** has a runnable example for each
-topic (hello label, events, styles, layouts, animations, timers, widgets, a live chart, screens, images and fonts from files, and
-version-independent code).
+topic (hello label, events, styles, layouts, animations, timers, widgets, a live chart, screens, images and fonts from files,
+keyboard input, calendar, canvas, an arc dashboard, tree walking, and version-independent code). Five standalone examples are also in
+[`examples/lvgl`](../examples/lvgl/README.md).
 
 ## Files, images and fonts
 
@@ -198,7 +199,8 @@ var ttf = lv_tiny_ttf_create_file("/fonts/Roboto.ttf", 24);   // TinyTTF, when L
   (`LV_USE_TJPGD`/`LV_USE_LIBJPEG_TURBO`), **BMP** (`LV_USE_BMP`), **GIF** (`LV_USE_GIF`, `lv_gif_create`/`lv_gif_set_src`), QR codes and barcodes
   (`LV_USE_QRCODE`, `LV_USE_BARCODE`) and LVGL's own `.bin`.
 * A missing or unreadable file shows nothing; MicroCS keeps running.
-* Free fonts loaded from files with `lv_binfont_destroy` / `lv_font_free` / `lv_tiny_ttf_destroy` once nothing uses them.
+* Free fonts loaded from files with `lv_binfont_destroy` / `lv_font_free` / `lv_tiny_ttf_destroy` once nothing uses them. These fonts are **not** automatically freed when the VM closes. A script interrupted before cleanup can leak them; arrange cleanup in your host lifecycle if interruption is possible. The wrapper passed to the destroy function is disposed, but independently obtained aliases are not invalidated: never reuse any alias after freeing a font.
+* Call `lv_style_reset` on each script-created style after deleting its users or removing the style from them. Closing the VM frees the style struct, but does not reset its LVGL-allocated properties. Similarly, do not leave a surviving object (including the original screen) referring to script-owned styles, static strings, arrays, or fonts after the VM closes. With `MCS_LVGL_CLEANUP_ON_CLOSE=0`, the host must remove such references before closing. Automatic cleanup cannot safely infer ownership of references on host objects.
 * Put the files on the device with your normal tooling (Studio's file manager, `mcs --fs DIR` on the PC, ...). See [FILESYSTEM](FILESYSTEM.md).
 
 ## Configuration
@@ -256,12 +258,13 @@ The **LVGL graphics** template category needs a firmware that reports the `Lvgl`
 
 ## Tests
 
-* `make lvgl-test LVGL_DIR=<v8 or v9 checkout>`: `tests/lvgl/t01…t14` run on the in-memory display and are compared with their `.out`. The first
+* `make lvgl-test LVGL_DIR=<v8 or v9 checkout>`: `tests/lvgl/t01…t17` run on the in-memory display and are compared with their `.out`. The first
   line of a test is `// args: …` (options for `mcs`), an optional second line `// only: v8` or `// only: v9` skips it on the other major.
   Covered: objects, styles, events, timers and animations, deleted objects, v8 names on both, file system (BMP, PNG, binary fonts, TinyTTF),
-  widgets, arrays, callbacks, observers, `lv_msg` and the capability.
+  widgets, arrays, callbacks, observers, `lv_msg`, the capability, object/callback/GC churn, and explicit font cleanup.
 * `node tests/studio/test_lvgl.js`: IntelliSense data; `node tests/studio/test_templates.js build/mcs_lvgl --only=lvgl`: the Studio LVGL templates run
   on the in-memory display.
+* ASan/UBSan with LVGL using the C allocator and LeakSanitizer expose native lifetime issues that the default LVGL pool allocator can hide. In LVGL 9.2.2, drawing a partially populated line chart can trigger a signed-overflow UBSan report in LVGL `lv_chart.c:847` (the `LV_CHART_POINT_NONE` sentinel); this is upstream code, not a clean sanitizer result.
 * CI (`.github/workflows/ci.yml`): `lvgl` (8.3.11 and 9.2.2: tests and templates), `lvgl-api` (tables for all releases, compile against
   8.0.0, 8.4.0, 9.0.0 and 9.6.0, generated Studio data is current), `lvgl-build-files` (CMake host builds, a project with its own `lvgl` target,
   the Arduino package, `microcs.mk`).
