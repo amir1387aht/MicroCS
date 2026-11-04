@@ -4,6 +4,27 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
 ## Unreleased — Interpreter hot-path restoration
 
+* Apache NuttX as an optional OS (`MCS_OS_NUTTX`, auto-detected through
+  `__NuttX__`): `Thread.Run` / `RunOn` / `Every`, `Worker` and `Channel` run on
+  NuttX pthreads, semaphores and critical sections (CPU pinning with
+  `CONFIG_SMP`). New `ports/nuttx` NuttX application (Kconfig, Make, CMake) that
+  builds the `mcs` NSH command from the unix CLI; verified on NuttX 12.11.0
+  `sim:nsh` (single core and SMP) with the full C# thread suite
+  (`make nuttx-test`). 🧪 Opt-in GPIO character-device reads and writes are
+  simulator-tested; physical boards, interrupts and other native peripherals
+  are not yet verified or supported. The Make build handles empty and custom
+  configuration-header paths. On NuttX the default
+  `MCS_THREAD_PRIORITY` is -1 without round-robin so a busy script thread cannot
+  starve the shell. The shell module's internal enum constants were renamed
+  (`SC_*`) because NuttX defines a `CODE` macro.
+* Fix `Directory.Delete(path, true)` deadlocking with the threaded VFS lock by removing
+  entries outside directory-list callbacks.
+* Use exact digit generators by default on NuttX (`MCS_OWN_DTOA`) for
+  shortest-round-trip and explicit decimal formatting, avoiding its printf
+  15-digit precision limit.
+* On NuttX, add a best-effort native stack reserve check for nested interpreter
+  callbacks (`MCS_NUTTX_STACK_RESERVE`); it does not guard all native or
+  compiler recursion, and target-specific stack sizing is still required.
 * Restore the pre-1.16 VM speed: `PUSH` is a single compare against the stack
   limit with a cold, out-of-line grow path; interpreter `sp`/`slots`/`frame` are
   real locals again (the internal `exec_views` indirection that forced them into

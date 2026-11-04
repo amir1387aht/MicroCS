@@ -2,7 +2,8 @@
 #
 #   MICROCS_OS = none (default: single-threaded, exactly like builds without this option)
 #              | freertos | posix | auto
-#   (Zephyr: CONFIG_MICROCS_THREADS=y through the Zephyr module, ESP-IDF: menuconfig > MicroCS.)
+#   (Zephyr: CONFIG_MICROCS_THREADS=y through the Zephyr module, ESP-IDF: menuconfig > MicroCS,
+#    NuttX: CONFIG_INTERPRETERS_MICROCS_THREADS=y through ports/nuttx.)
 #
 # FreeRTOS headers are taken from, in this order:
 #   1. a FreeRTOS CMake target that already exists: freertos_kernel (FreeRTOS-Kernel's own
@@ -138,6 +139,9 @@ function(microcs_add_os tgt os)
     elseif(_os STREQUAL "zephyr")
         message(FATAL_ERROR "MicroCS: Zephyr threads come with the Zephyr module: CONFIG_MICROCS_THREADS=y in prj.conf "
             "(see ports/zephyr/README.md), not MICROCS_OS")
+    elseif(_os STREQUAL "nuttx")
+        message(FATAL_ERROR "MicroCS: NuttX threads come with the NuttX app: CONFIG_INTERPRETERS_MICROCS_THREADS=y "
+            "(see ports/nuttx/README.md), not MICROCS_OS")
     else()
         message(FATAL_ERROR "MicroCS: unknown MICROCS_OS '${os}' (none, freertos, posix, auto)")
     endif()

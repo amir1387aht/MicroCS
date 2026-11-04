@@ -16,3 +16,6 @@ bad core rejected
 dictionary rejected
 try receive True threads left 0
 parallel 16724
+recursive delete True
+double 0.3333333333333333 1.2345678901234567
+formats 0.33333333333333331483 3.3333333333333331E-001

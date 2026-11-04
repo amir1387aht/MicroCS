@@ -63,6 +63,8 @@
 #ifndef MCS_FLOAT_DOUBLE
 #define MCS_FLOAT_DOUBLE          1    /* 1 = double precision, 0 = single (best for M4F/M33 FPUs) */
 #endif
+//#define MCS_OWN_DTOA             1    /* print doubles with the built-in exact digit generator, not printf (default: 1 on NuttX whose printf stops at 15 digits, else 0) */
+//#define MCS_NUTTX_STACK_RESERVE  16384 /* bytes reserved for nested VM calls on NuttX (best effort; capped at half the task stack) */
 //#define MCS_COMPACT_VALUES       1    /* pack values to 4-byte alignment (default: 1 on 32-bit CPUs, 0 on 64-bit) */
 
 /* ================================================================ compiler and bytecode */
@@ -538,7 +540,8 @@
 
 /* ---- OS threads (docs/THREADS.md). Off unless you choose an OS: MCS_OS_FREERTOS (headers on the
  * include path; CMake MICROCS_OS=freertos, ESP-IDF menuconfig), MCS_OS_ZEPHYR (CONFIG_MICROCS_THREADS),
- * MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect). MCS_OS_NONE: single-threaded, as always. */
+ * MCS_OS_NUTTX (CONFIG_INTERPRETERS_MICROCS_THREADS), MCS_OS_POSIX (pthreads) or MCS_OS_AUTO (detect).
+ * MCS_OS_NONE: single-threaded, as always. */
 #ifndef MCS_OS
 #define MCS_OS                    MCS_OS_NONE
 #endif

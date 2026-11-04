@@ -109,6 +109,18 @@ jobs:
           if cmake -S . -B build/cm-none -DMICROCS_OS=freertos > build/cm-none.txt 2>&1; then echo "configure succeeded without FreeRTOS"; exit 1; fi
           grep -q "MICROCS_FREERTOS_PATH" build/cm-none.txt
 
+  nuttx:
+    name: NuttX (sim:nsh and SMP simulator, C# threads on pthreads)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh tools/ci_apt.sh cmake ninja-build genromfs xxd
+      - run: pip install kconfiglib
+      - name: ports/nuttx on NuttX 12.11.0, C# thread suite on the simulator
+        env:
+          NUTTX_SMP: "1"
+        run: make nuttx-test
+
   flash-fs:
     name: Flash filesystems (LittleFS, YAFFS2, TinyFS on simulated flash)
     runs-on: ubuntu-24.04

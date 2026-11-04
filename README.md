@@ -522,6 +522,7 @@ integrations:
 | **STM32CubeIDE / CubeMX** | add `src/`, `modules/`, `ports/stm32` to the project, `include/` to the include paths | uses the Cube HAL headers of your project; family detected automatically |
 | **pico-sdk** | `add_subdirectory(MicroCS)` with `MICROCS_PORT=rp2` | links the right `hardware_*` libraries |
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
+| **Apache NuttX** | `ln -s …/MicroCS/ports/nuttx apps/interpreters/microcs`, then enable *MicroCS* in menuconfig | NSH command `mcs`; optional real threads on pthreads |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
 | **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.19.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
@@ -547,6 +548,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · C61 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W, Pico 2 W — Wi-Fi on the W boards) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico`, `pico2`, and `pico_w` / `pico2_w` with Wi-Fi |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
+| **Apache NuttX** (every board with a POSIX-style console; simulator) | [`ports/nuttx`](ports/nuttx) | 🧪 NuttX 12.11 simulator: `mcs`, threads and opt-in GPIO character-device access; no physical-board validation yet (`make nuttx-test`) |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
 | Linux / macOS host (CLI, REPL, simulator board + radio, real sockets / HTTP) | [`ports/unix`](ports/unix) | full test suite |
@@ -724,7 +726,7 @@ Measure speed and footprint before choosing a profile.
 - [x] **1.9** — TinyFS: a built-in power-fail-safe filesystem for a few KB of the MCU's own flash (no
       external chip), selectable like LittleFS / YAFFS2, flash port for new MCUs (`mcs_flash_port_t`);
       `Servo` driver; config header with every default set; CI on 18 STM32 boards
-- [x] **1.10** — optional real OS threads (FreeRTOS, ESP-IDF, Zephyr, POSIX): `Thread.Run` / `RunOn(core, …)` /
+- [x] **1.10** — optional real OS threads (FreeRTOS, ESP-IDF, Zephyr, NuttX, POSIX): `Thread.Run` / `RunOn(core, …)` /
       `Every`, `Channel`s, `thread core=1` jobs in `jobs.cfg`; ESP32 and RP2040 second core
 - [x] **1.11** — optional u8g2 displays: C# `U8g2` / `U8x8` (365 displays, every font built in or from a file),
       found or downloaded by every build, `--oled` simulator
@@ -764,7 +766,7 @@ config/         mcs_user_config.h: the project config header (every option at it
 src/            core: lexer, parser, compiler, bytecode, VM, GC, stdlib
 modules/        optional: fs/ (VFS, RAM, POSIX, TinyFS, LittleFS, YAFFS2, SPI NOR/NAND) hal/ drivers/ net/ (Wi-Fi, sockets, HTTP)
                 sched/ shell/ runtime/ threads/ os/
-ports/          stm32 · esp32 · rp2 · zephyr · arduino · cortex-m · unix · template
+ports/          stm32 · esp32 · rp2 · zephyr · nuttx · arduino · cortex-m · unix · template
 examples/       hardware/ scripts, quickstart_embed.c, firmware_example.c, lowram/
 tests/          *.cs with expected .out, C unit tests, protocol tests
 tools/          MicroCS Studio (browser IDE), remote shell, port checks, Arduino packager, fuzzer, doc generators

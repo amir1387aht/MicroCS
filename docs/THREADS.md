@@ -1,4 +1,4 @@
-# Real OS threads (FreeRTOS, Zephyr, POSIX) — optional
+# Real OS threads (FreeRTOS, Zephyr, NuttX, POSIX) — optional
 
 MicroCS is single-threaded by default: one VM, a polled job scheduler, and nothing that
 needs an RTOS. **If you don't choose an OS, nothing changes**: no thread code is compiled,
@@ -14,8 +14,9 @@ Once you pick an OS, C# scripts and functions can run on **their own OS tasks**,
 | FreeRTOS (any port) | CMake `-DMICROCS_OS=freertos`, make `OS=freertos FREERTOS_PATH=…`, or `#define MCS_OS MCS_OS_FREERTOS` | SMP builds: `configNUMBER_OF_CORES` |
 | RP2040 (pico-sdk) | `ports/rp2/example`: `-DMICROCS_OS=freertos -DFREERTOS_KERNEL_PATH=<FreeRTOS-Kernel>` | 2 (FreeRTOS SMP) |
 | Zephyr | `CONFIG_MICROCS_THREADS=y` (see `ports/zephyr/example/overlay-threads.conf`) | SMP: `CONFIG_MP_MAX_NUM_CPUS` |
+| Apache NuttX | `CONFIG_INTERPRETERS_MICROCS_THREADS=y` (see [`ports/nuttx`](../ports/nuttx/README.md)) | SMP: `CONFIG_SMP_NCPUS` |
 | Linux / macOS host | CMake `-DMICROCS_OS=posix`, `make OS=posix` | all |
-| detect | `MCS_OS_AUTO`: Zephyr in a Zephyr build, FreeRTOS under ESP-IDF or when `FreeRTOS.h` + `FreeRTOSConfig.h` are on the include path, else none | |
+| detect | `MCS_OS_AUTO`: Zephyr in a Zephyr build, NuttX in a NuttX build, FreeRTOS under ESP-IDF or when `FreeRTOS.h` + `FreeRTOSConfig.h` are on the include path, else none | |
 
 ## C#
 
@@ -115,7 +116,7 @@ set the defaults. Without the runtime, call `mcs_threads_init()` and then
 
 | Option | Default | |
 |---|---|---|
-| `MCS_OS` | `MCS_OS_NONE` | `MCS_OS_FREERTOS`, `MCS_OS_ZEPHYR`, `MCS_OS_POSIX`, `MCS_OS_AUTO` |
+| `MCS_OS` | `MCS_OS_NONE` | `MCS_OS_FREERTOS`, `MCS_OS_ZEPHYR`, `MCS_OS_NUTTX`, `MCS_OS_POSIX`, `MCS_OS_AUTO` |
 | `MCS_THREADS_MAX` | 8 | threads running at once |
 | `MCS_THREAD_HEAP` | 32 KB (256 KB with POSIX threads, 64 KB on other 64-bit builds) | C# heap per thread (`Thread.Start` heapKB, `heap=`) |
 | `MCS_THREAD_STACK` | 8 KB (12 KB on ESP32) | OS stack per thread (`stack=`) |
@@ -160,9 +161,23 @@ hold `MCS_THREADS_MAX × MCS_THREAD_STACK`. The heap is the part to size for you
 west build -b <board> ports/zephyr/example -- -DEXTRA_CONF_FILE=overlay-threads.conf
 ```
 
+## NuttX
+
+`CONFIG_INTERPRETERS_MICROCS_THREADS=y` (the `ports/nuttx` application, which defines
+`MCS_OS=MCS_OS_NUTTX`) puts every C# thread on a NuttX **pthread**; it needs `CONFIG_DISABLE_PTHREAD`
+to be off. Stacks and thread heaps come from the NuttX heap, so size it for
+`MCS_THREADS_MAX × (MCS_THREAD_STACK + MCS_THREAD_HEAP)`. Priorities are relative to the thread that
+starts the worker, as everywhere (`+n` = n levels more urgent; NuttX priorities are `1..255`,
+larger = more urgent). `RunOn(core, …)` pins the thread with the pthread CPU affinity and needs
+`CONFIG_SMP=y`; on single-CPU builds `Thread.Cores` is 1. The shared critical section of the HAL
+event queue is NuttX's `enter_critical_section()`, so it is also safe from interrupt handlers.
+Details and a one-command simulator test: [ports/nuttx/README.md](../ports/nuttx/README.md).
+
 ## Tests
 
 `make threads-test` (part of `make test`) runs the C# suite and the runtime test on POSIX
 threads. `make tsan-test` runs them under ThreadSanitizer. `make freertos-test` runs the
 runtime test as a task of the FreeRTOS POSIX simulator port, and checks the error message
-for missing headers.
+for missing headers. `make nuttx-test` builds the NuttX simulator (`sim:nsh`) with the `mcs` command and
+runs the same C# thread suite on NuttX pthreads (downloads NuttX and apps; see
+[ports/nuttx](../ports/nuttx/README.md#test-it-on-the-simulator)).

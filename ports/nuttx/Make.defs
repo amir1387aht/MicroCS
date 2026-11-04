@@ -1,0 +1,10 @@
+############################################################################
+# apps/interpreters/microcs/Make.defs  (ports/nuttx of the MicroCS repository)
+#
+# SPDX-License-Identifier: MIT
+#
+############################################################################
+
+ifneq ($(CONFIG_INTERPRETERS_MICROCS),)
+CONFIGURED_APPS += $(APPDIR)/interpreters/microcs
+endif
