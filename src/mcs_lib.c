@@ -1346,11 +1346,84 @@ mcs_class_t* mcs_core_class(mcs_vm_t* vm, int which) {
     return *slot;
 }
 
+mcs_native_fn mcs_native_fn_of(mcs_value_t v) {
+    return IS_KIND(v, MCS_O_NATIVE) ? AS_NATIVE(v)->fn : NULL;
+}
+#if MCS_ROM_GLOBALS_MAX > 0
+/* ---- flat ROM tables (mcs_register_rom_globals): binary search by name */
+static int rom_cmp(const char* entry, const char* name, size_t len) {
+    int r = strncmp(entry, name, len);
+    if (r) return r;
+    return entry[len] ? 1 : 0;
+}
+#define ROM_BSEARCH(arr, n, field, out) do { uint32_t lo_ = 0, hi_ = (n); \
+        while (lo_ < hi_) { uint32_t mid_ = (lo_ + hi_) / 2u; int r_ = rom_cmp((arr)[mid_]field, name, len); \
+            if (!r_) { (out) = (int32_t)mid_; break; } if (r_ < 0) lo_ = mid_ + 1u; else hi_ = mid_; } } while (0)
+/* kind: 'f'/'g' fn index, 'k' const, 'c' class; 0 = none */
+static char rom_find(mcs_vm_t* vm, const char* name, size_t len, bool classes_only, const mcs_rom_globals_t** tab, int32_t* idx) {
+    for (uint8_t t = 0; t < vm->nrom; t++) {
+        const mcs_rom_globals_t* g = vm->rom[t];
+        int32_t i = -1;
+        ROM_BSEARCH(g->classes, g->nclasses, ->name, i);
+        if (i >= 0) { *tab = g; *idx = i; return 'c'; }
+        if (classes_only) continue;
+        ROM_BSEARCH(g->fns, g->nfns, .name, i);
+        if (i >= 0) { *tab = g; *idx = i; return 'f'; }
+        ROM_BSEARCH(g->consts, g->nconsts, .name, i);
+        if (i >= 0) { *tab = g; *idx = i; return 'k'; }
+    }
+    return 0;
+}
+bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table) {
+    if (!vm || !table) return false;
+    for (uint8_t t = 0; t < vm->nrom; t++) if (vm->rom[t] == table) return true;
+    if (vm->nrom >= MCS_ROM_GLOBALS_MAX) return false;
+    vm->rom[vm->nrom++] = table;
+    return true;
+}
+static bool rom_resolve(mcs_vm_t* vm, const char* name, size_t len) {
+    const mcs_rom_globals_t* g; int32_t i;
+    char k = rom_find(vm, name, len, false, &g, &i);
+    if (!k) return false;
+    if (k == 'c') { define_native_class(vm, g->classes[i]); return true; }
+    mcs_string_t* nm = mcs_intern(vm, name, len);
+    mcs_push_root(vm, OBJ_VAL(nm));
+    mcs_value_t v;
+    if (k == 'k') v = mcs_int((mcs_int_t)g->consts[i].value);
+    else if (g->fns[i].kind == 'g') v = g->fns[i].fn(vm, mcs_null(), 0, NULL);
+    else v = OBJ_VAL(mcs_new_native(vm, g->fns[i].fn, g->fns[i].arity, nm));
+    mcs_push_root(vm, v);
+    uint32_t s = mcs_global_slot(vm, nm);
+    vm->globals[s] = v;
+    mcs_pop_root(vm, 2);
+    return true;
+}
+#else
+bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table) {
+    (void)vm; (void)table;
+    return false;
+}
+#endif
+
 bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len) {
     int area;
     if (lib_find(vm, name, len, &area) || exc_find(name, len) >= 0) return true;
     for (mcs_lazy_t* z = vm->lazy; z; z = z->next) if (name_is(z->name, name, len)) return true;
+#if MCS_ROM_GLOBALS_MAX > 0
+    const mcs_rom_globals_t* g; int32_t i;
+    return rom_find(vm, name, len, true, &g, &i) != 0;
+#else
     return false;
+#endif
+}
+bool mcs_lazy_known_any(mcs_vm_t* vm, const char* name, size_t len) {
+    if (mcs_lazy_known(vm, name, len)) return true;
+#if MCS_ROM_GLOBALS_MAX > 0
+    const mcs_rom_globals_t* g; int32_t i;
+    return rom_find(vm, name, len, false, &g, &i) != 0;
+#else
+    return false;
+#endif
 }
 
 /* A registration is detached while applying it so nested resolution cannot
@@ -1387,6 +1460,9 @@ bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len) {
         if (code) mcs_rethrow_native(vm, code);
         any = true;
     }
+#if MCS_ROM_GLOBALS_MAX > 0
+    if (!any && vm->nrom) any = rom_resolve(vm, name, len);
+#endif
     vm->gc_pause--;
     return any;
 }

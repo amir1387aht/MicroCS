@@ -67,6 +67,9 @@ python3 tools/make_arduino.py --config my_mcs_user_config.h
 
 (`--u8g2` also needs the **U8g2** library from the Library Manager.)
 
+LVGL: `python3 tools/make_arduino.py --lvgl --lvgl-dir /path/to/lvgl` makes the `lv_*` API available to scripts (install the **lvgl** library, do the display and
+input port in your sketch, see [LVGL.md](../LVGL.md)).
+
 ## PlatformIO
 
 ```ini

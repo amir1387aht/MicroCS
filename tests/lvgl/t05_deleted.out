@@ -1,0 +1,10 @@
+child: ObjectDisposedException
+cont: ObjectDisposedException
+double delete: ObjectDisposedException
+True
+True
+deleted object, handler calls after delete: True
+delete event True
+async delete: ObjectDisposedException
+True
+null: ArgumentNullException

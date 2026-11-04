@@ -455,7 +455,7 @@ uint32_t mcs_features(void);
 /* Per-VM extension slots. Optional modules (filesystem, HAL, scheduler, shell)
  * keep their context here so their natives can find it from `vm`. */
 enum { MCS_EXT_VFS = 0, MCS_EXT_HAL, MCS_EXT_SCHED, MCS_EXT_SHELL,
-       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT_BLE, MCS_EXT__COUNT };
+       MCS_EXT_USER0, MCS_EXT_USER1, MCS_EXT_THREADS, MCS_EXT_NET, MCS_EXT_BLE, MCS_EXT_LVGL, MCS_EXT__COUNT };
 void mcs_set_ext(mcs_vm_t* vm, int slot, void* ptr);
 void* mcs_get_ext(mcs_vm_t* vm, int slot);
 
@@ -463,6 +463,36 @@ void* mcs_get_ext(mcs_vm_t* vm, int slot);
 /* Add integer constants to module `name` (created like mcs_register_module).
  * With MCS_LAZY_CLASSES nothing is allocated until a script uses the module. */
 void mcs_register_consts(mcs_vm_t* vm, const char* name, const mcs_const_t* consts);
+
+/* ======================================================= 1.20 additions */
+/* Large flat API tables kept in flash (used by the LVGL binding): thousands of
+ * global functions, constants and native classes cost no RAM until a script
+ * first names one. Each array must be sorted by strcmp() on the name and have
+ * static storage duration; the counts exclude any terminator.
+ *   fns:     kind 'f' -> global function; kind 'g' -> global value made by
+ *            calling fn(vm, null, 0, NULL) once (strings, fonts, objects)
+ *   consts:  global integer constants
+ *   classes: native classes (they are also type names for the compiler)
+ * Up to MCS_ROM_GLOBALS_MAX tables per VM; a name that already exists (built-in,
+ * registered or defined by a script) always wins over a ROM entry. */
+typedef struct {
+    const mcs_reg_t* fns; uint32_t nfns;
+    const mcs_const_t* consts; uint32_t nconsts;
+    const mcs_class_def_t* const* classes; uint32_t nclasses;
+} mcs_rom_globals_t;
+#ifndef MCS_ROM_GLOBALS_MAX
+#define MCS_ROM_GLOBALS_MAX 4
+#endif
+/* Set MCS_ROM_GLOBALS_MAX=0 to omit ROM-table support (registration then
+ * returns false), e.g. on a very small target that does not use LVGL.
+ * false when the per-VM table limit is reached */
+#if MCS_ENABLE_LVGL && MCS_ROM_GLOBALS_MAX < 4
+#error "LVGL requires MCS_ROM_GLOBALS_MAX >= 4"
+#endif
+bool mcs_register_rom_globals(mcs_vm_t* vm, const mcs_rom_globals_t* table);
+/* The C function behind a native function value (NULL for anything else),
+ * so a binding can hand a native back to C, e.g. an LVGL animation path. */
+mcs_native_fn mcs_native_fn_of(mcs_value_t v);
 
 /* ======================================================= 1.4 additions */
 /* Declared arity of a callable (lambda, method, delegate); -1 if variadic or

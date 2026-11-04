@@ -19,6 +19,11 @@
 #include "mcs_threads.h"
 #include "mcs_net.h"
 #include "mcs_ble.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+int mcs_lvgl_host_init(mcs_vm_t* vm, int w, int h);   /* mcs_lvgl_host.c */
+static int g_lvgl_w, g_lvgl_h;
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -214,6 +219,9 @@ static void usage(void) {
         "  --heap N     heap limit in bytes (emulate a small MCU)\n"
         "  --stack N    value stack slots\n"
         "  --stats      print memory statistics at exit\n"
+#if MCS_ENABLE_LVGL
+        "  --lvgl[=WxH] LVGL on an in-memory display (default 320x240) with a simulated pointer\n"
+#endif
         "  --xip        run .mcsb images in place (no code copy, see mcs_exec_image_xip)\n"
         "  --fs DIR     mount host directory DIR at / for File/Directory (default: .)\n"
         "  --ramfs N    mount an N-byte RAM filesystem at / instead\n"
@@ -245,6 +253,9 @@ static void print_features(void) {
     for (size_t i = 0; i < sizeof f / sizeof f[0]; i++) if (m & f[i].bit) printf(" %s", f[i].name);
 #if MCS_ENABLE_U8G2
     printf(" u8g2");
+#endif
+#if MCS_ENABLE_LVGL
+    printf(" lvgl");
 #endif
     putchar('\n');
 }
@@ -349,6 +360,9 @@ int main(int argc, char** argv) {
         else if (!strcmp(a, "-s")) strip = true;
         else if (!strcmp(a, "-O0")) no_opt = true;
         else if (!strcmp(a, "--stats")) stats = true;
+#if MCS_ENABLE_LVGL
+        else if (!strncmp(a, "--lvgl", 6) && (a[6] == 0 || a[6] == '=')) { g_lvgl_w = 320; g_lvgl_h = 240; if (a[6] == '=') sscanf(a + 7, "%dx%d", &g_lvgl_w, &g_lvgl_h); }
+#endif
         else if (!strcmp(a, "--xip")) xip = true;
         else if (!strcmp(a, "--heap") && i + 1 < argc) heap = (size_t)strtoul(argv[++i], NULL, 0);
         else if (!strcmp(a, "--stack") && i + 1 < argc) stack = (uint32_t)strtoul(argv[++i], NULL, 0);
@@ -448,6 +462,9 @@ int main(int argc, char** argv) {
     (void)run_for;
 #endif
 
+#if MCS_ENABLE_LVGL
+    if (g_lvgl_w > 0 && mcs_lvgl_host_init(vm, g_lvgl_w, g_lvgl_h) != 0) { fprintf(stderr, "mcs: LVGL init failed\n"); return 1; }
+#endif
 #if MCS_ENABLE_THREADS
     {
         mcs_threads_cfg_t tc;
@@ -472,7 +489,11 @@ int main(int argc, char** argv) {
         mcs_result_t r = mcs_compile_image_ex(vm, in, src, (strip ? MCS_IMAGE_STRIP : 0u) | (no_opt ? MCS_IMAGE_NO_OPT : 0u), &img, &n);
         free(src);
         /* compile errors were already reported through the error hook */
-        if (r != MCS_OK) { if (r != MCS_ERR_COMPILE) fprintf(stderr, "%s\n", mcs_last_error(vm)); mcs_free(vm); return 2; }
+        if (r != MCS_OK) { if (r != MCS_ERR_COMPILE) fprintf(stderr, "%s\n", mcs_last_error(vm));
+#if MCS_ENABLE_LVGL
+            if (g_lvgl_w > 0) mcs_lvgl_close_lib(vm);
+#endif
+            mcs_free(vm); return 2; }
         if (compile_h) rc = write_header(out, name, img, n);
         else {
             char def[512];
@@ -562,6 +583,9 @@ int main(int argc, char** argv) {
         mcs_mem_stats_t st; mcs_mem_stats(vm, &st);
         fprintf(stderr, "[mem] in use: %zu bytes, peak: %zu bytes, objects: %u, collections: %u\n", st.bytes_in_use, st.peak_bytes, st.objects, st.collections);
     }
+#if MCS_ENABLE_LVGL
+    if (g_lvgl_w > 0) mcs_lvgl_close_lib(vm);
+#endif
     mcs_free(vm);
     free(xip_data);   /* --xip: the image buffer must outlive the VM */
     return rc;

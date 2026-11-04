@@ -127,7 +127,7 @@ run straight from flash.
 
 ### 🔌 Built for devices
 Hardware-first [A/B rotary encoders](docs/ENCODER.md) (`RotaryEncoder`, optional push button),
-14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md)), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
+14 peripheral classes, pluggable device drivers (built in: WS2812 `LedStrip` on any pin and hobby `Servo`s on any PWM channel — both optional; opt-in: `U8g2` / `U8x8` for 360+ OLED / LCD displays on [u8g2](docs/U8G2.md), and the whole [LVGL 8.x / 9.x](docs/LVGL.md) API with its C names), full peripheral settings (pins, pulls, drive, filters — `new SpiConfig { Sck = 6, Dma = true }`), [DMA transfers in the background](docs/DMA.md) (`SPI.WriteAsync`, `DmaBuffer`), interrupt callbacks, a virtual filesystem (RAM, POSIX, the built-in TinyFS for a few KB of internal flash, LittleFS and
 YAFFS2 on internal flash or SPI NOR/NAND), a job scheduler, a REPL and a script-upload protocol for over-the-wire updates. [Wi-Fi and networking](docs/NETWORK.md) on the ESP32 family and Pico W / Pico 2 W: station, soft AP, TCP/UDP, HTTP, web servers, WebSocket, NTP, mDNS and `Json`; ESP-NOW and HTTPS/TLS are ESP32-specific, and other features vary by backend. [Bluetooth LE](docs/BLE.md) on ESP32 (NimBLE), Pico W / Pico 2 W (BTstack), Zephyr and ArduinoBLE (opt-in for custom builds; enabled in BLE-capable ESP32 release images): beacons, scanning, GATT server and client, pairing, `BleUart`. Optional [real OS threads](docs/THREADS.md) on FreeRTOS, Zephyr or POSIX: `Thread.RunOn(1, …)` puts C# on the second core of an ESP32 or RP2040.
 
 </td>
@@ -427,6 +427,7 @@ CAN.Send(0, 0x123, new byte[] { 1, 2, 3 });
 | RTC (Unix time) | `RTC` | ✅ | ✅ | ✅ | ✅ RTC driver / software | ✅ software |
 | Board info, µs clock, reset | `Hal` | ✅ | ✅ | ✅ | ✅ | ✅ |
 | OLED / LCD displays (opt-in, [u8g2](docs/U8G2.md)) | `U8g2` `U8x8` | ✅ I²C / SPI | ✅ | ✅ | ✅ | ✅ U8g2 library |
+| GUI toolkit (opt-in, [LVGL](docs/LVGL.md); you do the LVGL port) | `lv_*` `LV_*` | CMake / Make | Kconfig (not built yet) | CMake / Make | Kconfig (not built yet) | ✅ package compiles; PlatformIO |
 | [Settings objects](docs/PERIPHERALS.md) (pins, pulls, drive, filters…) | `GpioConfig` `SpiConfig` … | GPIO, PWM | ✅ all, runtime pins | ✅ all, runtime pins | basic | basic |
 | [DMA / async transfers](docs/DMA.md) | `DmaBuffer` `…Async` | sync fallback | ✅ SPI, QSPI, memcpy | ✅ SPI, memcpy | sync fallback | sync fallback |
 
@@ -434,7 +435,7 @@ Full reference: [HAL.md](docs/HAL.md) · add your own devices: [DRIVERS.md](docs
 17 commented, runnable scripts: [examples/hardware](examples/hardware/)
 (blink, button IRQ, PWM fade/servo/tone, I²C scan, TMP102, MPU-6050, SPI, ADC voltmeter, DAC
 wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data logger) · displays:
-[examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal).
+[examples/u8g2](examples/u8g2/) (optional, `./build/mcs_u8g2 --oled` draws them in the terminal) · LVGL examples: [standalone scripts](examples/lvgl/README.md) and Studio template category *LVGL graphics* (`tools/studio/templates/33-lvgl`).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
@@ -691,6 +692,7 @@ Measure speed and footprint before choosing a profile.
 | Bytecode images + optimizer, loader validation, XIP | ✅ | script fixtures run as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API (peripherals, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
+| LVGL 8.x / 9.x binding (optional, generated from the LVGL headers, you port LVGL) | 🧪 | `make lvgl-test`: LVGL scripts on an in-memory display with LVGL 8.3.11 and 9.2.2, tables compiled against 8.0.0 … 9.6.0, CMake / Arduino / `microcs.mk` builds in CI; ESP-IDF, Zephyr, PlatformIO written but not built, nothing run on a real display yet |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
 | STM32 / RP2 ports | ✅ | CI: 18 popular STM32 boards (12 families) compiled `-Werror` in parallel in 8 configurations each; ready-to-flash firmware for 7 STM32 boards (5 run in Renode); Pico + Pico 2 firmware built |
 | ESP32 port | ✅ | CI: ESP-IDF build matrix for ESP32-family targets, including Wi-Fi and BLE configurations where the chip supports them |
@@ -743,7 +745,8 @@ Measure speed and footprint before choosing a profile.
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
-- [ ] ROM-resident class metadata; LVGL bindings ([work in progress](https://github.com/amir1387aht/MicroCS/pull/76))
+- [x] Experimental [LVGL 8.x / 9.x](docs/LVGL.md) binding
+- [ ] ROM-resident class metadata
 
 See [CHANGELOG.md](CHANGELOG.md) for release details. The shell is not authenticated;
 do not expose it on an untrusted link until authentication is implemented ([security](docs/SECURITY.md)).

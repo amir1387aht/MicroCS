@@ -298,6 +298,10 @@ struct mcs_vm {
     mcs_class_t* cls_delegate;
     mcs_class_t* exc[EXC__COUNT];
     mcs_lazy_t* lazy;           /* pending registrations (MCS_LAZY_CLASSES) */
+#if MCS_ROM_GLOBALS_MAX > 0
+    const mcs_rom_globals_t* rom[MCS_ROM_GLOBALS_MAX];   /* flat flash API tables */
+    uint8_t nrom;
+#endif
 
     /* pre-interned names */
     mcs_string_t* s_ctor;
@@ -596,7 +600,8 @@ mcs_class_t* mcs_exc_class(mcs_vm_t* vm, int kind);
  * Returns true when something was defined. May allocate (and panic on OOM). */
 bool mcs_lazy_resolve(mcs_vm_t* vm, const char* name, size_t len);
 /* true if `name` is a built-in / registered global that is not created yet */
-bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len);
+bool mcs_lazy_known(mcs_vm_t* vm, const char* name, size_t len);      /* classes / modules (type names) */
+bool mcs_lazy_known_any(mcs_vm_t* vm, const char* name, size_t len);  /* + ROM functions and constants */
 void mcs_lazy_free(mcs_vm_t* vm);
 
 /* library (mcs_lib.c) */

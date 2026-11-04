@@ -210,4 +210,39 @@ config MICROCS_U8X8_FONTS
 	depends on MICROCS_U8G2
 	default ""
 
+config MICROCS_LVGL
+	bool "LVGL 8.x / 9.x (C# calls lv_obj_create, LV_ALIGN_CENTER... with the C names)"
+	depends on LVGL
+	help
+	  The LVGL binding (docs/LVGL.md) on Zephyr's LVGL module. You do the
+	  porting (display, input: Zephyr's lvgl module already does it with
+	  CONFIG_LV_Z_*). MicroCS generates the API tables for the module's LVGL
+	  at configure time (python3 + pycparser on the build machine) or uses
+	  MICROCS_LVGL_API_INC. Fonts and images load from the MicroCS file
+	  system as "M:/path".
+
+config MICROCS_LVGL_DIR
+	string "LVGL sources (folder with lvgl.h, empty = Zephyr's module)"
+	depends on MICROCS_LVGL
+	default ""
+
+config MICROCS_LVGL_API_INC
+	string "Ready-made LVGL API tables (mcs_lvgl_api.inc, optional)"
+	depends on MICROCS_LVGL
+	default ""
+
+config MICROCS_LVGL_FS_LETTER
+	string "LVGL drive letter of the MicroCS file system"
+	depends on MICROCS_LVGL
+	default "M"
+
+config MICROCS_LVGL_AUTO_HANDLER
+	bool "Run lv_timer_handler() while scripts sleep"
+	depends on MICROCS_LVGL
+
+config MICROCS_LVGL_CLEANUP_ON_CLOSE
+	bool "Delete the objects, timers and animations a script made when it ends"
+	depends on MICROCS_LVGL
+	default y
+
 endif

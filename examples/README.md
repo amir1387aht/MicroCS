@@ -29,6 +29,10 @@ On a board, upload any of them with
 `python3 tools/mcs_remote.py --port /dev/ttyACM0 put examples/hardware/05_i2c_temperature.cs /main.cs + run /main.cs`,
 or paste it into the REPL (Ctrl-E, paste, Ctrl-D). Adjust pin and bus numbers to your wiring.
 
+## LVGL graphics (`examples/lvgl/`, optional)
+
+See the [LVGL examples](lvgl/README.md) for keyboard input, a calendar, canvas, dashboard and event/tree-walk examples. They require an LVGL-enabled build and port.
+
 ## Displays with u8g2 (`examples/u8g2/`, optional)
 
 These need a firmware built with u8g2 ([docs/U8G2.md](../docs/U8G2.md)); on the PC:
