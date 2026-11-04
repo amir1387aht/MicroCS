@@ -19,6 +19,12 @@
 #include "mcs_threads.h"
 #include "mcs_net.h"
 #include "mcs_ble.h"
+#ifdef __NuttX__
+#include <nuttx/config.h>
+#if MCS_ENABLE_HAL && defined(CONFIG_INTERPRETERS_MICROCS_GPIO)
+#include "../nuttx/mcs_port_nuttx.h"
+#endif
+#endif
 #if MCS_ENABLE_LVGL
 #include "mcs_lvgl.h"
 int mcs_lvgl_host_init(mcs_vm_t* vm, int w, int h);   /* mcs_lvgl_host.c */
@@ -285,6 +291,7 @@ static mcs_ramfs_t g_ramfs;
 #endif
 #if MCS_ENABLE_HAL
 static mcs_hal_t g_hal;
+static bool g_hal_active;
 #if MCS_ENABLE_BLE && MCS_BLE_SIM
 static int (*g_sim_poll)(void* ctx, mcs_hal_event_t* ev);
 /* the simulated BLE peers send their periodic notifications from the HAL poll */
@@ -344,6 +351,10 @@ int main(int argc, char** argv) {
     char* xip_data = NULL;
     size_t heap = 0; uint32_t stack = 0;
     const char* fs_dir = ".";
+#if defined(__NuttX__)
+    char cwd[128];                          /* "." does not resolve in a NuttX task: use its working directory */
+    if (getcwd(cwd, sizeof cwd)) fs_dir = cwd;
+#endif
     size_t ramfs = 0;
     bool oled = false;
     bool no_fs = false, ro = false, sim = false, sim_log_on = false, sim_virtual = false, shell = false, repl_mode = false, boot = true, echo = false;
@@ -430,6 +441,7 @@ int main(int argc, char** argv) {
     if (sim) { mcs_net_sim_init(&g_net); mcs_net_set(&g_net); }      /* simulated Wi-Fi radio */
 #endif
 #if MCS_ENABLE_HAL
+    g_hal_active = false;
     if (sim) {
         g_sim.log = sim_log_on ? sim_log : NULL;
         g_sim.clock_us = sim_virtual ? NULL : sim_clock_us;   /* virtual: 1 ms per event poll, deterministic */
@@ -439,8 +451,11 @@ int main(int argc, char** argv) {
         g_sim_poll = g_hal.poll_event; g_hal.poll_event = ble_sim_poll;
 #endif
         if (oled) { g_oled.on_frame = oled_show; mcs_hal_sim_attach_oled(&g_sim, &g_oled); }
-        mcs_hal_open_lib(vm, &g_hal);
+        mcs_hal_open_lib(vm, &g_hal); g_hal_active = true;
     }
+#if defined(__NuttX__) && defined(CONFIG_INTERPRETERS_MICROCS_GPIO)
+    else { mcs_nuttx_hal_init(&g_hal); mcs_hal_open_lib(vm, &g_hal); g_hal_active = true; }
+#endif
 #else
     (void)sim; (void)sim_log_on; (void)sim_virtual; (void)oled;
 #endif
@@ -473,7 +488,7 @@ int main(int argc, char** argv) {
         tc.vfs = vfs;
 #endif
 #if MCS_ENABLE_HAL
-        if (sim) tc.hal = &g_hal;
+        if (g_hal_active) tc.hal = &g_hal;
 #endif
         tc.write = out_write;            /* called with the console lock held */
         if (mcs_threads_init(&tc) == 0) mcs_threads_open_lib(vm);

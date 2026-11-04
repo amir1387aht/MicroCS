@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: rom-globals-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: dtoa-test rom-globals-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -136,6 +136,13 @@ ble-test: mcs-ble build/test_esp_ble_status build/test_esp_ble_diagnostics_off b
 	@for f in "-DMCS_BLE_SIM=0" "-DMCS_ENABLE_SCHED=0" "-DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4" "-DMCS_PROFILE=MCS_PROFILE_MCU"; do \
 	  $(CC) $(BLE_FLAGS) $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble_flags || { echo "BUILD FAIL BLE $$f"; exit 1; }; echo "OK BLE $$f"; done
 
+# Compare the NuttX-compatible digit generator with host libc over binary64 edge cases and
+# deterministic bit patterns. Both binaries use the same shortest-round-trip logic.
+dtoa-test: | build
+	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_OWN_DTOA=0 $(SRC) $(MOD_SRC) tests/c/test_dtoa.c -lm -o build/test_dtoa_libc
+	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_OWN_DTOA=1 $(SRC) $(MOD_SRC) tests/c/test_dtoa.c -lm -o build/test_dtoa_own
+	@./build/test_dtoa_libc > build/dtoa_libc.txt && ./build/test_dtoa_own > build/dtoa_own.txt && cmp build/dtoa_libc.txt build/dtoa_own.txt && echo "PASS exact double digit generator"
+
 # Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
 # the CLI and the firmware runtime (pool heap, RAM filesystem, jobs.cfg `thread` jobs, C API).
 # Built separately: the default `mcs` stays OS-free.
@@ -161,6 +168,11 @@ tsan-test: | build
 	TSAN_OPTIONS=halt_on_error=1 ./build/mcs_tsan --fs tests/threads tests/threads/t_threads.cs > build/tsan.txt && cmp build/tsan.txt tests/threads/t_threads.out
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads_tsan
 	TSAN_OPTIONS=halt_on_error=1 ./build/test_threads_tsan
+
+# NuttX backend + ports/nuttx on the NuttX simulator (sim:nsh, downloads NuttX and apps into
+# build/nuttx; needs cmake, ninja, genromfs, xxd, kconfiglib). NUTTX_SMP=1 adds an SMP build.
+nuttx-test:
+	sh tools/nuttx_check.sh
 
 # FreeRTOS backend on the FreeRTOS POSIX (Linux simulator) port: downloads FreeRTOS-Kernel
 # V11.1.0 (MIT) into build/third_party; tests/c/test_threads.c runs as a FreeRTOS task
@@ -310,7 +322,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test rom-globals-test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test dtoa-test rom-globals-test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test nuttx-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
