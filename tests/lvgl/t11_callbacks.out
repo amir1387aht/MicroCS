@@ -1,0 +1,4 @@
+walked 4
+anim last 100 deleted 1
+async fired 1
+log seen True

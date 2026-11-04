@@ -1,0 +1,7 @@
+observer sees 5 ud=tag
+observer sees 7 ud=tag
+observer sees 9 ud=tag
+calls 3
+calls after remove 3
+string subject: hello
+label: val 42

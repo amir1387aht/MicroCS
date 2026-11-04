@@ -41,6 +41,11 @@
 #                     mcs_user_config.h has #define MCS_ENABLE_U8G2 1). Sources: MICROCS_U8G2_DIR, a copy
 #                     found next to the project or -DMICROCS_U8G2_DOWNLOAD=ON; compiled in only the
 #                     MICROCS_U8G2_DISPLAYS / _FONTS / MICROCS_U8X8_FONTS lists (cmake/MicroCSU8g2.cmake)
+#   MICROCS_LVGL      ON: LVGL 8.x / 9.x with the C names in C# (docs/LVGL.md; default OFF, or ON when mcs_user_config.h
+#                     has #define MCS_ENABLE_LVGL 1). LVGL is not bundled and you do the porting (lv_init, display, input):
+#                     MICROCS_LVGL_DIR (or an `lvgl` target / lvgl/ folder) is used to find the headers and to generate
+#                     the API tables, or give a ready-made MICROCS_LVGL_API_INC (cmake/MicroCSLvgl.cmake).
+#                     Host: MICROCS_LVGL_BUILD (default ON) builds LVGL too -> `mcs --lvgl`. ESP-IDF: CONFIG_MICROCS_LVGL
 cmake_minimum_required(VERSION 3.13)
 
 set(MICROCS_DIR ${CMAKE_CURRENT_LIST_DIR})
@@ -131,6 +136,12 @@ if(ESP_PLATFORM)
         set(_mcs_mdns mdns)
     endif()
     list(APPEND _mcs_net_reqs ${_mcs_mdns})
+    # LVGL (CONFIG_MICROCS_LVGL): the project's lvgl component, idf.py add-dependency lvgl/lvgl
+    if(EXISTS "${_mcs_proj}/managed_components/lvgl__lvgl")
+        list(APPEND _mcs_net_reqs lvgl__lvgl)
+    elseif(EXISTS "${_mcs_proj}/components/lvgl")
+        list(APPEND _mcs_net_reqs lvgl)
+    endif()
     # FD-capable TWAI nodes (e.g. C5) use the public IDF 5.5 driver.
     if(IDF_VERSION_MAJOR GREATER 5 OR (IDF_VERSION_MAJOR EQUAL 5 AND IDF_VERSION_MINOR GREATER_EQUAL 5))
         list(APPEND _mcs_net_reqs esp_driver_twai)
@@ -187,6 +198,21 @@ if(ESP_PLATFORM)
     endif()
     if(CONFIG_MICROCS_U8G2)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC ${MICROCS_U8G2_DEFS})
+    endif()
+    if(CONFIG_MICROCS_LVGL)             # menuconfig > MicroCS > LVGL
+        include(${MICROCS_DIR}/cmake/MicroCSLvgl.cmake)
+        if(CONFIG_MICROCS_LVGL_DIR)
+            set(MICROCS_LVGL_DIR "${CONFIG_MICROCS_LVGL_DIR}")
+        endif()
+        if(CONFIG_MICROCS_LVGL_API_INC)
+            set(MICROCS_LVGL_API_INC "${CONFIG_MICROCS_LVGL_API_INC}")
+        endif()
+        set(MICROCS_LVGL_FS_LETTER "${CONFIG_MICROCS_LVGL_FS_LETTER}")
+        set(MICROCS_LVGL_AUTO_HANDLER ${CONFIG_MICROCS_LVGL_AUTO_HANDLER})
+        set(MICROCS_LVGL_CLEANUP_ON_CLOSE ${CONFIG_MICROCS_LVGL_CLEANUP_ON_CLOSE})
+        microcs_add_lvgl(${COMPONENT_LIB})
+    else()
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_LVGL=0)
     endif()
     if(CONFIG_MICROCS_FS_YAFFS2)
         target_compile_definitions(${COMPONENT_LIB} PUBLIC MCS_ENABLE_YAFFS=1 MCS_YAFFS_OSGLUE=1 ${MICROCS_YAFFS_DEFS})
@@ -339,6 +365,13 @@ if(_mcs_u8g2 AND MICROCS_MODULES)
 elseif(DEFINED MICROCS_U8G2 AND NOT MICROCS_U8G2)
     target_compile_definitions(microcs PUBLIC MCS_ENABLE_U8G2=0)
 endif()
+include(${MICROCS_DIR}/cmake/MicroCSLvgl.cmake)
+microcs_lvgl_wanted(_mcs_lvgl "${MICROCS_CONFIG_FILE}")
+if(_mcs_lvgl AND MICROCS_MODULES)
+    microcs_add_lvgl(microcs)
+elseif(DEFINED MICROCS_LVGL AND NOT MICROCS_LVGL)
+    target_compile_definitions(microcs PUBLIC MCS_ENABLE_LVGL=0)
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(microcs PRIVATE -Wall -Wextra)
 endif()
@@ -413,6 +446,17 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND NOT CMAKE_CROSSCOMPILI
    AND NOT _mcs_os_lc STREQUAL "freertos")      # a FreeRTOS host build is a library for your own app
     add_executable(mcs ${MICROCS_DIR}/ports/unix/main.c)
     target_link_libraries(mcs PRIVATE microcs)
+    if(_mcs_lvgl AND MICROCS_MODULES)        # `mcs --lvgl`: LVGL on an in-memory display (tests/lvgl)
+        if(NOT DEFINED MICROCS_LVGL_BUILD)
+            set(MICROCS_LVGL_BUILD ON)
+        endif()
+        if(MICROCS_LVGL_BUILD AND NOT MICROCS_LVGL_LINKED)
+            microcs_add_lvgl_host(mcs microcs)
+            target_link_options(mcs PRIVATE -Wl,--gc-sections)
+        elseif(NOT MICROCS_LVGL_LINKED)
+            message(WARNING "MicroCS: MICROCS_LVGL=ON without MICROCS_LVGL_BUILD: link your own LVGL library to `mcs`")
+        endif()
+    endif()
     if(_mcs_u8g2 AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT APPLE)
         target_link_options(mcs PRIVATE -Wl,--gc-sections)   # only the u8g2 fonts / displays in use
     elseif(_mcs_u8g2 AND APPLE)

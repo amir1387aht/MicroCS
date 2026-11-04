@@ -1113,6 +1113,10 @@ class Editor {
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });
         for (const c of new Set([...Object.keys(Lang.classes), ...Object.keys(API)])) if (c !== "*" && !/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: Lang.classes[c] ? "class" : "class", cls: c });
         for (const k of KEYWORDS) add({ label: k, kind: "k", detail: "keyword" });
+        if (window.StudioLvgl && (/^lv/i.test(prefix) || StudioLvgl.mentions(v))) {      // LVGL: lv_* functions, LV_* constants (lvgl.js)
+          if (StudioLvgl.ready()) for (const it of StudioLvgl.items(prefix, { afterNew })) add(it);
+          else StudioLvgl.load(() => { if (ta.selectionStart === p && ta.value === v) this.suggest(explicit); });
+        }
         // Suggestions come from declarations, not words in comments or strings.
       }
     }
@@ -1403,6 +1407,13 @@ class Editor {
     }
     const sy = Lang.symbols(model);
     if (sy.funcs[word] && /^\s*\(/.test(v.slice(w.b))) return sy.funcs[word].map((m) => `<code>${sigHtml(m, "", -1)}</code>`).join("");
+    if (window.StudioLvgl && /^(?:lv|LV|lvgl_host)_?/.test(word)) {
+      if (!StudioLvgl.ready()) StudioLvgl.load();
+      const lf = StudioLvgl.fn(word);
+      if (lf && /^\s*\(/.test(v.slice(w.b))) return lf.map((m) => `<code>${sigHtml(m, "", -1)}</code>`).join("") + (lf[0].doc ? `<p>${esc(lf[0].doc)}</p>` : "");
+      const lk = StudioLvgl.kindOf(word);
+      if (lk) return `<code>(LVGL) <span class="t-loc">${esc(word)}</span>: ${esc(lk)}</code>`;
+    }
     const vt = Lang.varType(word, model, w.a + word.length + 1);
     if (vt) return `<code>(variable) ${typeHtml(vt === "var" ? "var" : vt)} <span class="t-loc">${esc(word)}</span></code>`;
     if (Lang.isClassName(word, model, w.a)) {

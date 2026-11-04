@@ -1,0 +1,6 @@
+msg id=7 ud=u
+msg id=7 ud=u
+got 2
+unsub 1
+got 2
+unsub again 0

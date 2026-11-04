@@ -25,7 +25,8 @@ M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 # Native/simulated CAN remains enabled. Keep the actual 256 KB linker limit.
 # These small reference boards use only a static pool and a 2 KiB libc heap.
 # Keep all selected features within 256 KiB flash using the compact VM layout.
-M0_SLIM := -DMCS_VM_COMPACT=1 -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
+# These reference boards do not register ROM global tables or use LVGL.
+M0_SLIM := -DMCS_ROM_GLOBALS_MAX=0 -DMCS_VM_COMPACT=1 -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
 # Runtime-only M0 also uses heap-backed native arguments to stay within flash.
@@ -93,8 +94,9 @@ $(OUT)/m0-16k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefi
 # (the linker fails if the firmware does not fit in 64 KB). No -u _printf_float.
 # Link-time optimization, like the other constrained M0 targets above: retain
 # all enabled language semantics while removing unreachable firmware code.
+# This firmware does not use ROM API tables; omit that optional lookup machinery.
 # Keep the two newlib syscall symbols whose references can appear after LTO.
-MIN_F := $(M0) -flto -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
+MIN_F := $(M0) -flto -DMCS_ROM_GLOBALS_MAX=0 -DMCS_PROFILE=MCS_PROFILE_MIN -DNODE_STACK_HIGH_WATER=board_stack_high_water -DNODE_PUTS=board_puts
 all: $(OUT)/m0-64k.elf
 $(OUT)/m0-64k.elf: $(NODE_SRC) $(ROOT)/examples/lowram/node_image.h cm.ld Makefile
 	@mkdir -p $(OUT)

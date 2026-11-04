@@ -254,6 +254,26 @@
 #ifndef MCS_ENABLE_SERVO
 #define MCS_ENABLE_SERVO          MCS_ENABLE_DRIVERS    /* built-in "servo" driver: C# Servo (hobby servos on a PWM channel) */
 #endif
+/* LVGL 8.x / 9.x (docs/LVGL.md): C# calls lv_obj_create, LV_ALIGN_CENTER, lv_style_t... with the C names.
+ * LVGL is not bundled and you do the porting (lv_init, display, input, lv_tick); the build finds the
+ * headers (MICROCS_LVGL / MICROCS_LVGL_DIR, cmake/MicroCSLvgl.cmake). Fonts and images load from the
+ * MicroCS file system (LittleFS / YAFFS2): "M:/fonts/a.bin", or just "/fonts/a.bin". */
+#ifndef MCS_ENABLE_LVGL
+#define MCS_ENABLE_LVGL           0    /* the LVGL binding (needs LVGL on the include path) */
+#endif
+#ifndef MCS_LVGL_FS_LETTER
+#define MCS_LVGL_FS_LETTER        'M'  /* LVGL drive letter of the MicroCS VFS (0 = none) */
+#endif
+#ifndef MCS_LVGL_AUTO_HANDLER
+#define MCS_LVGL_AUTO_HANDLER     0    /* 1: Thread.Sleep / the runtime loop call lv_timer_handler() */
+#endif
+#ifndef MCS_LVGL_CLEANUP_ON_CLOSE
+#define MCS_LVGL_CLEANUP_ON_CLOSE 1    /* closing the VM deletes the objects, timers and animations of the scripts */
+#endif
+/* MCS_LVGL_LOCK() / MCS_LVGL_UNLOCK(): define both here to wrap every LVGL call (an RTOS GUI mutex); default: nothing */
+#ifndef MCS_ROM_GLOBALS_MAX
+#define MCS_ROM_GLOBALS_MAX       4    /* flat flash API tables per VM (the LVGL binding uses one or two) */
+#endif
 /* u8g2 displays (docs/U8G2.md): C# U8g2 / U8x8, needs olikraus' u8g2 library (the build finds
  * or downloads it). Displays and fonts compiled in - names: `python3 tools/u8g2.py displays`,
  * `python3 tools/u8g2.py fonts`; other fonts load from MCS_U8G2_FONT_DIR at run time. */

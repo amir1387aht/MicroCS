@@ -1,0 +1,59 @@
+# MicroCS Studio templates (Templates / Alt+T). One block per file, in the order Studio lists them:
+#   [file] Display name   - a file in this folder
+#   save as: name.cs      - optional: the name Studio suggests (default: the file name)
+#   description lines     - shown in the list and the preview
+# LVGL examples need a firmware built with the LVGL binding (docs/LVGL.md); the firmware's own port did lv_init,
+# the display and the touch driver. On any other firmware they print a hint and stop.
+category: LVGL graphics
+requires: Lvgl
+
+[hello_label.cs] Hello LVGL: a label
+Screen colour, a centered label, the version, and the handler loop.
+
+[button_events.cs] Button and event handler
+lv_obj_add_event_cb with C# lambdas: a click counter, pressed events, user data.
+
+[styles.cs] Styles: lv_style_t
+new lv_style_t(), lv_style_set_*, state styles (pressed) and local styles.
+
+[layouts.cs] Flex and grid layouts
+A wrapping flex row and a grid with fixed and fractional (LV_GRID_FR) columns from int[] arrays.
+
+[animations.cs] Animations
+lv_anim_t: a native setter (lv_obj_set_x), a C# lambda, easing paths, repeat and playback.
+
+[timers.cs] Timers and async calls
+lv_timer_create with a C# lambda, lv_async_call, lv_timer_delete.
+
+[widgets.cs] Widgets: slider, bar, switch, checkbox, dropdown
+A small control panel on a flex column; events update the other widgets.
+
+[chart_live.cs] Live chart
+A line chart that gets a new point from a timer every 100 ms.
+
+[screens.cs] Several screens
+lv_obj_create(null) screens and lv_screen_load_anim between them.
+
+[image_from_file.cs] Images from the file system
+lv_image_set_src("/images/logo.png"): LVGL reads PNG, JPG, BMP, GIF... from LittleFS / YAFFS through the MicroCS file system.
+
+[font_from_file.cs] Fonts from the file system
+A binary font (lv_binfont_create) and a TrueType font (lv_tiny_ttf_create_file) loaded from /fonts/.
+
+[lvgl_versions.cs] One script for LVGL 8 and 9
+The names of both versions work; version checks; deleted objects raise an exception instead of crashing.
+
+[keyboard.cs] Text input and keyboard
+A text area paired with an on-screen keyboard.
+
+[calendar.cs] Calendar with highlighted dates
+Show the current month and highlight a date using an array of LVGL date structs.
+
+[canvas.cs] Canvas drawing
+Allocate a canvas buffer and fill it with a solid colour.
+
+[arc_dashboard.cs] Arc and progress dashboard
+Use a timer to update an arc, a progress bar and a label together.
+
+[event_data.cs] Event data and tree walk
+Pass user data to an event callback and count objects with lv_obj_tree_walk.

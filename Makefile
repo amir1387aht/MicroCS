@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: rom-globals-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -102,6 +102,9 @@ u8g2-test: mcs-u8g2
 	@$(CC) -std=gnu99 -Iinclude -DMCS_ENABLE_U8G2=1 -c modules/drivers/mcs_drv_u8g2.c -o build/x.o 2>&1 | grep -q "tools/u8g2.py fetch" \
 	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
 	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
+
+# Optional LVGL 8.x / 9.x (docs/LVGL.md): mcs-lvgl, lvgl-test, fetch-lvgl
+include tools/lvgl_gen/lvgl.mk
 
 # Bluetooth LE (docs/BLE.md): opt-in for custom builds; default host `mcs` is without it.
 # ESP32 release firmware enables BLE on capable chips. build/mcs_ble uses the simulated radio (--sim).
@@ -186,6 +189,12 @@ test-config: | build
 	@for f in $(CONFIG_VARIANTS); do \
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -DMCS_GC_GROW=3 \
 	  $(SRC) $(MOD_SRC) tests/c/test_config.c -o build/test_config $(LDLIBS) && ./build/test_config || { echo "FAIL config: $$f"; exit 1; }; done
+
+# Verify both the normal ROM tables and the optional no-ROM small-target build.
+rom-globals-test: | build
+	@for max in 0 4; do \
+	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_ROM_GLOBALS_MAX=$$max \
+	  $(SRC) $(MOD_SRC) tests/c/test_rom_globals.c -o build/test_rom_globals $(LDLIBS) && ./build/test_rom_globals || exit 1; done
 
 # The config template holds every option with the full profile's defaults;
 # tools/gen_config.py writes it for the other profiles (each must build -Werror,
@@ -301,7 +310,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test rom-globals-test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
@@ -446,7 +455,7 @@ project-test: build/test_access_scope build/test_project build/test_source_resol
 	./build/test_posix_fd_off
 	./build/test_shell_put_errors
 	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js && node tests/studio/test_lvgl.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)
