@@ -2,7 +2,7 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## 2.0.0 — Unreleased
+## 2.0.0 — Web flasher, LVGL and NuttX
 
 * Add a browser-based firmware flasher for supported ESP32, STM32 and Raspberry Pi boards, with release integrity checks and a Studio-matched interface.
 

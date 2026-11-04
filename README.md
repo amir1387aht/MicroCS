@@ -739,7 +739,7 @@ Measure speed and footprint before choosing a profile.
 - [x] **1.17** — long-run upload and compile-memory recovery
 - [x] **1.18** — FileStream, multi-region heaps and Studio improvements
 - [x] **1.19** — Studio workbench, command palette and editor intelligence
-- [x] **2.0.0 (unreleased)** — web firmware flasher, optional LVGL binding and NuttX port, VM hot-path and float optimizations, compiler lookup improvements, and constrained-target build fixes; see [CHANGELOG.md](CHANGELOG.md)
+- [x] **2.0.0** — web firmware flasher, optional LVGL binding and NuttX port, VM hot-path and float optimizations, compiler lookup improvements, and constrained-target build fixes; see [CHANGELOG.md](CHANGELOG.md)
 - [ ] Verify the web flasher and NuttX peripherals on physical hardware
 
 **Planned / in progress** (no release dates assigned):
