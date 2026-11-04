@@ -73,6 +73,7 @@ SECTIONS = [
         ("docs/JSON.md", "JSON"),
         ("docs/STANDALONE.md", "Standalone-Firmware"),
         ("tools/studio/README.md", "MicroCS-Studio"),
+        ("tools/flasher/README.md", "Web-Flasher"),
         ("tools/studio/templates/README.md", "Studio-Template-Authoring"),
         ("examples/README.md", "Examples"),
     ]),
