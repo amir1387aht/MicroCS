@@ -10,7 +10,7 @@
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Latest release](https://img.shields.io/badge/latest%20release-1.19.0-8b5cf6?style=flat-square)](https://github.com/amir1387aht/MicroCS/releases/latest)
+[![Version on main](https://img.shields.io/badge/main-2.0.0-8b5cf6?style=flat-square)](https://github.com/amir1387aht/MicroCS/releases/latest)
 [![Tests](https://img.shields.io/badge/tests-script%20·%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
 [![.NET parity](https://img.shields.io/badge/.NET%208-selected%20tests%20match-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
@@ -32,10 +32,9 @@
 <br>
 
 [![Open MicroCS Studio](https://img.shields.io/badge/▶_Open_MicroCS_Studio-in_your_browser-8b5cf6?style=for-the-badge)](https://amir1387aht.github.io/MicroCS/)
-[![Open Web Flasher](https://img.shields.io/badge/⚡_Open_Web_Flasher-in_your_browser-8b5cf6?style=for-the-badge)](https://amir1387aht.github.io/MicroCS/flash/)
+[![Open Web Flasher](https://img.shields.io/badge/⚡_Web_Flasher-install_firmware-007acc?style=for-the-badge)](https://amir1387aht.github.io/MicroCS/flash/)
 [![Download firmware](https://img.shields.io/badge/⬇_Download-ready--to--flash_firmware-06b6d4?style=for-the-badge)](https://github.com/amir1387aht/MicroCS/releases/latest)
 
-[**Flash firmware in your browser →**](https://amir1387aht.github.io/MicroCS/flash/) · ESP32 serial · STM32 UART / Black Pill USB DFU · Pico BOOTSEL
 
 <img src="assets/demo.gif" alt="MicroCS Studio: typing C# with IntelliSense, pressing F5 and the script runs on the board" width="880">
 
@@ -265,7 +264,7 @@ int main(void) {
 Flash it, open a serial terminal and type C#:
 
 ```text
-MicroCS 1.19.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
+MicroCS 2.0.0 C# REPL. .help for commands, Ctrl-E paste mode, Ctrl-A machine mode.
 > var led = new Pin("LED", GPIO.Output);
 > led.Toggle();
 > led.Value
@@ -524,7 +523,7 @@ integrations:
 | **Zephyr** | `west init -m …/MicroCS --mf ports/zephyr/west.yml`, or add as a module + `CONFIG_MICROCS=y` | devicetree aliases select the devices |
 | **Apache NuttX** | `ln -s …/MicroCS/ports/nuttx apps/interpreters/microcs`, then enable *MicroCS* in menuconfig | NSH command `mcs`; optional real threads on pthreads |
 | **PlatformIO** | `lib_deps = https://github.com/amir1387aht/MicroCS` | `library.json` picks the port from the framework |
-| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-1.19.0.zip` | `#include <MicroCS.h>` |
+| **Arduino IDE** | `python3 tools/make_arduino.py` → install `dist/arduino/MicroCS-2.0.0.zip` | `#include <MicroCS.h>` |
 | Keil / IAR / SEGGER / others | add the `.c` files; nothing else needed | no compiler extensions required |
 
 When MicroCS lives inside your SDK project it uses **your SDK's own headers and drivers**
@@ -740,7 +739,8 @@ Measure speed and footprint before choosing a profile.
 - [x] **1.17** — long-run upload and compile-memory recovery
 - [x] **1.18** — FileStream, multi-region heaps and Studio improvements
 - [x] **1.19** — Studio workbench, command palette and editor intelligence
-- [x] **On `main`, unreleased** — VM hot-path and float fast paths, compiler lookup improvements, and constrained-target build fixes; see [CHANGELOG.md](CHANGELOG.md)
+- [x] **2.0.0 (unreleased)** — web firmware flasher, optional LVGL binding and NuttX port, VM hot-path and float optimizations, compiler lookup improvements, and constrained-target build fixes; see [CHANGELOG.md](CHANGELOG.md)
+- [ ] Verify the web flasher and NuttX peripherals on physical hardware
 
 **Planned / in progress** (no release dates assigned):
 
@@ -750,7 +750,6 @@ Measure speed and footprint before choosing a profile.
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
-- [x] Experimental [LVGL 8.x / 9.x](docs/LVGL.md) binding
 - [ ] ROM-resident class metadata
 
 See [CHANGELOG.md](CHANGELOG.md) for release details. The shell is not authenticated;

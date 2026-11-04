@@ -2,7 +2,11 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
-## Unreleased — Interpreter hot-path restoration
+## 2.0.0 — Unreleased
+
+* Add a browser-based firmware flasher for supported ESP32, STM32 and Raspberry Pi boards, with release integrity checks and a Studio-matched interface.
+
+### Interpreter hot-path restoration
 
 * Apache NuttX as an optional OS (`MCS_OS_NUTTX`, auto-detected through
   `__NuttX__`): `Thread.Run` / `RunOn` / `Every`, `Worker` and `Channel` run on
@@ -54,7 +58,7 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 * Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
   poison the old block) and `tests/t34_stack_relocation.cs`.
 
-## Unreleased — optional LVGL 8.x / 9.x binding
+### Optional LVGL 8.x / 9.x binding
 
 * New opt-in `MCS_ENABLE_LVGL`: scripts call the LVGL C API with its C names (`lv_button_create`, `LV_ALIGN_CENTER`, `lv_style_t`, ...) on
   LVGL 8.0 to 9.x. The name tables and wrappers are generated from the LVGL headers (`tools/lvgl_gen`); v8 and v9 spellings both work.
