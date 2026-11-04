@@ -25,7 +25,8 @@ M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 # Native/simulated CAN remains enabled. Keep the actual 256 KB linker limit.
 # These small reference boards use only a static pool and a 2 KiB libc heap.
 # Keep all selected features within 256 KiB flash using the compact VM layout.
-M0_SLIM := -DMCS_VM_COMPACT=1 -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
+# These reference boards do not register ROM global tables or use LVGL.
+M0_SLIM := -DMCS_ROM_GLOBALS_MAX=0 -DMCS_VM_COMPACT=1 -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
 # Runtime-only M0 also uses heap-backed native arguments to stay within flash.
