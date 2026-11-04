@@ -1,0 +1,4 @@
+# Browser flasher dependencies and generated assets
+node_modules/
+vendor.js
+THIRD_PARTY_LICENSES.txt

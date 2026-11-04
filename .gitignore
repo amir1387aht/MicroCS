@@ -9,8 +9,6 @@ __pycache__/
 .DS_Store
 dist/
 node_modules/
-
-# Browser flasher dependencies and generated assets
-tools/flasher/node_modules/
-tools/flasher/vendor.js
-tools/flasher/THIRD_PARTY_LICENSES.txt
+# LVGL binding: generated from the LVGL headers (python3 tools/lvgl_gen/build_api.py)
+modules/lvgl/mcs_lvgl_api.inc
+tools/lvgl_gen/lvgl_api.json
