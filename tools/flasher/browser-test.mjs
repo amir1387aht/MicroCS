@@ -182,32 +182,32 @@ try {
     }
   };
   assert.equal(await page.getByLabel("Appearance").inputValue(), "system");
-  assert.equal(await bodyBackground(), "rgb(238, 238, 242)");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
   await assertPalette();
   await page.emulateMedia({ colorScheme: "dark" });
-  assert.equal(await bodyBackground(), "rgb(31, 31, 31)");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
   await assertPalette();
   await page.emulateMedia({ colorScheme: "light" });
   await page.getByLabel("Appearance").selectOption("dark");
-  assert.equal(await bodyBackground(), "rgb(31, 31, 31)");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
   await assertPalette();
   await capture("manual-dark-desktop");
   await page.reload();
   await ready();
   assert.equal(await page.getByLabel("Appearance").inputValue(), "dark");
-  assert.equal(await bodyBackground(), "rgb(31, 31, 31)");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.getByLabel("Appearance").selectOption("light");
-  assert.equal(await bodyBackground(), "rgb(238, 238, 242)");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
   await assertPalette();
   await page.reload();
   await ready();
   assert.equal(await page.getByLabel("Appearance").inputValue(), "light");
-  assert.equal(await bodyBackground(), "rgb(238, 238, 242)");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
   await page.getByLabel("Appearance").selectOption("system");
-  assert.equal(await bodyBackground(), "rgb(31, 31, 31)");
+  assert.equal(await bodyBackground(), "rgb(25, 25, 25)");
   await page.emulateMedia({ colorScheme: "light" });
-  assert.equal(await bodyBackground(), "rgb(238, 238, 242)");
+  assert.equal(await bodyBackground(), "rgb(255, 255, 255)");
   await page.evaluate(() =>
     localStorage.setItem("microcs-flasher-theme", "invalid-value"),
   );
@@ -231,7 +231,7 @@ try {
     await storageBlocked.evaluate(
       () => getComputedStyle(document.body).backgroundColor,
     ),
-    "rgb(31, 31, 31)",
+    "rgb(25, 25, 25)",
   );
   assert.deepEqual(blockedErrors, []);
   await storageBlocked.close();

@@ -111,8 +111,8 @@ Console.WriteLine(c.ReadToEnd());
 c.Close();
 '''
 
-EXPECT = """200 OK (33 bytes) | hello /a ua=MicroCS/VER key=42 | text/plain | 33 | True
-200 http://127.0.0.1:PORT/hello?x=1 43
+EXPECT = """200 OK (LEN_A bytes) | hello /a ua=MicroCS/VER key=42 | text/plain | LEN_A | True
+200 http://127.0.0.1:PORT/hello?x=1 LEN_REDIRECT
 200 http://127.0.0.1:PORT/hello
 loop 302
 no follow 302 /hello?x=1
@@ -122,7 +122,7 @@ POST {"a":1} ct=application/json
 PUT AB ct=application/octet-stream
 PATCH x ct=text/plain; charset=utf-8 | DELETE  ct=-
 POST q ct=text/csv
-head 200 0 35
+head 200 0 LEN_HEAD
 404 Not Found False nf!
 HttpRequestException HTTP 404 Not Found: http://127.0.0.1:PORT/missing
 EnsureSuccess threw
@@ -170,7 +170,10 @@ def main():
         out = subprocess.run([mcs, "--fs", d, src], capture_output=True, text=True, timeout=120)
     srv.shutdown()
     got = out.stdout + out.stderr
-    want = EXPECT.replace("PORT", str(port)).replace("VER", ver)
+    want = (EXPECT.replace("PORT", str(port)).replace("VER", ver)
+            .replace("LEN_A", str(len(f"hello /a ua=MicroCS/{ver} key=42".encode())))
+            .replace("LEN_REDIRECT", str(len(f"hello /hello?x=1 ua=MicroCS/{ver} key=None".encode())))
+            .replace("LEN_HEAD", str(len(f"hello /a ua=MicroCS/{ver} key=None".encode()))))
     if got != want:
         import difflib
         print("FAIL network tests"); sys.stdout.writelines(difflib.unified_diff(want.splitlines(True), got.splitlines(True), "expected", "got"))
