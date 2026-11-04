@@ -4,10 +4,12 @@
 //   CHROME=/usr/bin/google-chrome node tests/studio/test_studio.js [./mcs]
 let chromium;
 try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require('playwright-core')); }
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
 const OUT = path.resolve(process.env.OUT || 'build/studio');
 const MCS = path.resolve(process.argv[2] || './mcs');
+const VERSION = execFileSync(MCS, ['--features'], { encoding: 'utf8' }).split(/\s+/)[1].replace(/,$/, '');
+const CONN_PREFIX = 'MicroCS ' + VERSION;
 const HTML = 'file://' + path.resolve(__dirname, '../../tools/studio/index.html');
 const ROOT = OUT + '/fs';
 fs.mkdirSync(OUT, { recursive: true });
@@ -84,13 +86,13 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   await page.screenshot({ path: OUT + '/0_start.png' });
   await page.click('#btnConnect');
   await page.waitForFunction(() => document.getElementById('connText').textContent.startsWith('MicroCS'), null, { timeout: 8000 }).catch(() => {});
-  check((await page.textContent('#connText')).startsWith('MicroCS 1.'), 'connected, info read: ' + await page.textContent('#connText'));
+  check((await page.textContent('#connText')).startsWith(CONN_PREFIX), 'connected, info read: ' + await page.textContent('#connText'));
   check(await page.evaluate(() => App.capabilitiesKnown && App.capabilities.get('Compiler') === true && App.capabilities.get('GPIO') === true), 'real firmware capability report parsed on connect (no peripheral probing)');
   check(await page.evaluate(() => !window.__signals), 'connect leaves DTR/RTS alone (no reset on connect)');
   check(await page.isDisabled('#baud'), 'baud is locked while connected');
   check(await page.evaluate(() => window.__serialOpens[0].baudRate === 125000 && window.__serialOpens[0].bufferSize === 65536), 'custom 125000 passed unchanged to Web Serial with normal buffer size');
   check(await page.evaluate(() => JSON.parse(localStorage.getItem('mcs-studio.baud')) === 125000), 'successful custom selection persisted');
-  if (!(await page.textContent('#connText')).startsWith('MicroCS 1.')) console.log(await page.innerText('#term'));
+  if (!(await page.textContent('#connText')).startsWith(CONN_PREFIX)) console.log(await page.innerText('#term'));
   await page.waitForSelector('.file');
   const names = await page.$$eval('#fileList .name', els => els.map(e => e.textContent));
   check(JSON.stringify(names) === JSON.stringify(['lib', 'data.bin', 'hello.cs']), 'file list ' + JSON.stringify(names));
@@ -387,7 +389,7 @@ let fails = 0; const check = (c, w) => { console.log((c ? 'PASS ' : 'FAIL ') + w
   check(/Waiting for the device/.test(await page.textContent('#connText')) || /Reconnecting/.test(await page.textContent('#connText')), 'waiting for the device after it vanished: ' + await page.textContent('#connText'));
   await page.evaluate(() => { window.__gone = 0; });
   await page.waitForFunction(() => /reconnected/.test(document.getElementById('term').innerText) && /ready/.test(document.getElementById('term').innerText.split('reconnected').pop()), null, { timeout: 10000 }).catch(() => {});
-  check(await page.evaluate(() => dev.connected) && /^MicroCS 1\./.test(await page.textContent('#connText')), 'reconnected after the device came back: ' + await page.textContent('#connText'));
+  check(await page.evaluate(() => dev.connected) && (await page.textContent('#connText')).startsWith(CONN_PREFIX), 'reconnected after the device came back: ' + await page.textContent('#connText'));
   check(await page.evaluate(() => window.__serialOpens.length > 1 && window.__serialOpens.every(o => o.baudRate === 125000)), 'automatic reconnect retains custom baud');
   // Reset button: answers again afterwards
   await page.click('#btnReset');

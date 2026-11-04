@@ -157,7 +157,7 @@ h1 span {
   font-weight: 600;
 }
 .theme-control select {
-  width: 112px;
+  width: 136px;
   font-size: 14px;
   min-height: 44px;
 }
@@ -558,75 +558,3 @@ body.busy .consent {
     transition: filter 0.15s;
   }
 }
-
-/* MicroCS Studio workbench palette, chrome, and controls. */
-:root {
-  --bg: #eeeef2; --surface: #f5f5f5; --raised: #fff; --header: #eeeef2;
-  --input: #fff; --text: #1e1e1e; --muted: #555; --border: #cccedb;
-  --control-border: #737784; --accent: #005f9e; --button: #006db6;
-  --on-accent: #fff; --tint: #dcecf9; --good: #107010; --danger: #b31c0e;
-  --notice: #fff2d4; --notice-text: #674400;
-}
-:root[data-theme="dark"] {
-  --bg: #1f1f1f; --surface: #252526; --raised: #252526; --header: #2d2d30;
-  --input: #333337; --text: #f1f1f1; --muted: #c8c8c8; --border: #515158;
-  --control-border: #93939c; --accent: #83c5ff; --button: #006db6;
-  --on-accent: #fff; --tint: #264f78; --good: #89d185; --danger: #f48771;
-  --notice: #473923; --notice-text: #fbd27a;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #1f1f1f; --surface: #252526; --raised: #252526; --header: #2d2d30;
-    --input: #333337; --text: #f1f1f1; --muted: #c8c8c8; --border: #515158;
-    --control-border: #93939c; --accent: #83c5ff; --button: #006db6;
-    --on-accent: #fff; --tint: #264f78; --good: #89d185; --danger: #f48771;
-    --notice: #473923; --notice-text: #fbd27a;
-  }
-}
-body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Ubuntu, sans-serif; }
-.topbar { max-width: none; min-height: 56px; padding: 0 32px; background: var(--header); }
-.brand { gap: 8px; font-weight: 600; }
-.mark { width: 30px; height: 30px; border-radius: 0; background: #68217a; color: #fff; font-size: 14px; }
-nav a { color: var(--text); font-weight: 500; }
-main { max-width: 1152px; padding: 32px 24px 24px; }
-.intro { max-width: none; margin-bottom: 24px; }
-.eyebrow { letter-spacing: .06em; font-weight: 600; margin-bottom: 8px; }
-h1 { font-size: 28px; line-height: 1.25; letter-spacing: 0; margin: 0 0 8px; font-weight: 600; }
-.lede { max-width: 720px; font-size: 16px; margin: 0 0 16px; }
-.intro-meta { gap: 12px; }
-.badges span, .tag { border-radius: 0; padding: 3px 8px; background: var(--surface); font-weight: 500; }
-.workspace { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 16px; }
-.panel { border-radius: 0; padding: 20px; }
-.section-head { margin: -20px -20px 20px; padding: 12px 20px; background: var(--header); border-bottom: 1px solid var(--border); gap: 10px; }
-.section-head h2 { font-size: 16px; letter-spacing: 0; font-weight: 600; }
-.step { padding: 0; border-radius: 0; background: transparent; }
-.notice { border-radius: 0; border-left: 3px solid var(--button); margin-bottom: 20px; }
-.fields { margin-bottom: 16px; }
-select { border-radius: 0; background: var(--input); min-height: 44px; }
-.instructions { border-radius: 0; border: 1px solid var(--border); margin: 20px 0; padding: 12px; }
-.consent { margin: 20px 0; }
-.primary { border-radius: 0; background: var(--button); padding: 10px 16px; }
-.secondary { margin-top: 8px; }
-.status { font-size: 20px; letter-spacing: 0; font-weight: 600; }
-progress { border-radius: 0; }
-progress::-webkit-progress-value { background: var(--button); }
-progress::-moz-progress-bar { background: var(--button); }
-.journey { margin: 20px 0; }
-.help { border: 1px solid var(--border); background: var(--surface); padding: 20px; margin-top: 16px; }
-.logs { margin-top: 16px; padding: 8px 20px; }
-pre { font-family: "Cascadia Mono", Consolas, "Courier New", monospace; }
-footer { padding-top: 24px; }
-@media (max-width: 800px) {
-  .workspace { grid-template-columns: 1fr; }
-  .topbar { padding: 0 24px; }
-  .help { margin-top: 0; }
-  main { padding-top: 24px; }
-}
-@media (max-width: 540px) {
-  .topbar { padding: 0 16px; }
-  main { padding: 24px 16px 16px; }
-  .intro { margin-bottom: 24px; }
-  .help { padding: 20px; }
-}
-
-.theme-control select { width: 136px; }
