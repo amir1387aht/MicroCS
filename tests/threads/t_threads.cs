@@ -63,3 +63,4 @@ Console.WriteLine("recursive delete " + !Directory.Exists("/rmtree"));
 
 // NuttX printf stops at 15 significant digits; default formatting must still round-trip doubles.
 Console.WriteLine("double " + (1.0 / 3.0) + " " + 1.2345678901234567);
+Console.WriteLine("formats " + (1.0 / 3.0).ToString("F20") + " " + (1.0 / 3.0).ToString("E16"));

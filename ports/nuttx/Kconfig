@@ -70,6 +70,15 @@ config INTERPRETERS_MICROCS_USER_CONFIG_FILE
 		path or one on the include path. MCS_PROFILE in the header wins over the
 		profile selected above.
 
+config INTERPRETERS_MICROCS_GPIO
+	bool "NuttX GPIO character-device HAL"
+	default n
+	depends on DEV_GPIO
+	---help---
+		Expose pre-configured /dev/gpioN character devices to C# GPIO.
+		Pin modes must already be set by the board; interrupts are not supported.
+		Other peripheral APIs remain unavailable unless a board provides them.
+
 config INTERPRETERS_MICROCS_THREADS
 	bool "Real threads on NuttX pthreads (C# Thread.Run / RunOn, SMP CPUs)"
 	default n

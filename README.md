@@ -544,7 +544,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · C61 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W, Pico 2 W — Wi-Fi on the W boards) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico`, `pico2`, and `pico_w` / `pico2_w` with Wi-Fi |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
-| **Apache NuttX** (every board with a POSIX-style console; simulator) | [`ports/nuttx`](ports/nuttx) | 🧪 NuttX 12.11 `sim:nsh` (CMake build, also SMP): the `mcs` command and the C# thread suite run on the simulator (`make nuttx-test`); no board HAL yet |
+| **Apache NuttX** (every board with a POSIX-style console; simulator) | [`ports/nuttx`](ports/nuttx) | 🧪 NuttX 12.11 simulator: `mcs`, threads and opt-in GPIO character-device access; no physical-board validation yet (`make nuttx-test`) |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
 | Bare-metal Cortex-M0/M4/M33 reference firmware | [`ports/cortex-m`](ports/cortex-m) | built and executed by `make cm-check` |
 | Linux / macOS host (CLI, REPL, simulator board + radio, real sockets / HTTP) | [`ports/unix`](ports/unix) | full test suite |

@@ -120,13 +120,20 @@
 /* 1 = format doubles with the library's own exact digit generator
  * instead of printf("%.17e"). Needed where the C library's printf stops after DBL_DIG (15)
  * significant digits and so cannot print the shortest round-trip form of a double: NuttX.
- * Default: 1 on NuttX, 0 elsewhere. Only used with MCS_FLOAT_DOUBLE=1. */
+ * Default: 1 on NuttX, 0 elsewhere. Used for explicit float formats and, with
+ * MCS_FLOAT_DOUBLE=1, for shortest-round-trip double formatting. */
 #ifndef MCS_OWN_DTOA
 #if defined(__NuttX__)
 #define MCS_OWN_DTOA 1
 #else
 #define MCS_OWN_DTOA 0
 #endif
+#endif
+
+/* Best-effort native stack reserve before nested interpreter callbacks on NuttX.
+ * Limited to half the reported task stack; no guard when pthreads are disabled. */
+#ifndef MCS_NUTTX_STACK_RESERVE
+#define MCS_NUTTX_STACK_RESERVE 16384
 #endif
 
 /* Pack mcs_value_t to 4-byte alignment. Only matters when the payload is

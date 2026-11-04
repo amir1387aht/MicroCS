@@ -1,0 +1,5 @@
+native NuttX gpio=True
+high True
+low False
+mode rejected
+missing pin

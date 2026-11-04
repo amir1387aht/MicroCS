@@ -145,6 +145,96 @@ static void dtoa_fmt_e(char* out, const dtoa_t* d, int p) {
 }
 #endif
 
+#if MCS_OWN_DTOA
+/* Exact digits for explicit F/N/P/custom and E formats.  A binary64 value is
+ * m * 2^e. For e < 0, m * 5^-e gives an integer with decimal scale e.
+ * 84 limbs cover every binary64 subnormal (at most 767 decimal digits). */
+#define DEC_LIMBS 84
+#define DEC_DIGITS 800
+typedef struct { uint32_t w[DEC_LIMBS]; int n; } dec_bn_t;
+static void dec_mul(dec_bn_t* b, uint32_t m) {
+    uint64_t carry = 0;
+    for (int i = 0; i < b->n; i++) { uint64_t v = (uint64_t)b->w[i] * m + carry; b->w[i] = (uint32_t)v; carry = v >> 32; }
+    if (carry && b->n < DEC_LIMBS) b->w[b->n++] = (uint32_t)carry;
+}
+static uint32_t dec_div(dec_bn_t* b, uint32_t d) {
+    uint64_t r = 0;
+    for (int i = b->n - 1; i >= 0; i--) { uint64_t v = (r << 32) | b->w[i]; b->w[i] = (uint32_t)(v / d); r = v % d; }
+    while (b->n && !b->w[b->n - 1]) b->n--;
+    return (uint32_t)r;
+}
+typedef struct { char d[DEC_DIGITS]; int n, point; } exact_decimal_t;
+static void exact_decimal(exact_decimal_t* x, double f) { /* positive, finite, nonzero */
+    int e; double fr = frexp(f, &e); uint64_t m = (uint64_t)ldexp(fr, 53); e -= 53;
+    /* Cancel powers of two before forming 5^-e; this also bounds the
+       exact binary64 decimal expansion to fewer than DEC_DIGITS digits. */
+    while (e < 0 && !(m & 1u)) { m >>= 1; e++; }
+    dec_bn_t b; memset(&b, 0, sizeof b);
+    b.w[0] = (uint32_t)m; b.w[1] = (uint32_t)(m >> 32); b.n = b.w[1] ? 2 : 1;
+    int scale = e < 0 ? -e : 0;
+    if (e < 0) for (int i = 0; i < -e; i++) dec_mul(&b, 5);
+    else for (int i = 0; i < e; i++) dec_mul(&b, 2);
+    x->n = 0;
+    while (b.n) {
+        uint32_t part = dec_div(&b, 1000000000u);
+        int digits = b.n ? 9 : 0;
+        do { x->d[x->n++] = (char)('0' + part % 10); part /= 10; digits--; } while (part || digits > 0);
+    }
+    for (int i = 0; i < x->n / 2; i++) { char c = x->d[i]; x->d[i] = x->d[x->n - 1 - i]; x->d[x->n - 1 - i] = c; }
+    x->point = x->n - scale;
+}
+/* Round to `keep` significant digits, ties to even. keep can be zero or negative
+ * for fixed-point values below the first displayed decimal place. */
+static void exact_round(exact_decimal_t* x, int keep, int decimals) {
+    if (keep >= x->n) return;
+    bool up = false;
+    if (keep >= 0) {
+        char next = x->d[keep];
+        if (next > '5') up = true;
+        else if (next == '5') {
+            for (int i = keep + 1; i < x->n; i++) if (x->d[i] != '0') { up = true; break; }
+            if (!up && keep > 0 && ((x->d[keep - 1] - '0') & 1)) up = true;
+        }
+    }
+    if (keep <= 0) { x->d[0] = up ? '1' : '0'; x->n = 1; x->point = up ? 1 - decimals : 1; return; }
+    x->n = keep;
+    if (up) {
+        int i = keep - 1;
+        while (i >= 0 && x->d[i] == '9') x->d[i--] = '0';
+        if (i >= 0) x->d[i]++;
+        else { x->d[0] = '1'; x->n = 1; x->point++; }
+    }
+}
+static char exact_digit(const exact_decimal_t* x, int i) { return i >= 0 && i < x->n ? x->d[i] : '0'; }
+static void exact_put(char* out, size_t cap, size_t* pos, char c) {
+    if (*pos + 1 < cap) out[*pos] = c;
+    (*pos)++;
+}
+/* snprintf-like bounded output for the existing format buffers. */
+static void exact_format(char* out, size_t cap, double f, int decimals, bool scientific) {
+    if (!isfinite(f) || f == 0) { snprintf(out, cap, scientific ? "%.*e" : "%.*f", decimals, f); return; }
+    exact_decimal_t x; exact_decimal(&x, f < 0 ? -f : f);
+    exact_round(&x, scientific ? decimals + 1 : x.point + decimals, decimals);
+    size_t pos = 0;
+    if (signbit(f)) exact_put(out, cap, &pos, '-');
+    if (scientific) {
+        exact_put(out, cap, &pos, exact_digit(&x, 0));
+        if (decimals) exact_put(out, cap, &pos, '.');
+        for (int i = 1; i <= decimals; i++) exact_put(out, cap, &pos, exact_digit(&x, i));
+        int e = x.point - 1; unsigned u = (unsigned)(e < 0 ? -e : e);
+        exact_put(out, cap, &pos, 'e'); exact_put(out, cap, &pos, e < 0 ? '-' : '+');
+        if (u >= 100) exact_put(out, cap, &pos, (char)('0' + u / 100));
+        exact_put(out, cap, &pos, (char)('0' + u / 10 % 10)); exact_put(out, cap, &pos, (char)('0' + u % 10));
+    } else {
+        int whole = x.point > 0 ? x.point : 1;
+        for (int i = 0; i < whole; i++) exact_put(out, cap, &pos, x.point > 0 ? exact_digit(&x, i) : '0');
+        if (decimals) exact_put(out, cap, &pos, '.');
+        for (int i = 0; i < decimals; i++) exact_put(out, cap, &pos, exact_digit(&x, x.point + i));
+    }
+    if (cap) out[pos < cap ? pos : cap - 1] = 0;
+}
+#endif
+
 /* shortest round-trip representation, .NET Core style */
 void mcs_format_float(char* out, mcs_float_t f) {
     if (f != f) { strcpy(out, "NaN"); return; }
@@ -334,7 +424,13 @@ static double as_double(mcs_value_t v) { return v.type == MCS_T_FLOAT ? (double)
 static void fmt_fixed(mcs_buf_t* b, mcs_value_t v, int dec, bool group, int minint) {
     char tmp[400];
 #if MCS_ENABLE_FLOAT
-    if (v.type == MCS_T_FLOAT) snprintf(tmp, sizeof tmp, "%.*f", dec, as_double(v));
+    if (v.type == MCS_T_FLOAT) {
+#if MCS_OWN_DTOA
+        exact_format(tmp, sizeof tmp, as_double(v), dec, false);
+#else
+        snprintf(tmp, sizeof tmp, "%.*f", dec, as_double(v));
+#endif
+    }
     else
 #endif
     {
@@ -408,7 +504,11 @@ static bool format_core(mcs_vm_t* vm, mcs_buf_t* b, mcs_value_t v, const char* f
 #if MCS_ENABLE_FLOAT
         case 'E': case 'e': {
             char tmp[64];
+#if MCS_OWN_DTOA
+            exact_format(tmp, sizeof tmp, as_double(v), prec < 0 ? 6 : prec, true);
+#else
             snprintf(tmp, sizeof tmp, "%.*e", prec < 0 ? 6 : prec, as_double(v));
+#endif
             char* e = strchr(tmp, 'e');
             if (e) {
                 *e = 0; mcs_buf_puts(b, tmp);

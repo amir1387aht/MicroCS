@@ -59,6 +59,7 @@ if(CONFIG_INTERPRETERS_MICROCS)
     ${MICROCS_FLAGS}
     SRCS
     ${MICROCS_DIR}/ports/unix/main.c
+    ${MICROCS_DIR}/ports/nuttx/mcs_port_nuttx.c
     ${MICROCS_CORE_SRCS}
     ${MICROCS_MODULE_SRCS})
 endif()

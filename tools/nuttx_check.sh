@@ -95,7 +95,7 @@ check_suite() { # <config name>
         diagnostic && /^caught: True$/ { diagnostic=0 }
         !diagnostic && NF { print }
     '; }
-    sed -n '/^os True/,/^double /p' "$W/raw_$1.txt" | stable > "$got"
+    sed -n '/^os True/,/^formats /p' "$W/raw_$1.txt" | stable > "$got"
     stable < "$ROOT/tests/threads/t_threads.out" > "$W/expected.txt"
     if cmp -s "$got" "$W/expected.txt"; then
         echo "PASS tests/threads/t_threads.cs (NuttX $REF sim:$1)"
@@ -104,11 +104,23 @@ check_suite() { # <config name>
     fi
 }
 
-mkconfig mcs nsh
+mkconfig mcs nsh "CONFIG_INTERPRETERS_MICROCS_GPIO=y"
 build mcs
 run_sim mcs 'mcs --version' 'mcs -e "Console.WriteLine(Thread.Os);"' | grep -q '^NuttX' \
     || { echo "FAIL: Thread.Os is not NuttX"; exit 1; }
 check_suite mcs
+run_sim mcs "mount -t hostfs -o fs=$ROOT/tests /host" \
+    "mcs /host/nuttx/t_gpio.cs" > "$W/raw_gpio.txt"
+sed -n '/^native NuttX /,/^missing pin$/p' "$W/raw_gpio.txt" > "$W/gpio.txt"
+cmp "$W/gpio.txt" "$ROOT/tests/nuttx/t_gpio.out" || { echo "FAIL NuttX GPIO"; exit 1; }
+echo "PASS NuttX GPIO character devices (sim:mcs)"
+run_sim mcs "mount -t hostfs -o fs=$ROOT/tests /host" "mount -t hostfs -o fs=$W /stage" \
+    "mcs /host/nuttx/t_stack.cs" "mcs -c /host/nuttx/t_stack.cs -o /stage/stack.mcsb" \
+    "mcs /stage/stack.mcsb" "mcs --xip /stage/stack.mcsb" > "$W/raw_stack.txt"
+[ "$(grep -c '^stack caught$' "$W/raw_stack.txt")" -eq 3 ] && \
+    [ "$(grep -c '^stack survived$' "$W/raw_stack.txt")" -eq 3 ] || \
+    { echo "FAIL NuttX native stack guard"; tail -n 40 "$W/raw_stack.txt"; exit 1; }
+echo "PASS NuttX native stack guard (source, image, XIP)"
 
 if [ "${NUTTX_SMP:-0}" = 1 ]; then
     mkconfig mcssmp smp

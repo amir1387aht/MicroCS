@@ -1,13 +1,12 @@
 /* Compare the optional exact double formatter against the host libc implementation.
  * Input includes fixed edge values and deterministic binary64 bit patterns. */
-#include "mcs.h"
+#include "../../src/mcs_internal.h"
 #include <float.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-void mcs_format_float(char* out, mcs_float_t f); /* internal formatter */
 
 int main(void) {
     if (sizeof(double) != 8 || DBL_MANT_DIG != 53 || FLT_RADIX != 2) {
@@ -25,5 +24,25 @@ int main(void) {
         double f; memcpy(&f, &state, sizeof f);
         if (isfinite(f)) { mcs_format_float(out, f); puts(out); }
     }
+    /* Compare explicit formats too, including rounding boundaries and values
+     * whose exact decimal expansion has far more than 15 significant digits. */
+    mcs_vm_t* vm = mcs_new(NULL);
+    if (!vm) return 1;
+    const char* fmt[] = { "F0", "F2", "F16", "F20", "N16", "P16", "E0", "E2", "E16", "E20", "e16", "0.####################" };
+    const double corners[] = { 0, -0.0, 0.5, 1.5, 2.5, -0.5, 0.125, 9.9999,
+        1.0 / 3.0, 0x1p-1074, DBL_MIN, DBL_MAX, 1e-300, 1e300 };
+    state = UINT64_C(0x13198a2e03707344);
+    for (int i = 0; i < 1024 + (int)(sizeof corners / sizeof corners[0]); i++) {
+        double f;
+        if (i < (int)(sizeof corners / sizeof corners[0])) f = corners[i];
+        else { state ^= state << 13; state ^= state >> 7; state ^= state << 17; memcpy(&f, &state, sizeof f); }
+        if (!isfinite(f)) continue;
+        for (size_t j = 0; j < sizeof fmt / sizeof fmt[0]; j++) {
+            mcs_buf_t b; mcs_buf_init(&b, vm);
+            if (!mcs_format_spec(vm, &b, mcs_float(f), fmt[j], strlen(fmt[j]))) return 1;
+            puts(b.data ? b.data : ""); mcs_buf_free(&b);
+        }
+    }
+    mcs_free(vm);
     return 0;
 }

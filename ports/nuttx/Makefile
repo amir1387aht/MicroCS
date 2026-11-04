@@ -18,6 +18,7 @@ endif
 # cannot be built for the configuration compiles to an empty unit
 CSRCS += $(wildcard $(MICROCS_DIR)/src/*.c)
 CSRCS += $(wildcard $(MICROCS_DIR)/modules/*/*.c)
+CSRCS += $(MICROCS_DIR)/ports/nuttx/mcs_port_nuttx.c
 
 CFLAGS += ${INCDIR_PREFIX}$(MICROCS_DIR)/include
 CFLAGS += -Wno-undef -Wno-unused-parameter -Wno-sign-compare -Wno-shadow
@@ -34,8 +35,9 @@ CFLAGS += -DMCS_DEFAULT_PROFILE=MCS_PROFILE_LOWRAM
 else ifneq ($(CONFIG_INTERPRETERS_MICROCS_PROFILE_MIN),)
 CFLAGS += -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN
 endif
-ifneq ($(CONFIG_INTERPRETERS_MICROCS_USER_CONFIG_FILE),)
-CFLAGS += -DMCS_USER_CONFIG_FILE=\"$(CONFIG_INTERPRETERS_MICROCS_USER_CONFIG_FILE)\"
+MICROCS_USER_CONFIG := $(patsubst "%",%,$(CONFIG_INTERPRETERS_MICROCS_USER_CONFIG_FILE))
+ifneq ($(MICROCS_USER_CONFIG),)
+CFLAGS += -DMCS_USER_CONFIG_FILE=\"$(MICROCS_USER_CONFIG)\"
 endif
 
 # the `mcs` command: the same command line tool as the host's (ports/unix/main.c)

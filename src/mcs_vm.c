@@ -3,6 +3,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#if defined(__NuttX__)
+#include <nuttx/config.h>
+#if !defined(CONFIG_DISABLE_PTHREAD)
+#include <pthread.h>
+/* Reserve space for another interpreter/native call and exception unwinding.
+ * NuttX stack_base_ptr is the low address of the usable downward-growing stack.
+ * Bounds unavailable or a stack pointer outside the reported range: do not guess. */
+static bool nuttx_stack_low(void) {
+    char marker;
+    pthread_t self = pthread_self();
+    uintptr_t low = (uintptr_t)pthread_get_stackaddr_np(self);
+    ssize_t size = pthread_get_stacksize_np(self);
+    uintptr_t sp = (uintptr_t)&marker;
+    if (!low || size <= 0 || sp < low || sp - low >= (uintptr_t)size) return false;
+    uintptr_t reserve = MCS_NUTTX_STACK_RESERVE;
+    if (reserve > (uintptr_t)size / 2) reserve = (uintptr_t)size / 2;
+    return sp - low < reserve;
+}
+#endif
+#endif
 #if MCS_ENABLE_FLOAT
 #include <math.h>
 #endif
@@ -2234,6 +2254,13 @@ static mcs_result_t complete_call(mcs_vm_t* vm, int st, size_t base, int base_fr
 }
 
 mcs_result_t mcs_call_internal(mcs_vm_t* vm, mcs_value_t callee, mcs_value_t self, int argc, const mcs_value_t* argv, mcs_value_t* result) {
+#if defined(__NuttX__) && !defined(CONFIG_DISABLE_PTHREAD)
+    if (vm->run_depth > 0 && nuttx_stack_low()) {
+        mcs_throw(vm, EXC_STACKOVF, "NuttX native stack reserve reached.");
+        if (result) *result = mcs_null();
+        return MCS_ERR_RUNTIME;
+    }
+#endif
     if (argc < 0 || !stack_need(vm, (size_t)(vm->sp - vm->stack) + (size_t)argc + 1)) return MCS_ERR_RUNTIME;
     size_t base = (size_t)(vm->sp - vm->stack);
     int base_frame = vm->frame_count;
