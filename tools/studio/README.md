@@ -12,6 +12,13 @@ A browser IDE for boards running MicroCS: file manager, C# editor and REPL over 
 Click **Connect**, pick the board's serial port, done. Firefox and Safari have no Web Serial:
 the editor works there, but it can't connect to a board.
 
+## Install firmware first
+
+Use **Flash firmware ↗** in the toolbar or the [Web Flasher](https://amir1387aht.github.io/MicroCS/flash/)
+to install an official release before connecting Studio. Disconnect Studio before
+flashing: both pages cannot hold the same serial port. The flasher needs HTTPS or
+localhost, unlike the offline Studio editor. See [setup and supported targets](../flasher/README.md).
+
 ## Files
 
 | File | What it holds |

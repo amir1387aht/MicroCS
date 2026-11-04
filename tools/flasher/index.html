@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="description"
+      content="Install official MicroCS release firmware directly from your browser. ESP32, STM32 and Raspberry Pi Pico."
+    />
+    <title>MicroCS · Web Flasher</title>
+    <script src="theme.js"></script>
+    <link rel="stylesheet" href="flasher.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="../"
+        ><span class="mark" aria-hidden="true">C#</span>MicroCS
+        <span class="muted">/ Web Flasher</span></a
+      >
+      <nav aria-label="Project">
+        <a href="../">Open Studio ↗</a
+        ><a href="https://github.com/amir1387aht/MicroCS">GitHub ↗</a>
+      </nav>
+    </header>
+    <main>
+      <section class="intro">
+        <p class="eyebrow">FROM RELEASE TO REPL</p>
+        <h1>Your board.<br /><span>C# in minutes.</span></h1>
+        <p class="lede">
+          Install MicroCS without a toolchain. Choose your board; we’ll find the
+          official firmware, check its integrity, and guide the connection.
+        </p>
+        <div class="intro-meta">
+          <div class="badges">
+            <span>ESP32</span><span>STM32</span><span>RP2040 / RP2350</span>
+          </div>
+          <div class="theme-control">
+            <label for="theme">Appearance</label>
+            <select id="theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </div>
+      </section>
+      <div class="workspace">
+        <section class="panel" aria-labelledby="setupTitle">
+          <div class="section-head">
+            <span class="step">01</span>
+            <h2 id="setupTitle">Prepare your board</h2>
+            <span class="tag">Official releases</span>
+          </div>
+          <div id="compat" class="notice" role="status">
+            Checking browser capabilities…
+          </div>
+          <div class="fields">
+            <div>
+              <label for="family">MCU family</label
+              ><select id="family">
+                <option value="ESP32">Espressif ESP32</option>
+                <option value="RP2">Raspberry Pi RP2</option>
+                <option value="STM32">STMicroelectronics STM32</option>
+              </select>
+            </div>
+            <div>
+              <label for="board">Board / MCU</label
+              ><select id="board"></select>
+            </div>
+          </div>
+          <div class="fields">
+            <div>
+              <label for="release">Firmware release</label
+              ><select id="release" disabled>
+                <option>Loading releases…</option>
+              </select>
+            </div>
+            <div>
+              <label for="method">Connection method</label
+              ><select id="method"></select>
+            </div>
+          </div>
+          <div class="instructions">
+            <h3>Before connecting</h3>
+            <p id="instructions"></p>
+          </div>
+          <div class="artifact">
+            <div>
+              <span class="eyebrow">FIRMWARE</span>
+              <p id="filename">Finding your firmware…</p>
+            </div>
+            <span id="filemeta" class="muted"></span>
+          </div>
+          <p id="integrity" class="integrity" role="status">
+            Waiting for release catalog.
+          </p>
+          <label class="consent"
+            ><input id="consent" type="checkbox" /><span id="consentText"
+              >I’ve selected the exact board and backed up my files. Flashing
+              can erase saved scripts, settings and the filesystem. STM32 UART
+              erases the entire flash. Keep power connected.</span
+            ></label
+          >
+          <button id="flash" class="primary" disabled>
+            Connect & install MicroCS <span aria-hidden="true">→</span>
+          </button>
+          <div class="secondary">
+            <a
+              id="download"
+              href="https://github.com/amir1387aht/MicroCS/releases/latest"
+              target="_blank"
+              rel="noopener"
+              >Download firmware instead ↗</a
+            ><button id="retry" class="text-button">Refresh releases</button>
+          </div>
+        </section>
+        <aside class="sidebar">
+          <section class="panel session" aria-labelledby="sessionTitle">
+            <div class="section-head">
+              <span class="step">02</span>
+              <h2 id="sessionTitle">Installation</h2>
+            </div>
+            <p id="status" class="status" role="status" aria-live="polite">
+              Preparing firmware
+            </p>
+            <progress
+              id="progress"
+              value="0"
+              max="100"
+              aria-label="Firmware installation progress"
+            ></progress>
+            <p id="progressText" class="muted">No device connected</p>
+            <ol class="journey">
+              <li>Fetch official release</li>
+              <li>Check SHA-256 integrity</li>
+              <li>Connect & check target</li>
+              <li>Write firmware</li>
+              <li id="verifyStep">Verify installation</li>
+            </ol>
+            <a id="studio" class="studio-link" href="../"
+              >Then, open MicroCS Studio ↗</a
+            >
+          </section>
+          <section class="help">
+            <h3>Local hardware. Official firmware.</h3>
+            <p>
+              Hardware access stays in your browser. No account, firmware
+              upload, or third-party proxy. USB permissions and boot buttons
+              still need you.
+            </p>
+            <p>
+              Best in desktop Chrome or Edge over HTTPS. Pico uses its BOOTSEL
+              drive, not Web Serial. Safari and Firefox can use the download
+              fallback.
+            </p>
+          </section>
+        </aside>
+      </div>
+      <section class="panel logs">
+        <details>
+          <summary>
+            Connection log
+            <span class="muted">Troubleshooting & diagnostics</span>
+          </summary>
+          <pre id="log" aria-label="Connection log"></pre>
+          <button id="saveLog" class="text-button">Save log</button>
+        </details>
+      </section>
+      <footer>
+        <span>MicroCS · A tiny runtime. A real language.</span
+        ><a
+          id="releaseLink"
+          href="https://github.com/amir1387aht/MicroCS/releases"
+          >View release notes ↗</a
+        >
+      </footer>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

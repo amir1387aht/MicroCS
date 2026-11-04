@@ -499,3 +499,6 @@ footer, footer.off {background:var(--tool);color:var(--fg2);border-top:1px solid
 }
 @media(prefers-reduced-motion:reduce) {*,*::before,*::after {animation:none!important;transition:none!important;scroll-behavior:auto!important;}}
 @media(max-width:720px) {.btn,.btn.sm,.btn.icon,.btn.sm.icon {min-height:44px;}.btn.icon,.btn.sm.icon {min-width:44px;}}
+
+/* Firmware installer link shares the toolbar button treatment. */
+.flasher-link {text-decoration:none;}
