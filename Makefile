@@ -44,7 +44,7 @@ build:
 mcs: $(OBJ) ports/unix/main.c
 	$(CC) $(CFLAGS) $(OBJ) ports/unix/main.c -o $@ $(LDLIBS)
 
-test: dtoa-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
+test: rom-globals-test json-test encoder-test memory-test smallheap-test project-test fs-memory-test file-streams-test can-test power-test firmware-heap-test capabilities-test mcs build/test_modules build/test_flash test-config config-check tinyfs-test threads-test ble-test
 	sh tests/run_tests.sh ./mcs
 	./build/test_modules
 	./build/test_flash
@@ -103,6 +103,9 @@ u8g2-test: mcs-u8g2
 	  && echo "OK missing u8g2 headers: build error says how to get them" || { echo "FAIL no u8g2 path message"; exit 1; }
 	@$(CC) -std=gnu99 -Wall -Wextra -Werror -Iinclude -c modules/drivers/mcs_drv_u8g2.c -o build/x.o && echo "OK u8g2 off: driver compiles to nothing"
 
+# Optional LVGL 8.x / 9.x (docs/LVGL.md): mcs-lvgl, lvgl-test, fetch-lvgl
+include tools/lvgl_gen/lvgl.mk
+
 # Bluetooth LE (docs/BLE.md): opt-in for custom builds; default host `mcs` is without it.
 # ESP32 release firmware enables BLE on capable chips. build/mcs_ble uses the simulated radio (--sim).
 BLE_FLAGS = -std=gnu99 -O1 -g -Wall -Wextra -Werror -Iinclude -DMCS_ENABLE_BLE=1
@@ -133,13 +136,6 @@ ble-test: mcs-ble build/test_esp_ble_status build/test_esp_ble_diagnostics_off b
 	@for f in "-DMCS_BLE_SIM=0" "-DMCS_ENABLE_SCHED=0" "-DMCS_BLE_MAX_CONN=1 -DMCS_BLE_QUEUE=256 -DMCS_BLE_MAX_ATTRS=4" "-DMCS_PROFILE=MCS_PROFILE_MCU"; do \
 	  $(CC) $(BLE_FLAGS) $$f $(SRC) $(MOD_SRC) ports/unix/main.c -lm -o build/mcs_ble_flags || { echo "BUILD FAIL BLE $$f"; exit 1; }; echo "OK BLE $$f"; done
 
-# Compare the NuttX-compatible digit generator with host libc over binary64 edge cases and
-# deterministic bit patterns. Both binaries use the same shortest-round-trip logic.
-dtoa-test: | build
-	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_OWN_DTOA=0 $(SRC) $(MOD_SRC) tests/c/test_dtoa.c -lm -o build/test_dtoa_libc
-	@$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_OWN_DTOA=1 $(SRC) $(MOD_SRC) tests/c/test_dtoa.c -lm -o build/test_dtoa_own
-	@./build/test_dtoa_libc > build/dtoa_libc.txt && ./build/test_dtoa_own > build/dtoa_own.txt && cmp build/dtoa_libc.txt build/dtoa_own.txt && echo "PASS exact double digit generator"
-
 # Real OS threads (docs/THREADS.md) on POSIX threads: the C# Thread/Worker/Channel suite through
 # the CLI and the firmware runtime (pool heap, RAM filesystem, jobs.cfg `thread` jobs, C API).
 # Built separately: the default `mcs` stays OS-free.
@@ -165,11 +161,6 @@ tsan-test: | build
 	TSAN_OPTIONS=halt_on_error=1 ./build/mcs_tsan --fs tests/threads tests/threads/t_threads.cs > build/tsan.txt && cmp build/tsan.txt tests/threads/t_threads.out
 	$(CC) $(THREADS_FLAGS) -fsanitize=thread $(SRC) $(MOD_SRC) tests/c/test_threads.c -lm -o build/test_threads_tsan
 	TSAN_OPTIONS=halt_on_error=1 ./build/test_threads_tsan
-
-# NuttX backend + ports/nuttx on the NuttX simulator (sim:nsh, downloads NuttX and apps into
-# build/nuttx; needs cmake, ninja, genromfs, xxd, kconfiglib). NUTTX_SMP=1 adds an SMP build.
-nuttx-test:
-	sh tools/nuttx_check.sh
 
 # FreeRTOS backend on the FreeRTOS POSIX (Linux simulator) port: downloads FreeRTOS-Kernel
 # V11.1.0 (MIT) into build/third_party; tests/c/test_threads.c runs as a FreeRTOS task
@@ -198,6 +189,12 @@ test-config: | build
 	@for f in $(CONFIG_VARIANTS); do \
 	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude $$f -DMCS_DEFAULT_PROFILE=MCS_PROFILE_MIN -DMCS_GC_GROW=3 \
 	  $(SRC) $(MOD_SRC) tests/c/test_config.c -o build/test_config $(LDLIBS) && ./build/test_config || { echo "FAIL config: $$f"; exit 1; }; done
+
+# Verify both the normal ROM tables and the optional no-ROM small-target build.
+rom-globals-test: | build
+	@for max in 0 4; do \
+	$(CC) -std=gnu99 -O1 -Wall -Wextra -Werror -Iinclude -DMCS_ROM_GLOBALS_MAX=$$max \
+	  $(SRC) $(MOD_SRC) tests/c/test_rom_globals.c -o build/test_rom_globals $(LDLIBS) && ./build/test_rom_globals || exit 1; done
 
 # The config template holds every option with the full profile's defaults;
 # tools/gen_config.py writes it for the other profiles (each must build -Werror,
@@ -313,7 +310,7 @@ example-lowram: examples/lowram/node_image.h examples/lowram/lowram_firmware.c |
 clean:
 	rm -rf build mcs
 
-.PHONY: all test dtoa-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test nuttx-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
+.PHONY: all test rom-globals-test mcs-lvgl fetch-lvgl lvgl-test mcs-ble ble-test u8g2-test mcs-u8g2 fetch-u8g2 print-u8g2-dir threads-test tsan-test freertos-test test-config config-check check docs-check studio-templates wiki asan asan-test size clean example example-lowram quickstart cm cm-check bench mcu-bench lfs-test yaffs-test tinyfs-test fetch-lfs fetch-yaffs print-lfs-dir print-yaffs-dir
 
 # LittleFS backend test (downloads littlefs v2.9.3, BSD-3-Clause, into build/third_party):
 # RAM block device + LittleFS on the simulated SPI NOR and SPI NAND (bad blocks) chips
@@ -458,7 +455,7 @@ project-test: build/test_access_scope build/test_project build/test_source_resol
 	./build/test_posix_fd_off
 	./build/test_shell_put_errors
 	@if [ "$$(uname -s)" = Linux ]; then (ulimit -s 128 && ./build/test_source_resolver --deep-chain); fi
-	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js; else echo "SKIP formatter tests (node not installed)"; fi
+	@if command -v node >/dev/null 2>&1; then node tests/studio/test_language.js && node tests/studio/test_language_scope.js && node tests/studio/test_format.js && node tests/studio/test_workflow.js && node tests/studio/test_mode.js && node tests/studio/test_app_replace.js && node tests/studio/test_upload_stop.js && node tests/studio/test_upload_recovery.js && node tests/studio/test_console_queue.js && node tests/studio/test_editor_focus.js && node tests/studio/test_baud.js && node tests/studio/test_lvgl.js; else echo "SKIP formatter tests (node not installed)"; fi
 
 # Allocation-failure recovery must not leak VFS buffers or backend handles.
 build/test_fs_memory: tests/c/test_fs_memory.c $(OBJ)

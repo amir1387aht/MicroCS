@@ -133,7 +133,7 @@ static void dtoa_fmt_e(char* out, const dtoa_t* d, int p) {
     int e10 = d->e10;
     if (rem > half || (rem == half && (d->sticky || (head & 1)))) head++;
     if (head >= pow10_64[p]) { head /= 10; e10++; }
-    char dg[20];
+    char dg[20] = {0};
     for (int i = p - 1; i >= 0; i--) { dg[i] = (char)('0' + (int)(head % 10)); head /= 10; }
     char* o = out;
     *o++ = dg[0];
