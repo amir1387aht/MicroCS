@@ -235,8 +235,9 @@ static mcs_value_t make_type(mcs_vm_t* vm, const char* name) {
     mcs_instance_t* t = mcs_new_instance(vm, tc);
     char full[96];
     snprintf(full, sizeof full, "System.%s", name);
-    t->fields[0] = lib_cstr(vm, name);
-    t->fields[1] = lib_cstr(vm, full);
+    const char* short_name = strrchr(name, '.');
+    t->fields[0] = lib_cstr(vm, short_name ? short_name + 1 : name);
+    t->fields[1] = lib_cstr(vm, short_name ? name : full);
     vm->gc_pause--;
     return OBJ_VAL(t);
 }
@@ -1312,7 +1313,7 @@ static const struct { const mcs_lib_entry_t* tab; void (*make)(mcs_vm_t*, int); 
 };
 #define LIB_AREAS ((int)(sizeof lib_areas / sizeof lib_areas[0]))
 
-static bool name_is(const char* a, const char* b, size_t len) { return strncmp(a, b, len) == 0 && a[len] == 0; }
+static bool name_is(const char* a, const char* b, size_t len) { return (!len || a[0] == b[0]) && strncmp(a, b, len) == 0 && a[len] == 0; }   /* the first byte rejects most entries cheaply */
 static uint8_t lib_mask(mcs_vm_t* vm) { return (uint8_t)(vm->cfg.stdlib | MCS_LIB_CORE); }
 
 static const mcs_lib_entry_t* lib_find(mcs_vm_t* vm, const char* name, size_t len, int* area) {

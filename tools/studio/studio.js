@@ -1075,9 +1075,9 @@ class Editor {
       const recv = Lang.receiverBefore(v, dot);
       if (!recv || /^\d+$/.test(recv)) return this.hideComplete();
       const type = Lang.typeOfExpr(recv, model, dot);
-      const stat = !!(type && /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, dot));
+      const stat = !!(type && /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(recv) && Lang.isClassName(recv, model, dot) && !Lang.varType(recv, model, dot));
       if (type) {
-        const mem = Lang.membersOf(type, stat, model), own = Lang.splitType(type)?.base || type;
+        const mem = Lang.membersOf(type, stat, model, p, recv === "base"), own = Lang.splitType(type)?.base || type;
         for (const name in mem) {
           const ov = mem[name], m0 = ov[0];
           if (stat && m0.kind === "m" && m0.inst) continue;
@@ -1098,18 +1098,18 @@ class Editor {
       if (/^\d/.test(prefix)) return this.hideComplete();
       const sy = Lang.symbols(model);
       if (afterNew) {
-        for (const c of Object.keys(sy.user)) add({ label: c, kind: "c", detail: sy.user[c].kind, cls: c });
+        for (const c of Object.values(sy.user)) if (c.kind !== "enum" && Lang.resolveUser(c.shortName, model, p) === c) add({ label: c.shortName, kind: "c", detail: c.kind, cls: c.name });
         for (const c of Object.keys(Lang.classes)) if (Lang.classes[c].ctors.length) add({ label: c, kind: "c", detail: "class", cls: c });
         for (const c of ["List<int>", "List<string>", "Dictionary<string, int>", "Dictionary<string, string>", "HashSet<int>", "Queue<string>", "Stack<int>", "byte[]", "int[]", "string[]"]) add({ label: c, kind: "c", detail: "type" });
       } else {
         for (const [name, type] of Lang.locals(model, p)) if (name !== prefix) add({ label: name, kind: "l", detail: type || (Lang.varType(name, model, p) || "var"), local: true });
         const owner = Object.values(sy.user).filter(c => p > c.start && p < c.end).sort((a,b) => b.start-a.start)[0];
-        if (owner) for (const [name, ov] of Object.entries({...owner.s, ...owner.i})) {
+        if (owner) for (const [name, ov] of Object.entries({...Lang.membersOf(owner.name, true, model, p), ...Lang.membersOf(owner.name, false, model, p)})) {
           const m = ov[0]; add({ label: name, kind: m.kind === "m" ? "m" : "p", detail: m.ret, mems: ov, owner: owner.name });
         }
         for (const name of Object.keys(sy.funcs)) add({ label: name, kind: "m", detail: sy.funcs[name][0].ret, mems: sy.funcs[name], owner: "" });
-        for (const name of Object.keys(sy.user)) add({ label: name, kind: "c", detail: sy.user[name].kind, cls: name });
-        for (const name of Object.keys(sy.enums)) add({ label: name, kind: "e", detail: "enum" });
+        for (const c of Object.values(sy.user)) if (c.kind !== "enum" && Lang.resolveUser(c.shortName, model, p) === c) add({ label: c.shortName, kind: "c", detail: c.kind, cls: c.name });
+        for (const name of Object.keys(sy.enums)) { const c=sy.user[name]; if(c && Lang.resolveUser(c.shortName,model,p)===c) add({label:c.shortName,kind:"e",detail:"enum"}); }
         for (const sn of SNIPPETS) add({ label: sn.label, kind: "s", detail: sn.detail, text: sn.text });
         for (const c of new Set([...Object.keys(Lang.classes), ...Object.keys(API)])) if (c !== "*" && !/_i$|^IEnumerable$/.test(c)) add({ label: c, kind: "c", detail: Lang.classes[c] ? "class" : "class", cls: c });
         for (const k of KEYWORDS) add({ label: k, kind: "k", detail: "keyword" });
@@ -1390,23 +1390,23 @@ class Editor {
       const recv = Lang.receiverBefore(v, d - 1);
       const type = recv && Lang.typeOfExpr(recv, model, d - 1);
       if (!type) return "";
-      const stat = /^[A-Za-z_]\w*$/.test(recv) && Lang.isClassName(recv, model) && !Lang.varType(recv, model, d - 1);
-      const ov = Lang.membersOf(type, stat, model)[word];
+      const stat = /^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$/.test(recv) && Lang.isClassName(recv, model, d - 1) && !Lang.varType(recv, model, d - 1);
+      const ov = Lang.membersOf(type, stat, model, w.a, recv === "base")[word];
       if (!ov) return "";
       const own = Lang.splitType(type)?.base || type;
       const doc = ov.find((m) => m.doc)?.doc || "";
       return ov.slice(0, 5).map((m) => `<code>${sigHtml(m, own === "Array_i" ? type : own, -1, type)}</code>`).join("") + (ov.length > 5 ? `<small>+${ov.length - 5} overloads</small>` : "") + (doc ? `<p>${esc(doc)}</p>` : "");
     }
     if (/\bnew\s+$/.test(v.slice(Math.max(0, w.a - 8), w.a))) {
-      const ct = Lang.ctorsOf(word, model);
-      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, model)?.doc ? `<p>${esc(Lang.classInfo(word, model)?.doc || ct[0].doc)}</p>` : "");
+      const ct = Lang.ctorsOf(word, model, w.a);
+      if (ct.length) return ct.slice(0, 5).map((m) => `<code>${sigHtml(m, word, -1)}</code>`).join("") + (ct[0].doc || Lang.classInfo(word, model, w.a)?.doc ? `<p>${esc(Lang.classInfo(word, model, w.a)?.doc || ct[0].doc)}</p>` : "");
     }
     const sy = Lang.symbols(model);
     if (sy.funcs[word] && /^\s*\(/.test(v.slice(w.b))) return sy.funcs[word].map((m) => `<code>${sigHtml(m, "", -1)}</code>`).join("");
     const vt = Lang.varType(word, model, w.a + word.length + 1);
     if (vt) return `<code>(variable) ${typeHtml(vt === "var" ? "var" : vt)} <span class="t-loc">${esc(word)}</span></code>`;
-    if (Lang.isClassName(word, model)) {
-      const c = Lang.classInfo(word, model);
+    if (Lang.isClassName(word, model, w.a)) {
+      const c = Lang.classInfo(word, model, w.a);
       if (sy.enums[word]) return `<code><span class="t-kw">enum</span> <span class="t-if">${esc(word)}</span></code><p>${esc(sy.enums[word].join(", "))}</p>`;
       return `<code><span class="t-kw">${esc(c?.kind || "class")}</span> <span class="t-ty">${esc(word)}</span></code>${c?.doc ? `<p>${esc(c.doc)}</p>` : ""}`;
     }
@@ -2206,7 +2206,7 @@ const App = {
   languageSource(primary, active) {
     const extra = this.tabs.filter(t => t !== active && !t.binary && /\.cs$/i.test(t.path || t.name || ""))
       .map(t => t.text).filter(Boolean);
-    return extra.length ? primary + "\n" + extra.join("\n") : primary;
+    return extra.length ? primary + Lang.FILE_BOUNDARY + extra.join(Lang.FILE_BOUNDARY) : primary;
   },
   workspaceNamespaces() {
     const out = new Set();
@@ -2759,12 +2759,19 @@ const App = {
     const g = this.gal, words = g.q.toLowerCase().split(/\s+/).filter(Boolean);
     for (const t of TEMPLATES) if (t.lower === undefined) t.lower = t.text.toLowerCase();
     $("gSupportedOnly").checked = g.supportedOnly;
-    const available = g.supportedOnly ? TEMPLATES.filter(t => templateCompatible(t, this.capabilities, dev.connected, this.info)) : TEMPLATES;
+    // A legacy/rejected report cannot confirm peripherals. Keep unknown examples
+    // browsable rather than hiding most/all categories behind the saved filter.
+    const filterSupported = g.supportedOnly && this.capabilitiesKnown;
+    $("gSupportedOnly").disabled = dev.connected && !this.capabilitiesKnown;
+    $("gSupportedOnly").title = dev.connected && !this.capabilitiesKnown
+      ? "Firmware capability report unavailable; all examples remain visible with their support status."
+      : "Show only examples whose requirements the firmware confirms.";
+    const available = filterSupported ? TEMPLATES.filter(t => templateCompatible(t, this.capabilities, dev.connected, this.info)) : TEMPLATES;
     const recent = this.galRecent().map((src) => available.find((t) => t.src === src)).filter(Boolean);
     const cats = ["All", ...(recent.length ? ["Recent"] : []), ...new Set(available.map((t) => t.cat))];
     const states = TEMPLATES.map(t => templateSupport(t, this.capabilities, dev.connected, this.info).state);
     $("gSupport").textContent = !dev.connected ? "Offline: all templates are visible. Connect a board to check support." :
-      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. ${g.supportedOnly ? "Showing only confirmed support; turn off Supported only to see unknown or unavailable examples." : "All templates are visible."} External hardware is not detected.`;
+      `${states.filter(x => x === "supported").length} requirements supported · ${states.filter(x => x === "unknown").length} unknown · ${states.filter(x => x === "unsupported").length} unsupported. ${!this.capabilitiesKnown ? "Firmware capability report unavailable. All templates are visible; unreported requirements are unknown, not incompatible. Supported only resumes when a valid report is available." : filterSupported ? "Showing only confirmed support; turn off Supported only to see unknown or unavailable examples." : "All templates are visible."} External hardware is not detected.`;
     if (!cats.includes(g.cat)) g.cat = "All";
     const pool = (c) => (c === "All" ? available : c === "Recent" ? recent : available.filter((t) => t.cat === c));
     const scored = (c) => pool(c).map((t) => [t, this.galScore(t, words)]).filter((x) => x[1] > 0);
@@ -2778,7 +2785,7 @@ const App = {
       const cs = /\.cs$/.test(t.file), support = templateSupport(t, this.capabilities, dev.connected, this.info);
       return `<div class="item${i === g.sel ? " on" : ""}${cs ? "" : " cfg"}" data-i="${i}" role="option">${icon(cs ? "code" : "file")}<div><b>${mark(t.name)}</b><span>${mark(t.desc)}</span>` +
         `<small class="compat ${support.state}" title="${esc(support.reason)}">${esc(support.label)}</small><em>${esc(t.file)}${g.cat === "All" || g.cat === "Recent" || words.length ? ` · ${esc(t.cat)}` : ""}</em></div></div>`;
-    }).join("") : `<div class="none">${g.supportedOnly && dev.connected ? "No supported template matches. Turn off Supported only to see all examples." : `No template matches “${esc(g.q)}”.`}${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
+    }).join("") : `<div class="none">${filterSupported && dev.connected ? "No supported template matches. Turn off Supported only to see all examples." : `No template matches “${esc(g.q)}”.`}${g.cat !== "All" ? ` <a href="#" id="gAll">Search all categories</a>` : ""}</div>`;
     const all = $("gAll");
     if (all) all.onclick = (e) => { e.preventDefault(); g.cat = "All"; this.galRender(); };
     this.galPreview();

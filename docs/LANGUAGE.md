@@ -11,7 +11,7 @@ against .NET 8 byte-for-byte.
 | Feature | | Notes |
 |---|:---:|---|
 | Top-level statements, `static void Main()` | ✅ | `args` via the host |
-| `namespace`, `using` directives | ⚠️ | type names remain globally flattened; VFS `.cs` execution uses `using` as a dependency hint and loads matching namespace declarations across the mounted VFS |
+| `namespace`, `using` directives | ⚠️ | user types use qualified namespace bindings; namespace imports, same-namespace references and qualified names are supported. Native MicroCS APIs remain global. `using static`, aliases and global usings are not supported |
 | Classes, static classes, nested types | ✅ | |
 | `struct` | ⚠️ | **reference semantics** (assignment does not copy) |
 | Interfaces, `abstract`/`virtual`/`override`/`sealed`/`base` | ✅ | default interface methods ❌ |
@@ -113,3 +113,49 @@ names in one program may get the wrong labels (positional `ItemN` access is alwa
 * Enums print as their numeric value.
 * A top-level variable may share its name with a pattern variable declared later
   (C# reports CS0128).
+
+## Namespace and member-access checking
+
+User library types are no longer registered under a shared short-name global.
+For a type declared as `namespace Sensors { public class Reading { ... } }`,
+use `using Sensors;` and `new Reading()`, or write `new Sensors.Reading()`.
+A reference inside `Sensors` does not require a redundant using directive.
+Two namespaces may declare the same short type name; importing both requires
+qualification when the reference would be ambiguous. Imports in a namespace
+block do not become imports in another block. VFS execution still discovers
+source dependencies through `using` directives; qualification alone does not
+scan/load a file that has not already been supplied or loaded.
+
+Native APIs such as `Console`, `File`, `Ble` and `U8g2` are registered globally
+by MicroCS. Their availability without `using` is intentional, not proof that
+a user namespace was imported. This is not a complete .NET namespace/assembly
+resolver. Unsupported using aliases and `using static` now produce a diagnostic
+instead of being silently discarded.
+
+The compiler preserves public/private/protected access on user members and
+checks statically resolved reads, writes, calls, constructors, property
+accessors and object initializers against declarations in the current source
+compilation. Class members without an access modifier are private; interface
+members are public. A method invoked by external code must explicitly be
+public (or otherwise accessible). Studio uses the cursor's class/namespace and
+separates open-file import scopes for completion, hover and signature help.
+Expression-bodied methods are indexed as methods, not silently omitted.
+
+**Remaining boundary:** this is compile-time checking, not a runtime privacy or
+security boundary. Erased/dynamic receivers, overloads distinguished only by
+erased types, and member visibility from separately loaded source/bytecode
+classes do not yet have complete C# access metadata. This first hardening pass
+must not be described as full Roslyn-equivalent access enforcement. `internal`
+and `protected internal` are treated as accessible within MicroCS's single
+compilation environment; separate assembly accessibility is not modeled.
+
+Namespace bindings also affect embeddings: a namespaced class global is named
+`Sensors.Reading`, not `Reading`. Recompile old bytecode libraries with the
+updated compiler rather than relying on historical flat aliases. `GetType().Name`
+returns the short type name; namespaced type identity and `FullName` keep the
+qualification. The bytecode container format itself is unchanged.
+
+The access-resolution metadata lives only in compiler scratch space. No new
+VM instruction, runtime access table or per-member dispatch check is added.
+Qualified names occupy their actual string length in an image/VM, and compiler
+scratch requirements can change; this is not a claim of zero RAM overhead.

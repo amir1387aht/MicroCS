@@ -366,8 +366,9 @@ static void test_sleep_limit(void) {
 /* fuzz finding (CI run 52): a type declared again as an enum crashed the parser */
 static void test_type_redefinition(void) {
     mcs_vm_t* vm = new_vm();
-    CHECK(mcs_exec_source(vm, "dup.cs", "enum A { X }\nclass B { enum A { Y } }\n") == MCS_ERR_COMPILE);
+    CHECK(mcs_exec_source(vm, "dup.cs", "enum A { X }\nenum A { Y }\n") == MCS_ERR_COMPILE);
     CHECK(strstr(mcs_last_error(vm), "already defined") != NULL);
+    CHECK(mcs_exec_source(vm, "nested.cs", "enum A { X } class B { public enum A { Y } }") == MCS_OK);
     CHECK(mcs_exec_source(vm, "dup2.cs", "class C { }\nenum C { Z }\n") == MCS_ERR_COMPILE);
     CHECK(mcs_exec_source(vm, "part.cs", "partial class P { public int a = 1; }\npartial class P { public int b = 2; }\n"
                                           "Console.WriteLine(new P().a + new P().b);") == MCS_OK && strstr(outbuf, "3\n"));

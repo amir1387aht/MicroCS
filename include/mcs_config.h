@@ -258,6 +258,20 @@
 #define MCS_COMPUTED_GOTO 0
 #endif
 #endif
+/* Compact interpreter: share opcode fetch/dispatch, the push tail and the call-entry code between
+ * opcodes. Smaller code (Thumb-1), but one indirect-jump site and no inline call entry, so slower.
+ * Default: only for switch dispatch (profile min); computed-goto builds keep the fast loop even
+ * under -Os. */
+#ifndef MCS_VM_COMPACT
+#define MCS_VM_COMPACT (!MCS_COMPUTED_GOTO)
+#endif
+/* Native argv copies kept inside the VM: a native call bump-allocates its arguments here instead of
+ * allocating a pool block per call (the value stack may move while a native re-enters the VM).
+ * Deeper nesting or more arguments than fit fall back to a rooted heap block. Costs
+ * MCS_NATIVE_ARENA * sizeof(mcs_value_t) bytes per VM. */
+#ifndef MCS_NATIVE_ARENA
+#define MCS_NATIVE_ARENA 32
+#endif
 /* Built-in fixed-pool allocator (mcs_heap.c) for targets without malloc */
 #ifndef MCS_ENABLE_POOL_HEAP
 #define MCS_ENABLE_POOL_HEAP 1

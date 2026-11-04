@@ -87,7 +87,7 @@ int main(void) {
         "public int Center_Width(string text) { return Helper.Value(); } } } "
         "File.WriteAllText(\"/must_not_run\", \"oled\");");
     put(&vfs, "/apps/app.cs",
-        "using App.Display; var display = new Display(); int linked = display.Center_Width(\"hey\");");
+        "using App.Display; var display = new App.Display.Display(); int linked = display.Center_Width(\"hey\");");
     mcs_result_t dep_result = mcs_check_file(vm, &vfs, "/apps/app.cs");
     if (dep_result != MCS_OK) fprintf(stderr, "dependency check: %s\n", mcs_last_error(vm));
     CHECK(dep_result == MCS_OK);

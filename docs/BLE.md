@@ -257,11 +257,16 @@ Ble.StartAdvertising();
 (needs an encrypted link) and `Authenticated` (needs MITM-protected pairing).
 
 `BleCharacteristic`: `Value` / `SetValue` (what a read returns; up to `MaxLength`),
-`StringValue`, `Notify([data[, conn]])` / `Indicate(…)` (all subscribers, or one connection;
+`StringValue` (read-only local UTF-8 text getter), `Notify([data[, conn]])` / `Indicate(…)` (all subscribers, or one connection;
 without data: the current value), `Subscribers`, `OnWrite((data, conn) => …)`,
 `OnSubscribe((conn, flags) => …)`, `AddDescriptor(uuid, value[, writable])`, `Description`,
 `Uuid`, `Handle`, `Properties`. The client characteristic configuration descriptor (0x2902)
 is added by the stack. Added services reach the stack's database when advertising starts.
+For phone-initiated reads without notifications, open Studio's **Bluetooth LE →
+Phone reads a text value** template ([source](../tools/studio/templates/31-bluetooth-le/read_value.cs)).
+`value.SetValue(Encoding.UTF8.GetBytes("Ready"))` updates what the next phone Read
+returns; it does not push data, and does not require `Notify()` or a subscription.
+
 Change the services (`AddService`, `ClearServices`) while not advertising and not connected —
 otherwise `InvalidOperationException`.
 

@@ -71,8 +71,8 @@ static void oom_tests(bool temporary) {
     cfg.temporary_realloc_fn=temporary ? temp_alloc : NULL;
     cfg.alloc_overhead=MCS_POOL_OVERHEAD;cfg.heap_limit=sizeof heap;cfg.write_fn=quiet;
     mcs_vm_t* vm=mcs_new(&cfg); CHECK(vm!=NULL); if(!vm)return;
-    CHECK(mcs_exec_source(vm,"retained.cs","class Previous { int Read() { return 42; } } var previous=new Previous(); var callback=previous.Read;")==MCS_OK);
-    const char* src="class Box { int value; Box(int x) { value=x; } int Get() { Func<int> f=()=>value; return f(); } } var b=new Box(42);";
+    CHECK(mcs_exec_source(vm,"retained.cs","class Previous { public int Read() { return 42; } } var previous=new Previous(); var callback=previous.Read;")==MCS_OK);
+    const char* src="class Box { int value; public Box(int x) { value=x; } int Get() { Func<int> f=()=>value; return f(); } } var b=new Box(42);";
     /* Settle weak-intern-table capacity before comparing physical pool use. */
     for(int warm=0;warm<3;warm++) { CHECK(mcs_check_source(vm,"forced.cs",src)==MCS_OK); mcs_gc(vm); }
     size_t baseline=a.pool.used; int injected=0;

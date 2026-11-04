@@ -2,6 +2,37 @@
 
 All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 
+## Unreleased — Interpreter hot-path restoration
+
+* Restore the pre-1.16 VM speed: `PUSH` is a single compare against the stack
+  limit with a cold, out-of-line grow path; interpreter `sp`/`slots`/`frame` are
+  real locals again (the internal `exec_views` indirection that forced them into
+  memory is removed and every re-entrant call-out reloads them); the shared
+  push-tail, `ENTER_FAST` and shared dispatch size trade-offs are now gated by
+  `MCS_VM_COMPACT` (default: on only without computed goto; set 1 on flash-tight
+  targets to trade speed for ~5 KB of flash).
+* Native calls take their argument vector from a small per-VM arena
+  (`MCS_NATIVE_ARENA`, default 32 slots, 8 in `lowram`, 0 in `min`) instead of the heap when enabled.
+* Cut the compile-time cost of namespace-qualified type resolution: cheaper
+  `name_is` library lookup, plus per-compile memoization of `known_type_name()`
+  and `type_name()` (keyed by enclosing class/scope; a few KB of transient
+  compile arena). Output is unchanged; `tests/t35_type_scope.cs` covers
+  same-named types in different namespaces, nested classes and `using`. For VMs
+  with heap limits at or below 64 KiB, use the uncached lookup to protect the
+  application memory budget (compilation can be slower).
+* Inline float/int and float/float arithmetic and comparisons in the VM's speed
+  layout, including optimized superinstructions. The generic paths remain for
+  other types and operations. `MCS_VM_COMPACT=1` retains the smaller layout;
+  the flash cost on microcontrollers still needs measurement. Numeric edge
+  cases are covered by `tests/t36_float_fastpath.cs`.
+* Fit the 256 KiB Cortex-M0 reference builds with compact dispatch and the
+  runtime-only variant with heap-backed native arguments. Fit the G474 firmware
+  with compact dispatch and LTO; ESP32-C6 BLE defaults to
+  compact dispatch through menuconfig. These retain features and storage layout,
+  but may reduce runtime speed relative to the fast VM.
+* Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
+  poison the old block) and `tests/t34_stack_relocation.cs`.
+
 ## 1.19.0 — Studio workbench and editor intelligence
 
 * Refresh Studio with calmer dark/light chrome, separate action/document rows,

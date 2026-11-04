@@ -1,0 +1,181 @@
+{
+  "measurement_date": "2026-11-03",
+  "unit": "milliseconds",
+  "description": "Each array contains three round medians; each round median is from three runs. CPU-pinned, rotating runtime order. See README.md for versions, checksums, timing boundaries and caveats.",
+  "runs": [
+    {
+      "label": "initial",
+      "microcs_revision": "b1698b4",
+      "notes": "Initial measurement; host conditions not established.",
+      "per_round_medians": {
+        "fib": {
+          "MicroCS": [
+            42.037800000000004,
+            41.6177,
+            59.496199999999995
+          ],
+          "Lua": [
+            71.853,
+            59.754,
+            77.359
+          ],
+          "nanoFramework": [
+            732.546,
+            716.322,
+            758.092
+          ]
+        },
+        "loop": {
+          "MicroCS": [
+            106.5215,
+            93.02669999999999,
+            119.9261
+          ],
+          "Lua": [
+            112.157,
+            100.098,
+            129.744
+          ],
+          "nanoFramework": [
+            1505.901,
+            1497.4,
+            1511.031
+          ]
+        },
+        "objects": {
+          "MicroCS": [
+            160.4885,
+            144.3177,
+            141.7875
+          ],
+          "Lua": [
+            317.973,
+            319.049,
+            366.62
+          ],
+          "nanoFramework": [
+            4359.1,
+            4348.754,
+            4477.326
+          ]
+        }
+      }
+    },
+    {
+      "label": "repeat-during-tests",
+      "microcs_revision": "1cb5405",
+      "notes": "Rerun while host test suite was compiling.",
+      "per_round_medians": {
+        "fib": {
+          "MicroCS": [
+            41.864,
+            41.907199999999996,
+            42.4856
+          ],
+          "Lua": [
+            51.339,
+            51.491,
+            51.296
+          ],
+          "nanoFramework": [
+            780.981,
+            836.553,
+            726.79
+          ]
+        },
+        "loop": {
+          "MicroCS": [
+            94.1643,
+            93.98110000000001,
+            147.3969
+          ],
+          "Lua": [
+            72.227,
+            72.399,
+            72.249
+          ],
+          "nanoFramework": [
+            1522.379,
+            1517.912,
+            1521.893
+          ]
+        },
+        "objects": {
+          "MicroCS": [
+            141.35739999999998,
+            139.6654,
+            229.3742
+          ],
+          "Lua": [
+            295.107,
+            292.525,
+            294.279
+          ],
+          "nanoFramework": [
+            4383.747,
+            4505.633,
+            4375.897
+          ]
+        }
+      }
+    },
+    {
+      "label": "post-tests-rerun",
+      "microcs_revision": "1cb5405",
+      "notes": "Rerun after host test suite finished; used in README.",
+      "per_round_medians": {
+        "fib": {
+          "MicroCS": [
+            42.6239,
+            41.954800000000006,
+            42.2236
+          ],
+          "Lua": [
+            51.109,
+            51.074,
+            56.49
+          ],
+          "nanoFramework": [
+            717.827,
+            715.17,
+            714.7
+          ]
+        },
+        "loop": {
+          "MicroCS": [
+            93.9456,
+            94.6418,
+            94.14789999999999
+          ],
+          "Lua": [
+            72.197,
+            72.616,
+            72.558
+          ],
+          "nanoFramework": [
+            1505.472,
+            1500.191,
+            1496.79
+          ]
+        },
+        "objects": {
+          "MicroCS": [
+            139.1151,
+            140.52339999999998,
+            139.3042
+          ],
+          "Lua": [
+            292.832,
+            318.53,
+            293.47
+          ],
+          "nanoFramework": [
+            4362.55,
+            4272.394,
+            4300.941
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -69,3 +69,14 @@ console.log('PASS template support states: supported, unknown, unsupported, offl
 
 assert(!templateCompatible({requires:["Filesystem.Streams"]},new Map([["Filesystem",true]]),true));
 assert(templateCompatible({requires:["Filesystem.Streams"]},new Map([["Filesystem.Streams",true]]),true));
+
+const readValue = TEMPLATES.find(t=>t.file==='read_value.cs');
+assert(readValue && readValue.requires.includes('Ble.Server') && readValue.requires.includes('Ble.Advertise') && readValue.requires.includes('Encoding'));
+assert(/BleProperty.Read,/.test(readValue.text));
+assert(!/BleProperty.Notify|\.Notify\(|\.StringValue\s*=/.test(readValue.text));
+assert(/value.SetValue\(Encoding.UTF8.GetBytes/.test(readValue.text));
+assert(templateCompatible(readValue,complete,true));
+complete.set('Ble.Server',false);
+assert.strictEqual(templateSupport(readValue,complete,true).state,'unsupported');
+assert.strictEqual(templateSupport(readValue,old,true).state,'unknown');
+console.log('PASS read-only phone template and exact server/encoding requirements');

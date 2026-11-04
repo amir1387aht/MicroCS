@@ -43,6 +43,18 @@ try{
  assert(await p.locator('#btnFormat').isDisabled(),'format remains disabled for non-C# tabs');
  await p.evaluate(()=>App.activate(App.tabs[0].id));
  assert(!(await p.locator('#btnFormat').isDisabled()),'format re-enables on C# tab switch');
+ const accessUI=await p.evaluate(()=>{
+  App.openTab({path:'/lib/access.cs',text:'namespace Library { public class Widget { private int Secret; public int Value; private int Hidden()=>1; public int Read()=>1; } }',saved:''});
+  const client=App.openTab({path:'/apps/access.cs',text:'using Library; class Client { void Run(){ Widget w; w. } }',saved:''});
+  const text=ed.ta.value,at=text.indexOf('w. ')+2;ed.ta.setSelectionRange(at,at);ed.suggest(true);
+  const labels=ed.items.map(i=>i.label);
+  const hover='using Library; class Client { void Run(){ Widget w; w.Secret; } }',where=hover.indexOf('Secret');
+  const privateHover=ed.describe(hover,{word:'Secret',a:where,b:where+6});
+  return {labels,privateHover};
+ });
+ assert(accessUI.labels.includes('Value'));assert(accessUI.labels.includes('Read'));
+ assert(!accessUI.labels.includes('Secret'));assert(!accessUI.labels.includes('Hidden'));
+ assert.strictEqual(accessUI.privateHover,'','private-member hover must not expose a signature');
  assert.strictEqual(await p.evaluate(()=>__serialCalls),0,'editor actions cannot poll firmware');
  fs.mkdirSync('build/studio-review',{recursive:true});
  await p.evaluate(()=>{App.activate(App.tabs[0].id);ed.ta.value='using App.Display;\n\nclass DeviceApp\n{\n    private Display screen;\n    public void Start()\n    {\n        screen = new Display();\n        screen.DrawCentered("Ready to build");\n    }\n}\n\nnew DeviceApp().Start();';ed.refresh();ed.stash();});

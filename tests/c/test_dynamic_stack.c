@@ -66,7 +66,7 @@ static void fixture(char* src,size_t size) {
 static void run_test(mcs_vm_t* vm,const char* name,int expected) {
  CHECK(mcs_check_source(vm,"trim.cs","int dummy=0;")==MCS_OK);
  mcs_value_t r;CHECK(mcs_call(vm,name,0,NULL,&r)==MCS_OK);CHECK(mcs_to_int(vm,r)==expected);
- CHECK(vm->exec_views==NULL);CHECK(vm->native_args==NULL);CHECK(vm->sp==vm->stack);CHECK(!vm->frame_count);
+ CHECK(vm->native_args==NULL);CHECK(vm->sp==vm->stack);CHECK(!vm->frame_count);
 }
 int main(void) {
  mcs_config_t cfg;mcs_config_default(&cfg);cfg.realloc_fn=moving;cfg.write_fn=quiet;cfg.error_fn=quiet;
@@ -90,20 +90,20 @@ int main(void) {
  CHECK(mcs_exec_source(vm,"ctor.cs","int Construct(){var b=new NativeBox(42,0);return 12;} int Factory(){return new NativeFactory(42,0);} int Fail(){FailNative(1);return 0;}")==MCS_OK);
  run_test(vm,"Construct",12);run_test(vm,"Factory",239);
  CHECK(mcs_call(vm,"Fail",0,NULL,NULL)==MCS_ERR_MEMORY);deny_growth=false;
- CHECK(vm->native_args==NULL);CHECK(vm->exec_views==NULL);CHECK(vm->sp==vm->stack);
+ CHECK(vm->native_args==NULL);CHECK(vm->sp==vm->stack);
  run_test(vm,"Expr",820);run_test(vm,"Properties",478);run_test(vm,"Catch",42);run_test(vm,"Test",246);
  CHECK(mcs_check_source(vm,"trim.cs","int noop=0;")==MCS_OK);CHECK(vm->stack_cap==32);CHECK(vm->frame_cap==1);
  deny_growth=true;CHECK(mcs_call(vm,"Grow",0,NULL,NULL)==MCS_ERR_MEMORY);deny_growth=false;
- CHECK(!vm->exec_views);CHECK(!vm->native_args);run_test(vm,"Grow",239);
+ CHECK(!vm->native_args);run_test(vm,"Grow",239);
  /* Sweep allocation failure through recursive frame/slot growth. Every OOM
-  * must restore suspended views and leave the VM usable for another call. */
+  * must leave the VM usable for another call. */
  unsigned failed_calls=0,successful_calls=0;
  for(int fault=0;fault<24;fault++) {
   CHECK(mcs_check_source(vm,"trim.cs","int noop=0;")==MCS_OK);
   fail_after=fault;mcs_result_t code=mcs_call(vm,"Rec",1,&n,&r);fail_after=-1;
   CHECK(code==MCS_OK || code==MCS_ERR_MEMORY);
   if(code==MCS_OK){successful_calls++;CHECK(mcs_to_int(vm,r)==275);}else failed_calls++;
-  CHECK(!vm->native_args);CHECK(!vm->exec_views);CHECK(vm->sp==vm->stack);
+  CHECK(!vm->native_args);CHECK(vm->sp==vm->stack);
   CHECK(!vm->frame_count);CHECK(!vm->handler_count);CHECK(!mcs_has_exception(vm));
   CHECK(mcs_call(vm,"Grow",0,NULL,&r)==MCS_OK);CHECK(mcs_to_int(vm,r)==239);
  }
@@ -116,7 +116,7 @@ int main(void) {
  mcs_mem_stats_t st;mcs_mem_stats(vm,&st);CHECK(st.stack_peak>32);CHECK(st.frames_peak>16);CHECK(st.stack_limit==cfg.stack_slots);
  CHECK(mcs_exec_source(vm,"invoke-abort.cs","class AbortTarget{public void Stop(){try{RequestAbort();}finally{int x=1;}}} int afterAbort=0; try{InvokeAbort(new AbortTarget());}catch(Exception){afterAbort=1;} afterAbort=2;")==MCS_ERR_ABORTED);
  CHECK(mcs_to_int(vm,mcs_get_global(vm,"afterAbort"))==0);CHECK(!vm->handler_count);
- CHECK(!vm->native_args);CHECK(!vm->exec_views);run_test(vm,"Grow",239);
+ CHECK(!vm->native_args);run_test(vm,"Grow",239);
  mcs_free(vm);CHECK(outstanding==0);
  /* Exhaust slots before frames as a separate catchable ceiling, then recover. */
  cfg.stack_slots=96;vm=mcs_new(&cfg);CHECK(vm!=NULL);if(!vm)return 1;

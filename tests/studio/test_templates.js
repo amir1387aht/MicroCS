@@ -40,6 +40,10 @@ function run(t) {
       clearTimeout(kill);
       if (oled) err = err.split('\n').filter((l) => !/^[|+]/.test(l)).join('\n');   // the drawn frames
       if (oled && (/has no U8g2/.test(out) || !/\[oled 0x3C frame/.test(out + err))) { failure(`FAIL ${t.cat} / ${t.name}: drew nothing on the simulated OLED`); }
+      if (HAS_BLE && t.file === 'read_value.cs' &&
+          (!out.includes('Next phone Read: Temperature: 25') || /Unhandled exception/.test(err))) {
+        failure(`FAIL ${t.name}: read-only value update did not execute cleanly\n${err}\n${out}`);
+      }
       const ok = code === 0 || /time limit|budget/i.test(err) || /Unhandled exception\. (IOException|TimeoutException)/.test(err) || signal === 'SIGTERM';
       if (!ok) failure(`FAIL ${t.cat} / ${t.name} (exit=${code}, signal=${signal})\n${err.trim().split('\n').slice(0, 8).join('\n')}\n${out.slice(-500)}`);
       fs.rmSync(dir, { recursive: true, force: true });

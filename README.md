@@ -5,14 +5,14 @@
   <img alt="MicroCS — a tiny, embeddable C# runtime for microcontrollers" src="assets/banner-light.svg" width="640">
 </picture>
 
-**Write firmware logic in C#. Run it on any microcontroller. Update it without reflashing.**
+**Write firmware logic in C#. Run it on supported microcontrollers. Update it without reflashing.**
 
 [![CI](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml/badge.svg)](https://github.com/amir1387aht/MicroCS/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6?style=flat-square)](LICENSE)
 [![C99](https://img.shields.io/badge/C-C99%20·%20zero%20deps-06b6d4?style=flat-square&logo=c)](docs/PORTING.md)
-[![Version](https://img.shields.io/badge/version-1.19.0-8b5cf6?style=flat-square)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/tests-79%20script%20runs%20·%20242%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
-[![.NET parity](https://img.shields.io/badge/.NET%208-byte--identical%20output-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
+[![Latest release](https://img.shields.io/badge/latest%20release-1.19.0-8b5cf6?style=flat-square)](https://github.com/amir1387aht/MicroCS/releases/latest)
+[![Tests](https://img.shields.io/badge/tests-script%20·%20unit%20·%20protocol%20·%20network-22c55e?style=flat-square)](docs/TESTING.md)
+[![.NET parity](https://img.shields.io/badge/.NET%208-selected%20tests%20match-512bd4?style=flat-square&logo=dotnet)](tools/verify_dotnet.sh)
 [![Ports](https://img.shields.io/badge/ports-STM32%20·%20ESP32%20·%20RP2040%2FRP2350%20·%20Zephyr%20·%20Arduino-f59e0b?style=flat-square)](docs/PORTING.md)
 
 [**Getting started**](docs/GETTING_STARTED.md) ·
@@ -52,7 +52,8 @@
 MicroCS is a compact **C# compiler + bytecode VM** written in portable C99 — no dependencies,
 no `malloc` or OS required. It gives a microcontroller a real, modern C#: classes, generics, lambdas,
 LINQ, tuples, pattern matching, exceptions, plus a complete peripheral API and — on the
-ESP32 family and the Pico W — Wi-Fi, sockets, HTTP(S), a web server with WebSockets, ESP-NOW and JSON.
+ESP32 family and Pico W — Wi-Fi, sockets, HTTP, a web server with WebSockets and JSON.
+HTTPS and ESP-NOW are available on supported ESP32 backends; features vary by port.
 
 Embed it as a **library** in the firmware you already have, or flash it as a **MicroPython-style
 REPL device**. Scripts run from source on the device, or as precompiled, optimized bytecode
@@ -79,17 +80,17 @@ Scheduler.Every(1000, () => {
 
 <div align="center">
 
-| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **~3× faster than MicroPython** | 🎯 **byte-identical to .NET 8** | 🔌 **14 peripheral classes** | 📶 **Wi-Fi · HTTPS · ESP-NOW** | 🧱 **8 build systems** |
+| 🪶 **16 KB RAM · 64 KB flash** | ⚡ **optimized bytecode images** | 🎯 **.NET 8 parity tests** | 🔌 **14 peripheral classes** | 📶 **Wi-Fi · HTTPS · ESP-NOW** | 🧱 **8 build systems** |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| smallest supported part, built and run in CI | optimized bytecode images on Cortex-M | on every program in the test suite | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | ESP32 family: station + AP, TCP/UDP, HTTP(S), NTP, mDNS, JSON | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
+| 64 KB flash / 16 KB RAM target built and tested in an emulator | current host benchmarks below | selected pure-language tests match byte-for-byte | GPIO · UART · I²C · SPI · ADC · DAC · PWM · CAN · I²S · … | ESP32 family: station + AP, TCP/UDP, HTTP(S), NTP, mDNS, JSON | Make · CMake · IDF · Cube · pico-sdk · Zephyr · PIO · Arduino |
 
 </div>
 
 > [!TIP]
 > **Precompile for speed.** `mcs -c` turns a script into an optimized bytecode image
-> (superinstructions, loop rotation, method and constructor caches, compact format). Images run
-> **up to 2× faster** than compiling on the device, need up to half the RAM, run straight from
-> flash and are usually smaller than the source. [Numbers](docs/PERFORMANCE.md#bytecode-images)
+> (superinstructions, loop rotation, method and constructor caches, compact format). Images can
+> run straight from flash and are often smaller than the source. See the current
+> [host measurements](#-performance--footprint); embedded results require target testing.
 
 <details>
 <summary><b>📑 Contents</b></summary>
@@ -111,16 +112,18 @@ Scheduler.Every(1000, () => {
 <td width="33%" valign="top">
 
 ### 🧩 Real C#
-Output is **byte-identical to .NET 8** for every program in the test suite
-(`tools/verify_dotnet.sh`). Prototype on your PC, run the same file on the board.
+Selected pure-language tests have **byte-identical output to .NET 8**
+(`tools/verify_dotnet.sh`); MicroCS-specific behavior and modules differ.
+Prototype supported C# on your PC, then run it on the board.
 
 </td>
 <td width="33%" valign="top">
 
 ### 🪶 Small & portable
 One C99 library, no dependencies. Pool allocator included, feature flags and 7 build
-profiles (`auto` sizes itself to the chip). Runs in **16 KB of RAM and 64 KB of flash**; a VM
-starts in 1.7–8 KB of heap; bytecode can run straight from flash.
+profiles (`auto` sizes itself to the chip). A **16 KB RAM / 64 KB flash** target is
+built and tested in an emulator; measure footprint and performance on your target. Bytecode can
+run straight from flash.
 
 </td>
 <td width="33%" valign="top">
@@ -145,8 +148,8 @@ ASan + UBSan.
 
 ### ⚡ Fast
 An optimizing image compiler (71 superinstructions, loop rotation), computed-goto dispatch,
-method/field/constructor caches, precise mark & sweep GC. **2–9× faster than CPython 3.13**
-on every benchmark in this repo.
+method/field/constructor caches, precise mark & sweep GC. See the current
+[host benchmarks](#-performance--footprint).
 
 </td>
 <td valign="top">
@@ -440,13 +443,11 @@ wave, UART protocol, timers, I²S audio, QSPI flash, CAN, watchdog/RTC, data log
 
 ## 📶 Wi-Fi & networking
 
-On every ESP32 with a radio (ESP32, S2, S3, C2, C3, C5, C6) and on the Raspberry Pi
-**Pico W / Pico 2 W** C# scripts get the network — station and soft access point, scanning,
-events, static IP, saved credentials, WPS / SmartConfig, ESP-NOW, SNTP, mDNS, ping, TCP / UDP
-sockets, an HTTP/1.1 client with HTTPS, an HTTP server with routes, files and WebSockets, a
-WebSocket client, a captive-portal DNS server, and JSON. On the PC the same
-sockets and HTTP use the real network, and `--sim` adds a simulated radio so Wi-Fi scripts
-run without a board.
+On Wi-Fi-capable ESP32-family chips and **Pico W / Pico 2 W**, C# scripts can use
+Wi-Fi, sockets, HTTP, servers, WebSockets and JSON. ESP-NOW, HTTPS, WPS and
+SmartConfig are ESP32-specific; available features depend on the backend. On the PC,
+sockets and HTTP use the real network, and `--sim` adds a simulated radio. See the
+[network capability matrix](docs/NETWORK.md) and use `Net.Has(...)` to check support.
 
 ```csharp
 Wifi.Connect("MyNetwork", "secret-password");                 // or Wifi.Save(...) once + Wifi.Connect()
@@ -542,7 +543,7 @@ it is the default for `MICROCS_PORT=stm32` and on Zephyr.
 | Target | Port | Verified in CI |
 |---|---|---|
 | **STM32** C0 · F0 · F1 · F2 · F3 · F4 · F7 · G0 · G4 · H5 · H7 · L0 · L1 · L4 · L5 · U5 · WB · WL — parts with ≥ 16 KB RAM and ≥ 64 KB flash ([list](ports/stm32/README.md#supported-parts)) | [`ports/stm32`](ports/stm32) | compiled `-Werror` against the official STM32Cube HAL of each family, with the default and the `auto` profile; [ready-to-flash firmware](ports/stm32/firmware/README.md) for 7 boards built, the F4 and H743 images booted in the Renode emulator (REPL, files in internal flash) |
-| **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
+| **ESP32** · S2 · S3 · C2 · C3 · C5 · C6 · C61 · H2 · P4 — Wi-Fi + networking on every chip with a radio | [`ports/esp32`](ports/esp32) | example firmware (Wi-Fi, TLS, LittleFS) built with ESP-IDF 5.3 for ESP32, S3, C2, C3, C6 |
 | **RP2040 / RP2350** (Pico, Pico 2, Pico W, Pico 2 W — Wi-Fi on the W boards) | [`ports/rp2`](ports/rp2) | complete firmware built with pico-sdk for `pico`, `pico2`, and `pico_w` / `pico2_w` with Wi-Fi |
 | Every **Zephyr** board (nRF52/53/54, NXP, STM32, SAM, RP2040, …) | [`ports/zephyr`](ports/zephyr) | Zephyr 4.1 firmware built for `native_sim`, nRF52840 DK (UART + USB), Pico, Nucleo-F429ZI; the `native_sim` build is run (REPL, Studio protocol, LittleFS, jobs) |
 | Every 32-bit **Arduino** core (ESP32, RP2040, SAMD, nRF52, STM32duino, Teensy, UNO R4) | [`ports/arduino`](ports/arduino) | every example compiled for ESP32, S3, C3, Pico, Pico 2, Nano 33 BLE |
@@ -594,52 +595,28 @@ Full list: <a href="docs/LANGUAGE.md">LANGUAGE.md</a> · API: <a href="docs/STDL
 
 ## ⚖️ MicroCS vs MicroPython vs .NET nanoFramework
 
+Feature comparison below. For recent host speed measurements, see [Performance & footprint](#-performance--footprint).
+
 | | **MicroCS** | **MicroPython** | **.NET nanoFramework** |
 |---|---|---|---|
 | Language | modern C# subset (generics, LINQ, tuples, pattern matching) | Python 3 subset | C# (.NET subset, IL from Roslyn) |
 | Compile on the device + REPL | ✅ both | ✅ both | ❌ compiled on the PC, no REPL |
 | Use as a library inside your existing firmware | ✅ the main use case — one C99 library, your `main()` | possible (embed port), usually *is* the firmware | ❌ is the firmware (nanoCLR + its RTOS) |
 | Build systems | Make, CMake, ESP-IDF, CubeIDE, pico-sdk, Zephyr, PlatformIO, Arduino, Keil/IAR | per-port Make/CMake | nanoCLR CMake build per target |
-| Minimum footprint | **64 KB flash / 16 KB RAM** (`min` profile, precompiled images; built and run by CI). On-device compiler + REPL: ~240 KB flash (full build). A VM starts in 1.7–8 KB of heap | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
-| Speed on real hardware — ESP32-S3, `fib(18)` | **30 ms** | 98 ms | not measured |
-| Speed on Cortex-M (same 5 scripts, emulated M4F + M0, same toolchain) | **2.3–3.7× fewer instructions** than MicroPython precompiled, 1.8–3.6× compiling on the device | 1× | not measured (no bare-metal build for the emulator) |
-| Speed on a PC — fib(30) / 10 M loop / 1 M objects | **41 / 95 / 132 ms** | 254 / 780 / 548 ms | 717 / 1485 / 4272 ms (nanoCLR virtual device) |
-| Smallest heap for those 5 scripts | 7.6–42 KB (incl. ~5.7 KB VM state + stack) | **0.7–21 KB** | not measured |
+| Minimum footprint | **64 KB flash / 16 KB RAM** target built and tested in an emulator with `min`; measure on your target | 256 KB flash / 16 KB RAM (official minimum) | 256 KB flash / 64 KB RAM (official minimum) |
 | Precompiled bytecode run from flash | ✅ XIP images, validated loader | ✅ frozen `.mpy` | ✅ PE files |
 | Hard limits for scripts (time, steps, heap) | ✅ uncatchable budgets, abort from ISR | heap only | — |
 | Interrupt callbacks | queued, run in script context (may allocate) | hard IRQ (no allocation) or `micropython.schedule` | events |
 | Peripherals in the core API | GPIO, UART, I²C, SPI, ADC, DAC, PWM, Timer, I²S, QSPI, CAN, WDT, RTC | `machine`: similar set, varies by port | `System.Device.*` NuGet packages, varies by target |
 | Classic CAN | ✅ native TWAI / STM32 / Zephyr; external MCP2515 over SPI on other MCUs ([setup](docs/CAN.md)); no CAN FD payloads | port-specific | target-specific |
 | DMA / background transfers | ✅ `DmaBuffer`, `SPI.WriteAsync` … | port-specific | — |
-| Same output as the desktop runtime | byte-identical to .NET 8 on the test suite | differs from CPython in places | .NET subset |
+| Same output as the desktop runtime | selected pure-language tests match .NET 8 byte-for-byte; MicroCS-specific behavior differs | differs from CPython in places | .NET subset |
 | Wi-Fi / networking | ✅ ESP32 family + Pico W / Pico 2 W; [features vary by port](docs/NETWORK.md) (ESP-NOW and TLS are not available on every backend) | ✅ | ✅ |
 | Bluetooth LE | ✅ ESP32 (NimBLE), Pico W / Pico 2 W (BTstack), Zephyr and ArduinoBLE; [roles vary by backend](docs/BLE.md) | ✅ | ✅ |
 | Step debugger | ❌ not yet | ❌ | ✅ Visual Studio |
 | Ecosystem | young | large | medium (NuGet) |
 
-<p align="center"><img src="assets/compare.svg" alt="bare-metal C vs MicroCS vs MicroPython vs nanoFramework: emulated Cortex-M4F instructions and PC run times" width="100%"></p>
-
-**And against bare-metal C** — the same 5 workloads written in C, same board, toolchain and
-`-Os` (emulated Cortex-M4F, million instructions; × = times the C count):
-
-| | C | MicroCS | MicroPython |
-|---|---:|---:|---:|
-| `fib` — calls | 0.059 | 1.43 (24×) | 5.23 (88×) |
-| `loop` — integer math | 0.51 | 6.70 (13×) | 23.71 (46×) |
-| `objects` — allocation + methods | 0.30 | 3.19 (11×) | 7.45 (25×) |
-| `sensor` — `double` math + formatting | 0.25 | 0.68 (2.7×) | 2.15 (8.5×) |
-| `strings` — build, split, parse | 0.13 | 0.49 (3.8×) | 1.79 (14×) |
-
-Hot inner loops still belong in C — MicroCS calls into your C functions directly (see
-[Option 1](#-option-1--drop-the-library-into-an-existing-project)) — but glue, logic and I/O-bound code runs
-within 3–4× of C.
-
-Where MicroCS wins: speed (about 3× MicroPython on Cortex-M, 4–8× on a PC, 16–32× the
-nanoCLR on a PC), you keep your firmware and your toolchain, scripts cannot hang or starve
-the device, and C# developers get a REPL on a $4 board. Where it does not (yet): heap use
-on small scripts, the breadth of board-specific radio support, a step debugger and the size of the ecosystem.
-Method, all numbers and caveats: [PERFORMANCE.md](docs/PERFORMANCE.md#microcs-vs-micropython-vs-net-nanoframework)
-· reproduce: [`bench/compare/`](bench/compare).
+Hot inner loops can call directly into C (see [Option 1](#-option-1--drop-the-library-into-an-existing-project)).
 
 ## 🏗️ Architecture
 
@@ -660,43 +637,50 @@ flowchart LR
 ```
 
 The compiler (dashed) is optional: ship only the VM and load precompiled images to save
-~44 KB of flash and the compile-time RAM. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
+flash and compile-time RAM; the saving depends on the target and build configuration. Details: [ARCHITECTURE.md](docs/ARCHITECTURE.md) ·
 [BYTECODE.md](docs/BYTECODE.md).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 
 ## 📊 Performance & footprint
 
-<p align="center"><img src="assets/bench.svg" alt="Benchmark on a PC: MicroCS vs MicroPython vs CPython" width="720"></p>
-<p align="center"><img src="assets/footprint.svg" alt="Flash by component on Cortex-M33" width="720"></p>
+### MicroCS vs Lua vs nanoFramework — host comparison
 
-| Cortex-M (gcc 13.2 `-Os`) | Flash | RAM | Heap after `mcs_new` | Demo as image | Demo from source |
-|---|---:|---:|---:|---:|---:|
-| **M0**, runtime only (no compiler) | 208.5 KB | 128 KB part | 8.0 KB | 2.96 M instr · 38.2 KB peak | — |
-| **M0**, `lowram` profile, 40 KB pool | 196.5 KB | 64 KB part | 5.1 KB | 2.90 M instr · 30.0 KB peak | — |
-| **M0**, [`examples/lowram`](examples/lowram/) node, 32 KB pool | 157.2 KB | 48 KB part | 1.8 KB | 0.95 M instr · 13.8 KB peak | — |
-| **M0**, same node in **16 KB RAM** (`m0-16k`), 12 KB pool | 157.2 KB | 16 KB | 1.8 KB | 0.84 M instr · 11.0 KB peak | — |
-| **M0**, `min` profile in **64 KB flash / 16 KB RAM** (`m0-64k`) | **63.0 KB** | 16 KB | 1.8 KB | 0.96 M instr · 10.4 KB peak | — |
-| **M4F**, full | 253.1 KB | 192 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr · 71.9 KB peak |
-| **M33**, full (+ shell 259.2 KB) | 253.0 KB | 288 KB part | 8.0 KB | 2.18 M instr | 3.73 M instr |
+Measured 2026-11-03 on an x86-64 Intel Xeon 2.90 GHz host after host tests completed:
+MicroCS **1cb5405** (the measured `main` revision; includes unreleased changes),
+stock Lua **5.4.8** (`-O2`) and nanoFramework nanoCLR CLI **1.1.311** with
+CoreLibrary **1.17.12** on its x86-64 virtual device. Times in ms are medians
+of three rounds, each the median of three runs; runtime order was rotated and
+processes pinned to one CPU. Lower is better.
 
-**Images vs source** (`make mcu-bench`, Cortex-M4F, emulated instructions; images are
-optimized with superinstructions, `-O0` = plain bytecode):
+| Workload | MicroCS image | Lua bytecode | nanoFramework |
+|---|---:|---:|---:|
+| fib(30) | 42.2 | 51.1 | 715.2 |
+| integer loop, 10 million iterations | 94.1 | 72.6 | 1,500.2 |
+| objects, 1 million operations | 139.3 | 293.5 | 4,300.9 |
 
-| `bench/mcu/` | Source size | Image size | From source | Image `-O0` | **Image** | RAM peak src → image |
-|---|---:|---:|---:|---:|---:|---:|
-| `fib` (recursion) | 102 B | 146 B | 2.07 M | 2.00 M | **1.43 M** | 31.4 → 15.1 KB |
-| `loop` (int arithmetic) | 232 B | 166 B | 13.16 M | 13.07 M | **6.70 M** | 31.4 → 15.1 KB |
-| `objects` (classes, fields, calls) | 406 B | 356 B | 3.64 M | 3.50 M | **3.19 M** | 72.2 → 72.2 KB |
-| `sensor` (double math, arrays) | 581 B | 501 B | 0.95 M | 0.71 M | **0.68 M** | 40.7 → 17.0 KB |
-| `strings` (string building) | 309 B | 311 B | 0.63 M | 0.50 M | **0.49 M** | 31.7 → 30.6 KB |
+Results varied between runs; treat close rankings cautiously.
+[Per-round results](bench/compare/lua/results-2026-11-03.json) are included.
+All workloads produced matching checksums. These are **host** results, not MCU
+results: Lua objects are tables/metatables, MicroCS uses `List<P>`, and
+nanoFramework uses `ArrayList`. MicroCS measures image loading and execution
+with startup subtracted; Lua includes bytecode load and execution but not VM
+creation; nanoFramework times execution internally without assembly load.
+Consequently this is an indicative comparison, not an identical measurement of
+all runtime overhead. Sources, versions, commands and per-round method are in
+[bench/compare/lua](bench/compare/lua/README.md).
 
-> [!NOTE]
-> Instruction counts and memory peaks are measured by `make cm-check` and `make mcu-bench`. 1 KB = 1024 B. Flash
-> includes newlib + libm (~49 KB; the `min` build uses the built-in tiny printf and no libm)
-> and the optional modules. Method and raw data: [PERFORMANCE.md](docs/PERFORMANCE.md). For
-> 16–64 KB RAM parts see [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) and the firmware in
-> [examples/lowram](examples/lowram/).
+### Measuring your target
+
+The host comparison does not predict MCU speed or memory use. Build and measure on
+your target; `make cm-check` tests Cortex-M builds in an emulator, and
+`make mcu-bench` measures emulated instruction counts. These require ARM GCC
+and Python Unicorn. See [LOW_RESOURCE.md](docs/LOW_RESOURCE.md) for small-memory
+configurations and [examples/lowram](examples/lowram/) for an example.
+
+`MCS_VM_COMPACT=1` selects a smaller VM layout that omits the inline float fast
+path; `MCS_NATIVE_ARENA` trades per-VM RAM for fewer native-call allocations.
+Measure speed and footprint before choosing a profile.
 
 ## 🚦 Status
 
@@ -705,9 +689,9 @@ optimized with superinstructions, `-O0` = plain bytecode):
 | Area | Status | Evidence |
 |---|:---:|---|
 | Interpreter core, GC, stdlib | ✅ | `make check`: source/image/XIP regressions, GC stress, feature-flag / profile builds `-Werror`, and alternate-configuration script suites |
-| 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `m0-16k` and `m0-64k` executed by `make cm-check`, output identical to the host |
+| 16 KB RAM / 64 KB flash (`min`, `auto` profiles) | ✅ | `make cm-check` builds and tests the `m0-16k` and `m0-64k` targets in an emulator; verify on hardware |
 | Tuples, deconstruction, `^`/ranges, `ref`/`out`, patterns | ✅ | `t10`, `t11`, `t13` — byte-identical to .NET 8 |
-| Bytecode images + optimizer, loader validation, XIP | ✅ | every test runs as source, optimized image **and** XIP image; image fuzzer |
+| Bytecode images + optimizer, loader validation, XIP | ✅ | script fixtures run as source, optimized image **and** XIP image; image fuzzer |
 | Hardware API (peripherals, callbacks, events, settings objects, DMA) + device drivers (`Drivers`, `ws2812` → `LedStrip`, `servo` → `Servo`) | ✅ | `t08_hal`, `t15_hal_v2`, `t19_ledstrip`, `t21_servo`, `examples/hardware/*` on the simulator board |
 | U8g2 / U8x8 displays (optional, u8g2 2.37.1) | 🧪 | `make u8g2-test`: scripts against a simulated SSD1306 / SH1106 (frames compared), fonts from files, menus; CI builds it on the host, CMake, Pico and Arduino |
 | REPL, standalone runtime, script manager | ✅ | `test_runtime` unit test, `test_shell.py`, `test_cm_shell.py` |
@@ -746,14 +730,26 @@ optimized with superinstructions, `-O0` = plain bytecode):
       transfers (`DmaBuffer`, `SPI.WriteAsync`), Studio templates for every area
 - [x] **1.13** — Wi-Fi & networking on the ESP32 family: `Wifi` (station, AP, scan, events, saved networks),
       ESP-NOW, NTP, mDNS, ping, `TcpClient` / `TcpListener` / `UdpClient`, `Http` + HTTPS, `Json`; simulated radio
-- [x] Bluetooth LE (ESP32 NimBLE, Pico W / Pico 2 W BTstack, Zephyr, ArduinoBLE; opt-in for custom builds), Wi-Fi on the Pico W / Pico 2 W (CYW43)
+- [x] **1.14** — HTTP server, WebSockets and Pico W / Pico 2 W Wi-Fi
+- [x] **1.15** — Bluetooth LE across supported backends, radio-enabled release firmware and Studio reliability
+- [x] **1.16** — source discovery, bounded-memory improvements, Studio projects and power-management API
+- [x] **1.17** — long-run upload and compile-memory recovery
+- [x] **1.18** — FileStream, multi-region heaps and Studio improvements
+- [x] **1.19** — Studio workbench, command palette and editor intelligence
+- [x] **On `main`, unreleased** — VM hot-path and float fast paths, compiler lookup improvements, and constrained-target build fixes; see [CHANGELOG.md](CHANGELOG.md)
+
+**Planned / in progress** (no release dates assigned):
+
 - [ ] Wi-Fi on Arduino cores, MQTT client
 - [ ] RP2 PIO from C#, I²S on RP2 via PIO, DMA-backed I²S streaming
 - [ ] USB mass-storage: show the board's flash filesystem as a USB drive on the PC
 - [ ] CAN FD payloads, `async`/`await` over hardware events
 - [ ] Source-level debugger over the shell protocol + VS Code extension
 - [ ] Signed images + authenticated shell
-- [ ] ROM-resident class metadata, LVGL bindings
+- [ ] ROM-resident class metadata; LVGL bindings ([work in progress](https://github.com/amir1387aht/MicroCS/pull/76))
+
+See [CHANGELOG.md](CHANGELOG.md) for release details. The shell is not authenticated;
+do not expose it on an untrusted link until authentication is implemented ([security](docs/SECURITY.md)).
 
 <p align="right"><a href="#readme-top">back to top ↑</a></p>
 

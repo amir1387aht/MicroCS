@@ -1,10 +1,32 @@
 # Performance and footprint
 
+> **Benchmark provenance:** except for the explicitly labelled host float benchmark below,
+> the target footprint, emulator and cross-runtime numbers on this page are historical
+> and have not been remeasured for PR b1698b4. The cross-runtime comparison used MicroCS
+> 1.6.0. See the [README](../README.md#-performance--footprint) for the latest PR-versus-main
+> host benchmark; rerun target tests before relying on historical hardware figures.
+
 > [!IMPORTANT]
 > Unless marked **real hardware**, every number on this page was produced in this
 > repository's sandbox with the command next to it; Cortex-M figures there are *instruction
 > counts* in an emulator, not cycles. Real-hardware results:
 > [ESP32-S3](#real-hardware--esp32-s3).
+
+## Float-heavy runtime benchmark (host)
+
+The VM speed layout inlines float arithmetic and comparisons; the compact
+layout (`MCS_VM_COMPACT=1`) uses the existing generic implementation instead.
+This trades code size for speed and does not require additional heap allocation.
+For a reproducible host workload, compile `bench/float_filter.cs` to an image
+with `mcs -c bench/float_filter.cs -o float_filter.mcsb`, then run that same
+image with each VM binary. On x86-64 with GCC `-O2`, the median of eight
+alternating runs was **573 ms before** and **288 ms after** (~2.0× faster),
+with identical output. Timings depend on workload and machine.
+
+The host VM object `.text` grew from 76,580 to 87,668 bytes (+11,088 bytes).
+This is **not** a Cortex-M flash measurement; target code size and speed must
+be checked on the intended toolchain and device. The float fast path is absent
+in compact builds, including the min profile.
 
 ## Bytecode images
 
@@ -66,6 +88,25 @@ build keeps its margin (63.0 KB with Ubuntu 24.04's arm-none-eabi-gcc 13.2 and n
 CI toolchain; switch dispatch costs the M0 ~3 % more instructions); such VMs run
 `-O0` images and reject optimized ones with a clear error. `MCS_ENABLE_SUPEROPS=0` saves the
 same on any build; `MCS_FIELD_CACHE=0` saves another ~1 KB.
+
+`MCS_VM_COMPACT` (default 0 with computed goto, 1 without) selects the size-oriented VM
+layout: shared push tail, no `ENTER_FAST`, shared dispatch. The speed layout (0) is about
+5 KB larger on a Cortex-M4 build and avoids the extra jumps; set `-DMCS_VM_COMPACT=1` where
+flash is tighter than speed. `MCS_NATIVE_ARENA` (default 32 slots, 8 in `lowram`, 0 in `min`)
+sizes the per-VM argument arena used for native calls (calls needing more fall back to the
+heap). The `min` profile defaults to heap-backed native arguments to fit the
+64 KiB flash target; set `MCS_NATIVE_ARENA` above zero to trade flash and RAM for
+native-call speed. Type-name memoization is bypassed for VMs with a nonzero
+heap limit at or below 64 KiB so scratch caches cannot crowd out application
+state; this can slow compilation, not script execution.
+
+The 256 KiB Cortex-M0 reference builds use compact dispatch; the runtime-only
+reference also uses heap-backed native arguments to fit flash. The ready-to-flash
+STM32 G474 firmware uses compact dispatch and LTO, and the
+ESP32-C6 BLE example defaults to compact dispatch (`MicroCS > Compact VM dispatch`
+in menuconfig). Those builds retain the same features and storage partitions,
+but may execute scripts more slowly than the fast layout. Other targets keep
+their existing defaults.
 
 ## MicroCS vs MicroPython vs .NET nanoFramework
 

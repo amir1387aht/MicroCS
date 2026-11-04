@@ -24,10 +24,12 @@ M33 := -mcpu=cortex-m33 -mthumb -mfpu=fpv5-sp-d16 -mfloat-abi=hard
 # This reference board also has no LED-strip transport; do not register WS2812.
 # Native/simulated CAN remains enabled. Keep the actual 256 KB linker limit.
 # These small reference boards use only a static pool and a 2 KiB libc heap.
-M0_SLIM := -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
+# Keep all selected features within 256 KiB flash using the compact VM layout.
+M0_SLIM := -DMCS_VM_COMPACT=1 -DMCS_ENABLE_POOL_REGIONS=0 -DMCS_ENABLE_WS2812=0 -DMCS_ENABLE_FILE_STREAMS=0 -DMCS_ENABLE_ENCODER_HW=0 -DMCS_ENABLE_JSON=0 -DMCS_ENABLE_MCP2515=0 -flto
 RUNTIME := -DMCS_ENABLE_COMPILER=0 -DMCS_ENABLE_DISASM=0 -DMCS_ENABLE_SHELL=0 -DMCS_ENABLE_SCHED=0
 TARGETS := m0-runtime m0-lowram m4-full m33-full m33-shell
-m0-runtime_F := $(M0)  $(RUNTIME) $(M0_SLIM) -DMCS_ENABLE_HAL_DMA=0 -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
+# Runtime-only M0 also uses heap-backed native arguments to stay within flash.
+m0-runtime_F := $(M0)  $(RUNTIME) $(M0_SLIM) -DMCS_NATIVE_ARENA=0 -DMCS_ENABLE_HAL_DMA=0 -DCM_HEAP_SIZE=102400 -DCM_RAMFS_SIZE=2048
 m0-runtime_M := FLASH_SIZE=256K RAM_SIZE=128K
 # m0-lowram: the lowram profile on a 64 KB-RAM part, 40 KB pool (VM heap + RAM filesystem)
 m0-lowram_F  := $(M0)  $(M0_SLIM) -DMCS_PROFILE=MCS_PROFILE_LOWRAM -DCM_HEAP_SIZE=40960 -DCM_RAMFS_SIZE=1024 -DCM_STACK_SLOTS=192 -DCM_FRAMES=32

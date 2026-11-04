@@ -6,7 +6,7 @@
 
 enum { FK_MAIN, FK_FUNC, FK_METHOD, FK_STATIC, FK_CTOR, FK_LAMBDA };
 
-typedef struct { const char* name; uint32_t len; int depth; bool captured; uint8_t pt, conv; } local_t;
+typedef struct { const char* name; uint32_t len; int depth; bool captured; uint8_t pt, conv; classdecl_t* cls; } local_t;
 typedef struct { uint8_t index, is_local; } upv_t;
 
 typedef struct jlist { uint32_t* at; int n, cap; } jlist_t;
@@ -43,7 +43,7 @@ typedef struct fcomp {
     uint8_t ref_cell[16], ref_local[16];
 } fcomp_t;
 
-typedef struct gvar { const char* name; uint32_t len; uint8_t pt, conv; struct gvar* next; } gvar_t;
+typedef struct gvar { const char* name; uint32_t len; uint8_t pt, conv; classdecl_t* cls; struct gvar* next; } gvar_t;
 
 typedef struct {
     front_ctx_t* ctx;
@@ -61,6 +61,8 @@ typedef struct {
     struct fcomp* fc_free; /* recycled states retain their arena-backed workspaces */
     uint32_t last_store;  /* code offset of the last SET_LOCAL/SET_GLOBAL emitted (peephole) */
     mcs_function_t* last_store_fn;
+    struct kt_ent* kt;    /* known_type_name memo, allocated on first use */
+    struct tn_ent* tn;    /* type_name memo, allocated on first use */
 } comp_t;
 
 static uint8_t compile_expr(comp_t* c, node_t* n);
@@ -176,7 +178,7 @@ static int declare_local(comp_t* c, const char* name, uint32_t len, uint8_t pt, 
         f->locals = locals; f->locals_cap = cap;
     }
     local_t* l = &f->locals[f->nlocals];
-    l->name = name; l->len = len; l->depth = f->depth; l->captured = false; l->pt = pt; l->conv = conv;
+    l->name = name; l->len = len; l->depth = f->depth; l->captured = false; l->pt = pt; l->conv = conv; l->cls = NULL;
     f->nlocals++;
     if (f->nlocals > f->max_locals) f->max_locals = f->nlocals;
     return f->nlocals - 1;
@@ -228,9 +230,129 @@ static int resolve_upvalue(comp_t* c, fcomp_t* f, const char* name, uint32_t len
 }
 
 /* ------------------------------------------------------------ declarations lookup */
-static classdecl_t* find_class(comp_t* c, const char* name, uint32_t len) {
-    for (classdecl_t* d = c->prog->classes; d; d = d->next) if (name_eq(d->name, d->len, name, len)) return d;
+/* known_type_name() is probed several times per type reference (class chain,
+ * namespace, every using, parent namespaces) and each miss walks the class list,
+ * the lazy list and the library tables. Nothing it reads changes while a program
+ * is being compiled (classes are only added by the parser, the GC is paused), so
+ * answers - including misses - are memoized in a small direct-mapped table whose
+ * keys are copied inline (long names simply bypass it). */
+#define KT_SLOTS 64
+#define KT_KEY 32
+typedef struct kt_ent { const char* val; uint32_t hash; uint8_t len; char key[KT_KEY]; } kt_ent_t;
+static const char* known_type_name_slow(comp_t* c, const char* name, uint32_t len) {
+    for (classdecl_t* d = c->prog->classes; d; d = d->next)
+        if (name_eq(d->qualified, d->qualified_len, name, len)) return d->qualified;
+    mcs_string_t* str = mcs_find_interned(c->vm, name, len);
+    if (str && str->obj.aux && IS_KIND(c->vm->globals[str->obj.aux - 1u], MCS_O_CLASS)) return str->chars;
+    for (mcs_lazy_t* l = c->vm->lazy; l; l = l->next) if (strlen(l->name) == len && !memcmp(l->name, name, len)) return l->name;
+    if (mcs_lazy_known(c->vm, name, len)) return istr(c, name, len)->chars;
     return NULL;
+}
+static const char* known_type_name(comp_t* c, const char* name, uint32_t len) {
+    /* A cache must not displace the AST or application state in small pools. */
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !len || len > KT_KEY)
+        return known_type_name_slow(c, name, len);
+    uint32_t h = len;
+    for (uint32_t i = 0; i < len; i++) h = h * 31u + (uint8_t)name[i];
+    if (!c->kt) { c->kt = (kt_ent_t*)arena_alloc(c->ctx->arena, sizeof(kt_ent_t) * KT_SLOTS); memset(c->kt, 0, sizeof(kt_ent_t) * KT_SLOTS); }
+    kt_ent_t* e = &c->kt[(h ^ (h >> 5)) % KT_SLOTS];
+    if (e->len == len && e->hash == h && !memcmp(e->key, name, len)) return e->val;
+    const char* r = known_type_name_slow(c, name, len);
+    e->val = r; e->hash = h; e->len = (uint8_t)len; memcpy(e->key, name, len);
+    return r;
+}
+static bool known_type(comp_t* c, const char* name, uint32_t len) { return known_type_name(c, name, len) != NULL; }
+static const char* prefixed_type(comp_t* c, const char* prefix, uint32_t plen, const char* name, uint32_t len, uint32_t* outlen) {
+    if (!plen) { const char* hit = known_type_name(c, name, len); if (hit) { *outlen = len; return hit; } return NULL; }
+    if (plen + len + 1 > 255) cerr(c, 0, "qualified type name too long");
+    char key[256]; memcpy(key, prefix, plen); key[plen] = '.'; memcpy(key + plen + 1, name, len);
+    uint32_t n = plen + len + 1;
+    const char* hit = known_type_name(c, key, n);
+    if (!hit) return NULL;
+    *outlen = n; return hit;
+}
+static const char* type_name_slow(comp_t* c, const char* name, uint32_t* len) {
+    uint32_t n = *len;
+    namespace_scope_t* scope = c->fc && c->fc->cls ? c->fc->cls->scope : c->prog->root_scope;
+    for (classdecl_t* d = c->fc ? c->fc->cls : NULL; d; d = d->outer) {
+        if (name_eq(d->name, d->len, name, n)) { *len = d->qualified_len; return d->qualified; }
+        const char* hit = prefixed_type(c, d->qualified, d->qualified_len, name, n, len);
+        if (hit) return hit;
+    }
+    for (namespace_scope_t* ns = scope; ns; ns = ns->parent) {
+        const char* hit = prefixed_type(c, ns->name, ns->len, name, n, len);
+        if (hit) return hit;
+        const char* found = NULL; uint32_t flen = 0;
+        for (namelist_t* u = ns->imports; u; u = u->next) {
+            uint32_t hlen; const char* h = prefixed_type(c, u->name, u->len, name, n, &hlen);
+            if (h) {
+                if (found && !name_eq(found, flen, h, hlen)) cerr(c, 0, "ambiguous type '%.*s' from using directives", (int)n, name);
+                found = h; flen = hlen;
+            }
+        }
+        if (found) { *len = flen; return found; }
+        uint32_t plen = ns->len;
+        while (plen > (ns->parent ? ns->parent->len : 0)) {
+            while (plen && ns->name[plen - 1] != '.') plen--;
+            if (!plen) break;
+            plen--;
+            if (ns->parent && plen <= ns->parent->len) break;
+            const char* parent_hit = prefixed_type(c, ns->name, plen, name, n, len);
+            if (parent_hit) return parent_hit;
+        }
+    }
+    const char* exact = known_type_name(c, name, n);
+    if (exact) { *len = n; return exact; }
+    /* Native MicroCS APIs remain globally registered. System qualification is
+     * accepted for compatibility, but never strip arbitrary namespace names. */
+    if (n > 7 && !memcmp(name, "System.", 7)) {
+        const char* tail = name; for (uint32_t i = 0; i < n; i++) if (name[i] == '.') tail = name + i + 1;
+        uint32_t tlen = (uint32_t)(name + n - tail);
+        const char* native = known_type_name(c, tail, tlen);
+        if (native) { *len = tlen; return native; }
+    }
+    *len = n; return name;
+}
+/* type_name() result depends only on (enclosing class or root scope, name) while a
+ * program compiles, so repeated references to the same identifier are memoized.
+ * A result that is just the caller's own name pointer is recorded as such. */
+typedef struct tn_ent { const void* scope; const char* val; uint32_t hash; uint32_t rlen; uint8_t len; bool same; char key[KT_KEY]; } tn_ent_t;
+static const char* type_name(comp_t* c, const char* name, uint32_t* len) {
+    uint32_t n = *len;
+    if ((c->vm->cfg.heap_limit && c->vm->cfg.heap_limit <= 65536) || !n || n > KT_KEY)
+        return type_name_slow(c, name, len);
+    const void* scope = c->fc && c->fc->cls ? (const void*)c->fc->cls : (const void*)c->prog->root_scope;
+    uint32_t h = n ^ (uint32_t)(uintptr_t)scope;
+    for (uint32_t i = 0; i < n; i++) h = h * 31u + (uint8_t)name[i];
+    if (!c->tn) { c->tn = (tn_ent_t*)arena_alloc(c->ctx->arena, sizeof(tn_ent_t) * KT_SLOTS); memset(c->tn, 0, sizeof(tn_ent_t) * KT_SLOTS); }
+    tn_ent_t* e = &c->tn[(h ^ (h >> 5)) % KT_SLOTS];
+    if (e->len == n && e->hash == h && e->scope == scope && !memcmp(e->key, name, n)) {
+        *len = e->rlen; return e->same ? name : e->val;
+    }
+    const char* r = type_name_slow(c, name, len);   /* may raise a compile error: nothing cached then */
+    e->scope = scope; e->hash = h; e->len = (uint8_t)n; memcpy(e->key, name, n);
+    e->same = r == name; e->val = r; e->rlen = *len;
+    return r;
+}
+static classdecl_t* find_class(comp_t* c, const char* name, uint32_t len) {
+    name = type_name(c, name, &len);
+    for (classdecl_t* d = c->prog->classes; d; d = d->next)
+        if (name_eq(d->qualified, d->qualified_len, name, len)) return d;
+    return NULL;
+}
+static void require_type_visible(comp_t* c, const char* name, uint32_t len) {
+    uint32_t n = len; const char* qualified = type_name(c, name, &n);
+    if (known_type(c, qualified, n)) return;
+    for (classdecl_t* d = c->prog->classes; d; d = d->next)
+        if (name_eq(d->name, d->len, name, len)) cerr(c, 0, "type '%.*s' is not in scope; add a using directive or qualify its namespace", (int)len, name);
+    /* Previously loaded source libraries retain qualified globals, not short aliases. */
+    for (uint32_t i = 0; i < c->vm->global_count; i++) {
+        mcs_value_t v = c->vm->globals[i];
+        if (IS_KIND(v, MCS_O_CLASS) && AS_CLASS(v)->name->len > len &&
+            AS_CLASS(v)->name->chars[AS_CLASS(v)->name->len - len - 1] == '.' &&
+            !memcmp(AS_CLASS(v)->name->chars + AS_CLASS(v)->name->len - len, name, len))
+            cerr(c, 0, "type '%.*s' is not in scope; add a using directive or qualify its namespace", (int)len, name);
+    }
 }
 static member_t* find_member(classdecl_t* cls, const char* name, uint32_t len, classdecl_t** owner) {
     for (classdecl_t* k = cls; k; k = k->base_decl) {
@@ -242,6 +364,105 @@ static member_t* find_member(classdecl_t* cls, const char* name, uint32_t len, c
         }
     }
     return NULL;
+}
+static bool expression_name(node_t* n, char* buf, uint32_t* len) {
+    if (!n || (n->kind != N_NAME && n->kind != N_MEMBER)) return false;
+    if (n->kind == N_MEMBER) {
+        if (!expression_name(n->a, buf, len) || *len >= 255) return false;
+        buf[(*len)++] = '.';
+    }
+    if (*len + n->len > 255) return false;
+    memcpy(buf + *len, n->name, n->len); *len += n->len; return true;
+}
+static const char* expression_type(comp_t* c, node_t* n, uint32_t* len) {
+    /* A local/parameter shadows a type name even in a qualified chain. */
+    node_t* root = n; while (root && root->kind == N_MEMBER) root = root->a;
+    if (!root || root->kind != N_NAME) return NULL;
+    for (fcomp_t* f = c->fc; f; f = f->enc) if (resolve_local(f, root->name, root->len) >= 0) return NULL;
+    for (gvar_t* g = c->gvars; g; g = g->next) if (name_eq(g->name, g->len, root->name, root->len)) return NULL;
+    if (c->fc->cls && find_member(c->fc->cls, root->name, root->len, NULL)) return NULL;
+    char buf[256]; uint32_t nlen = 0; if (!expression_name(n, buf, &nlen)) return NULL;
+    const char* name = type_name(c, buf, &nlen);
+    const char* hit = known_type_name(c, name, nlen);
+    if (!hit) return NULL;
+    *len = nlen; return hit;
+}
+/* Access checks are compile-time only: no per-member VM metadata or dispatch cost. */
+static bool derives_from(classdecl_t* cls, classdecl_t* base) {
+    for (int depth = 0; cls && depth < 256; cls = cls->base_decl, depth++) if (cls == base) return true;
+    return false;
+}
+static bool can_access(comp_t* c, classdecl_t* owner, uint8_t access) {
+    if ((access & MOD_PUBLIC) && !(access & MOD_PRIVATE)) return true;
+    if (!(access & (MOD_PRIVATE | MOD_PROTECTED))) return true;
+    for (classdecl_t* k = c->fc->cls; k; k = k->outer) {
+        if (k == owner) return true;
+        if ((access & MOD_PROTECTED) && derives_from(k, owner)) return true;
+    }
+    return false;
+}
+static void require_access(comp_t* c, classdecl_t* owner, member_t* m, bool write) {
+    uint8_t access = m->mods;
+    if (m->kind == M_PROP) {
+        uint8_t a = (write ? m->set_access : m->get_access) & MOD_ACCESS;
+        if (a) access = a;
+    }
+    if (!can_access(c, owner, access))
+        cerr(c, 0, "'%.*s.%.*s' is inaccessible due to its protection level", (int)owner->len, owner->name, (int)m->len, m->name);
+}
+static classdecl_t* type_class(comp_t* c, typeref_t* t) {
+    if (!t || t->rank || t->is_var) return NULL;
+    if (t->prim == PT_ANY) require_type_visible(c, t->name, t->len);
+    return find_class(c, t->name, t->len);
+}
+static classdecl_t* member_type_class(comp_t* c, classdecl_t* owner, member_t* m) {
+    classdecl_t* save = c->fc->cls; c->fc->cls = owner;
+    classdecl_t* result = type_class(c, m->kind == M_METHOD ? m->fn->ret : m->type);
+    c->fc->cls = save; return result;
+}
+static classdecl_t* expr_class_depth(comp_t* c, node_t* n, int depth) {
+    if (!n || depth > 16) return NULL;
+    if (n->kind == N_THIS) return c->fc->cls;
+    if (n->kind == N_BASE) return c->fc->cls ? c->fc->cls->base_decl : NULL;
+    if (n->kind == N_NEW || n->kind == N_CAST || n->kind == N_AS) return type_class(c, n->type);
+    if (n->kind == N_NAME) {
+        for (fcomp_t* f = c->fc; f; f = f->enc) {
+            int l = resolve_local(f, n->name, n->len);
+            if (l >= 0) return f->locals[l].cls;
+        }
+        classdecl_t* owner = NULL; member_t* m = find_member(c->fc->cls, n->name, n->len, &owner);
+        if (m) return member_type_class(c, owner, m);
+        for (gvar_t* g = c->gvars; g; g = g->next)
+            if (name_eq(g->name, g->len, n->name, n->len)) return g->cls;
+        return find_class(c, n->name, n->len);
+    }
+    if (n->kind == N_MEMBER) {
+        uint32_t len; const char* name = expression_type(c, n, &len);
+        if (name) return find_class(c, name, len);
+        classdecl_t* cls = expr_class_depth(c, n->a, depth + 1);
+        classdecl_t* owner = NULL; member_t* m = find_member(cls, n->name, n->len, &owner);
+        if (m) return member_type_class(c, owner, m);
+    }
+    if (n->kind == N_CALL) {
+        node_t* f = n->a;
+        classdecl_t* cls = f->kind == N_MEMBER ? expr_class_depth(c, f->a, depth + 1) : c->fc->cls;
+        classdecl_t* owner = NULL;
+        member_t* m = (f->kind == N_MEMBER || f->kind == N_NAME) ? find_member(cls, f->name, f->len, &owner) : NULL;
+        if (m && m->fn) return member_type_class(c, owner, m);
+        if (f->kind == N_NAME) for (node_t* v = c->prog->stmts; v; v = v->next)
+            if (v->kind == N_LOCAL_FUNC && name_eq(v->name, v->len, f->name, f->len)) return type_class(c, v->fn->ret);
+    }
+    return NULL;
+}
+static classdecl_t* expr_class(comp_t* c, node_t* n) { return expr_class_depth(c, n, 0); }
+static void check_member_access(comp_t* c, node_t* n, bool write) {
+    classdecl_t* cls = expr_class(c, n->a), *owner = NULL;
+    member_t* m = find_member(cls, n->name, n->len, &owner);
+    if (m) {
+        require_access(c, owner, m, write);
+        if ((m->mods & MOD_PROTECTED) && !(m->mods & (MOD_PUBLIC | MOD_STATIC)) && n->a->kind != N_BASE && c->fc->cls && cls && !derives_from(cls, c->fc->cls))
+            cerr(c, 0, "protected member must be accessed through the derived type");
+    }
 }
 static bool class_has_native_base(classdecl_t* cls) {
     for (classdecl_t* k = cls; k; k = k->base_decl) if (!k->base_decl && k->base) return true;
@@ -258,6 +479,7 @@ static bool is_toplevel_name(comp_t* c, const char* name, uint32_t len) {
     return mcs_lazy_known(c->vm, name, len);   /* built-in class not created yet */
 }
 static uint32_t global_slot(comp_t* c, const char* name, uint32_t len) {
+    name = type_name(c, name, &len);
     uint32_t s = mcs_global_slot(c->vm, istr(c, name, len));
     if (s > 0xFFFF) cerr(c, 0, "too many globals");
     return s;
@@ -276,7 +498,9 @@ static bool enum_value(comp_t* c, classdecl_t* e, const char* name, uint32_t len
 static bool const_member(comp_t* c, classdecl_t* cls, const char* name, uint32_t len, mcs_value_t* out) {
     if (!cls) return false;
     if (cls->kind == C_ENUM) return enum_value(c, cls, name, len, out);
-    member_t* m = find_member(cls, name, len, NULL);
+    classdecl_t* owner = NULL;
+    member_t* m = find_member(cls, name, len, &owner);
+    if (m) require_access(c, owner, m, false);
     if (m && m->kind == M_CONST && m->init) {
         classdecl_t* save = c->cur_enum; c->cur_enum = NULL;
         bool ok = fold(c, m->init, out);
@@ -396,7 +620,7 @@ static bool in_instance_ctx(comp_t* c) {
     return false;
 }
 
-static res_t resolve(comp_t* c, const char* name, uint32_t len) {
+static res_t resolve(comp_t* c, const char* name, uint32_t len, bool write) {
     res_t r; memset(&r, 0, sizeof r);
     r.pt = PT_ANY; r.conv = 0xff;
     int l = resolve_local(c->fc, name, len);
@@ -408,6 +632,7 @@ static res_t resolve(comp_t* c, const char* name, uint32_t len) {
         classdecl_t* owner = NULL;
         member_t* m = find_member(cls, name, len, &owner);
         if (m) {
+            require_access(c, owner, m, write);
             r.m = m; r.owner = owner;
             r.kind = (m->mods & MOD_STATIC) ? R_STATIC_MEMBER : R_THIS_MEMBER;
             if (m->kind == M_FIELD || m->kind == M_PROP || m->kind == M_CONST) { r.pt = pt_of_type(m->type); r.conv = conv_of(m->type); }
@@ -421,6 +646,7 @@ static res_t resolve(comp_t* c, const char* name, uint32_t len) {
             return r;
         }
     }
+    require_type_visible(c, name, len);
     r.kind = R_GLOBAL;
     r.index = (int)global_slot(c, name, len);
     for (gvar_t* g = c->gvars; g; g = g->next)
@@ -438,7 +664,7 @@ static void emit_this(comp_t* c) {
     cerr(c, 0, "'this' is not available in a static context");
 }
 
-static void emit_class_ref(comp_t* c, classdecl_t* d) { emit_op16(c, OP_GET_GLOBAL, global_slot(c, d->name, d->len)); }
+static void emit_class_ref(comp_t* c, classdecl_t* d) { emit_op16(c, OP_GET_GLOBAL, global_slot(c, d->qualified, d->qualified_len)); }
 
 /* ------------------------------------------------------------ assignment targets */
 enum { T_LOCAL, T_UPVAL, T_GLOBAL, T_FIELD, T_INDEX };
@@ -447,7 +673,8 @@ typedef struct { int kind; int index; uint32_t name_k; uint8_t conv, pt; } targe
 static void prepare_target(comp_t* c, node_t* n, target_t* t) {
     t->conv = 0xff; t->pt = PT_ANY;
     if (n->kind == N_NAME) {
-        res_t r = resolve(c, n->name, n->len);
+        res_t r = resolve(c, n->name, n->len, true);
+        if (r.m) require_access(c, r.owner, r.m, true);
         t->conv = r.conv; t->pt = r.pt;
         switch (r.kind) {
         case R_LOCAL: t->kind = T_LOCAL; t->index = r.index; return;
@@ -458,6 +685,7 @@ static void prepare_target(comp_t* c, node_t* n, target_t* t) {
         }
     }
     if (n->kind == N_MEMBER) {
+        check_member_access(c, n, true);
         if (n->flag) cerr(c, n->line, "null-conditional member cannot be assigned");
         if (n->a->kind == N_BASE || n->a->kind == N_THIS) {
             emit_this(c);
@@ -550,9 +778,15 @@ static uint32_t emit_cond_jump(comp_t* c, node_t* cond) {
     return emit_jump(c, OP_JUMP_IF_FALSE);
 }
 
+static void check_target_read(comp_t* c, node_t* target) {
+    if (target->kind == N_MEMBER) check_member_access(c, target, false);
+    else if (target->kind == N_NAME) (void)resolve(c, target->name, target->len, false);
+}
+
 static uint8_t compile_assign(comp_t* c, node_t* n, bool want) {
     target_t t;
     prepare_target(c, n->a, &t);
+    if (n->op != TK_ASSIGN) check_target_read(c, n->a);
     uint8_t pt;
     if (n->op == TK_ASSIGN) {
         pt = compile_expr(c, n->b);
@@ -598,6 +832,7 @@ static uint8_t compile_incdec(comp_t* c, node_t* n, bool prefix, bool want) {
     int delta = n->op == TK_INC ? 1 : -1;
     target_t t;
     prepare_target(c, n->a, &t);
+    check_target_read(c, n->a);
     if (!want && t.kind == T_LOCAL && (t.conv == 0xff || t.conv == CV_INT || t.conv == CV_FLOAT || t.conv == CV_CHAR)) {
         emit(c, OP_INC_LOCAL); emit(c, (uint8_t)t.index); emit(c, (uint8_t)(int8_t)delta);
         return t.pt;
@@ -658,7 +893,7 @@ static void emit_invoke(comp_t* c, uint8_t op, const char* name, uint32_t len, i
 static uint8_t compile_call(comp_t* c, node_t* n) {
     node_t* f = n->a;
     if (f->kind == N_NAME) {
-        res_t r = resolve(c, f->name, f->len);
+        res_t r = resolve(c, f->name, f->len, false);
         switch (r.kind) {
         case R_LOCAL: emit_op8(c, OP_GET_LOCAL, (uint8_t)r.index); break;
         case R_UPVAL: emit_op8(c, OP_GET_UPVAL, (uint8_t)r.index); break;
@@ -684,6 +919,7 @@ static uint8_t compile_call(comp_t* c, node_t* n) {
         return PT_ANY;
     }
     if (f->kind == N_MEMBER) {
+        check_member_access(c, f, false);
         if (f->a->kind == N_BASE) {
             classdecl_t* cls = c->fc->cls;
             if (!cls || !cls->base) cerr(c, f->line, "'base' used in a class without a base class");
@@ -716,13 +952,13 @@ static uint8_t compile_call(comp_t* c, node_t* n) {
     return PT_ANY;
 }
 
-static const char* canon_type_name(typeref_t* t, uint32_t* len) {
+static const char* canon_type_name(comp_t* c, typeref_t* t, uint32_t* len) {
     if (t->rank) { *len = 5; return "Array"; }
     const char* s = NULL;
     switch (t->prim) {
     case PT_INT: s = "int"; break; case PT_FLOAT: s = "double"; break; case PT_STRING: s = "string"; break;
     case PT_BOOL: s = "bool"; break; case PT_CHAR: s = "char"; break; case PT_OBJECT: s = "object"; break;
-    default: *len = t->len; return t->name;
+    default: *len = t->len; return type_name(c, t->name, len);
     }
     *len = (uint32_t)strlen(s);
     return s;
@@ -756,12 +992,27 @@ static uint8_t compile_new(comp_t* c, node_t* n) {
     const char* name = t->name; uint32_t len = t->len;
     if (t->prim == PT_STRING) { name = "String"; len = 6; }
     if (t->prim == PT_OBJECT) { name = "Object"; len = 6; }
+    require_type_visible(c, name, len);
     classdecl_t* d = find_class(c, name, len);
     if (d && (d->kind == C_INTERFACE)) cerr(c, n->line, "cannot create an instance of interface '%.*s'", (int)len, name);
+    int requested = 0; for (node_t* a = n->a; a; a = a->next) requested++;
+    if (d) for (member_t* m = d->members; m; m = m->next) {
+        if (m->kind != M_CTOR || (m->mods & MOD_STATIC)) continue;
+        int minimum = 0; bool variadic = false;
+        for (param_t* p = m->fn->params; p; p = p->next) {
+            if (!p->def && !p->is_params) minimum++;
+            if (p->is_params) variadic = true;
+        }
+        if (requested >= minimum && (requested <= m->fn->nparams || variadic)) require_access(c, d, m, false);
+    }
     emit_op16(c, OP_GET_GLOBAL, global_slot(c, name, len));
     int argc = compile_args(c, n->a);
     emit_op8(c, OP_CALL, (uint8_t)argc);
     emit_out_writeback(c, n->a);
+    if (d) for (node_t* it = n->c; it; it = it->next) if (it->kind == N_INIT_FIELD) {
+        classdecl_t* owner = NULL; member_t* m = find_member(d, it->name, it->len, &owner);
+        if (m) require_access(c, owner, m, true);
+    }
     if (n->c) compile_initializers(c, n->c);
     return t->prim == PT_STRING ? PT_STRING : PT_ANY;
 }
@@ -883,7 +1134,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
     case N_BASE: emit_this(c); break;
     case N_NAME: {
         if (fold(c, n, &k)) { emit_value(c, k); pt = pt_of_value(k); break; }
-        res_t r = resolve(c, n->name, n->len);
+        res_t r = resolve(c, n->name, n->len, false);
         pt = r.pt;
         switch (r.kind) {
         case R_LOCAL: emit_op8(c, OP_GET_LOCAL, (uint8_t)r.index); break;
@@ -895,6 +1146,9 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
         break;
     }
     case N_MEMBER: {
+        uint32_t qlen; const char* qname = expression_type(c, n, &qlen);
+        if (qname) { emit_op16(c, OP_GET_GLOBAL, global_slot(c, qname, qlen)); break; }
+        check_member_access(c, n, false);
         if (fold(c, n, &k)) { emit_value(c, k); pt = pt_of_value(k); break; }
         if (n->a->kind == N_BASE || n->a->kind == N_THIS) {
             emit_this(c);
@@ -983,7 +1237,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
         } else if (t->prim == PT_ANY && t->rank == 0) {
             classdecl_t* d = find_class(c, t->name, t->len);
             if (d && d->kind == C_ENUM) { emit_op8(c, OP_CONV, CV_INT); pt = PT_INT; }
-            else if (!(t->len == 1 || (d && d->kind == C_INTERFACE))) emit_op16(c, OP_CAST, kstr(c, t->name, t->len)); /* T (generic) skipped */
+            else if (!(t->len == 1 || (d && d->kind == C_INTERFACE))) emit_op16(c, OP_CAST, kstr(c, d ? d->qualified : t->name, d ? d->qualified_len : t->len)); /* T (generic) skipped */
         } else if (t->prim == PT_STRING) { emit_op16(c, OP_CAST, kcstr(c, "string")); pt = PT_STRING; }
         break;
     }
@@ -998,7 +1252,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
                 c->fc->locals[slot].pt = pt_of_type(n->type);
                 emit_op8(c, OP_SET_LOCAL, (uint8_t)slot);
             }
-            uint32_t len; const char* nm = canon_type_name(n->type, &len);
+            uint32_t len; const char* nm = canon_type_name(c, n->type, &len);
             emit_op16(c, OP_IS, kstr(c, nm, len));
         }
         if (n->flag) emit_op(c, OP_NOT);
@@ -1007,7 +1261,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
     }
     case N_AS: {
         compile_expr(c, n->a);
-        uint32_t len; const char* nm = canon_type_name(n->type, &len);
+        uint32_t len; const char* nm = canon_type_name(c, n->type, &len);
         emit_op16(c, OP_AS, kstr(c, nm, len));
         break;
     }
@@ -1015,7 +1269,7 @@ static uint8_t compile_expr(comp_t* c, node_t* n) {
         emit_closure(c, n->fn, FK_LAMBDA, c->fc->cls, "lambda", 6, NULL);
         break;
     case N_SWITCH_EXPR: pt = compile_switch_expr(c, n); break;
-    case N_TYPEOF: { uint32_t len; const char* nm = canon_type_name(n->type, &len); emit_op16(c, OP_CONST, kstr(c, nm, len)); pt = PT_STRING; break; }
+    case N_TYPEOF: { uint32_t len; const char* nm = canon_type_name(c, n->type, &len); emit_op16(c, OP_CONST, kstr(c, nm, len)); pt = PT_STRING; break; }
     case N_DEFAULT: emit_value(c, default_for(n->type)); pt = n->type ? n->type->prim : PT_ANY; break;
     case N_THROW:
         if (!n->a) cerr(c, n->line, "rethrow is only allowed as a statement");
@@ -1090,13 +1344,15 @@ static void pre_gvar(comp_t* c, node_t* v) {
     typeref_t* t = v->type;
     if (!t || t->is_var) return;
     gvar_t* g = (gvar_t*)arena_alloc(c->ctx->arena, sizeof(gvar_t));
-    g->name = v->name; g->len = v->len; g->pt = pt_of_type(t); g->conv = conv_of(t); g->next = c->gvars; c->gvars = g;
+    g->cls = type_class(c, t); g->name = v->name; g->len = v->len; g->pt = pt_of_type(t); g->conv = conv_of(t); g->next = c->gvars; c->gvars = g;
 }
 
 static void compile_var(comp_t* c, node_t* v) {
     typeref_t* t = v->type;
     uint8_t conv = conv_of(t);
     uint8_t pt = pt_of_type(t);
+    classdecl_t* vcls = type_class(c, t);
+    if (!vcls && t && t->is_var) vcls = expr_class(c, v->a);
     uint8_t save_ac = c->arr_conv;
     c->arr_conv = (t && t->rank == 1 && t->conv != 0xff && t->conv != CV_BOOL) ? (t->conv == CV_UINT ? CV_INT : t->conv) : 0xff;
     if (v->a) {
@@ -1107,14 +1363,15 @@ static void compile_var(comp_t* c, node_t* v) {
     c->arr_conv = save_ac;
     if (is_global_scope(c) || c->force_global) {
         gvar_t* g = (gvar_t*)arena_alloc(c->ctx->arena, sizeof(gvar_t));
-        g->name = v->name; g->len = v->len; g->pt = pt; g->conv = conv; g->next = c->gvars; c->gvars = g;
+        g->cls = vcls; g->name = v->name; g->len = v->len; g->pt = pt; g->conv = conv; g->next = c->gvars; c->gvars = g;
         emit_op16(c, OP_SET_GLOBAL, global_slot(c, v->name, v->len));
         emit_op(c, OP_POP);
     } else {
         int l = resolve_local(c->fc, v->name, v->len);
         if (l >= 0 && c->fc->locals[l].depth == c->fc->depth)
             cerr(c, v->line, "a local variable named '%.*s' is already defined in this scope", (int)v->len, v->name);
-        declare_local(c, v->name, v->len, pt, t && t->is_var ? 0xff : conv);
+        int slot = declare_local(c, v->name, v->len, pt, t && t->is_var ? 0xff : conv);
+        c->fc->locals[slot].cls = vcls;
     }
 }
 
@@ -1258,7 +1515,7 @@ static void compile_try(comp_t* c, node_t* n) {
         c->line = k->line;
         uint32_t next = 0; bool cond = false;
         if (k->type) {
-            uint32_t len; const char* nm = canon_type_name(k->type, &len);
+            uint32_t len; const char* nm = canon_type_name(c, k->type, &len);
             if (!(name_eq(nm, len, "Exception", 9) || name_eq(nm, len, "object", 6))) {
                 emit_op8(c, OP_GET_LOCAL, (uint8_t)exc);
                 emit_op16(c, OP_IS, kstr(c, nm, len));
@@ -1534,7 +1791,7 @@ static void emit_closure(comp_t* c, funcdecl_t* f, int kind, classdecl_t* cls, c
     int i = 0; int min = -1;
     for (param_t* p = f->params; p; p = p->next, i++) {
         if (p->ref_kind) declare_local(c, "$ref", 4, PT_ANY, 0xff);
-        else declare_local(c, p->name, p->len, pt_of_type(p->type), conv_of(p->type));
+        else { int slot = declare_local(c, p->name, p->len, pt_of_type(p->type), conv_of(p->type)); fc->locals[slot].cls = type_class(c, p->type); }
         fn->param_types[i] = (p->is_params || p->ref_kind) ? PT_ANY : pt_of_type(p->type);
         if (fn->param_types[i] == PT_OBJECT) fn->param_types[i] = PT_ANY;
         if ((p->def || p->is_params) && min < 0) min = i;
@@ -1645,24 +1902,27 @@ static node_t* synth(comp_t* c, int kind, uint32_t line) {
 static void emit_class(comp_t* c, classdecl_t* d) {
     c->line = d->line;
     if (d->kind == C_INTERFACE) {
-        emit(c, OP_CLASS); emit_u16(c, kstr(c, d->name, d->len)); emit(c, 2);
-        emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->name, d->len)); emit_op(c, OP_POP);
+        emit(c, OP_CLASS); emit_u16(c, kstr(c, d->qualified, d->qualified_len)); emit(c, 2);
+        emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->qualified, d->qualified_len)); emit_op(c, OP_POP);
         return;
     }
-    emit(c, OP_CLASS); emit_u16(c, kstr(c, d->name, d->len)); emit(c, d->is_static || d->kind == C_ENUM ? 1 : 0);
+    emit(c, OP_CLASS); emit_u16(c, kstr(c, d->qualified, d->qualified_len)); emit(c, d->is_static || d->kind == C_ENUM ? 1 : 0);
     if (d->kind == C_ENUM) {
         for (enumval_t* v = d->enums; v; v = v->next) {
             emit_value(c, mcs_int(v->computed));
             emit_def(c, OP_STATIC, v->name, v->len, 0);
         }
-        emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->name, d->len)); emit_op(c, OP_POP);
+        emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->qualified, d->qualified_len)); emit_op(c, OP_POP);
         return;
     }
     if (d->base) { emit_op16(c, OP_GET_GLOBAL, global_slot(c, d->base, d->base_len)); emit_op(c, OP_INHERIT); }
+    classdecl_t* declaring = c->fc->cls; c->fc->cls = d;
     for (namelist_t* b = d->bases; b; b = b->next) {
-        if (name_eq(b->name, b->len, d->base ? d->base : "", d->base ? d->base_len : 0)) continue;
-        emit_op16(c, OP_IMPLEMENTS, kstr(c, b->name, b->len));
+        uint32_t len = b->len; const char* name = type_name(c, b->name, &len);
+        if (name_eq(name, len, d->base ? d->base : "", d->base ? d->base_len : 0)) continue;
+        emit_op16(c, OP_IMPLEMENTS, kstr(c, name, len));
     }
+    c->fc->cls = declaring;
     fcomp_t* mainfc = c->fc;
     classdecl_t* save_cls = mainfc->cls;
     mainfc->cls = d;
@@ -1754,7 +2014,7 @@ static void emit_class(comp_t* c, classdecl_t* d) {
         emit_def(c, OP_METHOD, ".ctor", 5, 1);
     }
     mainfc->cls = save_cls;
-    emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->name, d->len));
+    emit_op16(c, OP_SET_GLOBAL, global_slot(c, d->qualified, d->qualified_len));
     emit_op(c, OP_POP);
 }
 
@@ -1801,17 +2061,20 @@ static bool looks_like_interface(comp_t* c, const char* n, uint32_t len) {
 static void resolve_classes(comp_t* c) {
     for (classdecl_t* d = c->prog->classes; d; d = d->next) {
         if (d->kind == C_ENUM || d->kind == C_INTERFACE || !d->bases) continue;
+        c->fc->cls = d;
         namelist_t* b = d->bases;
+        require_type_visible(c, b->name, b->len);
         classdecl_t* bd = find_class(c, b->name, b->len);
-        if (bd && (bd->kind == C_CLASS || bd->kind == C_STRUCT)) { d->base_decl = bd; d->base = b->name; d->base_len = b->len; }
-        else if (!bd && !looks_like_interface(c, b->name, b->len)) { d->base = b->name; d->base_len = b->len; }
+        if (bd && (bd->kind == C_CLASS || bd->kind == C_STRUCT)) { d->base_decl = bd; d->base_len = b->len; d->base = type_name(c, b->name, &d->base_len); }
+        else if (!bd && !looks_like_interface(c, b->name, b->len)) { d->base_len = b->len; d->base = type_name(c, b->name, &d->base_len); }
         if (bd == d) cerr(c, d->line, "class '%.*s' cannot inherit from itself", (int)d->len, d->name);
     }
+    c->fc->cls = NULL;
     /* enum values */
     for (classdecl_t* d = c->prog->classes; d; d = d->next) {
         if (d->kind != C_ENUM) continue;
         mcs_int_t next = 0;
-        c->cur_enum = d;
+        c->cur_enum = d; c->fc->cls = d;
         for (enumval_t* v = d->enums; v; v = v->next) {
             if (v->value) {
                 mcs_value_t k;
@@ -1821,7 +2084,7 @@ static void resolve_classes(comp_t* c) {
             v->computed = next;
             next++;
         }
-        c->cur_enum = NULL;
+        c->cur_enum = NULL; c->fc->cls = NULL;
     }
 }
 
@@ -1863,7 +2126,7 @@ static mcs_function_t* compile_source(mcs_vm_t* vm, const char* name, const char
     if (!mcs_parse(&w->ctx, src, &w->prog)) goto done;
     {
         comp_t* c = (comp_t*)arena_alloc(&w->arena, sizeof(comp_t));
-        c->ctx = &w->ctx; c->vm = vm; c->prog = &w->prog; c->arr_conv = 0xff; c->gvars = NULL;
+        c->ctx = &w->ctx; c->vm = vm; c->prog = &w->prog; c->arr_conv = 0xff; c->gvars = NULL; c->kt = NULL; c->tn = NULL;
         c->src_name = mcs_intern_c(vm, name);
         if (setjmp(c->jb)) goto done;
         fcomp_t* mainfc = (fcomp_t*)arena_alloc(&w->arena, sizeof(fcomp_t));

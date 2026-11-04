@@ -122,6 +122,21 @@
       out.add(m[1].replace(/\s+/g, ""));
     return [...out];
   }
+  const FILE_BOUNDARY = "\n// <studio-file-boundary>\n";
+  function namespaceScopes(src, b) {
+    const files = []; let start = 0, next;
+    while ((next = src.indexOf(FILE_BOUNDARY, start)) >= 0) { files.push({start,end:next,name:"",parent:null,imports:[]}); start=next+FILE_BOUNDARY.length; }
+    files.push({start,end:src.length,name:"",parent:null,imports:[]});
+    const scopes=[...files];
+    const at = pos => scopes.filter(n=>pos>=n.start&&pos<=n.end).sort((a,b)=>(a.end-a.start)-(b.end-b.start))[0];
+    for (const m of b.matchAll(/\bnamespace\s+([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*([{;])/g)) {
+      const parent=at(m.index), open=m.index+m[0].length-1;
+      const own=m[1].replace(/\s+/g,"");
+      scopes.push({start:open+1,end:m[2]==="{"?matchBrace(b,open):parent.end,name:parent.name?parent.name+"."+own:own,parent,imports:[]});
+    }
+    for(const m of b.matchAll(/\busing\s+([A-Za-z_]\w*(?:\s*\.\s*[A-Za-z_]\w*)*)\s*;/g))at(m.index).imports.push(m[1].replace(/\s+/g,""));
+    return {namespaceScopes:scopes,scopeAt:at};
+  }
   const TYPE_RE = String.raw`(?:[A-Za-z_][\w.]*(?:\s*<[^<>;(){}=]*(?:<[^<>;(){}=]*>[^<>;(){}=]*)*>)?(?:\[[,\s]*\])*\??|\([^()]*\))`;
   function scopesOf(b) {
     const scopes = [], pairs = [], braces = [], parens = [];
@@ -153,7 +168,7 @@
   let cacheSrc = null, cache = null;
   function symbols(src) {
     if (src === cacheSrc) return cache;
-    const b = blank(src);
+    const b = blank(src), namespaces=namespaceScopes(src,b);
     const user = Object.create(null), funcs = Object.create(null), enums = Object.create(null);
     /* classes / structs / records / interfaces */
     const cre = /\b(class|struct|record|interface)\s+([A-Za-z_]\w*)(?:\s*<[^>{]*>)?(?:\s*\(([^)]*)\))?(?:\s*:\s*([\w<>,.\s]+?))?\s*(?=\{|;)/g;
@@ -161,7 +176,10 @@
     while ((m = cre.exec(b))) {
       const name = m[2], open = b.indexOf("{", m.index + m[0].length - 1);
       const end = open >= 0 && b[m.index + m[0].length] !== ";" ? matchBrace(b, open) : m.index + m[0].length;
-      const c = user[name] = { name, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, doc: `${m[1]} ${name} (this file)` };
+      const scope=namespaces.scopeAt(m.index);
+      const outer=Object.values(user).filter(c=>m.index>c.start&&m.index<c.end).sort((a,b)=>b.start-a.start)[0];
+      const qualified=outer?outer.name+"."+name:scope.name?scope.name+"."+name:name;
+      const c = user[qualified] = { name:qualified, shortName:name, scope, outer, kind: m[1], ctors: [], s: Object.create(null), i: Object.create(null), base: m[4] ? m[4].split(",").map((x) => x.trim().replace(/<.*/, "")) : [], start: m.index, end, doc: `${m[1]} ${name} (this file)` };
       if (m[3] != null) {                                  // primary constructor (record / class)
         const ps = parseParams(m[3]); c.ctors.push({ name, kind: "ctor", params: ps, ret: name, doc: "", cls: name });
         for (const p of ps) (c.i[p.name] = [{ name: p.name, kind: "p", ret: p.type, doc: "", cls: name, inst: true }]);
@@ -175,7 +193,7 @@
         if (depth === 0) {
           if (ch === "(") par++; else if (ch === ")") par = Math.max(0, par - 1);
           if (par === 0 && (ch === "{" || ch === ";" || ch === "=" && body[i + 1] !== ">" && body[i + 1] !== "=" && !/[=!<>]/.test(body[i - 1]))) {
-            memberDecl(c, stmt.trim(), name);
+            memberDecl(c, stmt.trim(), qualified);
             stmt = "";
             if (ch === "=") { while (i < body.length && body[i] !== ";" && body[i] !== "{") i++; if (body[i] === "{") { const e = matchBrace(body, i); i = e; } }
             else if (ch === "{") { depth = 1; }
@@ -191,7 +209,13 @@
     }
     /* enums */
     const ere = /\benum\s+([A-Za-z_]\w*)\s*(?::\s*\w+\s*)?\{([^}]*)\}/g;
-    while ((m = ere.exec(b))) enums[m[1]] = m[2].split(",").map((x) => x.trim().replace(/\s*=.*$/, "")).filter((x) => /^[A-Za-z_]\w*$/.test(x));
+    while ((m = ere.exec(b))) {
+      const scope=namespaces.scopeAt(m.index),outer=Object.values(user).filter(c=>m.index>c.start&&m.index<c.end).sort((a,b)=>b.start-a.start)[0];
+      const name=outer?outer.name+"."+m[1]:scope.name?scope.name+"."+m[1]:m[1];
+      const values=enums[name]=m[2].split(",").map(x=>x.trim().replace(/\s*=.*$/,"" )).filter(x=>/^[A-Za-z_]\w*$/.test(x));
+      const statics=Object.create(null);for(const v of values)statics[v]=[{name:v,kind:"c",ret:name,doc:"enum "+name,cls:name,access:"public"}];
+      user[name]={name,shortName:m[1],scope,outer,kind:"enum",ctors:[],s:statics,i:Object.create(null),base:[],start:m.index,end:m.index+m[0].length,doc:"enum "+name};
+    }
     /* top-level / local functions: Type Name(params) { or => */
     const fre = new RegExp(String.raw`(?:^|[;{}\n])\s*((?:(?:static|public|private|internal|protected|async|unsafe|override|virtual|abstract|extern|new)\s+)*)(${TYPE_RE})\s+([A-Za-z_]\w*)\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)\s*(?=\{|=>)`, "g");
     while ((m = fre.exec(b))) {
@@ -202,61 +226,96 @@
       if (inClass) continue;
       (funcs[name] || (funcs[name] = [])).push({ name, kind: "m", params: parseParams(m[4]), ret: type, doc: "local function (this file)", cls: "" });
     }
-    cacheSrc = src; cache = { user, funcs, enums, b, ...scopesOf(b) };
+    cacheSrc = src; cache = { user, funcs, enums, b, ...namespaces, ...scopesOf(b) };
     return cache;
   }
   function memberDecl(c, d, clsName) {
     d = d.replace(/\[[^\]]*\]\s*/g, (x) => (/^\[\s*\w/.test(x) && /\]\s*$/.test(x) && !/\w\s*\[/.test(d) ? "" : x)).replace(/\s+/g, " ").trim();
     if (!d) return;
+    d = d.replace(/\s*=>[\s\S]*$/, "").trim();
     const isStatic = /\b(static|const)\b/.test(d);
     const mods = /^((?:(?:static|public|private|internal|protected|readonly|const|virtual|override|abstract|async|sealed|new|extern|unsafe|volatile|event)\s+)*)/.exec(d)[1];
     const rest = d.slice(mods.length);
+    const access = /\bprivate\b/.test(mods) ? "private" : /\bprotected\b/.test(mods) && !/\binternal\b/.test(mods) ? "protected" : /\b(public|internal)\b/.test(mods) || c.kind === "interface" ? "public" : "private";
     let m;
-    if ((m = new RegExp(String.raw`^(${clsName})\s*\((.*)\)\s*(?::\s*(?:base|this)\s*\(.*\))?$`).exec(rest))) {
-      c.ctors.push({ name: clsName, kind: "ctor", params: parseParams(m[2]), ret: clsName, doc: "", cls: clsName }); return;
+    if ((m = new RegExp(String.raw`^(${c.shortName})\s*\((.*)\)\s*(?::\s*(?:base|this)\s*\(.*\))?$`).exec(rest))) {
+      c.ctors.push({ name: clsName, kind: "ctor", params: parseParams(m[2]), ret: clsName, doc: "", cls: clsName, access }); return;
     }
     if ((m = new RegExp(String.raw`^(${TYPE_RE})\s+([A-Za-z_]\w*)\s*(?:<[^>]*>)?\s*\((.*)\)(?:\s*where .*)?$`).exec(rest))) {
-      const mem = { name: m[2], kind: "m", params: parseParams(m[3]), ret: m[1], doc: `${isStatic ? "static " : ""}method of ${clsName}`, cls: clsName, inst: !isStatic };
+      const mem = { name: m[2], kind: "m", params: parseParams(m[3]), ret: m[1], doc: `${isStatic ? "static " : ""}method of ${clsName}`, cls: clsName, inst: !isStatic, access };
       const t = isStatic ? c.s : c.i; (t[mem.name] || (t[mem.name] = [])).push(mem); return;
     }
     if ((m = new RegExp(String.raw`^(${TYPE_RE})\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*(?:=>.*)?$`).exec(rest))) {
       for (const nm of m[2].split(",").map((x) => x.trim())) {
-        const mem = { name: nm, kind: /\bconst\b/.test(mods) ? "c" : "p", ret: m[1], doc: `${/\bconst\b/.test(mods) ? "const" : "field / property"} of ${clsName}`, cls: clsName, inst: !isStatic };
+        const mem = { name: nm, kind: /\bconst\b/.test(mods) ? "c" : "p", ret: m[1], doc: `${/\bconst\b/.test(mods) ? "const" : "field / property"} of ${clsName}`, cls: clsName, inst: !isStatic, access };
         const t = isStatic ? c.s : c.i; t[nm] = [mem];
       }
     }
   }
 
   /* ---------------------------------------------------------------- lookup */
-  function classInfo(name, src) {
-    if (!name) return null;
-    const sy = src != null ? symbols(src) : null;
-    if (sy && sy.user[name]) return sy.user[name];
-    const s = splitType(name); const base = s ? s.base : name;
-    if (sy && sy.user[base]) return sy.user[base];
-    return classes[base] || null;
+  function ownerAt(src,pos) {
+    return Object.values(symbols(src).user).filter(c=>pos>c.start&&pos<c.end).sort((a,b)=>b.start-a.start)[0]||null;
   }
-  function isClassName(name, src) {
-    const sy = src != null ? symbols(src) : null;
-    return !!(classes[name] && name !== "Array_i" && name !== "IEnumerable" || window.MCS_API?.[name] && name !== "*" || sy && (sy.user[name] || sy.enums[name]));
+  function resolveUser(name,src,pos=0) {
+    const sy=symbols(src), own=ownerAt(src,pos);
+    for(let c=own;c;c=c.outer){if(name===c.shortName||name===c.name)return c; if(sy.user[c.name+"."+name])return sy.user[c.name+"."+name];}
+    for(let ns=sy.scopeAt(pos);ns;ns=ns.parent){
+      const candidate=ns.name?ns.name+"."+name:name;
+      if(sy.user[candidate])return sy.user[candidate];
+      const hits=[...new Set(ns.imports.map(n=>sy.user[n+"."+name]).filter(Boolean))];
+      if(hits.length>1)return null;
+      if(hits.length===1)return hits[0];
+      let parentName=ns.name;
+      while(parentName.includes(".")){
+        parentName=parentName.slice(0,parentName.lastIndexOf("."));
+        if(ns.parent&&parentName.length<=ns.parent.name.length)break;
+        if(sy.user[parentName+"."+name])return sy.user[parentName+"."+name];
+      }
+    }
+    return sy.user[name]||null;
+  }
+  function classInfo(name, src, pos=0) {
+    if(!name)return null;
+    const t=splitType(name), base=t?t.base:name;
+    if(src!=null){const c=resolveUser(base,src,pos);if(c)return c;}
+    return classes[base]||null;
+  }
+  function isClassName(name, src, pos=0) {
+    return !!(classes[name]&&name!=="Array_i"&&name!=="IEnumerable"||window.MCS_API?.[name]&&name!=="*"||src!=null&&(resolveUser(name,src,pos)||symbols(src).enums[name]));
+  }
+  function derivesFrom(cls,base,src,seen=new Set()) {
+    if(!cls||seen.has(cls.name))return false;seen.add(cls.name);
+    if(cls.name===base)return true;
+    return cls.base.some(n=>derivesFrom(classInfo(n,src,cls.start+1),base,src,seen));
+  }
+  function accessible(mem,src,pos,receiver,baseAccess=false) {
+    if(!mem.access||mem.access==="public")return true;
+    const own=ownerAt(src,pos), declaring=symbols(src).user[mem.cls];
+    for(let c=own;c;c=c.outer)if(c===declaring)return true;
+    if(mem.access==="protected"&&derivesFrom(own,mem.cls,src)){
+      const recv=classInfo(receiver,src,pos);
+      return mem.inst===false||baseAccess||derivesFrom(recv,own.name,src);
+    }
+    return false;
   }
   /* members of a type: map name -> overloads; static or instance side */
-  function membersOf(type, isStatic, src) {
+  function membersOf(type, isStatic, src, pos=0, baseAccess=false) {
     const out = Object.create(null), seen = new Set();
     const s = splitType(type); if (!s) return out;
     const sy = src != null ? symbols(src) : null;
     if (sy && sy.enums[s.base] && isStatic) { for (const v of sy.enums[s.base]) out[v] = [{ name: v, kind: "c", ret: s.base, doc: `enum ${s.base}`, cls: s.base }]; return out; }
     const walk = (name) => {
       if (seen.has(name)) return; seen.add(name);
-      const c = (sy && sy.user[name]) || classes[ALIAS[name] || name];
+      const c = src!=null ? classInfo(name,src,pos) : classes[ALIAS[name]||name];
       if (c) {
         const t = isStatic ? c.s : c.i;
-        for (const k in t) if (!out[k]) out[k] = t[k];
-        for (const b of c.base || []) walk(b);
+        for (const k in t) if (!out[k]) { const allowed=t[k].filter(m=>!src||accessible(m,src,pos,type,baseAccess)); if(allowed.length)out[k]=allowed; }
+        for (const b of c.base || []) { const base=src!=null?classInfo(b,src,c.start+1):null; walk(base?base.name:b); }
       }
       /* names known to the runtime but without docs */
       const api = window.MCS_API?.[name === "Array_i" ? "*" : name];
-      if (api) for (const n of (isStatic ? api.s : api.i) || []) if (!out[n]) out[n] = [{ name: n, kind: "m", params: null, ret: null, doc: "", cls: name, inst: !isStatic }];
+      if (api && !(sy && sy.user[c?.name])) for (const n of (isStatic ? api.s : api.i) || []) if (!out[n]) out[n] = [{ name: n, kind: "m", params: null, ret: null, doc: "", cls: name, inst: !isStatic }];
     };
     walk(s.base);
     if (!isStatic && s.base !== "object") {
@@ -265,9 +324,9 @@
     }
     return out;
   }
-  function ctorsOf(type, src) {
-    const c = classInfo(type, src);
-    if (c && c.ctors && c.ctors.length) return c.ctors;
+  function ctorsOf(type, src, pos=0) {
+    const c = classInfo(type, src,pos);
+    if (c && c.ctors && c.ctors.length) return c.ctors.filter(m=>!src||accessible(m,src,pos,type));
     return [];
   }
 
@@ -332,9 +391,18 @@
     const parts = splitChain(expr);
     if (!parts) return null;
     let type = startType, isStatic = false;
+    if(!startType){
+      for(let end=parts.length;end>0;end--){
+        const head=parts.slice(0,end);if(head.some(p=>p.call||p.index))continue;
+        if(varType(head[0].name,src,pos,depth+1))break;
+        const name=head.map(p=>p.name).join("."),c=resolveUser(name,src,pos);
+        if(c){type=c.name;isStatic=true;parts.splice(0,end);if(!parts.length)return type;break;}
+      }
+    }
+    const resolvedStart=!!type&&!startType;
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
-      if (i === 0 && !startType) {
+      if (i === 0 && !startType && !resolvedStart) {
         if (p.name === "S") return null;
         if (p.name === "this" || p.name === "base") {
           const owner = Object.values(symbols(src).user).filter(c => pos > c.start && pos < c.end).sort((a,b) => b.start-a.start)[0];
@@ -352,12 +420,12 @@
         else {
           const v = varType(p.name, src, pos, depth + 1);
           if (v) { type = v; isStatic = false; }
-          else if (isClassName(p.name, src)) { type = p.name; isStatic = true; }
+          else if (isClassName(p.name, src,pos)) { type = p.name; isStatic = true; }
           else return null;
         }
-      } else if (i === 0) { /* literal start */ }
+      } else if (i === 0 && !resolvedStart) { /* literal start */ }
       else {
-        const mem = membersOf(type, isStatic, src)[p.name];
+        const mem = membersOf(type, isStatic, src,pos,i===1&&parts[0].name==="base")[p.name];
         if (!mem) {
           /* Encoding.UTF8 etc are static properties of instance type */
           return null;
@@ -456,12 +524,12 @@
   /* overloads for a call context */
   function signaturesFor(ctx, src) {
     if (!ctx) return [];
-    if (ctx.isNew) return ctorsOf(ctx.name, src);
+    if (ctx.isNew) return ctorsOf(ctx.name, src,ctx.open);
     if (ctx.recv) {
       const recvType = typeOfExpr(ctx.recv, src, ctx.open);
-      const stat = !!(recvType && isClassName(ctx.recv, src) && !varType(ctx.recv, src, ctx.open));
+      const stat = !!(recvType && isClassName(ctx.recv, src,ctx.open) && !varType(ctx.recv, src, ctx.open));
       const t = recvType;
-      const mem = t ? membersOf(t, stat, src)[ctx.name] : null;
+      const mem = t ? membersOf(t, stat, src,ctx.open,ctx.recv==="base")[ctx.name] : null;
       if (mem) return mem.filter((x) => x.kind === "m" && x.params).map((x) => ({ ...x, ret: bindRet(x.ret, t), params: x.params.map((p) => ({ ...p, type: bindRet(p.type, t) })) }));
       return [];
     }
@@ -493,6 +561,6 @@
     return `${mem.ret || ""} ${own}.${mem.name} { get; }`.trim();
   }
 
-  window.Lang = { classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, blank, declaredNamespaces, symbols, classInfo, isClassName, membersOf, ctorsOf,
+  window.Lang = { FILE_BOUNDARY, ownerAt, resolveUser, accessible, classes, NAMESPACES, parseDocs, splitType, elemType, bindRet, blank, declaredNamespaces, symbols, classInfo, isClassName, membersOf, ctorsOf,
     varType, typeOfExpr, splitChain, receiverBefore, callContext, signaturesFor, locals, signature, fmtParam, KEYW };
 })();
