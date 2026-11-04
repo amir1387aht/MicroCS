@@ -535,6 +535,8 @@
     }
     const sy = symbols(src);
     if (sy.funcs[ctx.name]) return sy.funcs[ctx.name];
+    const lv = window.StudioLvgl && /^(?:lv|LV|lvgl_host)_/.test(ctx.name) ? window.StudioLvgl.fn(ctx.name) : null;
+    if (lv) return lv;
     for (const c of Object.values(sy.user)) if (ctx.open > c.start && ctx.open < c.end && (c.i[ctx.name] || c.s[ctx.name])) return (c.i[ctx.name] || c.s[ctx.name]).filter((x) => x.kind === "m");
     return [];
   }

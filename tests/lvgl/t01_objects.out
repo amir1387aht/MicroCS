@@ -1,0 +1,21 @@
+True
+size 80x30
+pos 10,5
+text Press
+children 1 1
+True
+True
+True
+True
+False
+True
+True
+False
+slider 42 10..90
+bar 70
+switch True
+dropdown 2 of 3
+textarea abcdef
+children 3 5
+children 2
+children 0

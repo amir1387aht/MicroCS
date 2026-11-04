@@ -1,0 +1,12 @@
+timer fired True
+paused True
+repeat 3 -> 3
+data payload
+midway True
+anim ready
+done True x=50
+deleted object animation ended without errors
+before False
+after True
+finished timer: ObjectDisposedException
+deleted True

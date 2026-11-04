@@ -9,3 +9,6 @@ __pycache__/
 .DS_Store
 dist/
 node_modules/
+# LVGL binding: generated from the LVGL headers (python3 tools/lvgl_gen/build_api.py)
+modules/lvgl/mcs_lvgl_api.inc
+tools/lvgl_gen/lvgl_api.json

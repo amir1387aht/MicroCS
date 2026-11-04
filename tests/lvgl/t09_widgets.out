@@ -1,0 +1,7 @@
+clicks 1
+slider near 50: True changed True
+switch checked True
+checkbox checked True
+bar 70 arc 40 dd 2 text abc
+label Hello children 7
+done

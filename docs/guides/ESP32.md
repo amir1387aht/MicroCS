@@ -75,7 +75,7 @@ flash pins (ESP32-C3: GPIO 2, 8, 9 at boot, 11–17 flash; ESP32: 0, 2, 5, 12, 1
 ### 4. Options (optional)
 
 `idf.py menuconfig` → *Component config* → *MicroCS*: build profile, filesystem
-(LittleFS / TinyFS / YAFFS2), WS2812 and servo drivers, U8g2 displays, threads. Settings you
+(LittleFS / TinyFS / YAFFS2), WS2812 and servo drivers, U8g2 displays, [LVGL](../LVGL.md) graphics, threads. Settings you
 want to keep go into `sdkconfig.defaults` (delete `sdkconfig` afterwards so they are read
 again). Everything else — VM limits, library switches — goes into a `mcs_user_config.h` in
 the project folder ([CONFIGURATION.md](../CONFIGURATION.md)).

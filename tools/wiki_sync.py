@@ -54,6 +54,7 @@ SECTIONS = [
         ("docs/DRIVERS.md", "Device-Drivers"),
         ("docs/NETWORK.md", "Wi-Fi-and-Networking"),
         ("docs/U8G2.md", "U8g2-Displays"),
+        ("docs/LVGL.md", "LVGL-Graphics"),
         ("docs/FILESYSTEM.md", "Filesystem"),
         ("docs/THREADS.md", "Threads"),
         ("docs/SCHEDULER.md", "Scheduler"),
@@ -76,6 +77,7 @@ SECTIONS = [
         ("tools/studio/README.md", "MicroCS-Studio"),
         ("tools/studio/templates/README.md", "Studio-Template-Authoring"),
         ("examples/README.md", "Examples"),
+        ("examples/lvgl/README.md", "LVGL-Examples"),
     ]),
     ("Embedding and tuning", [
         ("docs/EMBEDDING.md", "Embedding"),
@@ -112,6 +114,10 @@ def pages():
     return [(title, src, name) for title, items in SECTIONS for src, name in items]
 
 
+# working notes that are not part of the published documentation
+UNPUBLISHED = {"docs/LVGL_HANDOFF.md"}
+
+
 def documentation_sources():
     """Inventory tracked/new non-ignored Markdown; ignore downloaded build trees."""
     try:
@@ -122,7 +128,7 @@ def documentation_sources():
             raw = subprocess.check_output(
                 ["git", "-C", ROOT, "ls-files", "-z", "--cached", "--others",
                  "--exclude-standard", "--", "*.md"])
-            return {os.fsdecode(p) for p in raw.split(b"\0") if p}
+            return {os.fsdecode(p) for p in raw.split(b"\0") if p} - UNPUBLISHED
     except (OSError, subprocess.CalledProcessError):
         pass
     # Source archives have no .git. Keep generation usable there too.
@@ -133,7 +139,7 @@ def documentation_sources():
         for name in files:
             if name.endswith(".md"):
                 found.add(os.path.relpath(os.path.join(base, name), ROOT).replace(os.sep, "/"))
-    return found
+    return found - UNPUBLISHED
 
 
 def inventory_errors(plist, sources):

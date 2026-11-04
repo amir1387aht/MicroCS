@@ -54,6 +54,19 @@ All notable changes. Versions follow `MCS_VERSION_*` in `include/mcs.h`.
 * Add `-DMCS_STACK_STRESS` test mode (relocate stack/frames on every growth,
   poison the old block) and `tests/t34_stack_relocation.cs`.
 
+## Unreleased — optional LVGL 8.x / 9.x binding
+
+* New opt-in `MCS_ENABLE_LVGL`: scripts call the LVGL C API with its C names (`lv_button_create`, `LV_ALIGN_CENTER`, `lv_style_t`, ...) on
+  LVGL 8.0 to 9.x. The name tables and wrappers are generated from the LVGL headers (`tools/lvgl_gen`); v8 and v9 spellings both work.
+  Events, timers, animations and async calls take lambdas; pointers are objects with identity and deleted objects raise
+  `ObjectDisposedException`; images and fonts load from the MicroCS file system through an LVGL drive. LVGL is not bundled and the firmware does the
+  port. See [docs/LVGL.md](docs/LVGL.md).
+* Fix all-release LVGL builds at version boundaries: guard APIs unavailable before 8.3/9.1, adapt observer user data on 9.0/9.1, restore 9.0 screen aliases and support deprecated 9.6 APIs under strict warnings.
+* Build support: CMake (`cmake/MicroCSLvgl.cmake`), ESP-IDF and Zephyr Kconfig, Arduino (`make_arduino.py --lvgl`), PlatformIO, `microcs.mk`;
+  `make mcs-lvgl` / `lvgl-test` / `fetch-lvgl` / `lvgl-api`; `mcs --lvgl[=WxH]` in-memory display on the host; capability `Lvgl`.
+* Studio: LVGL completion, hover and signature help (lazy-loaded data) and the *LVGL graphics* template category, including keyboard, calendar, canvas, dashboard and tree-walk examples.
+* Prevent reuse of the same font wrapper after an explicit font destroy; add lifetime/GC stress and explicit cleanup tests. Font and style cleanup still belongs to the script or host.
+
 ## 1.19.0 — Studio workbench and editor intelligence
 
 * Refresh Studio with calmer dark/light chrome, separate action/document rows,

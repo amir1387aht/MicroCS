@@ -82,7 +82,7 @@ void mcs_set_global(mcs_vm_t* vm, const char* name, mcs_value_t v) {
 /* create a lazily registered global; outside a run an out-of-memory panic
  * must not abort the program, so it gets its own recovery point */
 static bool resolve_guarded(mcs_vm_t* vm, const char* name, size_t len) {
-    if (!mcs_lazy_known(vm, name, len)) return false;
+    if (!mcs_lazy_known_any(vm, name, len)) return false;
     if (vm->panic) return mcs_lazy_resolve(vm, name, len);
     jmp_buf jb;
     bool ok = false;
@@ -96,7 +96,7 @@ bool mcs_global_exists(mcs_vm_t* vm, const char* name) {
     size_t len = strlen(name);
     mcs_string_t* s = mcs_find_interned(vm, name, len);
     if (s && s->obj.aux && vm->globals[s->obj.aux - 1u].type != MCS_T_UNDEF) return true;
-    return mcs_lazy_known(vm, name, len);
+    return mcs_lazy_known_any(vm, name, len);
 }
 mcs_value_t mcs_get_global(mcs_vm_t* vm, const char* name) {
     size_t len = strlen(name);

@@ -6,3 +6,5 @@ dependencies:
   idf: ">=5.0"
   # LittleFS on a flash partition: persistent scripts (ports/esp32, mcs_esp32_littlefs)
   joltwallet/littlefs: ">=1.14.0"
+  # LVGL (menuconfig > MicroCS > LVGL, docs/LVGL.md) is optional and not listed here: add it to the project with
+  #   idf.py add-dependency "lvgl/lvgl^9"      (8.3+ and 9.x work; esp_lvgl_port does the display / input porting)

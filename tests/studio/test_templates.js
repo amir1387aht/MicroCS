@@ -6,14 +6,18 @@
 // U8g2 / U8x8 templates print a hint on firmware without u8g2; with a u8g2 build
 // (make mcs-u8g2) they run against the simulated SSD1306 (--oled) and must really draw:
 //   node tests/studio/test_templates.js build/mcs_u8g2 [--only=u8g2]
+// LVGL templates (33-lvgl) run on the in-memory display with an LVGL build (make mcs-lvgl) and must really use LVGL;
+// every other firmware prints a hint and exits:
+//   node tests/studio/test_templates.js build/mcs_lvgl --only=lvgl
 // Bluetooth LE templates need a BLE build (make mcs-ble; skipped elsewhere):
 //   node tests/studio/test_templates.js build/mcs_ble --only=ble
 const fs = require('fs'), os = require('os'), path = require('path'), { spawn, execFileSync } = require('child_process');
 const MCS = path.resolve(process.argv[2] || './mcs');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
 const FEATURES = execFileSync(MCS, ['--features']).toString();
-const HAS_U8G2 = / u8g2\b/.test(FEATURES), HAS_BLE = / ble\b/.test(FEATURES);
+const HAS_U8G2 = / u8g2\b/.test(FEATURES), HAS_BLE = / ble\b/.test(FEATURES), HAS_LVGL = / lvgl\b/.test(FEATURES);
 const isU8g2 = (t) => /\bU8(g2|x8)\b/.test(t.text);
+const isLvgl = (t) => /\blv_\w+\(/.test(t.text);
 const isBle = (t) => /\bBle(Service|Uart|Advertisement)?\b/.test(t.text);
 global.window = {};
 const studio = (f) => fs.readFileSync(path.join(__dirname, '../../tools/studio', f), 'utf8');
@@ -24,14 +28,15 @@ function failure(message) {
   if (process.env.GITHUB_ACTIONS) console.log('::error title=Studio template failure::' +
     message.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A'));
 }
-const all = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)) && (ONLY !== 'ble' || isBle(t)));
+const all = TEMPLATES.filter((t) => t.file.endsWith('.cs') && (ONLY !== 'u8g2' || isU8g2(t)) && (ONLY !== 'ble' || isBle(t)) && (ONLY !== 'lvgl' || isLvgl(t)));
 const cs = all; // BLE examples must return cleanly when the module / radio is missing
 function run(t) {
   return new Promise((done) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcs-tpl-'));
     fs.writeFileSync(path.join(dir, t.file), t.text);
     const oled = HAS_U8G2 && isU8g2(t);
-    const p = spawn(MCS, [...(oled ? ['--oled'] : []), '--sim', '--fs', dir, '--time-limit', '3000', '--run-for', '2500', path.join(dir, t.file)]);
+    const lvgl = HAS_LVGL && isLvgl(t);
+    const p = spawn(MCS, [...(oled ? ['--oled'] : []), ...(lvgl ? ['--lvgl=320x240'] : []), '--sim', '--fs', dir, '--time-limit', '3000', '--run-for', '2500', path.join(dir, t.file)]);
     let err = '', out = '';
     p.stderr.on('data', (d) => (err += d)); p.stdout.on('data', (d) => (out += d));
     p.stdin.on('error', () => {}); p.stdin.end('Ann\n7\n');
@@ -44,6 +49,7 @@ function run(t) {
           (!out.includes('Next phone Read: Temperature: 25') || /Unhandled exception/.test(err))) {
         failure(`FAIL ${t.name}: read-only value update did not execute cleanly\n${err}\n${out}`);
       }
+      if (lvgl && (/no LVGL/i.test(out) || /MissingMemberException/.test(err))) failure(`FAIL ${t.cat} / ${t.name}: LVGL call failed on the in-memory display\n${err.trim().split('\n').slice(0, 4).join('\n')}\n${out.slice(-300)}`);
       const ok = code === 0 || /time limit|budget/i.test(err) || /Unhandled exception\. (IOException|TimeoutException)/.test(err) || signal === 'SIGTERM';
       if (!ok) failure(`FAIL ${t.cat} / ${t.name} (exit=${code}, signal=${signal})\n${err.trim().split('\n').slice(0, 8).join('\n')}\n${out.slice(-500)}`);
       fs.rmSync(dir, { recursive: true, force: true });
@@ -60,6 +66,7 @@ function run(t) {
   for (const t of TEMPLATES) if (!t.src || !t.desc) { fails++; console.log(`FAIL ${t.cat} / ${t.name}: no source file or description (run tools/studio/gen_templates.py)`); }
   const labels = new Set();
   for (const s of SNIPPETS) { if (labels.has(s.label)) { fails++; console.log('FAIL duplicate snippet ' + s.label); } labels.add(s.label); }
+  if (ONLY === 'lvgl' && (!HAS_LVGL || !cs.length)) { fails++; console.log('FAIL no LVGL templates ran (build with make mcs-lvgl)'); }
   if (ONLY === 'ble' && (!HAS_BLE || !cs.length)) { fails++; console.log('FAIL no Bluetooth LE templates ran (build with make mcs-ble)'); }
   const skipped = all.length - cs.length;
   console.log(`${cs.length} C# templates${skipped ? ` (${skipped} Bluetooth LE skipped: no ble in this build)` : ''}${HAS_U8G2 ? ` (${cs.filter(isU8g2).length} on the simulated OLED)` : ''}, ${TEMPLATES.length} total, ${SNIPPETS.length} snippets: ${fails ? fails + ' FAILED' : 'ALL PASSED'}`);

@@ -26,6 +26,8 @@ the editor works there, but it can't connect to a board.
 | `api.js` | class and member names known to the runtime (completion fallback) |
 | `docs.js` | signatures and one-line docs of every library member (completion details, parameter info, hover) |
 | `format.js` | offline, whitespace-only C# formatter; protects literals and comments |
+| `lvgl.js` | lazy loader for the LVGL IntelliSense data: completion, hover and signature help for `lv_*` / `LV_*` (loads when a script mentions them) |
+| `lvgl_api.js` | **generated** by `python3 tools/lvgl_gen/studio_data.py` from the LVGL API tables (all 8.x / 9.x releases, about 350 KB; CI checks it is current) |
 | `lang.js` | C# language service: symbols of the open file, type inference, call context |
 
 No build step for the app: edit a file and reload the page. After changing a template run
@@ -207,6 +209,9 @@ led.Toggle();
 simulated board. Templates that use `U8g2` / `U8x8` start with an
 `if (!Drivers.Has("u8g2")) { ...; return; }` hint and are run against the simulated OLED with a
 u8g2 build: `make fetch-u8g2 mcs-u8g2 && node tests/studio/test_templates.js build/mcs_u8g2 --only=u8g2`.
+The LVGL templates (category *LVGL graphics*, `requires: Lvgl`) start with an
+`if (!Hal.Has("Lvgl")) { ...; return; }` hint and run on the in-memory display of an LVGL build:
+`make fetch-lvgl mcs-lvgl && node tests/studio/test_templates.js build/mcs_lvgl --only=lvgl` ([docs/LVGL.md](../../docs/LVGL.md)).
 `tests/studio/test_studio.js` tests the page in a headless browser.
 
 Protocol and features: [docs/STANDALONE.md](../../docs/STANDALONE.md#6-in-the-browser-microcs-studio).
