@@ -256,6 +256,7 @@ build/mcs_lvgl --sim --lvgl=320x240 tools/studio/templates/33-lvgl/hello_label.c
 signature, hover shows the C prototype and signature help follows the cursor. The data
 (`tools/studio/lvgl_api.js`, about 350 KB) loads lazily the first time a script mentions `lv_` or `LV_`, so Studio starts as fast as before.
 The **LVGL graphics** template category needs a firmware that reports the `Lvgl` capability; other firmwares hide it.
+When deleting a file while a foreground script is running, Studio asks for confirmation and stops that script before deleting. Scheduled jobs may continue running.
 
 ## Tests
 

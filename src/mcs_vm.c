@@ -1,5 +1,8 @@
 /* MicroCS virtual machine: dispatch loop, calls, members, exceptions, API. */
 #include "mcs_internal.h"
+#if MCS_ENABLE_LVGL
+#include "mcs_lvgl.h"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -2746,6 +2749,10 @@ mcs_vm_t* mcs_new(const mcs_config_t* cfg_in) {
 
 void mcs_free(mcs_vm_t* vm) {
     if (!vm) return;
+#if MCS_ENABLE_LVGL
+    /* Detach callbacks and release LVGL objects while VM values are still alive. */
+    mcs_lvgl_close_lib(vm);
+#endif
     vm->gc_pause++;
     native_args_restore(vm, NULL);
     mcs_free_objects(vm);

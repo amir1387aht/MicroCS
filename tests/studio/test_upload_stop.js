@@ -2,7 +2,7 @@
 // and the device; test the actual App method without DOM or a physical board.
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const js = fs.readFileSync(path.join(__dirname, '../../tools/studio/studio.js'), 'utf8');
-const a = js.indexOf('  async stopForUpload() {'), b = js.indexOf('  /* uploads go through', a);
+const a = js.indexOf('  async stopForUpload('), b = js.indexOf('  /* uploads go through', a);
 assert(a > 0 && b > a);
 function setup(running, onSleep = () => {}) {
   let now = 0, stops = 0, waits = 0, notes = 0;

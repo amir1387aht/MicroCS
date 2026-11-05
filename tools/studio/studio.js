@@ -2117,20 +2117,35 @@ const App = {
     } catch (e) { toast("Rename failed: " + e.message, "err"); }
   },
   async remove(path, isDir) {
-    const ok = await dialog({ title: `Delete ${baseName(path)}?`, text: isDir ? `The folder ${path} and everything in it will be deleted from the device.` : `${path} will be deleted from the device.`, ok: "Delete", danger: true });
+    // A foreground run owns the serial queue (LVGL examples commonly run
+    // indefinitely). Do not silently interrupt it or queue a delete behind it.
+    const runningAtPrompt = dev.running, runAtPrompt = this.activeRunToken, epoch = dev.epoch;
+    const detail = isDir ? `The folder ${path} and everything in it will be deleted from the device.` : `${path} will be deleted from the device.`;
+    const text = detail + (runningAtPrompt ? " The running script will be stopped before deleting; scheduled jobs may continue." : "");
+    const ok = await dialog({ title: `Delete ${baseName(path)}?`, text, ok: "Delete", danger: true });
     if (!ok) return;
-    try {
-      await dev.op(async () => {
-        const rmTree = async (p, dir) => {
-          if (dir) for (const c of await dev.ls(p)) await rmTree(joinPath(p, c.name), c.dir);
-          await dev.check("rm " + p);
-        };
-        await rmTree(path, isDir);
-      });
-      for (const t of this.tabs) if (t.path === path || t.path?.startsWith(path + "/")) { t.dirty = true; t.saved = null; }
-      this.renderTabs(); this.refresh();
-      toast(`Deleted ${path}`, "ok");
-    } catch (e) { toast("Delete failed: " + e.message, "err"); this.refresh(true); }
+    if (!dev.connected || dev.epoch !== epoch) { toast("Delete cancelled: device connection changed.", "err"); return; }
+    // A different script may have started while the confirmation was open.
+    if (dev.running && (!runningAtPrompt || this.activeRunToken !== runAtPrompt)) { toast("Delete cancelled: a different script started. Try again to confirm stopping it.", "err"); return; }
+    return this.workflow(async () => {
+      try {
+        // A run started outside a Studio workflow still needs to release the queue.
+        await this.stopForUpload("deleting files");
+        if (!dev.connected || dev.epoch !== epoch) throw new Error("Device connection changed");
+        await dev.op(async () => {
+          if (!dev.connected || dev.epoch !== epoch) throw new Error("Device connection changed");
+          const rmTree = async (p, dir) => {
+            if (!dev.connected || dev.epoch !== epoch) throw new Error("Device connection changed");
+            if (dir) for (const c of await dev.ls(p)) await rmTree(joinPath(p, c.name), c.dir);
+            await dev.check("rm " + p);
+          };
+          await rmTree(path, isDir);
+        });
+        for (const t of this.tabs) if (t.path === path || t.path?.startsWith(path + "/")) { t.dirty = true; t.saved = null; }
+        this.renderTabs(); this.refresh();
+        toast(`Deleted ${path}`, "ok");
+      } catch (e) { this.refresh(true); throw new Error("Delete failed: " + e.message); }
+    }, "deleting files");
   },
   async upload(files) {
     if (!dev.connected) return toast("Connect a device first.", "err");
@@ -2156,14 +2171,14 @@ const App = {
     const avail = st.free + (old ? old.size : 0) + 4096;   // flash filesystems report free space in whole blocks
     if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(Math.max(0, avail - 4096))} free. Delete some files first.`);
   },
-  async stopForUpload() {
+  async stopForUpload(action = "uploading") {
     if (!dev.running) return;
-    term.line("— stopping the running script before upload —", "sys");
+    term.line(`— stopping the running script before ${action} —`, "sys");
     await dev.stop();                 // out of band: the run owns the operation queue
     const end = Date.now() + 4000;
     while (dev.running && dev.connected && Date.now() < end) await sleep(20);
     if (!dev.connected) throw new Error("Disconnected");
-    if (dev.running) throw new Error("The script did not stop. Press Stop or reset the board before uploading.");
+    if (dev.running) throw new Error(`The script did not stop. Press Stop or reset the board before ${action}.`);
   },
   /* uploads go through the device's UART buffer: retry slower if bytes were lost */
   async putReliable(path, data, prog) {
@@ -2380,7 +2395,7 @@ const App = {
     this.projectFolder = path; store.set("projectRoot", path); this.setProjectMode(true);
     this.updateButtons(); toast("Project: " + this.projectConfig());
   },
-  async workflow(action) {
+  async workflow(action, stopReason = "uploading") {
     if (this.workflowHandoff || this.workflowBusy && !dev.running) {
       toast("A save/build/run action is already in progress."); return false;
     }
@@ -2390,7 +2405,7 @@ const App = {
       this.workflowHandoff = true;
       const previous = this.workflowDone;
       try {
-        await this.stopForUpload();
+        await this.stopForUpload(stopReason);
         if (previous) await previous;
       } catch (e) {
         this.workflowHandoff = false;
@@ -2568,6 +2583,7 @@ const App = {
     ed.setError(0);
     const t0 = performance.now();
     const dec = new TextDecoder();
+    const runToken = {}; this.activeRunToken = runToken;
     dev.running = true; this.updateButtons();
     $("btnStop").disabled = false;
     let st, tail = "";
@@ -2586,7 +2602,7 @@ const App = {
         return r;
       });
     } catch (e) { st = { status: "ERR " + e.message }; }
-    dev.running = false; this.updateButtons();
+    dev.running = false; if (this.activeRunToken === runToken) this.activeRunToken = null; this.updateButtons();
     const ms = Math.round(performance.now() - t0);
     if (st.status === "OK") term.line(`✓ finished in ${ms} ms`, "ok");
     else {

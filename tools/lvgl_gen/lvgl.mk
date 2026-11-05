@@ -52,3 +52,11 @@ lvgl-test: mcs-lvgl
 	  ./build/mcs_lvgl_$(LVGL_API) --fs build/lvglfs $$o $$t > build/lvgl.txt 2>&1; \
 	  cmp -s build/lvgl.txt $${t%.cs}.out && echo "PASS $$t ($(LVGL_API))" || { echo "FAIL $$t ($(LVGL_API))"; diff build/lvgl.txt $${t%.cs}.out | head -40; exit 1; }; n=$$((n+1)); done; echo "lvgl-test: $$n passed on LVGL $(LVGL_API)"
 .PHONY: lvgl-api lvgl-test fetch-lvgl mcs-lvgl
+
+# Run after mcs-lvgl to verify embedded VM teardown against this LVGL version.
+lvgl-cleanup-test:
+	@test -f $(LVGL_OUT)/liblvgl.a || { echo "Build mcs-lvgl first"; exit 1; }
+	$(CC) -std=gnu99 -O1 -g -Wall -Wextra -Werror -Wno-error=cpp -Iinclude -DMCS_ENABLE_LVGL=1 '-DMCS_LVGL_API_INC="$(LVGL_INC)"' -DLV_CONF_INCLUDE_SIMPLE -Itests/lvgl/$(LVGL_API) -I$(LVGL_DIR) \
+	  $(SRC) $(MOD_SRC) ports/unix/mcs_lvgl_host.c tests/lvgl/test_vm_cleanup.c $(LVGL_OUT)/liblvgl.a -lm -Wl,--gc-sections -o build/test_lvgl_vm_cleanup
+	build/test_lvgl_vm_cleanup
+.PHONY: lvgl-cleanup-test
