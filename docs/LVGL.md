@@ -296,3 +296,11 @@ create them, and the CI `lvgl-api` job publishes the all-releases tables as the 
 * Tested on the host with LVGL 8.3.11 and 9.2.2 and compiled against 8.0.0 … 9.6.0. The **ESP-IDF, Zephyr and PlatformIO integrations are written but
   have not been built here** (no toolchains), and nothing has run on a real display yet; please report problems.
 * The v8/v9 name maps cover renames, not behaviour changes between LVGL releases.
+
+### Run the application on a separate task
+
+On an OS-enabled runtime with threads and LVGL enabled, set `cfg.async_lvgl = true` before `mcs_runtime_start`. Initialize LVGL and the display first, provide the LVGL tick, and enable `MCS_LVGL_AUTO_HANDLER`. The application runs in its own VM and OS task, including `/boot.cs`, `/main.cs`, LVGL callbacks and scheduler jobs. The task services LVGL at VM safepoints, including during a tight script loop; the shell remains available for Studio file transfers, deletion and commands. A finished entry script leaves its GUI and callbacks running until Stop.
+
+Do not pump `lv_timer_handler()` from the shell task once the application starts: LVGL callbacks must execute on the same task as their VM. Use `MCS_LVGL_LOCK` and `MCS_LVGL_UNLOCK` around any native LVGL access from other tasks. The separate VM needs an additional worker heap and task stack; configure thread heap and stack sizes for the device. On devices without enough contiguous RAM the application task will fail to start. This mode is opt-in and requires updated firmware and Studio.
+
+The shell and application have separate VM globals. Console commands execute in the shell VM; they do not share the application's variables or LVGL bindings. Only one GUI application can own LVGL at a time; running another application requires explicitly stopping the current one.

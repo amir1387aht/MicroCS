@@ -110,6 +110,7 @@ class Device {
   constructor() {
     this.port = null; this.writer = null; this.reader = null;
     this.buf = new Uint8Array(0);
+    this.idlePartial = new Uint8Array(0);
     this.wake = null;
     this.epoch = 0; this.opEpoch = 0;
     this.mode = "unknown";            // "machine" | "repl" | "unknown"
@@ -117,6 +118,7 @@ class Device {
     this.chain = Promise.resolve();
     this.pending = 0;
     this.running = false;             // a script started by `run` is executing
+    this.backgroundRun = false;       // isolated application task, not owner of the serial queue
     this.dec = new TextDecoder();
     this.onText = () => {};           // device output that no command is waiting for
     this.onState = () => {};
@@ -129,7 +131,7 @@ class Device {
 
   async open(port, baud, opts = {}) {
     await port.open({ baudRate: baud, bufferSize: 65536 });
-    this.port = port; this.closing = false; this.mode = "unknown"; this.buf = new Uint8Array(0);
+    this.port = port; this.closing = false; this.mode = "unknown"; this.buf = new Uint8Array(0); this.idlePartial = new Uint8Array(0);
     this.rx = 0; this.readErrors = 0;
     /* DTR/RTS are left as the browser sets them on open (both asserted). On ESP32
      * boards they drive EN/IO0 through the auto-reset circuit: changing them here
@@ -212,7 +214,29 @@ class Device {
   }
   data(v) {
     if (this.inOp) { this.buf = concat(this.buf, v); this.kick(); }
-    else this.emit(v);
+    else this.emitIdle(v);
+  }
+  logFrame(status) {
+    const m = /^LOG ([0-9a-f]*)$/.exec(status);
+    if (!m || m[1].length % 2) return false;
+    const bytes = new Uint8Array(m[1].length / 2);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(m[1].slice(i * 2, i * 2 + 2), 16);
+    this.emit(bytes);
+    return true;
+  }
+  emitIdle(bytes) {
+    this.idlePartial = concat(this.idlePartial, bytes);
+    for (;;) {
+      const i = this.idlePartial.indexOf(4);
+      if (i < 0) { if (this.idlePartial.length) this.emit(this.idlePartial); this.idlePartial = new Uint8Array(0); return; }
+      if (i) { this.emit(this.idlePartial.slice(0, i)); this.idlePartial = this.idlePartial.slice(i); }
+      const end = this.idlePartial.indexOf(10);
+      if (end < 0) return;
+      const frame = this.idlePartial.slice(0, end + 1);
+      const status = new TextDecoder().decode(frame.slice(1, -1)).replace(/\r$/, "");
+      this.idlePartial = this.idlePartial.slice(end + 1);
+      if (!this.logFrame(status)) this.emit(frame);
+    }
   }
   emit(bytes) {
     const text = this.dec.decode(bytes, { stream: true });
@@ -239,10 +263,11 @@ class Device {
     const run = async () => {
       if (!this.port) throw new Error("Not connected");
       this.inOp = true; this.opEpoch = this.epoch;
+      if (this.idlePartial.length) { this.buf = concat(this.buf, this.idlePartial); this.idlePartial = new Uint8Array(0); }
       try { return await fn(); }
       finally {
         this.inOp = false;
-        if (this.buf.length) { const b = this.buf; this.buf = new Uint8Array(0); this.emit(b); }
+        if (this.buf.length) { const b = this.buf; this.buf = new Uint8Array(0); this.emitIdle(b); }
       }
     };
     const p = this.chain.then(run, run).finally(() => { this.pending--; this.onState(); });
@@ -261,6 +286,7 @@ class Device {
           const st = new TextDecoder().decode(this.buf.slice(i + 1, j)).replace(/\r$/, "");
           this.buf = this.buf.slice(j + 1);
           if (onOut) { if (pre.length) onOut(pre); } else out = concat(out, pre);
+          if (this.logFrame(st)) continue;
           return { status: st, out };
         }
       }
@@ -1674,6 +1700,14 @@ const App = {
         const caps = report.status === "OK" ? parseCapabilities(new TextDecoder().decode(report.out)) : null;
         if (caps) { this.capabilities = caps; this.capabilitiesKnown = true; }
       } catch { /* old firmware keeps working; never infer hardware from a feature bit */ }
+      if (this.capabilities?.get("Runtime.AsyncRun") === true) {
+        const task = await dev.op(async () => {
+          await dev.check("logmode framed");
+          return dev.cmd("runstat");
+        });
+        const line = /(?:^|\n)task (\d+) (?:starting|running|idle)\n/.exec(new TextDecoder().decode(task.out));
+        if (task.status === "OK" && line) this.trackBackground(+line[1]);
+      }
       if (!this.capabilitiesKnown) term.line("— older/custom firmware: templates remain visible; unreported requirements are marked unknown, not assumed supported —", "warn");
       if ($("galleryBg").classList.contains("show")) this.galRender();
       this.setConn("on", this.info);
@@ -2119,14 +2153,14 @@ const App = {
   async remove(path, isDir) {
     // A foreground run owns the serial queue (LVGL examples commonly run
     // indefinitely). Do not silently interrupt it or queue a delete behind it.
-    const runningAtPrompt = dev.running, runAtPrompt = this.activeRunToken, epoch = dev.epoch;
+    const runningAtPrompt = dev.running && !dev.backgroundRun, runAtPrompt = this.activeRunToken, epoch = dev.epoch;
     const detail = isDir ? `The folder ${path} and everything in it will be deleted from the device.` : `${path} will be deleted from the device.`;
     const text = detail + (runningAtPrompt ? " The running script will be stopped before deleting; scheduled jobs may continue." : "");
     const ok = await dialog({ title: `Delete ${baseName(path)}?`, text, ok: "Delete", danger: true });
     if (!ok) return;
     if (!dev.connected || dev.epoch !== epoch) { toast("Delete cancelled: device connection changed.", "err"); return; }
     // A different script may have started while the confirmation was open.
-    if (dev.running && (!runningAtPrompt || this.activeRunToken !== runAtPrompt)) { toast("Delete cancelled: a different script started. Try again to confirm stopping it.", "err"); return; }
+    if (dev.running && !dev.backgroundRun && (!runningAtPrompt || this.activeRunToken !== runAtPrompt)) { toast("Delete cancelled: a different script started. Try again to confirm stopping it.", "err"); return; }
     return this.workflow(async () => {
       try {
         // A run started outside a Studio workflow still needs to release the queue.
@@ -2172,6 +2206,7 @@ const App = {
     if (size > avail) throw new Error(`not enough space on the device: ${baseName(path)} needs ${fmtBytes(size)}, ${fmtBytes(Math.max(0, avail - 4096))} free. Delete some files first.`);
   },
   async stopForUpload(action = "uploading") {
+    if (dev.backgroundRun) return; // application owns its own task, not this transfer
     if (!dev.running) return;
     term.line(`— stopping the running script before ${action} —`, "sys");
     await dev.stop();                 // out of band: the run owns the operation queue
@@ -2580,6 +2615,8 @@ const App = {
   },
   async runPath(path, label, after) {
     if (dev.running) { toast("A script is still running - Stop it first.", "err"); return; }
+    if (this.capabilities?.get("Runtime.AsyncRun") === true && label !== "selection")
+      return this.runBackground(path, label, after);
     ed.setError(0);
     const t0 = performance.now();
     const dec = new TextDecoder();
@@ -2615,9 +2652,62 @@ const App = {
     }
     await this.refresh(true);
   },
+  async runBackground(path, label, after) {
+    ed.setError(0);
+    term.line(`▶ run ${label || path}`, "info");
+    const r = await dev.op(async () => {
+      await dev.check("logmode framed");
+      return dev.cmd("runbg " + path);
+    });
+    if (r.status !== "OK") throw new Error(r.status.replace(/^ERR /, ""));
+    const text = new TextDecoder().decode(r.out);
+    const m = /(?:^|\n)task (\d+)\s*(?:\n|$)/.exec(text);
+    if (!m) throw new Error("Device did not report an application task");
+    const startupOutput = text.slice(0, m.index) + text.slice(m.index + m[0].length);
+    if (startupOutput.trim()) term.write(startupOutput);
+    this.trackBackground(+m[1], after);
+  },
+  trackBackground(id, after) {
+    const epoch = dev.epoch;
+    const token = {}; this.activeRunToken = token;
+    dev.backgroundRun = true; dev.running = true; this.updateButtons();
+    const app = this;
+    (async () => {
+      let terminal = "";
+      try {
+        while (dev.connected && dev.epoch === epoch && app.activeRunToken === token) {
+          await sleep(250);
+          const state = await dev.op(() => dev.cmd("runstat"));
+          if (state.status !== "OK") throw new Error(state.status.replace(/^ERR /, ""));
+          const out = new TextDecoder().decode(state.out);
+          const line = /(?:^|\n)task (\d+) (starting|running|idle|done|stopped|failed)(?: ([^\n]*))?\n/.exec(out);
+          if (!line || +line[1] !== id) throw new Error("Application task status is unavailable");
+          const extra = out.slice(0, line.index) + out.slice(line.index + line[0].length);
+          if (extra.trim()) term.write(extra);
+          if (line[2] === "done" || line[2] === "stopped" || line[2] === "failed") {
+            terminal = line[2] === "failed" ? "✗ " + (line[3] || "application failed") :
+              line[2] === "stopped" ? "■ stopped" : "✓ finished";
+            break;
+          }
+        }
+      } catch (e) { terminal = "✗ " + e.message; }
+      finally {
+        if (app.activeRunToken === token) {
+          app.activeRunToken = null; dev.backgroundRun = false; dev.running = false;
+          app.updateButtons();
+          if (terminal) term.line(terminal, "sys");
+          if (after && dev.connected && dev.epoch === epoch) await after();
+          if (dev.connected && dev.epoch === epoch) await app.refresh(true);
+        }
+      }
+    })();
+  },
   async stop() {
     this.workflowCancelled = true;
-    dev.stop(); term.line("^C", "warn");
+    if (dev.backgroundRun) {
+      try { await dev.op(() => dev.check("runstop")); } catch (e) { toast(e.message, "err"); }
+    } else dev.stop();
+    term.line("^C", "warn");
     if (this.projectRunning && dev.connected) {
       try { await this.stopForUpload(); await dev.op(() => dev.check("cancel all")); this.projectRunning = false; term.line("■ project jobs stopped", "warn"); }
       catch (e) { toast("Stop project: " + e.message, "err"); }
@@ -2638,7 +2728,7 @@ const App = {
     cin.value = ""; this.autosize();
     if (text) { this.history = this.history.filter((h) => h !== text); this.history.push(text); if (this.history.length > 200) this.history.shift(); store.set("history", this.history); }
     this.hpos = -1;
-    if (dev.running) {                     // a script is running: the line is its Console.ReadLine input
+    if (dev.running && !dev.backgroundRun) { // synchronous run owns console input
       term.write(text + "\n", "in");
       try { await dev.write(text + "\n"); } catch (e) { term.line(e.message, "err"); }
       return;

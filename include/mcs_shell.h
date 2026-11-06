@@ -75,6 +75,15 @@ typedef struct mcs_shell {
     void (*binary_unlock)(void* ud);
     void (*binary_write)(void* ud, const char* data, size_t n);
     void* binary_ud;
+#if MCS_ENABLE_THREADS
+    /* Optional isolated application worker, configured by the embedding.
+     * NULL disables the background-run protocol. */
+    void (*async_setup)(mcs_vm_t* vm, void* ud);
+    void* async_ud;
+    void (*async_poll)(mcs_vm_t* vm, void* ud);
+    void* async_poll_ud;
+    int async_worker;
+#endif
     /* Optional allocator/platform telemetry. It must not allocate from the VM. */
     void (*memory_info)(void* ud, mcs_shell_memory_t* st);
     void* memory_ud;

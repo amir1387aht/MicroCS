@@ -172,10 +172,10 @@ static void rt_open_modules(void* ud) {
     if (vfs) mcs_fs_open_lib(vm, vfs);
 #endif
 #if MCS_ENABLE_HAL
-    if (cfg->hal) mcs_hal_open_lib(vm, cfg->hal);
+    if (cfg->hal) mcs_hal_open_lib_ex(vm, cfg->hal, cfg->async_lvgl ? MCS_HAL_NO_EVENTS : 0);
 #endif
 #if MCS_ENABLE_LVGL
-    mcs_lvgl_open_lib(vm);   /* the firmware did lv_init + display/input before */
+    if (!cfg->async_lvgl) mcs_lvgl_open_lib(vm); /* firmware initialized LVGL */
 #endif
 #if MCS_ENABLE_SCHED
     mcs_sched_init(&rt->sched, vm, vfs, rt_ticks, rt);
@@ -252,9 +252,34 @@ static int rt_prepare_application(void* ud) {
     return mcs_runtime_reset_application((mcs_runtime_t*)ud);
 }
 
+#if MCS_ENABLE_THREADS && MCS_ENABLE_LVGL
+static void rt_gui_setup(mcs_vm_t* vm, void* ud) {
+    mcs_runtime_t* rt = (mcs_runtime_t*)ud;
+    if (!mcs_lvgl_open_lib(vm)) {
+        mcs_raise(vm, "OutOfMemoryException", "cannot initialize LVGL in application task");
+        return;
+    }
+    if (rt->cfg.setup) rt->cfg.setup(vm, rt->cfg.ud);
+}
+static void rt_gui_poll(mcs_vm_t* vm, void* ud) {
+    (void)ud;
+    mcs_lvgl_poll(vm);
+#if MCS_ENABLE_HAL
+    if (!mcs_has_exception(vm)) mcs_hal_poll(vm);
+#endif
+#if MCS_ENABLE_SCHED
+    mcs_sched_t* sched = (mcs_sched_t*)mcs_get_ext(vm, MCS_EXT_SCHED);
+    if (sched && !mcs_has_exception(vm)) mcs_sched_poll(sched);
+#endif
+}
+#endif
+
 int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     memset(rt, 0, sizeof *rt);
     rt->cfg = *cfg;
+#if !(MCS_ENABLE_THREADS && MCS_ENABLE_LVGL)
+    if (cfg->async_lvgl) return -1;
+#endif
     if (cfg->heap_policy != MCS_HEAP_GROW_ON_DEMAND && cfg->heap_policy != MCS_HEAP_ACQUIRE_AT_START) return -1;
     if (cfg->heap_policy == MCS_HEAP_ACQUIRE_AT_START && !cfg->heap_size) return -1;
 #if MCS_ENABLE_POOL_HEAP
@@ -313,6 +338,14 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
     rt->shell.binary_unlock = rt_binary_unlock;
     rt->shell.binary_write = rt_write_raw;
     rt->shell.binary_ud = rt;
+#if MCS_ENABLE_LVGL
+    if (cfg->async_lvgl) {
+        rt->shell.async_setup = rt_gui_setup;
+        rt->shell.async_ud = rt;
+        rt->shell.async_poll = rt_gui_poll;
+        rt->shell.async_poll_ud = rt;
+    }
+#endif
 #endif
     rt->shell.prepare_application = rt_prepare_application;
     rt->shell.application_ud = rt;

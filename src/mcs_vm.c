@@ -1109,6 +1109,9 @@ static int hook_tick(mcs_vm_t* vm) {
         (uint32_t)(vm->cfg.ticks_fn(vm->cfg.user_data) - vm->run_start) >= vm->limits.time_ms) {
         vm->abort_reason = MCS_ABORT_TIME; return 1;
     }
+    vm->hook_counter = vm->hook_reload = hook_budget(vm);
+    /* Hooks may invoke nested script callbacks. Reload before calling out so a
+     * callback with its own tight loop still reaches safepoints and Stop. */
     if (vm->cfg.hook_fn && vm->cfg.hook_fn(vm, vm->cfg.user_data)) { vm->abort_reason = MCS_ABORT_HOOK; return 1; }
     vm->hook_counter = vm->hook_reload = hook_budget(vm);
     return 0;
@@ -1237,7 +1240,7 @@ static mcs_result_t run(mcs_vm_t* vm, int base_frame) {
 #define GCPOINT() do { if (vm->gc_wanted) { SAVE_KEEP(); mcs_collect(vm); } } while (0)
 #define SAFEPOINT() do { \
         if (vm->gc_wanted) { SYNC(); mcs_collect(vm); } \
-        if (--vm->hook_counter == 0) { SAVE(); if (hook_tick(vm)) goto on_abort; else RELOAD(); } \
+        if (--vm->hook_counter == 0) { SAVE(); if (hook_tick(vm)) goto on_abort; RELOAD(); if (vm->has_exc) goto on_exception; } \
     } while (0)
 
 #if MCS_COMPUTED_GOTO

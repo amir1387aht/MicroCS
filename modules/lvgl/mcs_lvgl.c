@@ -1059,6 +1059,7 @@ static lv_fs_drv_t g_fs_drv;
 static int g_fs_registered;
 static void* fs_open(lv_fs_drv_t* drv, const char* path, lv_fs_mode_t mode) {
     (void)drv;
+    if (!g_fs_vfs) return NULL;
     mcs_vfs_file_t* f = (mcs_vfs_file_t*)LVB_MALLOC(sizeof *f);
     if (!f) return NULL;
     int fl = (mode & LV_FS_MODE_WR) ? ((mode & LV_FS_MODE_RD) ? (MCS_VFS_UPDATE | MCS_VFS_CREATE) : MCS_VFS_WRITE) : MCS_VFS_READ;
@@ -1097,6 +1098,7 @@ static int fs_list_cb(void* ud, const char* name, const mcs_vfs_stat_t* st) {
 }
 static void* fs_dir_open(lv_fs_drv_t* drv, const char* path) {
     (void)drv; mcs_vfs_stat_t s;
+    if (!g_fs_vfs) return NULL;
     if (mcs_vfs_stat(g_fs_vfs, path, &s) != 0 || !s.is_dir) return NULL;
     fs_dir_t* d = (fs_dir_t*)LVB_MALLOC(sizeof *d);
     if (!d) return NULL;
@@ -1227,6 +1229,11 @@ void mcs_lvgl_close_lib(mcs_vm_t* vm) {
         while (lv_obj_remove_event_cb(o, on_obj_delete)) { }
 #endif
     }
+#if MCS_ENABLE_FS
+    /* A worker's VFS is stack-owned. Never leave the global LVGL driver
+     * pointing at it after the owning VM/task is torn down. */
+    if (g_fs_vfs == mcs_get_ext(vm, MCS_EXT_VFS)) g_fs_vfs = NULL;
+#endif
 #if MCS_LVGL_CLEANUP_ON_CLOSE
     /* delete the screens / widgets the scripts created (parents delete their children) */
     for (uint32_t i = 0; i < st->cap; i++) {

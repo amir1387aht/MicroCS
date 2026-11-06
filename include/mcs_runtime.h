@@ -92,10 +92,14 @@ typedef struct {
      * capacity and do not grow under either policy. Automatic startup mode
      * accepts partial capacity; insufficient runtime capacity fails cleanly. */
     mcs_heap_policy_t heap_policy;
+    /* Give GUI applications their own VM/task, leaving the shell VM free for
+     * commands. Requires LVGL and OS threads. Display/tick setup stays owned
+     * by the firmware; no other task may run lv_timer_handler. */
+    bool async_lvgl;
 } mcs_runtime_cfg_t;
 
 #define MCS_RUNTIME_DEFAULTS { NULL, 0, NULL, NULL, 0, { NULL, NULL, NULL }, NULL, NULL, NULL, \
-    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL, MCS_RUNTIME_HEAP_POLICY }
+    true, MCS_RUNTIME_REPL, NULL, NULL, 0, true, NULL, NULL, NULL, 0, 0, 0, 0, NULL, 0, 0, NULL, NULL, MCS_RUNTIME_HEAP_POLICY, false }
 
 typedef struct {
     mcs_runtime_cfg_t cfg;

@@ -9,6 +9,9 @@
 #include "mcs_sched.h"
 #endif
 #include "mcs_hal.h"
+#if MCS_ENABLE_THREADS
+#include "mcs_threads.h"
+#endif
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,6 +113,32 @@ int mcs_shell_readline(mcs_shell_t* sh, char* buf, size_t cap) {
 
 static bool exists(mcs_shell_t* sh, const char* p) { mcs_vfs_stat_t st; return !mcs_vfs_stat(sh->vfs, p, &st) && !st.is_dir; }
 
+#if MCS_ENABLE_THREADS
+static const char* start_background(mcs_shell_t* sh, const char* path, const char* boot, bool jobs) {
+    if (!sh->async_setup) return "background application is unavailable";
+    if (sh->async_worker) {
+        mcs_thread_info_t info;
+        if (mcs_thread_info(sh->async_worker, &info) &&
+            (info.state == MCS_THREAD_STARTING || info.state == MCS_THREAD_RUNNING || info.state == MCS_THREAD_IDLE))
+            return "application already running";
+        mcs_thread_release(sh->async_worker);
+        sh->async_worker = 0;
+    }
+    static const char empty[] = "";
+    mcs_thread_spec_t spec = MCS_THREAD_SPEC_DEFAULTS;
+    spec.path = path;
+    if (!path) { spec.code = empty; spec.code_len = 0; }
+    spec.setup = sh->async_setup; spec.setup_ud = sh->async_ud;
+    spec.poll = sh->async_poll; spec.poll_ud = sh->async_poll_ud;
+    spec.application = true;
+    spec.boot_path = boot; spec.load_boot_jobs = jobs;
+    int id = mcs_thread_start(&spec);
+    if (id < 0) return mcs_thread_strerror(id);
+    sh->async_worker = id;
+    return NULL;
+}
+#endif
+
 static bool prepare_application(mcs_shell_t* sh) {
     if (!sh->prepare_application) return true; /* legacy embedding */
     int rc = sh->prepare_application(sh->application_ud);
@@ -147,6 +176,17 @@ static mcs_result_t run_first(mcs_shell_t* sh, const char* a, const char* b) {
 
 void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts) {
     if (sh->vfs && run_scripts) {
+#if MCS_ENABLE_THREADS
+        if (sh->async_setup) {
+            const char* boot = exists(sh, "/boot.mcsb") ? "/boot.mcsb" : exists(sh, "/boot.cs") ? "/boot.cs" : NULL;
+            const char* main = exists(sh, "/main.mcsb") ? "/main.mcsb" : exists(sh, "/main.cs") ? "/main.cs" : NULL;
+            if (boot || main || exists(sh, "/jobs.cfg")) {
+                const char* e = start_background(sh, main, boot, true);
+                if (e) outf(sh, "application startup failed: %s\n", e);
+            }
+        } else
+#endif
+        {
         run_first(sh, "/boot.mcsb", "/boot.cs");
 #if MCS_ENABLE_SCHED
         char* cfg; size_t len;
@@ -165,6 +205,7 @@ void mcs_shell_boot(mcs_shell_t* sh, bool run_scripts) {
         }
 #endif
         run_first(sh, "/main.mcsb", "/main.cs");
+        }
     }
 #if MCS_SHELL_REPL_MAX > 0
     if (sh->repl) { mcs_shell_set_repl(sh, true); return; }
@@ -538,6 +579,41 @@ static void dispatch(mcs_shell_t* sh, char* line) {
             err(sh, "usage: run <path> [shared]"); return;
         }
         replace_file(sh, argv[1], argc == 3);
+#if MCS_ENABLE_THREADS
+    } else if (!strcmp(c, "runbg")) {
+        if (!sh->async_setup) { err(sh, "background application is unavailable"); return; }
+        if (argc != 2) { err(sh, "usage: runbg <path>"); return; }
+        if (!exists(sh, argv[1])) { err(sh, "no such file"); return; }
+        const char* failure = start_background(sh, argv[1], NULL, false);
+        if (failure) { err(sh, failure); return; }
+        outf(sh, "task %d\n", sh->async_worker);
+        ok(sh);
+    } else if (!strcmp(c, "runstat")) {
+        if (!sh->async_setup || argc != 1) { err(sh, "background application is unavailable"); return; }
+        mcs_thread_info_t info;
+        if (!sh->async_worker || !mcs_thread_info(sh->async_worker, &info)) {
+            out(sh, "task none\n");
+        } else {
+            const char* state = info.state == MCS_THREAD_STARTING ? "starting" :
+                info.state == MCS_THREAD_RUNNING ? "running" :
+                info.state == MCS_THREAD_IDLE ? "idle" :
+                info.state == MCS_THREAD_DONE ? "done" :
+                info.state == MCS_THREAD_STOPPED ? "stopped" : "failed";
+            const char* detail = info.state == MCS_THREAD_FAILED && info.error ? info.error : "";
+            outf(sh, "task %d %s%s%s\n", info.id, state, *detail ? " " : "", detail);
+        }
+        ok(sh);
+    } else if (!strcmp(c, "runstop")) {
+        if (!sh->async_setup || argc != 1) { err(sh, "background application is unavailable"); return; }
+        if (sh->async_worker) mcs_thread_stop(sh->async_worker);
+        ok(sh);
+    } else if (!strcmp(c, "logmode")) {
+        if (!sh->async_setup || argc != 2 || (strcmp(argv[1], "framed") && strcmp(argv[1], "plain"))) {
+            err(sh, "usage: logmode framed|plain"); return;
+        }
+        mcs_threads_frame_output(!strcmp(argv[1], "framed"));
+        ok(sh);
+#endif
     } else if (!strcmp(c, "mem")) {
         print_memory(sh);
         ok(sh);
@@ -546,7 +622,16 @@ static void dispatch(mcs_shell_t* sh, char* line) {
         const char* const* names = mcs_capability_names(&count);
         out(sh, "capabilities=1\n");
         outf(sh, "Runtime.Replace=%d\n", sh->prepare_application ? 1 : 0);
-        for (size_t i = 0; i < count; i++) outf(sh, "%s=%d\n", names[i], mcs_capability_has(sh->vm, names[i]) ? 1 : 0);
+#if MCS_ENABLE_THREADS
+        outf(sh, "Runtime.AsyncRun=%d\n", sh->async_setup ? 1 : 0);
+#endif
+        for (size_t i = 0; i < count; i++) {
+            bool available = mcs_capability_has(sh->vm, names[i]);
+#if MCS_ENABLE_THREADS
+            if (!strcmp(names[i], "Lvgl") && sh->async_setup) available = true;
+#endif
+            outf(sh, "%s=%d\n", names[i], available ? 1 : 0);
+        }
         ok(sh);
     } else if (!strcmp(c, "info")) {
         outf(sh, "MicroCS %s features=0x%04x value=%u bytes\n", MCS_VERSION_STRING, (unsigned)mcs_features(), (unsigned)sizeof(mcs_value_t));

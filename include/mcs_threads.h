@@ -68,10 +68,14 @@ void mcs_threads_heap_lock(void);
 void mcs_threads_heap_unlock(void);
 /* true once a thread was started (shared resources need their locks from then on) */
 bool mcs_threads_active(void);
+/* Frame complete worker output as EOT LOG <hex> for a multiplexing shell
+ * client. Off by default for existing serial clients. */
+void mcs_threads_frame_output(bool enabled);
 
 /* ------------------------------------------------------------ threads from C */
 typedef enum {
-    MCS_THREAD_STARTING = 0, MCS_THREAD_RUNNING, MCS_THREAD_DONE, MCS_THREAD_FAILED, MCS_THREAD_STOPPED
+    MCS_THREAD_STARTING = 0, MCS_THREAD_RUNNING, MCS_THREAD_DONE, MCS_THREAD_FAILED, MCS_THREAD_STOPPED,
+    MCS_THREAD_IDLE /* GUI application finished its entry script but owns live UI callbacks */
 } mcs_thread_state_t;
 
 typedef struct {
@@ -85,8 +89,20 @@ typedef struct {
     int core;                       /* MCS_OS_ANY_CORE or a core number */
     int priority;                   /* relative to the caller (mcs_os.h) */
     uint32_t heap_size, stack_size; /* 0 = mcs_threads_cfg_t defaults */
+    /* Optional setup for this worker's VM, run on the owning thread after
+     * the standard worker bindings. The callback and ud must remain valid
+     * until the worker has started or failed. */
+    void (*setup)(mcs_vm_t* vm, void* ud);
+    void* setup_ud;
+    /* Optional owner-thread safepoint service. It is never called concurrently
+     * with this VM and is not invoked recursively. */
+    void (*poll)(mcs_vm_t* vm, void* ud);
+    void* poll_ud;
+    bool application; /* owns HAL events and its scheduler */
+    const char* boot_path; /* optional boot script executed before path */
+    bool load_boot_jobs;
 } mcs_thread_spec_t;
-#define MCS_THREAD_SPEC_DEFAULTS { NULL, NULL, 0, NULL, 0, 0, 1, MCS_OS_ANY_CORE, MCS_THREAD_PRIORITY, 0, 0 }
+#define MCS_THREAD_SPEC_DEFAULTS { NULL, NULL, 0, NULL, 0, 0, 1, MCS_OS_ANY_CORE, MCS_THREAD_PRIORITY, 0, 0, NULL, NULL, NULL, NULL, false, NULL, false }
 
 typedef struct {
     int id;
