@@ -343,6 +343,8 @@ static void locked_write(void* ud, const char* s, size_t n) {
     out_write(ud, s, n);
     mcs_threads_console_unlock();
 }
+static void binary_lock(void* ud) { (void)ud; mcs_threads_console_lock(); }
+static void binary_unlock(void* ud) { (void)ud; mcs_threads_console_unlock(); }
 #endif
 
 int main(int argc, char** argv) {
@@ -553,6 +555,11 @@ int main(int argc, char** argv) {
         mcs_shell_init(&sh, vm, vfs, &g_sched, stdio_transport());
 #else
         mcs_shell_init(&sh, vm, vfs, NULL, stdio_transport());
+#endif
+#if MCS_ENABLE_THREADS
+        sh.binary_lock = binary_lock;
+        sh.binary_unlock = binary_unlock;
+        sh.binary_write = out_write;
 #endif
 #if MCS_SHELL_REPL_MAX > 0
         sh.repl = repl_mode;

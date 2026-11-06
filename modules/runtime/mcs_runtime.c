@@ -24,6 +24,8 @@ static void rt_write(void* ud, const char* s, size_t n) {
     rt_write_raw(ud, s, n);
     mcs_threads_console_unlock();
 }
+static void rt_binary_lock(void* ud) { (void)ud; mcs_threads_console_lock(); }
+static void rt_binary_unlock(void* ud) { (void)ud; mcs_threads_console_unlock(); }
 #if MCS_ENABLE_POOL_HEAP
 /* the pool is shared by the main VM, the RAM filesystem and thread heaps once a
  * thread runs; before that there is nobody to race with */
@@ -306,6 +308,12 @@ int mcs_runtime_start(mcs_runtime_t* rt, const mcs_runtime_cfg_t* cfg) {
                    NULL,
 #endif
                    t);
+#if MCS_ENABLE_THREADS
+    rt->shell.binary_lock = rt_binary_lock;
+    rt->shell.binary_unlock = rt_binary_unlock;
+    rt->shell.binary_write = rt_write_raw;
+    rt->shell.binary_ud = rt;
+#endif
     rt->shell.prepare_application = rt_prepare_application;
     rt->shell.application_ud = rt;
     rt->shell.memory_info = rt_memory_info;

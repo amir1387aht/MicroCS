@@ -253,18 +253,28 @@ static void cmd_get(mcs_shell_t* sh, const char* path) {
     mcs_vfs_file_t f;
     if (!e) e = mcs_vfs_open(sh->vfs, path, MCS_VFS_READ, &f);
     if (e) { err(sh, mcs_vfs_strerror(e)); return; }
-    outf(sh, EOT "DATA %u\n", (unsigned)st.size);
+    /* DATA, its raw bytes and the terminating status are one frame: output
+     * from a worker in the middle would be indistinguishable from file data.
+     * Use the unwrapped writer while holding the same console lock as workers.
+     * Legacy single-threaded embedders need no extra callbacks. */
+    bool framed = sh->binary_lock && sh->binary_unlock && sh->binary_write;
+    if (framed) sh->binary_lock(sh->binary_ud);
+    char header[40];
+    int hn = snprintf(header, sizeof header, EOT "DATA %u\n", (unsigned)st.size);
+    void (*write_data)(void*, const char*, size_t) = framed ? sh->binary_write : sh->t.write;
+    void* write_ud = framed ? sh->binary_ud : sh->t.ud;
+    write_data(write_ud, header, (size_t)hn);
     char buf[256];
     uint32_t left = st.size;
     while (left) {
         int r = mcs_vfs_read(&f, buf, left < sizeof buf ? left : sizeof buf);
         if (r <= 0) { memset(buf, 0, sizeof buf); r = (int)(left < sizeof buf ? left : sizeof buf); }  /* keep framing */
-        sh->t.write(sh->t.ud, buf, (size_t)r);
+        write_data(write_ud, buf, (size_t)r);
         left -= (uint32_t)r;
     }
     mcs_vfs_close(&f);
-    out(sh, "\n");
-    ok(sh);
+    write_data(write_ud, "\n" EOT "OK\n", 5);
+    if (framed) sh->binary_unlock(sh->binary_ud);
 }
 
 static int ls_cb(void* ud, const char* name, const mcs_vfs_stat_t* st) {
