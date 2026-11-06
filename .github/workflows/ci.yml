@@ -272,6 +272,12 @@ jobs:
         run: make -j4 lvgl-test LVGL_VERSION=${{ matrix.lvgl }}
       - name: Studio LVGL templates (33-lvgl) run on the in-memory display
         run: make -j4 mcs-lvgl LVGL_VERSION=${{ matrix.lvgl }} && node tests/studio/test_templates.js build/mcs_lvgl --only=lvgl
+      - name: LVGL VM cleanup
+        run: make lvgl-cleanup-test LVGL_VERSION=${{ matrix.lvgl }}
+      - name: Install Playwright for Studio LVGL regression
+        run: npm install --no-save --no-package-lock playwright-core@1
+      - name: Delete files while an LVGL example is running
+        run: CHROME=$(command -v google-chrome || command -v chromium) node tests/studio/test_lvgl_file_actions.js build/mcs_lvgl
       - name: Studio LVGL IntelliSense data
         run: node tests/studio/test_lvgl.js
 

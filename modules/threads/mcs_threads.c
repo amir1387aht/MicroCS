@@ -1,6 +1,7 @@
 /* MicroCS - C# on OS threads: one VM per thread, Channels between them (mcs_threads.h).
  * Compiled to nothing unless an OS is chosen with MCS_OS. */
 #include "mcs_threads.h"
+#include "mcs_native_internal.h"
 #if MCS_ENABLE_THREADS
 #include <string.h>
 #include <stdio.h>
@@ -9,6 +10,9 @@
 #endif
 #if MCS_ENABLE_HAL
 #include "mcs_hal.h"
+#endif
+#if MCS_ENABLE_SCHED
+#include "mcs_sched.h"
 #endif
 
 #if defined(__GNUC__)
@@ -38,12 +42,21 @@ typedef struct worker {
     mcs_os_thread_t* th;
     mcs_os_sem_t* done;             /* given once when the thread ends (re-given by joiners) */
     char path[TH_PATH_MAX];
+    char boot_path[TH_PATH_MAX];
     char fn[TH_FN_MAX];
     const void* code; size_t code_len;
     uint32_t delay, period;
     uint16_t maxf;
     int core, prio;
     uint32_t heap_size, stack_size;
+    void (*setup)(mcs_vm_t*, void*);
+    void* setup_ud;
+    void (*poll)(mcs_vm_t*, void*);
+    void* poll_ud;
+    uint32_t poll_at;
+    bool polling;
+    bool application;
+    bool load_boot_jobs;
     uint8_t* args; size_t args_len; /* marshalled argument array (Thread.Run) */
     uint8_t* result; size_t result_len;
     uint32_t runs, failures;
@@ -72,6 +85,7 @@ static struct {
     channel_t* ch[MCS_CHANNELS_MAX];
     int next_id;
     volatile bool active;
+    bool framed_output;
 #if MCS_ENABLE_FS
     mcs_vfs_lock_t vfs_lock;
 #endif
@@ -88,6 +102,7 @@ void mcs_threads_heap_unlock(void) { if (G.heap) mcs_os_mutex_unlock(G.heap); }
 /* Readers include allocator callbacks on workers. Volatile alone does not
  * synchronize publication, including repeated true stores for later workers. */
 bool mcs_threads_active(void) { return AT_LOAD(G.active); }
+void mcs_threads_frame_output(bool enabled) { AT_STORE(G.framed_output, enabled); }
 #if MCS_ENABLE_FS
 static void fs_enter(void* ud) { mcs_os_mutex_lock((mcs_os_mutex_t*)ud); }
 static void fs_leave(void* ud) { mcs_os_mutex_unlock((mcs_os_mutex_t*)ud); }
@@ -240,7 +255,18 @@ static void reap(bool force) {
 static void flush_line(worker_t* w) {
     if (!w->line_len) return;
     mcs_threads_console_lock();
-    if (G.cfg.write) G.cfg.write(G.cfg.write_ud, w->line, w->line_len);
+    if (G.cfg.write && AT_LOAD(G.framed_output)) {
+        static const char hex[] = "0123456789abcdef";
+        char framed[sizeof w->line * 2 + 7];
+        memcpy(framed, "\004LOG ", 5);
+        for (size_t i = 0; i < w->line_len; i++) {
+            unsigned char c = (unsigned char)w->line[i];
+            framed[5 + i * 2] = hex[c >> 4];
+            framed[6 + i * 2] = hex[c & 15];
+        }
+        framed[5 + w->line_len * 2] = '\n';
+        G.cfg.write(G.cfg.write_ud, framed, 6 + w->line_len * 2);
+    } else if (G.cfg.write) G.cfg.write(G.cfg.write_ud, w->line, w->line_len);
 #if MCS_ENABLE_STDIO
     else { fwrite(w->line, 1, w->line_len, stdout); fflush(stdout); }
 #endif
@@ -270,7 +296,19 @@ static void th_error(void* ud, const char* s, size_t n) {
 }
 static uint32_t th_ticks(void* ud) { return mcs_os_ticks(); }
 static void th_delay(void* ud, uint32_t ms) { mcs_os_sleep(ms); }
-static int th_hook(mcs_vm_t* vm, void* ud) { return AT_LOAD(((worker_t*)ud)->stop); }
+static int th_hook(mcs_vm_t* vm, void* ud) {
+    worker_t* w = (worker_t*)ud;
+    if (AT_LOAD(w->stop)) return 1;
+    if (w->poll && !w->polling && (uint32_t)(mcs_os_ticks() - w->poll_at) >= 5) {
+        w->poll_at = mcs_os_ticks();
+        w->polling = true;
+        w->poll(vm, w->poll_ud);
+        w->polling = false;
+        /* A tight loop must not starve lower-priority RTOS tasks and idle. */
+        mcs_os_sleep(1);
+    }
+    return AT_LOAD(w->stop);
+}
 
 /* sleep until `until` (ticks), in slices so Stop() is noticed */
 static void sleep_until(worker_t* w, uint32_t until) {
@@ -294,6 +332,12 @@ static mcs_result_t load(worker_t* w, mcs_vm_t* vm, void* vfs) {
 #endif
     (void)vfs;
     return mcs_fail(vm, MCS_ERR_RUNTIME, "no filesystem for '%s'", w->path);
+}
+
+typedef struct { worker_t* worker; mcs_vm_t* vm; } worker_setup_ctx_t;
+static void worker_setup(void* arg) {
+    worker_setup_ctx_t* ctx = (worker_setup_ctx_t*)arg;
+    if (ctx->worker->setup) ctx->worker->setup(ctx->vm, ctx->worker->setup_ud);
 }
 
 static void worker_main(void* arg) {
@@ -328,16 +372,58 @@ static void worker_main(void* arg) {
     }
 #endif
 #if MCS_ENABLE_HAL
-    if (G.cfg.hal) mcs_hal_open_lib_ex(vm, G.cfg.hal, MCS_HAL_NO_EVENTS);
+    if (G.cfg.hal) mcs_hal_open_lib_ex(vm, G.cfg.hal, w->application ? 0 : MCS_HAL_NO_EVENTS);
 #endif
     mcs_threads_open_lib(vm);
     if (G.cfg.setup) G.cfg.setup(vm, G.cfg.ud);
+    worker_setup_ctx_t setup_ctx = { w, vm };
+    if (mcs_protect_native(vm, worker_setup, &setup_ctx) || mcs_has_exception(vm) || mcs_last_error(vm)[0]) {
+        set_error(w, mcs_last_error(vm));
+#if MCS_ENABLE_HAL
+        if (G.cfg.hal) mcs_hal_close_lib(vm);
+#endif
+        mcs_free(vm);
+        goto out;
+    }
+#if MCS_ENABLE_SCHED
+    mcs_sched_t scheduler;
+    bool has_scheduler = false;
+    if (w->application && mcs_sched_init(&scheduler, vm, vfsp, th_ticks, w) == 0) {
+        mcs_sched_open_lib(vm, &scheduler);
+        has_scheduler = true;
+    }
+#endif
     AT_STORE(w->state, MCS_THREAD_RUNNING);
     sleep_until(w, mcs_os_ticks() + w->delay);
 
     mcs_value_t argv_arr = mcs_null();
     int argc = 0;
     bool loaded = false, ok = true;
+#if MCS_ENABLE_FS
+    if (w->boot_path[0] && vfsp && !AT_LOAD(w->stop) &&
+        mcs_exec_file(vm, (mcs_vfs_t*)vfsp, w->boot_path) != MCS_OK) {
+        set_error(w, mcs_last_error(vm));
+        ok = false;
+    }
+#if MCS_ENABLE_SCHED
+    if (ok && w->load_boot_jobs && vfsp && has_scheduler) {
+        char* text; size_t len;
+        if (!mcs_vfs_read_file((mcs_vfs_t*)vfsp, "/jobs.cfg", &text, &len)) {
+            int n = mcs_sched_load_config(&scheduler, text);
+            if (n < 0) { set_error(w, "jobs.cfg syntax error"); ok = false; }
+            /* Boot executes main itself, so don't schedule a duplicate. */
+            for (int i = 0; i < MCS_SCHED_MAX_JOBS; i++) {
+                mcs_job_t* j = &scheduler.jobs[i];
+                if (j->state == MCS_JOB_ACTIVE && j->is_file && !j->periodic &&
+                    !strcmp(j->path, w->path) &&
+                    (int32_t)(j->next_due - mcs_os_ticks()) <= 0)
+                    mcs_sched_cancel(&scheduler, j->id);
+            }
+            mcs_vfs_free((mcs_vfs_t*)vfsp, text, len);
+        }
+    }
+#endif
+#endif
     if (w->fn[0]) {                       /* load the script once, then call the function */
         if (!AT_LOAD(w->stop) && load(w, vm, vfsp) != MCS_OK) { set_error(w, mcs_last_error(vm)); ok = false; }
         loaded = true;
@@ -379,7 +465,20 @@ static void worker_main(void* arg) {
         sleep_until(w, next);
     }
     if (pin >= 0) mcs_unpin(vm, pin);
+    /* A GUI created by a finite entry script remains live after it returns.
+     * Keep its VM, objects and callbacks on this owning task until Stop. */
+    if (w->application && ok && !AT_LOAD(w->stop)) {
+        AT_STORE(w->state, MCS_THREAD_IDLE);
+        while (!AT_LOAD(w->stop)) {
+            if (w->poll) w->poll(vm, w->poll_ud);
+            if (mcs_has_exception(vm)) { set_error(w, mcs_last_error(vm)); ok = false; break; }
+            mcs_os_sleep(5);
+        }
+    }
     final = AT_LOAD(w->stop) ? MCS_THREAD_STOPPED : ok ? MCS_THREAD_DONE : MCS_THREAD_FAILED;
+#if MCS_ENABLE_SCHED
+    if (has_scheduler) mcs_sched_free(&scheduler);
+#endif
 #if MCS_ENABLE_HAL
     if (G.cfg.hal) mcs_hal_close_lib(vm);
 #endif
@@ -399,6 +498,7 @@ static int start_ex(const mcs_thread_spec_t* s, uint8_t* args, size_t args_len) 
     if (!G.inited) return -5;
     if ((!s->path || !*s->path) && !s->code) return -4;
     if (s->path && strlen(s->path) >= TH_PATH_MAX) return -4;
+    if (s->boot_path && strlen(s->boot_path) >= TH_PATH_MAX) return -4;
     if (s->function && strlen(s->function) >= TH_FN_MAX) return -4;
     if (s->core >= mcs_os_cores() || s->core < MCS_OS_ANY_CORE) return -3;
     reap(false);
@@ -406,10 +506,15 @@ static int start_ex(const mcs_thread_spec_t* s, uint8_t* args, size_t args_len) 
     if (!w) return -2;
     memset(w, 0, sizeof *w);
     if (s->path) strcpy(w->path, s->path); else strcpy(w->path, "<code>");
+    if (s->boot_path) strcpy(w->boot_path, s->boot_path);
     if (s->function) strcpy(w->fn, s->function);
     w->code = s->code; w->code_len = s->code_len;
     w->delay = s->delay_ms; w->period = s->period_ms; w->maxf = s->max_failures;
     w->core = s->core; w->prio = s->priority;
+    w->setup = s->setup; w->setup_ud = s->setup_ud;
+    w->poll = s->poll; w->poll_ud = s->poll_ud;
+    w->application = s->application;
+    w->load_boot_jobs = s->load_boot_jobs;
     w->heap_size = s->heap_size ? s->heap_size : G.cfg.heap_size ? G.cfg.heap_size : MCS_THREAD_HEAP;
     w->stack_size = s->stack_size ? s->stack_size : G.cfg.stack_size ? G.cfg.stack_size : MCS_THREAD_STACK;
     w->refs = 1;
@@ -609,12 +714,12 @@ static bool info_of(mcs_vm_t* vm, mcs_value_t self, mcs_thread_info_t* in) {
     if (!mcs_thread_info(id, in)) { mcs_raise(vm, "InvalidOperationException", "thread %d is gone", id); return false; }
     return true;
 }
-NATIVE(w_alive) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_bool(in.state <= MCS_THREAD_RUNNING); }
+NATIVE(w_alive) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_bool(in.state <= MCS_THREAD_RUNNING || in.state == MCS_THREAD_IDLE); }
 NATIVE(w_id) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_int(in.id); }
 NATIVE(w_core) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_int(in.core); }
 NATIVE(w_runs) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_int((mcs_int_t)in.runs); }
 static const char* state_name(int s) {
-    return s == MCS_THREAD_STARTING ? "starting" : s == MCS_THREAD_RUNNING ? "running" : s == MCS_THREAD_DONE ? "done"
+    return s == MCS_THREAD_STARTING ? "starting" : s == MCS_THREAD_RUNNING ? "running" : s == MCS_THREAD_IDLE ? "idle" : s == MCS_THREAD_DONE ? "done"
          : s == MCS_THREAD_FAILED ? "failed" : "stopped";
 }
 NATIVE(w_state) { mcs_thread_info_t in; if (!info_of(vm, self, &in)) return mcs_null(); return mcs_string(vm, state_name(in.state)); }

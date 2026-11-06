@@ -67,6 +67,23 @@ typedef struct mcs_shell {
     struct mcs_vfs* vfs;
     struct mcs_sched* sched;    /* may be NULL */
     mcs_transport_t t;
+    /* Optional atomic output for length-prefixed binary downloads. The lock
+     * must also protect background writers. binary_write is the unwrapped
+     * transport write: calling a locking transport while holding this lock
+     * would deadlock on platforms with non-recursive mutexes. */
+    void (*binary_lock)(void* ud);
+    void (*binary_unlock)(void* ud);
+    void (*binary_write)(void* ud, const char* data, size_t n);
+    void* binary_ud;
+#if MCS_ENABLE_THREADS
+    /* Optional isolated application worker, configured by the embedding.
+     * NULL disables the background-run protocol. */
+    void (*async_setup)(mcs_vm_t* vm, void* ud);
+    void* async_ud;
+    void (*async_poll)(mcs_vm_t* vm, void* ud);
+    void* async_poll_ud;
+    int async_worker;
+#endif
     /* Optional allocator/platform telemetry. It must not allocate from the VM. */
     void (*memory_info)(void* ud, mcs_shell_memory_t* st);
     void* memory_ud;

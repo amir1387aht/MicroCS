@@ -28,7 +28,25 @@
 #if MCS_ENABLE_LVGL
 #include "mcs_lvgl.h"
 int mcs_lvgl_host_init(mcs_vm_t* vm, int w, int h);   /* mcs_lvgl_host.c */
+void mcs_lvgl_host_poll(mcs_vm_t* vm);
 static int g_lvgl_w, g_lvgl_h;
+#if MCS_ENABLE_THREADS
+static void gui_worker_setup(mcs_vm_t* vm, void* ud) {
+    (void)ud;
+    mcs_lvgl_host_init(vm, g_lvgl_w, g_lvgl_h);
+}
+static void gui_worker_poll(mcs_vm_t* vm, void* ud) {
+    (void)ud;
+    mcs_lvgl_host_poll(vm);
+#if MCS_ENABLE_HAL
+    if (!mcs_has_exception(vm)) mcs_hal_poll(vm);
+#endif
+#if MCS_ENABLE_SCHED
+    mcs_sched_t* sched = (mcs_sched_t*)mcs_get_ext(vm, MCS_EXT_SCHED);
+    if (sched && !mcs_has_exception(vm)) mcs_sched_poll(sched);
+#endif
+}
+#endif
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -343,6 +361,8 @@ static void locked_write(void* ud, const char* s, size_t n) {
     out_write(ud, s, n);
     mcs_threads_console_unlock();
 }
+static void binary_lock(void* ud) { (void)ud; mcs_threads_console_lock(); }
+static void binary_unlock(void* ud) { (void)ud; mcs_threads_console_unlock(); }
 #endif
 
 int main(int argc, char** argv) {
@@ -451,7 +471,12 @@ int main(int argc, char** argv) {
         g_sim_poll = g_hal.poll_event; g_hal.poll_event = ble_sim_poll;
 #endif
         if (oled) { g_oled.on_frame = oled_show; mcs_hal_sim_attach_oled(&g_sim, &g_oled); }
-        mcs_hal_open_lib(vm, &g_hal); g_hal_active = true;
+        mcs_hal_open_lib_ex(vm, &g_hal,
+#if MCS_ENABLE_THREADS && MCS_ENABLE_LVGL
+            shell && g_lvgl_w > 0 ? MCS_HAL_NO_EVENTS :
+#endif
+            0);
+        g_hal_active = true;
     }
 #if defined(__NuttX__) && defined(CONFIG_INTERPRETERS_MICROCS_GPIO)
     else { mcs_nuttx_hal_init(&g_hal); mcs_hal_open_lib(vm, &g_hal); g_hal_active = true; }
@@ -478,7 +503,13 @@ int main(int argc, char** argv) {
 #endif
 
 #if MCS_ENABLE_LVGL
-    if (g_lvgl_w > 0 && mcs_lvgl_host_init(vm, g_lvgl_w, g_lvgl_h) != 0) { fprintf(stderr, "mcs: LVGL init failed\n"); return 1; }
+    if (g_lvgl_w > 0 && mcs_lvgl_host_init(
+#if MCS_ENABLE_THREADS && MCS_ENABLE_SHELL
+            shell ? NULL : vm,
+#else
+            vm,
+#endif
+            g_lvgl_w, g_lvgl_h) != 0) { fprintf(stderr, "mcs: LVGL init failed\n"); return 1; }
 #endif
 #if MCS_ENABLE_THREADS
     {
@@ -553,6 +584,14 @@ int main(int argc, char** argv) {
         mcs_shell_init(&sh, vm, vfs, &g_sched, stdio_transport());
 #else
         mcs_shell_init(&sh, vm, vfs, NULL, stdio_transport());
+#endif
+#if MCS_ENABLE_THREADS
+        sh.binary_lock = binary_lock;
+        sh.binary_unlock = binary_unlock;
+        sh.binary_write = out_write;
+#if MCS_ENABLE_LVGL
+        if (g_lvgl_w > 0) { sh.async_setup = gui_worker_setup; sh.async_poll = gui_worker_poll; }
+#endif
 #endif
 #if MCS_SHELL_REPL_MAX > 0
         sh.repl = repl_mode;

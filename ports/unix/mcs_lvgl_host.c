@@ -53,6 +53,10 @@ static void read_cb(lv_indev_drv_t* i, lv_indev_data_t* d) { (void)i; d->point.x
 static void step(uint32_t ms) {
     while (ms) { uint32_t s = ms > 5 ? 5 : ms; lv_tick_inc(s); lv_timer_handler(); ms -= s; }
 }
+void mcs_lvgl_host_poll(mcs_vm_t* vm) {
+    lv_tick_inc(5);
+    mcs_lvgl_poll(vm);
+}
 static mcs_value_t h_run(mcs_vm_t* vm, mcs_value_t self, int argc, mcs_value_t* argv) {
     (void)self; (void)argc; mcs_int_t ms = mcs_to_int(vm, argv[0]); if (ms > 0) step((uint32_t)ms);
 #if LVGL_VERSION_MAJOR >= 9
@@ -114,6 +118,9 @@ int mcs_lvgl_host_init(mcs_vm_t* vm, int w, int h) {
 #endif
         inited = 1;
     }
+    /* Initialize the display separately from the VM when the GUI application
+     * will be owned by a background task. */
+    if (!vm) return 0;
     mcs_register_function(vm, "lvgl_host_run", h_run, 1);
     mcs_register_function(vm, "lvgl_host_pixel", h_pixel, 2);
     mcs_register_function(vm, "lvgl_host_touch", h_touch, 3);
